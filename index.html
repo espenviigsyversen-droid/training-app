@@ -622,42 +622,6 @@
       document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       render();
-
-    function renderCalendar() {
-      const input = document.getElementById('calendarMonth');
-      if (!input) return;
-      if (!input.value) input.value = todayISO().slice(0,7);
-
-      const [year, month] = input.value.split('-').map(Number);
-      const firstDay = new Date(year, month-1, 1);
-      const lastDay = new Date(year, month, 0);
-
-      let html = '<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:6px;font-size:0.8rem;">';
-
-      const weekdays = ['Man','Tir','Ons','Tor','Fre','Lør','Søn'];
-      weekdays.forEach(d => html += `<div style="text-align:center;font-weight:700;color:var(--warm-gray-3)">${d}</div>`);
-
-      let startOffset = (firstDay.getDay() + 6) % 7;
-      for (let i=0;i<startOffset;i++) html += '<div></div>';
-
-      for (let day=1; day<=lastDay.getDate(); day++) {
-        const dateIso = new Date(year, month-1, day).toISOString().slice(0,10);
-
-        const planned = state.planned.filter(p => p.date === dateIso && p.status !== 'done');
-        const done = state.completed.filter(c => c.date === dateIso);
-
-        html += `
-          <div style="background:#fff;border-radius:10px;padding:6px;min-height:70px;font-size:0.7rem;">
-            <div style="font-weight:700;">${day}</div>
-            ${planned.map(p => `<div style="color:var(--primary);">• ${escapeHtml(getTemplate(p.templateId).name)}</div>`).join('')}
-            ${done.map(c => `<div style="color:var(--success);">✓ ${escapeHtml(getTemplate(c.templateId).name)}</div>`).join('')}
-          </div>
-        `;
-      }
-
-      html += '</div>';
-      document.getElementById('calendarGrid').innerHTML = html;
-    }
     }
 
     function saveTemplate() {
@@ -993,7 +957,7 @@
       for (let i = 0; i < startOffset; i++) html += '<div></div>';
 
       for (let day = 1; day <= lastDay.getDate(); day++) {
-        const dateIso = new Date(year, month - 1, day + 1).toISOString().slice(0, 10);
+        const dateIso = new Date(year, month - 1, day).toISOString().slice(0, 10);
         const planned = state.planned.filter(p => p.date === dateIso && p.status !== 'done');
         const done = state.completed.filter(c => c.date === dateIso);
 
