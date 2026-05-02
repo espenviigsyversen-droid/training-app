@@ -58,17 +58,7 @@
       gap: 12px;
     }
 
-    h1 {
-      margin: 0;
-      font-size: 1.65rem;
-      letter-spacing: -0.04em;
-    }
-
-    .subtitle {
-      margin: 5px 0 0;
-      color: var(--warm-gray-3);
-      font-size: 0.92rem;
-    }
+    h1 { margin: 0; font-size: 1.65rem; letter-spacing: -0.04em; }
 
     .pill {
       display: inline-flex;
@@ -84,7 +74,6 @@
     }
 
     main { padding: 14px 14px 0; }
-
     .tab { display: none; }
     .tab.active { display: block; }
 
@@ -97,17 +86,8 @@
       border: 1px solid rgba(0,0,0,0.04);
     }
 
-    .section-title {
-      font-size: 1.05rem;
-      margin: 0 0 12px;
-      letter-spacing: -0.02em;
-    }
-
-    .grid-2 {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 10px;
-    }
+    .section-title { font-size: 1.05rem; margin: 0 0 12px; letter-spacing: -0.02em; }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 
     label {
       display: block;
@@ -124,7 +104,7 @@
       border: 1px solid var(--warm-gray-2);
       background: #fff;
       border-radius: 15px;
-      padding: 12px 12px;
+      padding: 12px;
       font-size: 1rem;
       outline: none;
     }
@@ -156,13 +136,7 @@
     .btn-purple { background: var(--purple); color: #fff; }
     .btn-full { width: 100%; }
 
-    .button-row {
-      display: flex;
-      gap: 8px;
-      flex-wrap: wrap;
-      margin-top: 12px;
-    }
-
+    .button-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
     .button-row button { flex: 1; min-width: 120px; }
 
     .workout-card {
@@ -173,24 +147,9 @@
       margin-bottom: 10px;
     }
 
-    .workout-top {
-      display: flex;
-      justify-content: space-between;
-      gap: 10px;
-      align-items: flex-start;
-    }
-
-    .workout-title {
-      margin: 0;
-      font-size: 1rem;
-      letter-spacing: -0.02em;
-    }
-
-    .meta {
-      margin-top: 6px;
-      color: var(--warm-gray-3);
-      font-size: 0.88rem;
-    }
+    .workout-top { display: flex; justify-content: space-between; gap: 10px; align-items: flex-start; }
+    .workout-title { margin: 0; font-size: 1rem; letter-spacing: -0.02em; }
+    .meta { margin-top: 6px; color: var(--warm-gray-3); font-size: 0.88rem; }
 
     .tag {
       display: inline-flex;
@@ -215,12 +174,7 @@
       font-size: 0.95rem;
     }
 
-    .stats {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 10px;
-      margin-bottom: 14px;
-    }
+    .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 14px; }
 
     .stat {
       background: #fff;
@@ -230,18 +184,8 @@
       text-align: center;
     }
 
-    .stat strong {
-      display: block;
-      font-size: 1.35rem;
-      letter-spacing: -0.04em;
-    }
-
-    .stat span {
-      color: var(--warm-gray-3);
-      font-weight: 700;
-      font-size: 0.72rem;
-      text-transform: uppercase;
-    }
+    .stat strong { display: block; font-size: 1.35rem; letter-spacing: -0.04em; }
+    .stat span { color: var(--warm-gray-3); font-weight: 700; font-size: 0.72rem; text-transform: uppercase; }
 
     nav {
       position: fixed;
@@ -260,29 +204,11 @@
       z-index: 10;
     }
 
-    nav button {
-      padding: 10px 4px;
-      border-radius: 15px;
-      background: transparent;
-      color: var(--warm-gray-3);
-      font-size: 0.72rem;
-    }
+    nav button { padding: 10px 4px; border-radius: 15px; background: transparent; color: var(--warm-gray-3); font-size: 0.72rem; }
+    nav button.active { background: var(--black); color: #fff; }
 
-    nav button.active {
-      background: var(--black);
-      color: #fff;
-    }
-
-    .small-note {
-      font-size: 0.82rem;
-      color: var(--warm-gray-3);
-      margin: 8px 0 0;
-    }
-
-    .inline-form {
-      display: grid;
-      gap: 10px;
-    }
+    .small-note { font-size: 0.82rem; color: var(--warm-gray-3); margin: 8px 0 0; }
+    .inline-form { display: grid; gap: 10px; }
 
     .modal-backdrop {
       display: none;
@@ -308,7 +234,6 @@
     }
 
     .modal h2 { margin: 0 0 14px; }
-
     .hidden { display: none !important; }
 
     .calendar-nav {
@@ -319,15 +244,93 @@
       margin-bottom: 12px;
     }
 
-    .calendar-nav button {
-      padding: 12px 0;
-      font-size: 1rem;
+    .calendar-nav button { padding: 12px 0; font-size: 1rem; }
+    .calendar-nav input[type="month"] { text-align: center; font-weight: 800; }
+
+    #authScreen {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 32px 24px;
+      background: linear-gradient(160deg, #fff 0%, var(--grey) 100%);
     }
 
-    .calendar-nav input[type="month"] {
-      text-align: center;
-      font-weight: 800;
+    #authScreen h1 { font-size: 2rem; margin: 0 0 8px; letter-spacing: -0.05em; }
+    #authScreen p { color: var(--warm-gray-3); margin: 0 0 36px; font-size: 1rem; text-align: center; }
+
+    .btn-google {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: #fff;
+      border: 2px solid var(--warm-gray-2);
+      border-radius: 18px;
+      padding: 14px 24px;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: var(--shadow);
+      transition: transform 0.08s ease, box-shadow 0.2s ease;
+      width: 100%;
+      max-width: 320px;
+      justify-content: center;
     }
+
+    .btn-google:hover { box-shadow: 0 14px 40px rgba(0,0,0,0.13); }
+    .btn-google:active { transform: scale(0.98); }
+    .btn-google svg { width: 22px; height: 22px; flex-shrink: 0; }
+
+    .user-avatar {
+      width: 34px; height: 34px; border-radius: 50%; cursor: pointer;
+      border: 2px solid var(--warm-gray-2); object-fit: cover; flex-shrink: 0;
+    }
+
+    .user-avatar-placeholder {
+      width: 34px; height: 34px; border-radius: 50%;
+      background: var(--warm-gray-1); border: 2px solid var(--warm-gray-2);
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; font-size: 0.85rem; font-weight: 800;
+      color: var(--warm-gray-3); flex-shrink: 0;
+    }
+
+    .sync-status { font-size: 0.72rem; color: var(--warm-gray-3); display: flex; align-items: center; gap: 4px; margin-top: 3px; }
+    .sync-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--success); }
+    .sync-dot.syncing { background: var(--warning); animation: pulse 1s infinite; }
+    .sync-dot.error { background: var(--red); }
+
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+    #loadingOverlay {
+      position: fixed; inset: 0; background: #fff;
+      display: flex; flex-direction: column; align-items: center;
+      justify-content: center; z-index: 100; gap: 14px;
+    }
+
+    #loadingOverlay.hidden { display: none; }
+
+    .spinner {
+      width: 36px; height: 36px;
+      border: 3px solid var(--warm-gray-2);
+      border-top-color: var(--primary);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    #userMenu {
+      position: fixed; top: 80px; right: 14px;
+      background: #fff; border-radius: 18px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+      padding: 14px; z-index: 30; min-width: 220px;
+      border: 1px solid rgba(0,0,0,0.06);
+    }
+
+    #userMenu.hidden { display: none; }
+    .user-menu-name { font-weight: 800; font-size: 0.9rem; margin-bottom: 2px; }
+    .user-menu-email { font-size: 0.78rem; color: var(--warm-gray-3); margin-bottom: 12px; }
 
     @media (min-width: 700px) {
       .app { margin-top: 20px; margin-bottom: 20px; border-radius: 32px; min-height: calc(100vh - 40px); overflow: hidden; }
@@ -336,16 +339,48 @@
   </style>
 </head>
 <body>
-  <div class="app">
+
+  <div id="loadingOverlay">
+    <div class="spinner"></div>
+    <div style="color:var(--warm-gray-3);font-size:0.9rem;">Laster...</div>
+  </div>
+
+  <div id="authScreen" class="hidden">
+    <h1>Min trening 🏃</h1>
+    <p>Logg inn for å planlegge, gjennomføre og logge treningsøktene dine.</p>
+    <button class="btn-google" id="googleSignInBtn">
+      <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+        <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+        <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+        <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+      </svg>
+      Logg inn med Google
+    </button>
+  </div>
+
+  <div class="app hidden" id="mainApp">
     <header>
       <div class="title-row">
         <div>
           <h1>Min trening</h1>
-          <p class="subtitle" id="headerSubtitle">Planlegg, gjennomfør og loggfør.</p>
+          <div class="sync-status">
+            <div class="sync-dot" id="syncDot"></div>
+            <span id="syncLabel">Synkronisert</span>
+          </div>
         </div>
-        <span class="pill" id="todayPill">I dag</span>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <span class="pill" id="todayPill">I dag</span>
+          <div id="userAvatarBtn"></div>
+        </div>
       </div>
     </header>
+
+    <div id="userMenu" class="hidden">
+      <div class="user-menu-name" id="userMenuName"></div>
+      <div class="user-menu-email" id="userMenuEmail"></div>
+      <button class="btn-soft btn-full" id="signOutBtn" style="font-size:0.88rem;padding:10px;">Logg ut</button>
+    </div>
 
     <main>
       <section id="dashboard" class="tab active">
@@ -368,18 +403,9 @@
         <div class="card">
           <h2 class="section-title">Planlegg økt</h2>
           <div class="inline-form">
-            <div>
-              <label>Dato</label>
-              <input id="planDate" type="date" />
-            </div>
-            <div>
-              <label>Velg økt</label>
-              <select id="planTemplate"></select>
-            </div>
-            <div>
-              <label>Notat</label>
-              <textarea id="planNotes" placeholder="F.eks. gjennomføres rolig hvis beina er tunge"></textarea>
-            </div>
+            <div><label>Dato</label><input id="planDate" type="date" /></div>
+            <div><label>Velg økt</label><select id="planTemplate"></select></div>
+            <div><label>Notat</label><textarea id="planNotes" placeholder="F.eks. gjennomføres rolig hvis beina er tunge"></textarea></div>
             <div class="grid-2">
               <div>
                 <label>Gjenta</label>
@@ -412,10 +438,7 @@
         <div class="card">
           <h2 class="section-title">Ny øktmal</h2>
           <div class="inline-form">
-            <div>
-              <label>Navn</label>
-              <input id="templateName" placeholder="F.eks. 6 x 6 min terskel" />
-            </div>
+            <div><label>Navn</label><input id="templateName" placeholder="F.eks. 6 x 6 min terskel" /></div>
             <div class="grid-2">
               <div>
                 <label>Type</label>
@@ -441,10 +464,7 @@
                 </select>
               </div>
             </div>
-            <div>
-              <label>Struktur / øvelser</label>
-              <textarea id="templateStructure" placeholder="Eksempel: 10 min oppvarming\n6 x 6 min terskel\n90 sek pause\n10 min nedjogg"></textarea>
-            </div>
+            <div><label>Struktur / øvelser</label><textarea id="templateStructure" placeholder="Eksempel: 10 min oppvarming&#10;6 x 6 min terskel&#10;90 sek pause&#10;10 min nedjogg"></textarea></div>
             <input type="hidden" id="editingTemplateId" />
             <button id="templateSubmitBtn" class="btn-dark btn-full" onclick="saveTemplate()">Lagre øktmal</button>
             <button id="cancelEditTemplateBtn" class="btn-soft btn-full hidden" onclick="cancelEditTemplate()">Avbryt redigering</button>
@@ -460,9 +480,9 @@
         <div class="card">
           <h2 class="section-title">Kalender</h2>
           <div class="calendar-nav">
-            <button class="btn-soft" onclick="changeCalendarMonth(-1)" aria-label="Forrige måned">‹</button>
+            <button class="btn-soft" onclick="changeCalendarMonth(-1)" aria-label="Forrige måned">&#8249;</button>
             <input id="calendarMonth" type="month" onchange="renderCalendar()" />
-            <button class="btn-soft" onclick="changeCalendarMonth(1)" aria-label="Neste måned">›</button>
+            <button class="btn-soft" onclick="changeCalendarMonth(1)" aria-label="Neste måned">&#8250;</button>
           </div>
           <div id="calendarGrid"></div>
         </div>
@@ -499,7 +519,7 @@
       <section id="settings" class="tab">
         <div class="card">
           <h2 class="section-title">Backup</h2>
-          <p class="small-note">Data lagres lokalt i nettleseren. Ta jevnlig backup som JSON-fil for å unngå tap av historikk.</p>
+          <p class="small-note">Data lagres i Firestore og synkroniseres automatisk mellom alle enheter. Du kan også eksportere en lokal JSON-kopi som ekstra sikkerhetskopi.</p>
           <div class="button-row">
             <button class="btn-primary" onclick="exportData()">Eksporter backup</button>
             <button class="btn-soft" onclick="document.getElementById('importFile').click()">Importer</button>
@@ -511,6 +531,13 @@
           <div class="button-row">
             <button class="btn-purple" onclick="seedDemoData()">Legg inn demo</button>
             <button class="btn-danger" onclick="resetData()">Slett alt</button>
+          </div>
+        </div>
+        <div class="card">
+          <h2 class="section-title">Konto</h2>
+          <p class="small-note" id="settingsUserEmail"></p>
+          <div class="button-row">
+            <button class="btn-soft" id="signOutBtn2">Logg ut</button>
           </div>
         </div>
       </section>
@@ -532,10 +559,7 @@
       <input type="hidden" id="reschedulePlannedId" />
       <input type="hidden" id="rescheduleOldDate" />
       <div class="inline-form">
-        <div>
-          <label>Ny dato</label>
-          <input id="rescheduleNewDate" type="date" />
-        </div>
+        <div><label>Ny dato</label><input id="rescheduleNewDate" type="date" /></div>
         <label style="display:flex;align-items:center;gap:10px;text-transform:none;letter-spacing:0;font-size:0.95rem;color:var(--black);font-weight:700;">
           <input id="rescheduleShiftFollowing" type="checkbox" style="width:auto;" checked />
           Flytt også alle senere planlagte økter med samme antall dager
@@ -555,33 +579,15 @@
       <input type="hidden" id="completePlannedId" />
       <div class="inline-form">
         <div class="grid-2">
-          <div>
-            <label>Varighet min</label>
-            <input id="completeDuration" type="number" min="0" step="1" />
-          </div>
-          <div>
-            <label>Distanse km</label>
-            <input id="completeDistance" type="number" min="0" step="0.01" />
-          </div>
+          <div><label>Varighet min</label><input id="completeDuration" type="number" min="0" step="1" /></div>
+          <div><label>Distanse km</label><input id="completeDistance" type="number" min="0" step="0.01" /></div>
         </div>
         <div class="grid-2">
-          <div>
-            <label>Snittpuls</label>
-            <input id="completeAvgHr" type="number" min="0" step="1" />
-          </div>
-          <div>
-            <label>Makspuls</label>
-            <input id="completeMaxHr" type="number" min="0" step="1" />
-          </div>
+          <div><label>Snittpuls</label><input id="completeAvgHr" type="number" min="0" step="1" /></div>
+          <div><label>Makspuls</label><input id="completeMaxHr" type="number" min="0" step="1" /></div>
         </div>
-        <div>
-          <label>Opplevd intensitet 1-10</label>
-          <input id="completeRpe" type="number" min="1" max="10" step="1" />
-        </div>
-        <div>
-          <label>Notater</label>
-          <textarea id="completeNotes" placeholder="Hvordan føltes økten?"></textarea>
-        </div>
+        <div><label>Opplevd intensitet 1-10</label><input id="completeRpe" type="number" min="1" max="10" step="1" /></div>
+        <div><label>Notater</label><textarea id="completeNotes" placeholder="Hvordan føltes økten?"></textarea></div>
         <div class="button-row">
           <button class="btn-success" onclick="completeWorkout()">Marker utført</button>
           <button class="btn-soft" onclick="closeCompleteModal()">Avbryt</button>
@@ -590,37 +596,37 @@
     </div>
   </div>
 
-  <script>
-    const STORAGE_KEY = 'personal_training_app_v1';
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
+    import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut as fbSignOut }
+      from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
+    import { getFirestore, doc, collection, getDocs, setDoc, deleteDoc, writeBatch }
+      from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
-    const defaultState = {
-      templates: [],
-      planned: [],
-      completed: []
+    const firebaseConfig = {
+      apiKey: "AIzaSyAMPfQ9gX9rbuvcPsVjYVtq5IT_orjDBPs",
+      authDomain: "home-tasks-app-18de3.firebaseapp.com",
+      projectId: "home-tasks-app-18de3",
+      storageBucket: "home-tasks-app-18de3.firebasestorage.app",
+      messagingSenderId: "253720858709",
+      appId: "1:253720858709:web:89609fc26d6ed9f9c384dc"
     };
 
-    let state = loadState();
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
 
-    function loadState() {
-      try {
-        const stored = localStorage.getItem(STORAGE_KEY);
-        return stored ? JSON.parse(stored) : structuredClone(defaultState);
-      } catch (error) {
-        console.error(error);
-        return structuredClone(defaultState);
-      }
-    }
+    let currentUser = null;
+    let state = { templates: [], planned: [], completed: [] };
 
-    function saveState() {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-    }
-
+    // ── Utilities ─────────────────────────────────────────────────────────────
     function uid(prefix) {
       return `${prefix}_${Date.now()}_${Math.random().toString(16).slice(2)}`;
     }
 
     function todayISO() {
-      return new Date().toISOString().slice(0, 10);
+      const d = new Date();
+      return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
     }
 
     function formatDate(iso) {
@@ -631,67 +637,204 @@
 
     function escapeHtml(str = '') {
       return String(str)
-        .replaceAll('&', '&amp;')
-        .replaceAll('<', '&lt;')
-        .replaceAll('>', '&gt;')
-        .replaceAll('"', '&quot;')
-        .replaceAll("'", '&#039;');
+        .replaceAll('&','&amp;').replaceAll('<','&lt;')
+        .replaceAll('>','&gt;').replaceAll('"','&quot;')
+        .replaceAll("'",'&#039;');
     }
 
-    function showTab(tabId, btn) {
-      document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+    function setSyncStatus(status) {
+      const dot = document.getElementById('syncDot');
+      const label = document.getElementById('syncLabel');
+      dot.className = 'sync-dot' + (status === 'syncing' ? ' syncing' : status === 'error' ? ' error' : '');
+      label.textContent = status === 'syncing' ? 'Synkroniserer...' : status === 'error' ? 'Feil ved synk' : 'Synkronisert';
+    }
+
+    function addDays(dateIso, days) {
+      const d = new Date(`${dateIso}T12:00:00`);
+      d.setDate(d.getDate() + days);
+      return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    }
+
+    // ── Firestore ─────────────────────────────────────────────────────────────
+    function userCol(colName) { return collection(db, 'users', currentUser.uid, colName); }
+    function userDoc(colName, id) { return doc(db, 'users', currentUser.uid, colName, id); }
+
+    async function loadFromFirestore() {
+      setSyncStatus('syncing');
+      try {
+        const [tSnap, pSnap, cSnap] = await Promise.all([
+          getDocs(userCol('templates')),
+          getDocs(userCol('planned')),
+          getDocs(userCol('completed'))
+        ]);
+        state.templates = tSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+        state.planned   = pSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+        state.completed = cSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+        setSyncStatus('ok');
+        render();
+      } catch (err) {
+        console.error('Firestore load error:', err);
+        setSyncStatus('error');
+      }
+    }
+
+    async function fsSet(colName, id, data) {
+      setSyncStatus('syncing');
+      try {
+        const { id: _id, ...rest } = data;
+        await setDoc(userDoc(colName, id), rest);
+        setSyncStatus('ok');
+      } catch (err) {
+        console.error('Firestore write error:', err);
+        setSyncStatus('error');
+        throw err;
+      }
+    }
+
+    async function fsDelete(colName, id) {
+      setSyncStatus('syncing');
+      try {
+        await deleteDoc(userDoc(colName, id));
+        setSyncStatus('ok');
+      } catch (err) {
+        console.error('Firestore delete error:', err);
+        setSyncStatus('error');
+        throw err;
+      }
+    }
+
+    async function fsBatchSet(colName, items) {
+      if (!items.length) return;
+      setSyncStatus('syncing');
+      try {
+        const batch = writeBatch(db);
+        items.forEach(item => {
+          const { id, ...rest } = item;
+          batch.set(userDoc(colName, id), rest);
+        });
+        await batch.commit();
+        setSyncStatus('ok');
+      } catch (err) {
+        console.error('Firestore batch error:', err);
+        setSyncStatus('error');
+        throw err;
+      }
+    }
+
+    // ── Auth ──────────────────────────────────────────────────────────────────
+    document.getElementById('googleSignInBtn').addEventListener('click', async () => {
+      try {
+        await signInWithPopup(auth, new GoogleAuthProvider());
+      } catch (err) {
+        alert('Innlogging feilet: ' + err.message);
+      }
+    });
+
+    async function doSignOut() {
+      if (!confirm('Logg ut?')) return;
+      await fbSignOut(auth);
+    }
+
+    document.getElementById('signOutBtn').addEventListener('click', doSignOut);
+    document.getElementById('signOutBtn2').addEventListener('click', doSignOut);
+
+    onAuthStateChanged(auth, async (user) => {
+      const loading = document.getElementById('loadingOverlay');
+      const authScreen = document.getElementById('authScreen');
+      const mainApp = document.getElementById('mainApp');
+
+      if (user) {
+        currentUser = user;
+        loading.classList.add('hidden');
+        authScreen.classList.add('hidden');
+        mainApp.classList.remove('hidden');
+        renderUserAvatar(user);
+        document.getElementById('settingsUserEmail').textContent = `Innlogget som: ${user.email}`;
+        await loadFromFirestore();
+      } else {
+        currentUser = null;
+        state = { templates: [], planned: [], completed: [] };
+        loading.classList.add('hidden');
+        authScreen.classList.remove('hidden');
+        mainApp.classList.add('hidden');
+      }
+    });
+
+    function renderUserAvatar(user) {
+      const btn = document.getElementById('userAvatarBtn');
+      if (user.photoURL) {
+        btn.innerHTML = `<img src="${escapeHtml(user.photoURL)}" class="user-avatar" id="avatarImg" alt="Bruker" />`;
+        btn.querySelector('#avatarImg').addEventListener('click', toggleUserMenu);
+      } else {
+        const initials = (user.displayName || user.email || '?').slice(0,1).toUpperCase();
+        btn.innerHTML = `<div class="user-avatar-placeholder" id="avatarPlaceholder">${escapeHtml(initials)}</div>`;
+        btn.querySelector('#avatarPlaceholder').addEventListener('click', toggleUserMenu);
+      }
+      document.getElementById('userMenuName').textContent = user.displayName || '';
+      document.getElementById('userMenuEmail').textContent = user.email || '';
+    }
+
+    function toggleUserMenu() {
+      document.getElementById('userMenu').classList.toggle('hidden');
+    }
+
+    document.addEventListener('click', (e) => {
+      const menu = document.getElementById('userMenu');
+      const avatarBtn = document.getElementById('userAvatarBtn');
+      if (menu && avatarBtn && !menu.contains(e.target) && !avatarBtn.contains(e.target)) {
+        menu.classList.add('hidden');
+      }
+    });
+
+    // ── Tabs ──────────────────────────────────────────────────────────────────
+    window.showTab = function(tabId, btn) {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
       document.getElementById(tabId).classList.add('active');
       document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
+      document.getElementById('userMenu').classList.add('hidden');
       render();
-    }
+    };
 
-    function saveTemplate() {
+    // ── Templates ─────────────────────────────────────────────────────────────
+    window.saveTemplate = async function() {
       const editingId = document.getElementById('editingTemplateId').value;
       const name = document.getElementById('templateName').value.trim();
       if (!name) return alert('Skriv inn navn på økten først.');
-
       const templateData = {
         name,
         type: document.getElementById('templateType').value,
         intensity: document.getElementById('templateIntensity').value,
         structure: document.getElementById('templateStructure').value.trim()
       };
-
       if (editingId) {
-        const template = state.templates.find(t => t.id === editingId);
-        if (!template) return alert('Fant ikke øktmalen som skulle redigeres.');
-        Object.assign(template, templateData, { updatedAt: new Date().toISOString() });
+        const idx = state.templates.findIndex(t => t.id === editingId);
+        if (idx === -1) return alert('Fant ikke øktmalen.');
+        state.templates[idx] = { ...state.templates[idx], ...templateData, updatedAt: new Date().toISOString() };
+        await fsSet('templates', editingId, state.templates[idx]);
       } else {
-        state.templates.push({
-          id: uid('template'),
-          ...templateData,
-          createdAt: todayISO()
-        });
+        const newT = { id: uid('template'), ...templateData, createdAt: todayISO() };
+        state.templates.push(newT);
+        await fsSet('templates', newT.id, newT);
       }
-
       clearTemplateForm();
-      saveState();
       render();
-    }
+    };
 
-    function editTemplate(id) {
-      const template = state.templates.find(t => t.id === id);
-      if (!template) return;
-
-      document.getElementById('editingTemplateId').value = template.id;
-      document.getElementById('templateName').value = template.name;
-      document.getElementById('templateType').value = template.type;
-      document.getElementById('templateIntensity').value = template.intensity;
-      document.getElementById('templateStructure').value = template.structure || '';
+    window.editTemplate = function(id) {
+      const t = state.templates.find(t => t.id === id);
+      if (!t) return;
+      document.getElementById('editingTemplateId').value = t.id;
+      document.getElementById('templateName').value = t.name;
+      document.getElementById('templateType').value = t.type;
+      document.getElementById('templateIntensity').value = t.intensity;
+      document.getElementById('templateStructure').value = t.structure || '';
       document.getElementById('templateSubmitBtn').textContent = 'Lagre endringer';
       document.getElementById('cancelEditTemplateBtn').classList.remove('hidden');
       window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
+    };
 
-    function cancelEditTemplate() {
-      clearTemplateForm();
-    }
+    window.cancelEditTemplate = function() { clearTemplateForm(); };
 
     function clearTemplateForm() {
       document.getElementById('editingTemplateId').value = '';
@@ -701,23 +844,21 @@
       document.getElementById('cancelEditTemplateBtn').classList.add('hidden');
     }
 
-    function deleteTemplate(id) {
+    window.deleteTemplate = async function(id) {
       if (!confirm('Slette denne øktmalen? Planlagte økter blir ikke slettet.')) return;
       state.templates = state.templates.filter(t => t.id !== id);
-      saveState();
+      await fsDelete('templates', id);
       render();
-    }
+    };
 
-    function toggleRepeatOptions() {
+    // ── Plan ──────────────────────────────────────────────────────────────────
+    window.toggleRepeatOptions = function() {
       const repeat = document.getElementById('planRepeat').value;
-      const weeksInput = document.getElementById('planRepeatWeeks');
-      const customWrapper = document.getElementById('customRepeatWrapper');
+      document.getElementById('planRepeatWeeks').disabled = repeat === 'none';
+      document.getElementById('customRepeatWrapper').classList.toggle('hidden', repeat !== 'custom');
+    };
 
-      weeksInput.disabled = repeat === 'none';
-      customWrapper.classList.toggle('hidden', repeat !== 'custom');
-    }
-
-    function addPlannedWorkout() {
+    window.addPlannedWorkout = async function() {
       const templateId = document.getElementById('planTemplate').value;
       const date = document.getElementById('planDate').value;
       const notes = document.getElementById('planNotes').value.trim();
@@ -737,130 +878,105 @@
       const workoutsToAdd = [];
 
       if (repeat === 'none') {
-        workoutsToAdd.push({
-          id: uid('planned'),
-          templateId,
-          date,
-          status: 'planned',
-          notes,
-          repeatGroupId: null,
-          createdAt: todayISO()
-        });
+        workoutsToAdd.push({ id: uid('planned'), templateId, date, status: 'planned', notes, repeatGroupId: null, createdAt: todayISO() });
       } else {
         if (!repeatWeeks || repeatWeeks < 1) return alert('Velg antall uker frem i tid.');
-
         for (let weekOffset = 0; weekOffset <= repeatWeeks; weekOffset += intervalWeeks) {
           workoutsToAdd.push({
-            id: uid('planned'),
-            templateId,
-            date: addDays(date, weekOffset * 7),
-            status: 'planned',
-            notes,
-            repeatGroupId: plannedGroupId,
-            repeatRule: {
-              type: repeat,
-              intervalWeeks,
-              totalWeeks: repeatWeeks
-            },
+            id: uid('planned'), templateId, date: addDays(date, weekOffset * 7),
+            status: 'planned', notes, repeatGroupId: plannedGroupId,
+            repeatRule: { type: repeat, intervalWeeks, totalWeeks: repeatWeeks },
             createdAt: todayISO()
           });
         }
       }
 
       state.planned.push(...workoutsToAdd);
-
       document.getElementById('planNotes').value = '';
       document.getElementById('planRepeat').value = 'none';
       document.getElementById('planRepeatWeeks').value = 8;
       document.getElementById('planRepeatInterval').value = 1;
       toggleRepeatOptions();
-      saveState();
       render();
-    }
+      await fsBatchSet('planned', workoutsToAdd);
+    };
 
-    function deletePlanned(id) {
+    window.deletePlanned = async function(id) {
       if (!confirm('Slette planlagt økt?')) return;
       state.planned = state.planned.filter(p => p.id !== id);
-      saveState();
+      await fsDelete('planned', id);
       render();
-    }
+    };
 
+    // ── Reschedule ────────────────────────────────────────────────────────────
     function daysBetween(oldDate, newDate) {
-      const oldTime = new Date(`${oldDate}T12:00:00`).getTime();
-      const newTime = new Date(`${newDate}T12:00:00`).getTime();
-      return Math.round((newTime - oldTime) / 86400000);
+      return Math.round((new Date(`${newDate}T12:00:00`) - new Date(`${oldDate}T12:00:00`)) / 86400000);
     }
 
-    function addDays(dateIso, days) {
-      const date = new Date(`${dateIso}T12:00:00`);
-      date.setDate(date.getDate() + days);
-      return date.toISOString().slice(0, 10);
-    }
-
-    function openRescheduleModal(plannedId) {
-      const planned = state.planned.find(p => p.id === plannedId);
-      if (!planned) return;
+    window.openRescheduleModal = function(plannedId) {
+      const p = state.planned.find(p => p.id === plannedId);
+      if (!p) return;
       document.getElementById('reschedulePlannedId').value = plannedId;
-      document.getElementById('rescheduleOldDate').value = planned.date;
-      document.getElementById('rescheduleNewDate').value = planned.date;
+      document.getElementById('rescheduleOldDate').value = p.date;
+      document.getElementById('rescheduleNewDate').value = p.date;
       document.getElementById('rescheduleShiftFollowing').checked = true;
       document.getElementById('rescheduleModal').classList.add('active');
-    }
+    };
 
-    function closeRescheduleModal() {
+    window.closeRescheduleModal = function() {
       document.getElementById('rescheduleModal').classList.remove('active');
-    }
+    };
 
-    function rescheduleWorkout() {
+    window.rescheduleWorkout = async function() {
       const plannedId = document.getElementById('reschedulePlannedId').value;
       const oldDate = document.getElementById('rescheduleOldDate').value;
       const newDate = document.getElementById('rescheduleNewDate').value;
       const shiftFollowing = document.getElementById('rescheduleShiftFollowing').checked;
       const planned = state.planned.find(p => p.id === plannedId);
-
-      if (!planned) return alert('Fant ikke økten som skulle flyttes.');
+      if (!planned) return alert('Fant ikke økten.');
       if (!newDate) return alert('Velg ny dato.');
 
       const diffDays = daysBetween(oldDate, newDate);
-      if (diffDays === 0) {
-        closeRescheduleModal();
-        return;
-      }
+      if (diffDays === 0) { closeRescheduleModal(); return; }
 
+      const toUpdate = [];
       if (shiftFollowing) {
         state.planned.forEach(p => {
           if (p.status !== 'done' && p.date >= oldDate) {
             p.date = addDays(p.date, diffDays);
             p.updatedAt = new Date().toISOString();
+            toUpdate.push(p);
           }
         });
       } else {
         planned.date = newDate;
         planned.updatedAt = new Date().toISOString();
+        toUpdate.push(planned);
       }
 
       closeRescheduleModal();
-      saveState();
       render();
-    }
+      await fsBatchSet('planned', toUpdate);
+    };
 
-    function openCompleteModal(plannedId) {
+    // ── Complete ──────────────────────────────────────────────────────────────
+    window.openCompleteModal = function(plannedId) {
       document.getElementById('completePlannedId').value = plannedId;
-      ['completeDuration','completeDistance','completeAvgHr','completeMaxHr','completeRpe','completeNotes'].forEach(id => document.getElementById(id).value = '');
+      ['completeDuration','completeDistance','completeAvgHr','completeMaxHr','completeRpe','completeNotes']
+        .forEach(id => document.getElementById(id).value = '');
       document.getElementById('completeModal').classList.add('active');
-    }
+    };
 
-    function closeCompleteModal() {
+    window.closeCompleteModal = function() {
       document.getElementById('completeModal').classList.remove('active');
-    }
+    };
 
-    function completeWorkout() {
+    window.completeWorkout = async function() {
       const plannedId = document.getElementById('completePlannedId').value;
       const planned = state.planned.find(p => p.id === plannedId);
       if (!planned) return;
-
       planned.status = 'done';
-      state.completed.push({
+      const completed = {
         id: uid('completed'),
         plannedWorkoutId: plannedId,
         templateId: planned.templateId,
@@ -872,23 +988,26 @@
         rpe: document.getElementById('completeRpe').value || '',
         notes: document.getElementById('completeNotes').value.trim(),
         completedAt: new Date().toISOString()
-      });
-
+      };
+      state.completed.push(completed);
       closeCompleteModal();
-      saveState();
       render();
-    }
+      await Promise.all([fsSet('planned', plannedId, planned), fsSet('completed', completed.id, completed)]);
+    };
 
-    function undoComplete(completedId) {
+    window.undoComplete = async function(completedId) {
       const completed = state.completed.find(c => c.id === completedId);
       if (!completed) return;
       const planned = state.planned.find(p => p.id === completed.plannedWorkoutId);
       if (planned) planned.status = 'planned';
       state.completed = state.completed.filter(c => c.id !== completedId);
-      saveState();
       render();
-    }
+      const ops = [fsDelete('completed', completedId)];
+      if (planned) ops.push(fsSet('planned', planned.id, planned));
+      await Promise.all(ops);
+    };
 
+    // ── Render helpers ────────────────────────────────────────────────────────
     function getTemplate(id) {
       return state.templates.find(t => t.id === id) || { name: 'Slettet øktmal', type: 'Annet', intensity: '', structure: '' };
     }
@@ -941,7 +1060,6 @@
         c.maxHeartRate ? `Maks ${c.maxHeartRate} bpm` : null,
         c.rpe ? `RPE ${c.rpe}/10` : null
       ].filter(Boolean).join(' · ');
-
       return `
         <div class="workout-card">
           <div class="workout-top">
@@ -959,42 +1077,29 @@
         </div>`;
     }
 
-    function changeCalendarMonth(direction) {
+    // ── Calendar ──────────────────────────────────────────────────────────────
+    window.changeCalendarMonth = function(direction) {
       const input = document.getElementById('calendarMonth');
-      if (!input) return;
       if (!input.value) input.value = todayISO().slice(0, 7);
-
       const parts = input.value.split('-');
       let year = Number(parts[0]);
       let month = Number(parts[1]) + direction;
-
-      if (month < 1) {
-        month = 12;
-        year -= 1;
-      }
-
-      if (month > 12) {
-        month = 1;
-        year += 1;
-      }
-
-      input.value = year + '-' + String(month).padStart(2, '0');
+      if (month < 1) { month = 12; year -= 1; }
+      if (month > 12) { month = 1; year += 1; }
+      input.value = `${year}-${String(month).padStart(2,'0')}`;
       renderCalendar();
-    }
+    };
 
     function renderCalendar() {
       const input = document.getElementById('calendarMonth');
       if (!input) return;
       if (!input.value) input.value = todayISO().slice(0, 7);
-
       const [year, month] = input.value.split('-').map(Number);
       const firstDay = new Date(year, month - 1, 1);
       const lastDay = new Date(year, month, 0);
 
       let html = '<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:6px;font-size:0.8rem;">';
-
-      const weekdays = ['Man', 'Tir', 'Ons', 'Tor', 'Fre', 'Lør', 'Søn'];
-      weekdays.forEach(d => {
+      ['Man','Tir','Ons','Tor','Fre','Lør','Søn'].forEach(d => {
         html += `<div style="text-align:center;font-weight:700;color:var(--warm-gray-3)">${d}</div>`;
       });
 
@@ -1002,23 +1107,23 @@
       for (let i = 0; i < startOffset; i++) html += '<div></div>';
 
       for (let day = 1; day <= lastDay.getDate(); day++) {
+        // BUGFIX punkt 2: tid satt til 12:00 for å unngå tidssone-feil i Norge
         const dateIso = new Date(year, month - 1, day, 12).toISOString().slice(0, 10);
-        const planned = state.planned.filter(p => p.date === dateIso && p.status !== 'done');
-        const done = state.completed.filter(c => c.date === dateIso);
-
+        const plannedItems = state.planned.filter(p => p.date === dateIso && p.status !== 'done');
+        const doneItems = state.completed.filter(c => c.date === dateIso);
         html += `
           <div style="background:#fff;border-radius:10px;padding:6px;min-height:70px;font-size:0.7rem;border:1px solid var(--warm-gray-1);">
             <div style="font-weight:700;margin-bottom:4px;">${day}</div>
-            ${planned.map(p => `<div style="color:var(--primary);line-height:1.2;margin-top:2px;">• ${escapeHtml(getTemplate(p.templateId).name)}</div>`).join('')}
-            ${done.map(c => `<div style="color:var(--success);line-height:1.2;margin-top:2px;">✓ ${escapeHtml(getTemplate(c.templateId).name)}</div>`).join('')}
-          </div>
-        `;
+            ${plannedItems.map(p => `<div style="color:var(--primary);line-height:1.2;margin-top:2px;">• ${escapeHtml(getTemplate(p.templateId).name)}</div>`).join('')}
+            ${doneItems.map(c => `<div style="color:var(--success);line-height:1.2;margin-top:2px;">✓ ${escapeHtml(getTemplate(c.templateId).name)}</div>`).join('')}
+          </div>`;
       }
 
       html += '</div>';
       document.getElementById('calendarGrid').innerHTML = html;
     }
 
+    // ── Render ────────────────────────────────────────────────────────────────
     function render() {
       renderCalendar();
       const today = todayISO();
@@ -1026,35 +1131,47 @@
       document.getElementById('planDate').value ||= today;
 
       const plannedActive = state.planned.filter(p => p.status !== 'done');
-      const todayItems = plannedActive.filter(p => p.date === today).sort((a,b) => String(a.createdAt || '').localeCompare(String(b.createdAt || '')));
-      const upcomingItems = plannedActive.filter(p => p.date > today).sort((a,b) => a.date.localeCompare(b.date));
+      // BUGFIX punkt 3: trygg sortering selv om createdAt mangler
+      const todayItems = plannedActive.filter(p => p.date === today)
+        .sort((a,b) => String(a.createdAt || '').localeCompare(String(b.createdAt || '')));
+      const upcomingItems = plannedActive.filter(p => p.date > today)
+        .sort((a,b) => a.date.localeCompare(b.date));
 
       document.getElementById('statToday').textContent = todayItems.length;
       document.getElementById('statPlanned').textContent = plannedActive.length;
       document.getElementById('statDone').textContent = state.completed.length;
 
-      document.getElementById('todayList').innerHTML = todayItems.length ? todayItems.map(p => workoutCard(p)).join('') : `<div class="empty">Ingen planlagte økter i dag.</div>`;
-      document.getElementById('upcomingList').innerHTML = upcomingItems.length ? upcomingItems.map(p => workoutCard(p)).join('') : `<div class="empty">Ingen kommende økter.</div>`;
+      document.getElementById('todayList').innerHTML = todayItems.length
+        ? todayItems.map(p => workoutCard(p)).join('')
+        : `<div class="empty">Ingen planlagte økter i dag.</div>`;
+      document.getElementById('upcomingList').innerHTML = upcomingItems.length
+        ? upcomingItems.map(p => workoutCard(p)).join('')
+        : `<div class="empty">Ingen kommende økter.</div>`;
 
-      const templateSelect = document.getElementById('planTemplate');
-      templateSelect.innerHTML = state.templates.length
+      document.getElementById('planTemplate').innerHTML = state.templates.length
         ? state.templates.map(t => `<option value="${t.id}">${escapeHtml(t.name)} · ${escapeHtml(t.type)}</option>`).join('')
         : `<option value="">Lag en øktmal først</option>`;
 
-      const sortedPlanned = [...state.planned].sort((a,b) => a.date.localeCompare(b.date));
-      document.getElementById('plannedList').innerHTML = sortedPlanned.length ? sortedPlanned.map(p => workoutCard(p, { canDelete: true })).join('') : `<div class="empty">Du har ingen planlagte økter.</div>`;
+      document.getElementById('plannedList').innerHTML = [...state.planned]
+        .sort((a,b) => a.date.localeCompare(b.date))
+        .map(p => workoutCard(p, { canDelete: true })).join('') || `<div class="empty">Ingen planlagte økter.</div>`;
 
-      document.getElementById('templateList').innerHTML = state.templates.length ? state.templates.map(templateCard).join('') : `<div class="empty">Ingen øktmaler enda. Lag din første over.</div>`;
+      document.getElementById('templateList').innerHTML = state.templates.length
+        ? state.templates.map(templateCard).join('')
+        : `<div class="empty">Ingen øktmaler enda. Lag din første over.</div>`;
 
       const filter = document.getElementById('historyFilter')?.value || 'Alle';
       const sort = document.getElementById('historySort')?.value || 'desc';
       let completed = [...state.completed];
       if (filter !== 'Alle') completed = completed.filter(c => getTemplate(c.templateId).type === filter);
       completed.sort((a,b) => sort === 'desc' ? b.date.localeCompare(a.date) : a.date.localeCompare(b.date));
-      document.getElementById('historyList').innerHTML = completed.length ? completed.map(completedCard).join('') : `<div class="empty">Ingen historikk enda.</div>`;
+      document.getElementById('historyList').innerHTML = completed.length
+        ? completed.map(completedCard).join('')
+        : `<div class="empty">Ingen historikk enda.</div>`;
     }
 
-    function exportData() {
+    // ── Backup ────────────────────────────────────────────────────────────────
+    window.exportData = function() {
       const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -1062,49 +1179,66 @@
       a.download = `treningsapp-backup-${todayISO()}.json`;
       a.click();
       URL.revokeObjectURL(url);
-    }
+    };
 
-    function importData(event) {
+    window.importData = async function(event) {
       const file = event.target.files[0];
       if (!file) return;
       const reader = new FileReader();
-      reader.onload = () => {
+      reader.onload = async () => {
         try {
           const imported = JSON.parse(reader.result);
           if (!imported.templates || !imported.planned || !imported.completed) throw new Error('Invalid format');
           if (!confirm('Import vil overskrive data som ligger i appen nå. Fortsette?')) return;
           state = imported;
-          saveState();
           render();
-        } catch (error) {
+          await Promise.all([
+            fsBatchSet('templates', state.templates),
+            fsBatchSet('planned', state.planned),
+            fsBatchSet('completed', state.completed)
+          ]);
+        } catch (err) {
           alert('Kunne ikke importere filen. Sjekk at dette er en gyldig backup fra appen.');
+          setSyncStatus('error');
         }
       };
       reader.readAsText(file);
       event.target.value = '';
-    }
+    };
 
-    function seedDemoData() {
+    window.seedDemoData = async function() {
       if (!confirm('Legge inn demo-data?')) return;
       const t1 = { id: uid('template'), name: '6 x 6 min terskel', type: 'Løping', intensity: 'Terskel', structure: '10 min oppvarming\n6 x 6 min terskel\n90 sek pause\n10 min nedjogg', createdAt: todayISO() };
       const t2 = { id: uid('template'), name: 'Basis styrke', type: 'Styrke', intensity: 'Styrke', structure: 'Deadbugs 3 x 10\nTåhev 3 x 15\nUtfall 3 x 10 per bein\nPlanke 3 x 30 sek\nPushups 3 x kontrollert', createdAt: todayISO() };
+      const p1 = { id: uid('planned'), templateId: t1.id, date: todayISO(), status: 'planned', notes: 'Hold kontrollert terskel, ikke makse.', createdAt: todayISO() };
+      const p2 = { id: uid('planned'), templateId: t2.id, date: todayISO(), status: 'planned', notes: '', createdAt: todayISO() };
       state.templates.push(t1, t2);
-      state.planned.push(
-        { id: uid('planned'), templateId: t1.id, date: todayISO(), status: 'planned', notes: 'Hold kontrollert terskel, ikke makse.', createdAt: todayISO() },
-        { id: uid('planned'), templateId: t2.id, date: todayISO(), status: 'planned', notes: '', createdAt: todayISO() }
-      );
-      saveState();
+      state.planned.push(p1, p2);
       render();
-    }
+      await Promise.all([fsBatchSet('templates', [t1, t2]), fsBatchSet('planned', [p1, p2])]);
+    };
 
-    function resetData() {
-      if (!confirm('Dette sletter alle økter, planer og historikk i nettleseren. Fortsette?')) return;
-      state = structuredClone(defaultState);
-      saveState();
-      render();
-    }
+    window.resetData = async function() {
+      if (!confirm('Dette sletter alle økter, planer og historikk. Kan ikke angres. Fortsette?')) return;
+      setSyncStatus('syncing');
+      try {
+        const [tSnap, pSnap, cSnap] = await Promise.all([
+          getDocs(userCol('templates')),
+          getDocs(userCol('planned')),
+          getDocs(userCol('completed'))
+        ]);
+        const batch = writeBatch(db);
+        [...tSnap.docs, ...pSnap.docs, ...cSnap.docs].forEach(d => batch.delete(d.ref));
+        await batch.commit();
+        state = { templates: [], planned: [], completed: [] };
+        setSyncStatus('ok');
+        render();
+      } catch (err) {
+        console.error('Reset error:', err);
+        setSyncStatus('error');
+      }
+    };
 
-    render();
   </script>
 </body>
 </html>
