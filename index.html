@@ -311,6 +311,24 @@
 
     .hidden { display: none !important; }
 
+    .calendar-nav {
+      display: grid;
+      grid-template-columns: 48px 1fr 48px;
+      gap: 8px;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+
+    .calendar-nav button {
+      padding: 12px 0;
+      font-size: 1rem;
+    }
+
+    .calendar-nav input[type="month"] {
+      text-align: center;
+      font-weight: 800;
+    }
+
     @media (min-width: 700px) {
       .app { margin-top: 20px; margin-bottom: 20px; border-radius: 32px; min-height: calc(100vh - 40px); overflow: hidden; }
       nav { border-radius: 24px 24px 0 0; }
@@ -441,7 +459,11 @@
       <section id="calendar" class="tab">
         <div class="card">
           <h2 class="section-title">Kalender</h2>
-          <input id="calendarMonth" type="month" onchange="renderCalendar()" />
+          <div class="calendar-nav">
+            <button class="btn-soft" onclick="changeCalendarMonth(-1)" aria-label="Forrige måned">‹</button>
+            <input id="calendarMonth" type="month" onchange="renderCalendar()" />
+            <button class="btn-soft" onclick="changeCalendarMonth(1)" aria-label="Neste måned">›</button>
+          </div>
           <div id="calendarGrid"></div>
         </div>
       </section>
@@ -935,6 +957,29 @@
             <button class="btn-soft" onclick="undoComplete('${c.id}')">Angre utført</button>
           </div>
         </div>`;
+    }
+
+    function changeCalendarMonth(direction) {
+      const input = document.getElementById('calendarMonth');
+      if (!input) return;
+      if (!input.value) input.value = todayISO().slice(0, 7);
+
+      const parts = input.value.split('-');
+      let year = Number(parts[0]);
+      let month = Number(parts[1]) + direction;
+
+      if (month < 1) {
+        month = 12;
+        year -= 1;
+      }
+
+      if (month > 12) {
+        month = 1;
+        year += 1;
+      }
+
+      input.value = year + '-' + String(month).padStart(2, '0');
+      renderCalendar();
     }
 
     function renderCalendar() {
