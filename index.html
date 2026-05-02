@@ -190,6 +190,15 @@
     }
     .cal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
     .cal-label { font-weight: 900; text-transform: capitalize; }
+    .month-picker {
+      max-width: 170px;
+      text-align: center;
+      font-weight: 800;
+      padding: 10px 8px;
+      border-radius: 14px;
+      background: var(--wg1);
+      border: 1px solid var(--wg2);
+    }
     .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; font-size: 0.76rem; }
     .cal-day { background: #fff; border: 1px solid var(--wg1); border-radius: 10px; padding: 6px; min-height: 70px; font-size: 0.68rem; overflow: hidden; }
     .cal-num { font-weight: 900; margin-bottom: 4px; }
@@ -269,10 +278,10 @@
       <div class="card">
         <div class="cal-head">
           <button class="btn-soft" onclick="changeMonth(-1)">◀</button>
-          <div class="cal-label" id="calendarLabel"></div>
+          <input id="calendarMonth" type="month" class="month-picker" onchange="renderCalendar()">
           <button class="btn-soft" onclick="changeMonth(1)">▶</button>
         </div>
-        <input id="calendarMonth" type="month" class="hidden" onchange="renderCalendar()">
+        <div class="cal-label hidden" id="calendarLabel"></div>
         <div id="calendarGrid"></div>
       </div>
     </section>
@@ -670,12 +679,23 @@ function completedCard(c) {
   return html;
 }
 
+function monthValue(year, month) {
+  var y = year;
+  var m = month;
+  while (m < 1) { m += 12; y -= 1; }
+  while (m > 12) { m -= 12; y += 1; }
+  return String(y) + '-' + String(m).padStart(2, '0');
+}
+
 function changeMonth(direction) {
   var input = el('calendarMonth');
   if (!input.value) input.value = todayISO().slice(0, 7);
+
   var parts = input.value.split('-');
-  var d = new Date(Number(parts[0]), Number(parts[1]) - 1 + direction, 1);
-  input.value = d.toISOString().slice(0, 7);
+  var year = Number(parts[0]);
+  var month = Number(parts[1]);
+
+  input.value = monthValue(year, month + direction);
   renderCalendar();
 }
 
@@ -803,11 +823,18 @@ function seedDemoData() {
   if (!confirm('Legge inn demo-data?')) return;
   var t1 = {
     id: uid('template'), name: '6 x 6 min terskel', type: 'Løping', intensity: 'Terskel',
-    structure: '10 min oppvarming\n6 x 6 min terskel\n90 sek pause\n10 min nedjogg', createdAt: todayISO()
+    structure: '10 min oppvarming
+6 x 6 min terskel
+90 sek pause
+10 min nedjogg', createdAt: todayISO()
   };
   var t2 = {
     id: uid('template'), name: 'Basis styrke', type: 'Styrke', intensity: 'Styrke',
-    structure: 'Deadbugs 3 x 10\nTåhev 3 x 15\nUtfall 3 x 10 per bein\nPlanke 3 x 30 sek\nPushups 3 x kontrollert', createdAt: todayISO()
+    structure: 'Deadbugs 3 x 10
+Tåhev 3 x 15
+Utfall 3 x 10 per bein
+Planke 3 x 30 sek
+Pushups 3 x kontrollert', createdAt: todayISO()
   };
   state.templates.push(t1, t2);
   state.planned.push({ id: uid('planned'), templateId: t1.id, date: todayISO(), status: 'planned', notes: 'Hold kontrollert terskel.', createdAt: todayISO() });
