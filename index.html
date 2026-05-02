@@ -373,10 +373,42 @@
 <script>
 var KEY = 'personal_training_app_v4';
 var blank = { templates: [], planned: [], completed: [] };
-var state = loadState();
+var state = normalizeState(loadState());
 
 function el(id) { return document.getElementById(id); }
 function clone(obj) { return JSON.parse(JSON.stringify(obj)); }
+
+function normalizeState(data) {
+  if (!data || typeof data !== 'object') data = clone(blank);
+  if (!Array.isArray(data.templates)) data.templates = [];
+  if (!Array.isArray(data.planned)) data.planned = [];
+  if (!Array.isArray(data.completed)) data.completed = [];
+
+  for (var i = 0; i < data.templates.length; i++) {
+    if (!data.templates[i].id) data.templates[i].id = uid('template');
+    if (!data.templates[i].name) data.templates[i].name = 'Uten navn';
+    if (!data.templates[i].type) data.templates[i].type = 'Annet';
+    if (!data.templates[i].intensity) data.templates[i].intensity = '';
+    if (!data.templates[i].structure) data.templates[i].structure = '';
+    if (!data.templates[i].createdAt) data.templates[i].createdAt = todayISO();
+  }
+
+  for (var j = 0; j < data.planned.length; j++) {
+    if (!data.planned[j].id) data.planned[j].id = uid('planned');
+    if (!data.planned[j].date) data.planned[j].date = todayISO();
+    if (!data.planned[j].status) data.planned[j].status = 'planned';
+    if (!data.planned[j].notes) data.planned[j].notes = '';
+    if (!data.planned[j].createdAt) data.planned[j].createdAt = data.planned[j].date || todayISO();
+  }
+
+  for (var k = 0; k < data.completed.length; k++) {
+    if (!data.completed[k].id) data.completed[k].id = uid('completed');
+    if (!data.completed[k].date) data.completed[k].date = todayISO();
+    if (!data.completed[k].notes) data.completed[k].notes = '';
+  }
+
+  return data;
+}
 
 function loadState() {
   try {
@@ -684,7 +716,8 @@ function monthValue(year, month) {
   var m = month;
   while (m < 1) { m += 12; y -= 1; }
   while (m > 12) { m -= 12; y += 1; }
-  return String(y) + '-' + String(m).padStart(2, '0');
+  var monthText = m < 10 ? '0' + m : String(m);
+  return String(y) + '-' + monthText;
 }
 
 function changeMonth(direction) {
@@ -710,8 +743,11 @@ function renderCalendar() {
   var first = new Date(year, month - 1, 1);
   var last = new Date(year, month, 0);
 
-  el('calendarLabel').textContent = new Date(year, month - 1, 1)
-    .toLocaleDateString('no-NO', { month: 'long', year: 'numeric' });
+  var label = el('calendarLabel');
+  if (label) {
+    label.textContent = new Date(year, month - 1, 1)
+      .toLocaleDateString('no-NO', { month: 'long', year: 'numeric' });
+  }
 
   var html = '<div class="cal-grid">';
   var weekdays = ['Man','Tir','Ons','Tor','Fre','Lør','Søn'];
@@ -748,8 +784,12 @@ function render() {
   var todayItems = active.filter(function(p) { return p.date === today; });
   var upcoming = active.filter(function(p) { return p.date > today; });
 
-  todayItems.sort(function(a, b) { return a.createdAt.localeCompare(b.createdAt); });
-  upcoming.sort(function(a, b) { return a.date.localeCompare(b.date); });
+  todayItems.sort(function(a, b) {
+    return String(a.createdAt || '').localeCompare(String(b.createdAt || ''));
+  });
+  upcoming.sort(function(a, b) {
+    return String(a.date || '').localeCompare(String(b.date || ''));
+  });
 
   el('statToday').textContent = todayItems.length;
   el('statPlanned').textContent = active.length;
@@ -768,7 +808,7 @@ function render() {
     : '<option value="">Lag en øktmal først</option>';
 
   el('plannedList').innerHTML = state.planned.length
-    ? state.planned.slice().sort(function(a, b) { return a.date.localeCompare(b.date); }).map(function(p) { return workoutCard(p, true); }).join('')
+    ? state.planned.slice().sort(function(a, b) { return String(a.date || '').localeCompare(String(b.date || '')); }).map(function(p) { return workoutCard(p, true); }).join('')
     : '<div class="empty">Du har ingen planlagte økter.</div>';
 
   el('templateList').innerHTML = state.templates.length
@@ -779,7 +819,11 @@ function render() {
   var sort = el('historySort').value;
   var history = state.completed.slice();
   if (filter !== 'Alle') history = history.filter(function(c) { return getTemplate(c.templateId).type === filter; });
-  history.sort(function(a, b) { return sort === 'desc' ? b.date.localeCompare(a.date) : a.date.localeCompare(b.date); });
+  history.sort(function(a, b) {
+    return sort === 'desc'
+      ? String(b.date || '').localeCompare(String(a.date || ''))
+      : String(a.date || '').localeCompare(String(b.date || ''));
+  });
 
   el('historyList').innerHTML = history.length
     ? history.map(function(c) { return completedCard(c); }).join('')
@@ -807,7 +851,7 @@ function importData(event) {
       var data = JSON.parse(reader.result);
       if (!data.templates || !data.planned || !data.completed) throw new Error('Feil format');
       if (confirm('Import vil overskrive data som ligger i appen nå. Fortsette?')) {
-        state = data;
+        state = normalizeState(data);
         saveState();
         render();
       }
@@ -845,7 +889,7 @@ Pushups 3 x kontrollert', createdAt: todayISO()
 
 function resetData() {
   if (!confirm('Dette sletter alle økter, planer og historikk i nettleseren. Fortsette?')) return;
-  state = clone(blank);
+  state = normalizeState(clone(blank));
   saveState();
   render();
 }
