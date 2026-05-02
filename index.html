@@ -329,168 +329,6 @@
       font-weight: 800;
     }
 
-    /* Auth screen */
-    #authScreen {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      min-height: 100vh;
-      padding: 32px 24px;
-      background: linear-gradient(160deg, #fff 0%, var(--grey) 100%);
-    }
-
-    #authScreen h1 {
-      font-size: 2rem;
-      margin: 0 0 8px;
-      letter-spacing: -0.05em;
-    }
-
-    #authScreen p {
-      color: var(--warm-gray-3);
-      margin: 0 0 36px;
-      font-size: 1rem;
-      text-align: center;
-    }
-
-    .btn-google {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      background: #fff;
-      border: 2px solid var(--warm-gray-2);
-      border-radius: 18px;
-      padding: 14px 24px;
-      font-size: 1rem;
-      font-weight: 700;
-      cursor: pointer;
-      box-shadow: var(--shadow);
-      transition: transform 0.08s ease, box-shadow 0.2s ease;
-      width: 100%;
-      max-width: 320px;
-      justify-content: center;
-    }
-
-    .btn-google:hover {
-      box-shadow: 0 14px 40px rgba(0,0,0,0.13);
-    }
-
-    .btn-google:active { transform: scale(0.98); }
-
-    .btn-google svg { width: 22px; height: 22px; flex-shrink: 0; }
-
-    /* User avatar in header */
-    .user-avatar {
-      width: 34px;
-      height: 34px;
-      border-radius: 50%;
-      cursor: pointer;
-      border: 2px solid var(--warm-gray-2);
-      object-fit: cover;
-      flex-shrink: 0;
-    }
-
-    .user-avatar-placeholder {
-      width: 34px;
-      height: 34px;
-      border-radius: 50%;
-      background: var(--warm-gray-1);
-      border: 2px solid var(--warm-gray-2);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-      font-size: 0.85rem;
-      font-weight: 800;
-      color: var(--warm-gray-3);
-      flex-shrink: 0;
-    }
-
-    /* Sync status indicator */
-    .sync-status {
-      font-size: 0.72rem;
-      color: var(--warm-gray-3);
-      display: flex;
-      align-items: center;
-      gap: 4px;
-      margin-top: 3px;
-    }
-
-    .sync-dot {
-      width: 6px;
-      height: 6px;
-      border-radius: 50%;
-      background: var(--success);
-    }
-
-    .sync-dot.syncing {
-      background: var(--warning);
-      animation: pulse 1s infinite;
-    }
-
-    .sync-dot.error {
-      background: var(--red);
-    }
-
-    @keyframes pulse {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.3; }
-    }
-
-    /* Loading overlay */
-    #loadingOverlay {
-      position: fixed;
-      inset: 0;
-      background: #fff;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      z-index: 100;
-      gap: 14px;
-    }
-
-    #loadingOverlay.hidden { display: none; }
-
-    .spinner {
-      width: 36px;
-      height: 36px;
-      border: 3px solid var(--warm-gray-2);
-      border-top-color: var(--primary);
-      border-radius: 50%;
-      animation: spin 0.7s linear infinite;
-    }
-
-    @keyframes spin { to { transform: rotate(360deg); } }
-
-    /* User menu */
-    #userMenu {
-      position: fixed;
-      top: 80px;
-      right: 14px;
-      background: #fff;
-      border-radius: 18px;
-      box-shadow: 0 20px 60px rgba(0,0,0,0.15);
-      padding: 14px;
-      z-index: 30;
-      min-width: 220px;
-      border: 1px solid rgba(0,0,0,0.06);
-    }
-
-    #userMenu.hidden { display: none; }
-
-    .user-menu-name {
-      font-weight: 800;
-      font-size: 0.9rem;
-      margin-bottom: 2px;
-    }
-
-    .user-menu-email {
-      font-size: 0.78rem;
-      color: var(--warm-gray-3);
-      margin-bottom: 12px;
-    }
-
     @media (min-width: 700px) {
       .app { margin-top: 20px; margin-bottom: 20px; border-radius: 32px; min-height: calc(100vh - 40px); overflow: hidden; }
       nav { border-radius: 24px 24px 0 0; }
@@ -498,52 +336,16 @@
   </style>
 </head>
 <body>
-
-  <!-- Loading overlay -->
-  <div id="loadingOverlay">
-    <div class="spinner"></div>
-    <div style="color:var(--warm-gray-3);font-size:0.9rem;">Laster...</div>
-  </div>
-
-  <!-- Auth screen -->
-  <div id="authScreen" class="hidden">
-    <h1>Min trening 🏃</h1>
-    <p>Logg inn for å planlegge, gjennomføre og logge treningsøktene dine.</p>
-    <button class="btn-google" onclick="signInWithGoogle()">
-      <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-        <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
-        <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
-        <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
-        <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
-      </svg>
-      Logg inn med Google
-    </button>
-  </div>
-
-  <!-- Main app -->
-  <div class="app hidden" id="mainApp">
+  <div class="app">
     <header>
       <div class="title-row">
         <div>
           <h1>Min trening</h1>
-          <div class="sync-status">
-            <div class="sync-dot" id="syncDot"></div>
-            <span id="syncLabel">Synkronisert</span>
-          </div>
+          <p class="subtitle" id="headerSubtitle">Planlegg, gjennomfør og loggfør.</p>
         </div>
-        <div style="display:flex;align-items:center;gap:10px;">
-          <span class="pill" id="todayPill">I dag</span>
-          <div id="userAvatarBtn"></div>
-        </div>
+        <span class="pill" id="todayPill">I dag</span>
       </div>
     </header>
-
-    <!-- User menu -->
-    <div id="userMenu" class="hidden">
-      <div class="user-menu-name" id="userMenuName"></div>
-      <div class="user-menu-email" id="userMenuEmail"></div>
-      <button class="btn-soft btn-full" onclick="signOut()" style="font-size:0.88rem;padding:10px;">Logg ut</button>
-    </div>
 
     <main>
       <section id="dashboard" class="tab active">
@@ -641,7 +443,7 @@
             </div>
             <div>
               <label>Struktur / øvelser</label>
-              <textarea id="templateStructure" placeholder="Eksempel: 10 min oppvarming&#10;6 x 6 min terskel&#10;90 sek pause&#10;10 min nedjogg"></textarea>
+              <textarea id="templateStructure" placeholder="Eksempel: 10 min oppvarming\n6 x 6 min terskel\n90 sek pause\n10 min nedjogg"></textarea>
             </div>
             <input type="hidden" id="editingTemplateId" />
             <button id="templateSubmitBtn" class="btn-dark btn-full" onclick="saveTemplate()">Lagre øktmal</button>
@@ -697,7 +499,7 @@
       <section id="settings" class="tab">
         <div class="card">
           <h2 class="section-title">Backup</h2>
-          <p class="small-note">Data lagres i Firestore koblet til din Google-konto. Du kan også eksportere en lokal JSON-kopi som sikkerhetskopi.</p>
+          <p class="small-note">Data lagres lokalt i nettleseren. Ta jevnlig backup som JSON-fil for å unngå tap av historikk.</p>
           <div class="button-row">
             <button class="btn-primary" onclick="exportData()">Eksporter backup</button>
             <button class="btn-soft" onclick="document.getElementById('importFile').click()">Importer</button>
@@ -709,13 +511,6 @@
           <div class="button-row">
             <button class="btn-purple" onclick="seedDemoData()">Legg inn demo</button>
             <button class="btn-danger" onclick="resetData()">Slett alt</button>
-          </div>
-        </div>
-        <div class="card">
-          <h2 class="section-title">Konto</h2>
-          <p class="small-note" id="settingsUserEmail"></p>
-          <div class="button-row">
-            <button class="btn-soft" onclick="signOut()">Logg ut</button>
           </div>
         </div>
       </section>
@@ -731,7 +526,6 @@
     </nav>
   </div>
 
-  <!-- Reschedule modal -->
   <div id="rescheduleModal" class="modal-backdrop">
     <div class="modal">
       <h2>Endre dato</h2>
@@ -755,7 +549,6 @@
     </div>
   </div>
 
-  <!-- Complete modal -->
   <div id="completeModal" class="modal-backdrop">
     <div class="modal">
       <h2>Loggfør økt</h2>
@@ -797,35 +590,31 @@
     </div>
   </div>
 
-  <script type="module">
-    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
-    import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut as fbSignOut }
-      from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
-    import {
-      getFirestore, doc, getDoc, setDoc, collection,
-      getDocs, addDoc, updateDoc, deleteDoc, writeBatch, serverTimestamp, query, orderBy
-    } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+  <script>
+    const STORAGE_KEY = 'personal_training_app_v1';
 
-    // ── Firebase config ──────────────────────────────────────────────────────
-    const firebaseConfig = {
-      apiKey: "AIzaSyAMPfQ9gX9rbuvcPsVjYVtq5IT_orjDBPs",
-      authDomain: "home-tasks-app-18de3.firebaseapp.com",
-      projectId: "home-tasks-app-18de3",
-      storageBucket: "home-tasks-app-18de3.firebasestorage.app",
-      messagingSenderId: "253720858709",
-      appId: "1:253720858709:web:89609fc26d6ed9f9c384dc"
+    const defaultState = {
+      templates: [],
+      planned: [],
+      completed: []
     };
 
-    const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
-    const db = getFirestore(app);
+    let state = loadState();
 
-    // ── State ────────────────────────────────────────────────────────────────
-    let currentUser = null;
-    let state = { templates: [], planned: [], completed: [] };
-    let syncTimeout = null;
+    function loadState() {
+      try {
+        const stored = localStorage.getItem(STORAGE_KEY);
+        return stored ? JSON.parse(stored) : structuredClone(defaultState);
+      } catch (error) {
+        console.error(error);
+        return structuredClone(defaultState);
+      }
+    }
 
-    // ── Helpers ──────────────────────────────────────────────────────────────
+    function saveState() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    }
+
     function uid(prefix) {
       return `${prefix}_${Date.now()}_${Math.random().toString(16).slice(2)}`;
     }
@@ -849,173 +638,15 @@
         .replaceAll("'", '&#039;');
     }
 
-    function setSyncStatus(status) {
-      // status: 'ok' | 'syncing' | 'error'
-      const dot = document.getElementById('syncDot');
-      const label = document.getElementById('syncLabel');
-      dot.className = 'sync-dot' + (status === 'syncing' ? ' syncing' : status === 'error' ? ' error' : '');
-      label.textContent = status === 'syncing' ? 'Synkroniserer...' : status === 'error' ? 'Feil ved synk' : 'Synkronisert';
-    }
-
-    // ── Firestore paths ──────────────────────────────────────────────────────
-    function userCol(col) {
-      return collection(db, 'users', currentUser.uid, col);
-    }
-
-    function userDoc(col, id) {
-      return doc(db, 'users', currentUser.uid, col, id);
-    }
-
-    // ── Load all data from Firestore ─────────────────────────────────────────
-    async function loadFromFirestore() {
-      setSyncStatus('syncing');
-      try {
-        const [tSnap, pSnap, cSnap] = await Promise.all([
-          getDocs(userCol('templates')),
-          getDocs(userCol('planned')),
-          getDocs(userCol('completed'))
-        ]);
-
-        state.templates = tSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-        state.planned   = pSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-        state.completed = cSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-
-        setSyncStatus('ok');
-        render();
-      } catch (err) {
-        console.error('Firestore load error:', err);
-        setSyncStatus('error');
-      }
-    }
-
-    // ── Write helpers ─────────────────────────────────────────────────────────
-    async function fsSet(colName, id, data) {
-      setSyncStatus('syncing');
-      try {
-        // Remove 'id' from the stored document (it's the doc key)
-        const { id: _id, ...rest } = data;
-        await setDoc(userDoc(colName, id), rest);
-        setSyncStatus('ok');
-      } catch (err) {
-        console.error('Firestore write error:', err);
-        setSyncStatus('error');
-        throw err;
-      }
-    }
-
-    async function fsDelete(colName, id) {
-      setSyncStatus('syncing');
-      try {
-        await deleteDoc(userDoc(colName, id));
-        setSyncStatus('ok');
-      } catch (err) {
-        console.error('Firestore delete error:', err);
-        setSyncStatus('error');
-        throw err;
-      }
-    }
-
-    // Batch-write multiple docs
-    async function fsBatchSet(colName, items) {
-      setSyncStatus('syncing');
-      try {
-        const batch = writeBatch(db);
-        items.forEach(item => {
-          const { id, ...rest } = item;
-          batch.set(userDoc(colName, id), rest);
-        });
-        await batch.commit();
-        setSyncStatus('ok');
-      } catch (err) {
-        console.error('Firestore batch error:', err);
-        setSyncStatus('error');
-        throw err;
-      }
-    }
-
-    // ── Auth ─────────────────────────────────────────────────────────────────
-    window.signInWithGoogle = async function() {
-      const provider = new GoogleAuthProvider();
-      try {
-        await signInWithPopup(auth, provider);
-      } catch (err) {
-        console.error('Sign-in error:', err);
-        alert('Innlogging feilet: ' + err.message);
-      }
-    };
-
-    window.signOut = async function() {
-      if (!confirm('Logg ut?')) return;
-      await fbSignOut(auth);
-    };
-
-    onAuthStateChanged(auth, async (user) => {
-      const loading = document.getElementById('loadingOverlay');
-      const authScreen = document.getElementById('authScreen');
-      const mainApp = document.getElementById('mainApp');
-
-      if (user) {
-        currentUser = user;
-        loading.classList.add('hidden');
-        authScreen.classList.add('hidden');
-        mainApp.classList.remove('hidden');
-
-        // Render user avatar
-        renderUserAvatar(user);
-
-        // Set email in settings
-        const emailEl = document.getElementById('settingsUserEmail');
-        if (emailEl) emailEl.textContent = `Innlogget som: ${user.email}`;
-
-        await loadFromFirestore();
-      } else {
-        currentUser = null;
-        state = { templates: [], planned: [], completed: [] };
-        loading.classList.add('hidden');
-        authScreen.classList.remove('hidden');
-        mainApp.classList.add('hidden');
-      }
-    });
-
-    function renderUserAvatar(user) {
-      const btn = document.getElementById('userAvatarBtn');
-      if (!btn) return;
-      if (user.photoURL) {
-        btn.innerHTML = `<img src="${escapeHtml(user.photoURL)}" class="user-avatar" onclick="toggleUserMenu()" alt="Bruker" />`;
-      } else {
-        const initials = (user.displayName || user.email || '?').slice(0, 1).toUpperCase();
-        btn.innerHTML = `<div class="user-avatar-placeholder" onclick="toggleUserMenu()">${escapeHtml(initials)}</div>`;
-      }
-
-      document.getElementById('userMenuName').textContent = user.displayName || '';
-      document.getElementById('userMenuEmail').textContent = user.email || '';
-    }
-
-    window.toggleUserMenu = function() {
-      document.getElementById('userMenu').classList.toggle('hidden');
-    };
-
-    // Close user menu when clicking outside
-    document.addEventListener('click', (e) => {
-      const menu = document.getElementById('userMenu');
-      const avatarBtn = document.getElementById('userAvatarBtn');
-      if (menu && avatarBtn && !menu.contains(e.target) && !avatarBtn.contains(e.target)) {
-        menu.classList.add('hidden');
-      }
-    });
-
-    // ── Tab navigation ────────────────────────────────────────────────────────
-    window.showTab = function(tabId, btn) {
+    function showTab(tabId, btn) {
       document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
       document.getElementById(tabId).classList.add('active');
       document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
-      document.getElementById('userMenu').classList.add('hidden');
       render();
-    };
+    }
 
-    // ── Templates ─────────────────────────────────────────────────────────────
-    window.saveTemplate = async function() {
+    function saveTemplate() {
       const editingId = document.getElementById('editingTemplateId').value;
       const name = document.getElementById('templateName').value.trim();
       if (!name) return alert('Skriv inn navn på økten først.');
@@ -1028,27 +659,26 @@
       };
 
       if (editingId) {
-        const idx = state.templates.findIndex(t => t.id === editingId);
-        if (idx === -1) return alert('Fant ikke øktmalen som skulle redigeres.');
-        state.templates[idx] = { ...state.templates[idx], ...templateData, updatedAt: new Date().toISOString() };
-        await fsSet('templates', editingId, state.templates[idx]);
+        const template = state.templates.find(t => t.id === editingId);
+        if (!template) return alert('Fant ikke øktmalen som skulle redigeres.');
+        Object.assign(template, templateData, { updatedAt: new Date().toISOString() });
       } else {
-        const newTemplate = {
+        state.templates.push({
           id: uid('template'),
           ...templateData,
           createdAt: todayISO()
-        };
-        state.templates.push(newTemplate);
-        await fsSet('templates', newTemplate.id, newTemplate);
+        });
       }
 
       clearTemplateForm();
+      saveState();
       render();
-    };
+    }
 
-    window.editTemplate = function(id) {
+    function editTemplate(id) {
       const template = state.templates.find(t => t.id === id);
       if (!template) return;
+
       document.getElementById('editingTemplateId').value = template.id;
       document.getElementById('templateName').value = template.name;
       document.getElementById('templateType').value = template.type;
@@ -1057,9 +687,11 @@
       document.getElementById('templateSubmitBtn').textContent = 'Lagre endringer';
       document.getElementById('cancelEditTemplateBtn').classList.remove('hidden');
       window.scrollTo({ top: 0, behavior: 'smooth' });
-    };
+    }
 
-    window.cancelEditTemplate = function() { clearTemplateForm(); };
+    function cancelEditTemplate() {
+      clearTemplateForm();
+    }
 
     function clearTemplateForm() {
       document.getElementById('editingTemplateId').value = '';
@@ -1069,23 +701,23 @@
       document.getElementById('cancelEditTemplateBtn').classList.add('hidden');
     }
 
-    window.deleteTemplate = async function(id) {
+    function deleteTemplate(id) {
       if (!confirm('Slette denne øktmalen? Planlagte økter blir ikke slettet.')) return;
       state.templates = state.templates.filter(t => t.id !== id);
-      await fsDelete('templates', id);
+      saveState();
       render();
-    };
+    }
 
-    // ── Plan ──────────────────────────────────────────────────────────────────
-    window.toggleRepeatOptions = function() {
+    function toggleRepeatOptions() {
       const repeat = document.getElementById('planRepeat').value;
       const weeksInput = document.getElementById('planRepeatWeeks');
       const customWrapper = document.getElementById('customRepeatWrapper');
+
       weeksInput.disabled = repeat === 'none';
       customWrapper.classList.toggle('hidden', repeat !== 'custom');
-    };
+    }
 
-    window.addPlannedWorkout = async function() {
+    function addPlannedWorkout() {
       const templateId = document.getElementById('planTemplate').value;
       const date = document.getElementById('planDate').value;
       const notes = document.getElementById('planNotes').value.trim();
@@ -1107,56 +739,65 @@
       if (repeat === 'none') {
         workoutsToAdd.push({
           id: uid('planned'),
-          templateId, date, status: 'planned', notes,
-          repeatGroupId: null, createdAt: todayISO()
+          templateId,
+          date,
+          status: 'planned',
+          notes,
+          repeatGroupId: null,
+          createdAt: todayISO()
         });
       } else {
         if (!repeatWeeks || repeatWeeks < 1) return alert('Velg antall uker frem i tid.');
+
         for (let weekOffset = 0; weekOffset <= repeatWeeks; weekOffset += intervalWeeks) {
           workoutsToAdd.push({
             id: uid('planned'),
             templateId,
             date: addDays(date, weekOffset * 7),
-            status: 'planned', notes,
+            status: 'planned',
+            notes,
             repeatGroupId: plannedGroupId,
-            repeatRule: { type: repeat, intervalWeeks, totalWeeks: repeatWeeks },
+            repeatRule: {
+              type: repeat,
+              intervalWeeks,
+              totalWeeks: repeatWeeks
+            },
             createdAt: todayISO()
           });
         }
       }
 
       state.planned.push(...workoutsToAdd);
-      await fsBatchSet('planned', workoutsToAdd);
 
       document.getElementById('planNotes').value = '';
       document.getElementById('planRepeat').value = 'none';
       document.getElementById('planRepeatWeeks').value = 8;
       document.getElementById('planRepeatInterval').value = 1;
       toggleRepeatOptions();
+      saveState();
       render();
-    };
+    }
 
-    window.deletePlanned = async function(id) {
+    function deletePlanned(id) {
       if (!confirm('Slette planlagt økt?')) return;
       state.planned = state.planned.filter(p => p.id !== id);
-      await fsDelete('planned', id);
+      saveState();
       render();
-    };
+    }
 
-    // ── Reschedule ────────────────────────────────────────────────────────────
     function daysBetween(oldDate, newDate) {
-      return Math.round(
-        (new Date(`${newDate}T12:00:00`).getTime() - new Date(`${oldDate}T12:00:00`).getTime()) / 86400000
-      );
+      const oldTime = new Date(`${oldDate}T12:00:00`).getTime();
+      const newTime = new Date(`${newDate}T12:00:00`).getTime();
+      return Math.round((newTime - oldTime) / 86400000);
     }
 
     function addDays(dateIso, days) {
-      const d = new Date(`${dateIso}T12:00:00`);
-      d.setDate(d.getDate() + days);
-      return d.toISOString().slice(0, 10);
+      const date = new Date(`${dateIso}T12:00:00`);
+      date.setDate(date.getDate() + days);
+      return date.toISOString().slice(0, 10);
     }
 
-    window.openRescheduleModal = function(plannedId) {
+    function openRescheduleModal(plannedId) {
       const planned = state.planned.find(p => p.id === plannedId);
       if (!planned) return;
       document.getElementById('reschedulePlannedId').value = plannedId;
@@ -1164,13 +805,13 @@
       document.getElementById('rescheduleNewDate').value = planned.date;
       document.getElementById('rescheduleShiftFollowing').checked = true;
       document.getElementById('rescheduleModal').classList.add('active');
-    };
+    }
 
-    window.closeRescheduleModal = function() {
+    function closeRescheduleModal() {
       document.getElementById('rescheduleModal').classList.remove('active');
-    };
+    }
 
-    window.rescheduleWorkout = async function() {
+    function rescheduleWorkout() {
       const plannedId = document.getElementById('reschedulePlannedId').value;
       const oldDate = document.getElementById('rescheduleOldDate').value;
       const newDate = document.getElementById('rescheduleNewDate').value;
@@ -1181,48 +822,45 @@
       if (!newDate) return alert('Velg ny dato.');
 
       const diffDays = daysBetween(oldDate, newDate);
-      if (diffDays === 0) { closeRescheduleModal(); return; }
+      if (diffDays === 0) {
+        closeRescheduleModal();
+        return;
+      }
 
-      const toUpdate = [];
       if (shiftFollowing) {
         state.planned.forEach(p => {
           if (p.status !== 'done' && p.date >= oldDate) {
             p.date = addDays(p.date, diffDays);
             p.updatedAt = new Date().toISOString();
-            toUpdate.push(p);
           }
         });
       } else {
         planned.date = newDate;
         planned.updatedAt = new Date().toISOString();
-        toUpdate.push(planned);
       }
 
       closeRescheduleModal();
+      saveState();
       render();
-      await fsBatchSet('planned', toUpdate);
-    };
+    }
 
-    // ── Complete workout ──────────────────────────────────────────────────────
-    window.openCompleteModal = function(plannedId) {
+    function openCompleteModal(plannedId) {
       document.getElementById('completePlannedId').value = plannedId;
-      ['completeDuration','completeDistance','completeAvgHr','completeMaxHr','completeRpe','completeNotes']
-        .forEach(id => document.getElementById(id).value = '');
+      ['completeDuration','completeDistance','completeAvgHr','completeMaxHr','completeRpe','completeNotes'].forEach(id => document.getElementById(id).value = '');
       document.getElementById('completeModal').classList.add('active');
-    };
+    }
 
-    window.closeCompleteModal = function() {
+    function closeCompleteModal() {
       document.getElementById('completeModal').classList.remove('active');
-    };
+    }
 
-    window.completeWorkout = async function() {
+    function completeWorkout() {
       const plannedId = document.getElementById('completePlannedId').value;
       const planned = state.planned.find(p => p.id === plannedId);
       if (!planned) return;
 
       planned.status = 'done';
-
-      const completed = {
+      state.completed.push({
         id: uid('completed'),
         plannedWorkoutId: plannedId,
         templateId: planned.templateId,
@@ -1234,32 +872,23 @@
         rpe: document.getElementById('completeRpe').value || '',
         notes: document.getElementById('completeNotes').value.trim(),
         completedAt: new Date().toISOString()
-      };
+      });
 
-      state.completed.push(completed);
       closeCompleteModal();
+      saveState();
       render();
+    }
 
-      // Write both changes to Firestore
-      await Promise.all([
-        fsSet('planned', plannedId, planned),
-        fsSet('completed', completed.id, completed)
-      ]);
-    };
-
-    window.undoComplete = async function(completedId) {
+    function undoComplete(completedId) {
       const completed = state.completed.find(c => c.id === completedId);
       if (!completed) return;
       const planned = state.planned.find(p => p.id === completed.plannedWorkoutId);
       if (planned) planned.status = 'planned';
       state.completed = state.completed.filter(c => c.id !== completedId);
+      saveState();
       render();
-      const ops = [fsDelete('completed', completedId)];
-      if (planned) ops.push(fsSet('planned', planned.id, planned));
-      await Promise.all(ops);
-    };
+    }
 
-    // ── Render helpers ────────────────────────────────────────────────────────
     function getTemplate(id) {
       return state.templates.find(t => t.id === id) || { name: 'Slettet øktmal', type: 'Annet', intensity: '', structure: '' };
     }
@@ -1330,30 +959,42 @@
         </div>`;
     }
 
-    // ── Calendar ──────────────────────────────────────────────────────────────
-    window.changeCalendarMonth = function(direction) {
+    function changeCalendarMonth(direction) {
       const input = document.getElementById('calendarMonth');
       if (!input) return;
       if (!input.value) input.value = todayISO().slice(0, 7);
+
       const parts = input.value.split('-');
       let year = Number(parts[0]);
       let month = Number(parts[1]) + direction;
-      if (month < 1) { month = 12; year -= 1; }
-      if (month > 12) { month = 1; year += 1; }
+
+      if (month < 1) {
+        month = 12;
+        year -= 1;
+      }
+
+      if (month > 12) {
+        month = 1;
+        year += 1;
+      }
+
       input.value = year + '-' + String(month).padStart(2, '0');
       renderCalendar();
-    };
+    }
 
     function renderCalendar() {
       const input = document.getElementById('calendarMonth');
       if (!input) return;
       if (!input.value) input.value = todayISO().slice(0, 7);
+
       const [year, month] = input.value.split('-').map(Number);
       const firstDay = new Date(year, month - 1, 1);
       const lastDay = new Date(year, month, 0);
 
       let html = '<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:6px;font-size:0.8rem;">';
-      ['Man','Tir','Ons','Tor','Fre','Lør','Søn'].forEach(d => {
+
+      const weekdays = ['Man', 'Tir', 'Ons', 'Tor', 'Fre', 'Lør', 'Søn'];
+      weekdays.forEach(d => {
         html += `<div style="text-align:center;font-weight:700;color:var(--warm-gray-3)">${d}</div>`;
       });
 
@@ -1361,22 +1002,23 @@
       for (let i = 0; i < startOffset; i++) html += '<div></div>';
 
       for (let day = 1; day <= lastDay.getDate(); day++) {
-        const dateIso = new Date(year, month - 1, day).toISOString().slice(0, 10);
+        const dateIso = new Date(year, month - 1, day, 12).toISOString().slice(0, 10);
         const planned = state.planned.filter(p => p.date === dateIso && p.status !== 'done');
         const done = state.completed.filter(c => c.date === dateIso);
+
         html += `
           <div style="background:#fff;border-radius:10px;padding:6px;min-height:70px;font-size:0.7rem;border:1px solid var(--warm-gray-1);">
             <div style="font-weight:700;margin-bottom:4px;">${day}</div>
             ${planned.map(p => `<div style="color:var(--primary);line-height:1.2;margin-top:2px;">• ${escapeHtml(getTemplate(p.templateId).name)}</div>`).join('')}
             ${done.map(c => `<div style="color:var(--success);line-height:1.2;margin-top:2px;">✓ ${escapeHtml(getTemplate(c.templateId).name)}</div>`).join('')}
-          </div>`;
+          </div>
+        `;
       }
 
       html += '</div>';
       document.getElementById('calendarGrid').innerHTML = html;
     }
 
-    // ── Main render ───────────────────────────────────────────────────────────
     function render() {
       renderCalendar();
       const today = todayISO();
@@ -1384,19 +1026,15 @@
       document.getElementById('planDate').value ||= today;
 
       const plannedActive = state.planned.filter(p => p.status !== 'done');
-      const todayItems = plannedActive.filter(p => p.date === today).sort((a,b) => a.createdAt.localeCompare(b.createdAt));
+      const todayItems = plannedActive.filter(p => p.date === today).sort((a,b) => String(a.createdAt || '').localeCompare(String(b.createdAt || '')));
       const upcomingItems = plannedActive.filter(p => p.date > today).sort((a,b) => a.date.localeCompare(b.date));
 
       document.getElementById('statToday').textContent = todayItems.length;
       document.getElementById('statPlanned').textContent = plannedActive.length;
       document.getElementById('statDone').textContent = state.completed.length;
 
-      document.getElementById('todayList').innerHTML = todayItems.length
-        ? todayItems.map(p => workoutCard(p)).join('')
-        : `<div class="empty">Ingen planlagte økter i dag.</div>`;
-      document.getElementById('upcomingList').innerHTML = upcomingItems.length
-        ? upcomingItems.map(p => workoutCard(p)).join('')
-        : `<div class="empty">Ingen kommende økter.</div>`;
+      document.getElementById('todayList').innerHTML = todayItems.length ? todayItems.map(p => workoutCard(p)).join('') : `<div class="empty">Ingen planlagte økter i dag.</div>`;
+      document.getElementById('upcomingList').innerHTML = upcomingItems.length ? upcomingItems.map(p => workoutCard(p)).join('') : `<div class="empty">Ingen kommende økter.</div>`;
 
       const templateSelect = document.getElementById('planTemplate');
       templateSelect.innerHTML = state.templates.length
@@ -1404,26 +1042,19 @@
         : `<option value="">Lag en øktmal først</option>`;
 
       const sortedPlanned = [...state.planned].sort((a,b) => a.date.localeCompare(b.date));
-      document.getElementById('plannedList').innerHTML = sortedPlanned.length
-        ? sortedPlanned.map(p => workoutCard(p, { canDelete: true })).join('')
-        : `<div class="empty">Du har ingen planlagte økter.</div>`;
+      document.getElementById('plannedList').innerHTML = sortedPlanned.length ? sortedPlanned.map(p => workoutCard(p, { canDelete: true })).join('') : `<div class="empty">Du har ingen planlagte økter.</div>`;
 
-      document.getElementById('templateList').innerHTML = state.templates.length
-        ? state.templates.map(templateCard).join('')
-        : `<div class="empty">Ingen øktmaler enda. Lag din første over.</div>`;
+      document.getElementById('templateList').innerHTML = state.templates.length ? state.templates.map(templateCard).join('') : `<div class="empty">Ingen øktmaler enda. Lag din første over.</div>`;
 
       const filter = document.getElementById('historyFilter')?.value || 'Alle';
       const sort = document.getElementById('historySort')?.value || 'desc';
       let completed = [...state.completed];
       if (filter !== 'Alle') completed = completed.filter(c => getTemplate(c.templateId).type === filter);
       completed.sort((a,b) => sort === 'desc' ? b.date.localeCompare(a.date) : a.date.localeCompare(b.date));
-      document.getElementById('historyList').innerHTML = completed.length
-        ? completed.map(completedCard).join('')
-        : `<div class="empty">Ingen historikk enda.</div>`;
+      document.getElementById('historyList').innerHTML = completed.length ? completed.map(completedCard).join('') : `<div class="empty">Ingen historikk enda.</div>`;
     }
 
-    // ── Backup ────────────────────────────────────────────────────────────────
-    window.exportData = function() {
+    function exportData() {
       const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -1431,77 +1062,49 @@
       a.download = `treningsapp-backup-${todayISO()}.json`;
       a.click();
       URL.revokeObjectURL(url);
-    };
+    }
 
-    window.importData = async function(event) {
+    function importData(event) {
       const file = event.target.files[0];
       if (!file) return;
       const reader = new FileReader();
-      reader.onload = async () => {
+      reader.onload = () => {
         try {
           const imported = JSON.parse(reader.result);
           if (!imported.templates || !imported.planned || !imported.completed) throw new Error('Invalid format');
           if (!confirm('Import vil overskrive data som ligger i appen nå. Fortsette?')) return;
           state = imported;
+          saveState();
           render();
-          // Write all to Firestore
-          setSyncStatus('syncing');
-          await Promise.all([
-            fsBatchSet('templates', state.templates),
-            fsBatchSet('planned', state.planned),
-            fsBatchSet('completed', state.completed)
-          ]);
         } catch (error) {
           alert('Kunne ikke importere filen. Sjekk at dette er en gyldig backup fra appen.');
-          setSyncStatus('error');
         }
       };
       reader.readAsText(file);
       event.target.value = '';
-    };
+    }
 
-    window.seedDemoData = async function() {
+    function seedDemoData() {
       if (!confirm('Legge inn demo-data?')) return;
       const t1 = { id: uid('template'), name: '6 x 6 min terskel', type: 'Løping', intensity: 'Terskel', structure: '10 min oppvarming\n6 x 6 min terskel\n90 sek pause\n10 min nedjogg', createdAt: todayISO() };
       const t2 = { id: uid('template'), name: 'Basis styrke', type: 'Styrke', intensity: 'Styrke', structure: 'Deadbugs 3 x 10\nTåhev 3 x 15\nUtfall 3 x 10 per bein\nPlanke 3 x 30 sek\nPushups 3 x kontrollert', createdAt: todayISO() };
-      const p1 = { id: uid('planned'), templateId: t1.id, date: todayISO(), status: 'planned', notes: 'Hold kontrollert terskel, ikke makse.', createdAt: todayISO() };
-      const p2 = { id: uid('planned'), templateId: t2.id, date: todayISO(), status: 'planned', notes: '', createdAt: todayISO() };
-
       state.templates.push(t1, t2);
-      state.planned.push(p1, p2);
+      state.planned.push(
+        { id: uid('planned'), templateId: t1.id, date: todayISO(), status: 'planned', notes: 'Hold kontrollert terskel, ikke makse.', createdAt: todayISO() },
+        { id: uid('planned'), templateId: t2.id, date: todayISO(), status: 'planned', notes: '', createdAt: todayISO() }
+      );
+      saveState();
       render();
+    }
 
-      await Promise.all([
-        fsBatchSet('templates', [t1, t2]),
-        fsBatchSet('planned', [p1, p2])
-      ]);
-    };
+    function resetData() {
+      if (!confirm('Dette sletter alle økter, planer og historikk i nettleseren. Fortsette?')) return;
+      state = structuredClone(defaultState);
+      saveState();
+      render();
+    }
 
-    window.resetData = async function() {
-      if (!confirm('Dette sletter alle økter, planer og historikk. Handlingen kan ikke angres. Fortsette?')) return;
-
-      setSyncStatus('syncing');
-      try {
-        // Delete all docs from Firestore
-        const [tSnap, pSnap, cSnap] = await Promise.all([
-          getDocs(userCol('templates')),
-          getDocs(userCol('planned')),
-          getDocs(userCol('completed'))
-        ]);
-
-        const batch = writeBatch(db);
-        [...tSnap.docs, ...pSnap.docs, ...cSnap.docs].forEach(d => batch.delete(d.ref));
-        await batch.commit();
-
-        state = { templates: [], planned: [], completed: [] };
-        setSyncStatus('ok');
-        render();
-      } catch (err) {
-        console.error('Reset error:', err);
-        setSyncStatus('error');
-      }
-    };
-
+    render();
   </script>
 </body>
 </html>
