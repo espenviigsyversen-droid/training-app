@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="no">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Min Treningsapp</title>
   <style>
     :root {
@@ -11,217 +11,104 @@
       --black: #000000;
       --white: #FFFFFF;
       --grey: #f7f5f3;
-      --light-pink: #ffd7d7;
+      --pink: #ffd7d7;
       --burgundy: #7a1730;
       --purple: #5e2b97;
-      --warm-gray-1: #f2efec;
-      --warm-gray-2: #ddd6d1;
-      --warm-gray-3: #8b817b;
+      --wg1: #f2efec;
+      --wg2: #ddd6d1;
+      --wg3: #8b817b;
       --success: #1f9d55;
-      --warning: #d97706;
       --shadow: 0 10px 30px rgba(0,0,0,0.08);
       --radius: 22px;
     }
 
     * { box-sizing: border-box; }
-
     body {
       margin: 0;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
       background: var(--grey);
       color: var(--black);
       line-height: 1.4;
     }
-
     .app {
       max-width: 520px;
       margin: 0 auto;
       min-height: 100vh;
-      padding-bottom: 92px;
+      padding-bottom: 96px;
       background: linear-gradient(180deg, #fff 0%, var(--grey) 42%);
     }
-
     header {
       padding: 24px 18px 12px;
       position: sticky;
       top: 0;
       z-index: 5;
-      background: rgba(255,255,255,0.92);
+      background: rgba(255,255,255,0.94);
       backdrop-filter: blur(12px);
       border-bottom: 1px solid rgba(0,0,0,0.04);
     }
-
-    .title-row {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-    }
-
-    h1 {
-      margin: 0;
-      font-size: 1.65rem;
-      letter-spacing: -0.04em;
-    }
-
-    .subtitle {
-      margin: 5px 0 0;
-      color: var(--warm-gray-3);
-      font-size: 0.92rem;
-    }
-
+    h1 { margin: 0; font-size: 1.6rem; letter-spacing: -0.04em; }
+    .title-row { display: flex; justify-content: space-between; gap: 12px; align-items: center; }
+    .subtitle { margin: 5px 0 0; color: var(--wg3); font-size: 0.92rem; }
     .pill {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
       padding: 7px 10px;
       border-radius: 999px;
-      background: var(--light-pink);
+      background: var(--pink);
       color: var(--burgundy);
-      font-weight: 700;
+      font-weight: 800;
       font-size: 0.78rem;
       white-space: nowrap;
     }
-
-    main { padding: 14px 14px 0; }
-
+    main { padding: 14px; }
     .tab { display: none; }
     .tab.active { display: block; }
-
     .card {
-      background: var(--white);
+      background: #fff;
       border-radius: var(--radius);
       padding: 16px;
       margin-bottom: 14px;
       box-shadow: var(--shadow);
       border: 1px solid rgba(0,0,0,0.04);
     }
-
-    .section-title {
-      font-size: 1.05rem;
-      margin: 0 0 12px;
-      letter-spacing: -0.02em;
-    }
-
-    .grid-2 {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 10px;
-    }
-
+    .section-title { font-size: 1.05rem; margin: 0 0 12px; }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .hidden { display: none !important; }
     label {
       display: block;
       font-size: 0.78rem;
       font-weight: 800;
-      color: var(--warm-gray-3);
+      color: var(--wg3);
       margin: 0 0 6px 2px;
       text-transform: uppercase;
       letter-spacing: 0.04em;
     }
-
     input, select, textarea {
       width: 100%;
-      border: 1px solid var(--warm-gray-2);
+      border: 1px solid var(--wg2);
       background: #fff;
       border-radius: 15px;
-      padding: 12px 12px;
+      padding: 12px;
       font-size: 1rem;
       outline: none;
     }
-
     textarea { min-height: 84px; resize: vertical; }
-
-    input:focus, select:focus, textarea:focus {
-      border-color: var(--primary);
-      box-shadow: 0 0 0 4px rgba(255,90,95,0.15);
-    }
-
     button {
       border: 0;
       border-radius: 16px;
       padding: 12px 14px;
-      font-size: 0.96rem;
+      font-size: 0.94rem;
       font-weight: 800;
       cursor: pointer;
-      transition: transform 0.08s ease, opacity 0.2s ease;
     }
-
-    button:active { transform: scale(0.98); }
-
     .btn-primary { background: var(--primary); color: #fff; }
-    .btn-dark { background: var(--black); color: #fff; }
-    .btn-soft { background: var(--warm-gray-1); color: var(--black); }
+    .btn-dark { background: #000; color: #fff; }
+    .btn-soft { background: var(--wg1); color: #000; }
     .btn-danger { background: var(--red); color: #fff; }
     .btn-success { background: var(--success); color: #fff; }
     .btn-purple { background: var(--purple); color: #fff; }
     .btn-full { width: 100%; }
-
-    .button-row {
-      display: flex;
-      gap: 8px;
-      flex-wrap: wrap;
-      margin-top: 12px;
-    }
-
-    .button-row button { flex: 1; min-width: 120px; }
-
-    .workout-card {
-      border: 1px solid var(--warm-gray-2);
-      background: #fff;
-      border-radius: 19px;
-      padding: 14px;
-      margin-bottom: 10px;
-    }
-
-    .workout-top {
-      display: flex;
-      justify-content: space-between;
-      gap: 10px;
-      align-items: flex-start;
-    }
-
-    .workout-title {
-      margin: 0;
-      font-size: 1rem;
-      letter-spacing: -0.02em;
-    }
-
-    .meta {
-      margin-top: 6px;
-      color: var(--warm-gray-3);
-      font-size: 0.88rem;
-    }
-
-    .tag {
-      display: inline-flex;
-      padding: 5px 8px;
-      border-radius: 999px;
-      background: var(--warm-gray-1);
-      color: var(--burgundy);
-      font-weight: 800;
-      font-size: 0.72rem;
-      white-space: nowrap;
-    }
-
-    .tag.done { background: rgba(31,157,85,0.12); color: var(--success); }
-    .tag.planned { background: var(--light-pink); color: var(--burgundy); }
-
-    .empty {
-      padding: 22px 16px;
-      text-align: center;
-      color: var(--warm-gray-3);
-      background: var(--warm-gray-1);
-      border-radius: 18px;
-      font-size: 0.95rem;
-    }
-
-    .stats {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 10px;
-      margin-bottom: 14px;
-    }
-
+    .button-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+    .button-row button { flex: 1; min-width: 110px; }
+    .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 14px; }
     .stat {
       background: #fff;
       border-radius: 18px;
@@ -229,20 +116,40 @@
       box-shadow: var(--shadow);
       text-align: center;
     }
-
-    .stat strong {
-      display: block;
-      font-size: 1.35rem;
-      letter-spacing: -0.04em;
+    .stat strong { display: block; font-size: 1.35rem; }
+    .stat span { color: var(--wg3); font-weight: 800; font-size: 0.72rem; text-transform: uppercase; }
+    .workout-card {
+      border: 1px solid var(--wg2);
+      background: #fff;
+      border-radius: 19px;
+      padding: 14px;
+      margin-bottom: 10px;
     }
-
-    .stat span {
-      color: var(--warm-gray-3);
-      font-weight: 700;
+    .workout-top { display: flex; justify-content: space-between; gap: 10px; align-items: flex-start; }
+    .workout-title { margin: 0; font-size: 1rem; }
+    .meta { margin-top: 6px; color: var(--wg3); font-size: 0.88rem; }
+    .tag {
+      display: inline-flex;
+      padding: 5px 8px;
+      border-radius: 999px;
+      background: var(--wg1);
+      color: var(--burgundy);
+      font-weight: 800;
       font-size: 0.72rem;
-      text-transform: uppercase;
+      white-space: nowrap;
     }
-
+    .tag.done { background: rgba(31,157,85,0.12); color: var(--success); }
+    .tag.planned { background: var(--pink); color: var(--burgundy); }
+    .empty {
+      padding: 22px 16px;
+      text-align: center;
+      color: var(--wg3);
+      background: var(--wg1);
+      border-radius: 18px;
+      font-size: 0.95rem;
+    }
+    .small-note { font-size: 0.82rem; color: var(--wg3); margin: 8px 0 0; }
+    .inline-form { display: grid; gap: 10px; }
     nav {
       position: fixed;
       bottom: 0;
@@ -253,37 +160,14 @@
       display: grid;
       grid-template-columns: repeat(6, 1fr);
       gap: 5px;
-      padding: 10px 10px 18px;
-      background: rgba(255,255,255,0.94);
+      padding: 10px 8px 18px;
+      background: rgba(255,255,255,0.95);
       backdrop-filter: blur(16px);
       border-top: 1px solid rgba(0,0,0,0.05);
       z-index: 10;
     }
-
-    nav button {
-      padding: 10px 4px;
-      border-radius: 15px;
-      background: transparent;
-      color: var(--warm-gray-3);
-      font-size: 0.72rem;
-    }
-
-    nav button.active {
-      background: var(--black);
-      color: #fff;
-    }
-
-    .small-note {
-      font-size: 0.82rem;
-      color: var(--warm-gray-3);
-      margin: 8px 0 0;
-    }
-
-    .inline-form {
-      display: grid;
-      gap: 10px;
-    }
-
+    nav button { padding: 10px 2px; border-radius: 15px; background: transparent; color: var(--wg3); font-size: 0.68rem; }
+    nav button.active { background: #000; color: #fff; }
     .modal-backdrop {
       display: none;
       position: fixed;
@@ -293,740 +177,653 @@
       padding: 18px;
       align-items: flex-end;
     }
-
     .modal-backdrop.active { display: flex; }
-
     .modal {
       width: 100%;
       max-width: 520px;
       margin: 0 auto;
-      background: white;
+      background: #fff;
       border-radius: 26px 26px 18px 18px;
       padding: 18px;
       max-height: 88vh;
       overflow: auto;
     }
-
-    .modal h2 { margin: 0 0 14px; }
-
-    .hidden { display: none !important; }
-
-    @media (min-width: 700px) {
-      .app { margin-top: 20px; margin-bottom: 20px; border-radius: 32px; min-height: calc(100vh - 40px); overflow: hidden; }
-      nav { border-radius: 24px 24px 0 0; }
-    }
+    .cal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+    .cal-label { font-weight: 900; text-transform: capitalize; }
+    .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; font-size: 0.76rem; }
+    .cal-day { background: #fff; border: 1px solid var(--wg1); border-radius: 10px; padding: 6px; min-height: 70px; font-size: 0.68rem; overflow: hidden; }
+    .cal-num { font-weight: 900; margin-bottom: 4px; }
+    .cal-planned { color: var(--primary); line-height: 1.2; margin-top: 2px; }
+    .cal-done { color: var(--success); line-height: 1.2; margin-top: 2px; }
+    .weekday { text-align: center; font-weight: 800; color: var(--wg3); }
   </style>
 </head>
 <body>
-  <div class="app">
-    <header>
-      <div class="title-row">
-        <div>
-          <h1>Min trening</h1>
-          <p class="subtitle" id="headerSubtitle">Planlegg, gjennomfør og loggfør.</p>
-        </div>
-        <span class="pill" id="todayPill">I dag</span>
+<div class="app">
+  <header>
+    <div class="title-row">
+      <div>
+        <h1>Min trening</h1>
+        <p class="subtitle">Planlegg, gjennomfør og loggfør.</p>
       </div>
-    </header>
+      <span class="pill" id="todayPill">I dag</span>
+    </div>
+  </header>
 
-    <main>
-      <section id="dashboard" class="tab active">
-        <div class="stats">
-          <div class="stat"><strong id="statToday">0</strong><span>I dag</span></div>
-          <div class="stat"><strong id="statPlanned">0</strong><span>Planlagt</span></div>
-          <div class="stat"><strong id="statDone">0</strong><span>Utført</span></div>
-        </div>
-        <div class="card">
-          <h2 class="section-title">Dagens økter</h2>
-          <div id="todayList"></div>
-        </div>
-        <div class="card">
-          <h2 class="section-title">Kommende økter</h2>
-          <div id="upcomingList"></div>
-        </div>
-      </section>
+  <main>
+    <section id="dashboard" class="tab active">
+      <div class="stats">
+        <div class="stat"><strong id="statToday">0</strong><span>I dag</span></div>
+        <div class="stat"><strong id="statPlanned">0</strong><span>Planlagt</span></div>
+        <div class="stat"><strong id="statDone">0</strong><span>Utført</span></div>
+      </div>
+      <div class="card"><h2 class="section-title">Dagens økter</h2><div id="todayList"></div></div>
+      <div class="card"><h2 class="section-title">Kommende økter</h2><div id="upcomingList"></div></div>
+    </section>
 
-      <section id="plan" class="tab">
-        <div class="card">
-          <h2 class="section-title">Planlegg økt</h2>
-          <div class="inline-form">
+    <section id="plan" class="tab">
+      <div class="card">
+        <h2 class="section-title">Planlegg økt</h2>
+        <div class="inline-form">
+          <div><label>Dato</label><input id="planDate" type="date"></div>
+          <div><label>Velg økt</label><select id="planTemplate"></select></div>
+          <div><label>Notat</label><textarea id="planNotes"></textarea></div>
+          <div class="grid-2">
             <div>
-              <label>Dato</label>
-              <input id="planDate" type="date" />
-            </div>
-            <div>
-              <label>Velg økt</label>
-              <select id="planTemplate"></select>
-            </div>
-            <div>
-              <label>Notat</label>
-              <textarea id="planNotes" placeholder="F.eks. gjennomføres rolig hvis beina er tunge"></textarea>
-            </div>
-            <button class="btn-primary btn-full" onclick="addPlannedWorkout()">Legg til planlagt økt</button>
-          </div>
-        </div>
-        <div class="card">
-          <h2 class="section-title">Alle planlagte økter</h2>
-          <div id="plannedList"></div>
-        </div>
-      </section>
-
-      <section id="library" class="tab">
-        <div class="card">
-          <h2 class="section-title">Ny øktmal</h2>
-          <div class="inline-form">
-            <div>
-              <label>Navn</label>
-              <input id="templateName" placeholder="F.eks. 6 x 6 min terskel" />
-            </div>
-            <div class="grid-2">
-              <div>
-                <label>Type</label>
-                <select id="templateType">
-                  <option value="Løping">Løping</option>
-                  <option value="Styrke">Styrke</option>
-                  <option value="Mobilitet">Mobilitet</option>
-                  <option value="Ski">Ski</option>
-                  <option value="Sykling">Sykling</option>
-                  <option value="Annet">Annet</option>
-                </select>
-              </div>
-              <div>
-                <label>Intensitet</label>
-                <select id="templateIntensity">
-                  <option value="Rolig">Rolig</option>
-                  <option value="Tempo">Tempo</option>
-                  <option value="Terskel">Terskel</option>
-                  <option value="Intervall">Intervall</option>
-                  <option value="Anaerob">Anaerob</option>
-                  <option value="Styrke">Styrke</option>
-                  <option value="Restitusjon">Restitusjon</option>
-                </select>
-              </div>
-            </div>
-            <div>
-              <label>Struktur / øvelser</label>
-              <textarea id="templateStructure" placeholder="Eksempel: 10 min oppvarming\n6 x 6 min terskel\n90 sek pause\n10 min nedjogg"></textarea>
-            </div>
-            <input type="hidden" id="editingTemplateId" />
-            <button id="templateSubmitBtn" class="btn-dark btn-full" onclick="saveTemplate()">Lagre øktmal</button>
-            <button id="cancelEditTemplateBtn" class="btn-soft btn-full hidden" onclick="cancelEditTemplate()">Avbryt redigering</button>
-          </div>
-        </div>
-        <div class="card">
-          <h2 class="section-title">Øktbibliotek</h2>
-          <div id="templateList"></div>
-        </div>
-      </section>
-
-      <section id="calendar" class="tab">
-        <div class="card">
-          <h2 class="section-title">Kalender</h2>
-          <input id="calendarMonth" type="month" onchange="renderCalendar()" />
-          <div id="calendarGrid"></div>
-        </div>
-      </section>
-
-      <section id="history" class="tab">
-        <div class="card">
-          <h2 class="section-title">Historikk</h2>
-          <div class="grid-2" style="margin-bottom:12px;">
-            <div>
-              <label>Filter type</label>
-              <select id="historyFilter" onchange="render()">
-                <option value="Alle">Alle</option>
-                <option value="Løping">Løping</option>
-                <option value="Styrke">Styrke</option>
-                <option value="Mobilitet">Mobilitet</option>
-                <option value="Ski">Ski</option>
-                <option value="Sykling">Sykling</option>
-                <option value="Annet">Annet</option>
+              <label>Gjenta</label>
+              <select id="planRepeat" onchange="toggleRepeatOptions()">
+                <option value="none">Ikke gjenta</option>
+                <option value="weekly">Hver uke</option>
+                <option value="biweekly">Annenhver uke</option>
+                <option value="custom">Egendefinert</option>
               </select>
             </div>
-            <div>
-              <label>Sortering</label>
-              <select id="historySort" onchange="render()">
-                <option value="desc">Nyeste først</option>
-                <option value="asc">Eldste først</option>
-              </select>
-            </div>
+            <div><label>Antall uker frem</label><input id="planRepeatWeeks" type="number" min="1" max="52" value="8" disabled></div>
           </div>
-          <div id="historyList"></div>
+          <div id="customRepeatWrapper" class="hidden"><label>Gjentas hver X. uke</label><input id="planRepeatInterval" type="number" min="1" max="26" value="1"></div>
+          <button class="btn-primary btn-full" onclick="addPlannedWorkout()">Legg til planlagt økt</button>
         </div>
-      </section>
+      </div>
+      <div class="card"><h2 class="section-title">Alle planlagte økter</h2><div id="plannedList"></div></div>
+    </section>
 
-      <section id="settings" class="tab">
-        <div class="card">
-          <h2 class="section-title">Backup</h2>
-          <p class="small-note">Data lagres lokalt i nettleseren. Ta jevnlig backup som JSON-fil for å unngå tap av historikk.</p>
-          <div class="button-row">
-            <button class="btn-primary" onclick="exportData()">Eksporter backup</button>
-            <button class="btn-soft" onclick="document.getElementById('importFile').click()">Importer</button>
+    <section id="library" class="tab">
+      <div class="card">
+        <h2 class="section-title">Ny / rediger øktmal</h2>
+        <div class="inline-form">
+          <input type="hidden" id="editingTemplateId">
+          <div><label>Navn</label><input id="templateName"></div>
+          <div class="grid-2">
+            <div><label>Type</label><select id="templateType"><option>Løping</option><option>Styrke</option><option>Mobilitet</option><option>Ski</option><option>Sykling</option><option>Annet</option></select></div>
+            <div><label>Intensitet</label><select id="templateIntensity"><option>Rolig</option><option>Tempo</option><option>Terskel</option><option>Intervall</option><option>Anaerob</option><option>Styrke</option><option>Restitusjon</option></select></div>
           </div>
-          <input id="importFile" type="file" accept="application/json" class="hidden" onchange="importData(event)" />
+          <div><label>Struktur / øvelser</label><textarea id="templateStructure"></textarea></div>
+          <button id="templateSubmitBtn" class="btn-dark btn-full" onclick="saveTemplate()">Lagre øktmal</button>
+          <button id="cancelEditTemplateBtn" class="btn-soft btn-full hidden" onclick="clearTemplateForm()">Avbryt redigering</button>
         </div>
-        <div class="card">
-          <h2 class="section-title">Demo / nullstilling</h2>
-          <div class="button-row">
-            <button class="btn-purple" onclick="seedDemoData()">Legg inn demo</button>
-            <button class="btn-danger" onclick="resetData()">Slett alt</button>
-          </div>
-        </div>
-      </section>
-    </main>
+      </div>
+      <div class="card"><h2 class="section-title">Øktbibliotek</h2><div id="templateList"></div></div>
+    </section>
 
-    <nav>
-      <button class="active" onclick="showTab('dashboard', this)">Dash</button>
-      <button onclick="showTab('plan', this)">Plan</button>
-      <button onclick="showTab('library', this)">Økter</button>
-      <button onclick="showTab('calendar', this)">Kalender</button>
-      <button onclick="showTab('history', this)">Historikk</button>
-      <button onclick="showTab('settings', this)">Backup</button>
-    </nav>
-  </div>
-
-  <div id="rescheduleModal" class="modal-backdrop">
-    <div class="modal">
-      <h2>Endre dato</h2>
-      <input type="hidden" id="reschedulePlannedId" />
-      <input type="hidden" id="rescheduleOldDate" />
-      <div class="inline-form">
-        <div>
-          <label>Ny dato</label>
-          <input id="rescheduleNewDate" type="date" />
+    <section id="calendar" class="tab">
+      <div class="card">
+        <div class="cal-head">
+          <button class="btn-soft" onclick="changeMonth(-1)">◀</button>
+          <div class="cal-label" id="calendarLabel"></div>
+          <button class="btn-soft" onclick="changeMonth(1)">▶</button>
         </div>
-        <label style="display:flex;align-items:center;gap:10px;text-transform:none;letter-spacing:0;font-size:0.95rem;color:var(--black);font-weight:700;">
-          <input id="rescheduleShiftFollowing" type="checkbox" style="width:auto;" checked />
-          Flytt også alle senere planlagte økter med samme antall dager
-        </label>
-        <p class="small-note">Eksempel: Hvis økten flyttes 2 dager frem, forskyves alle senere planlagte økter 2 dager frem.</p>
+        <input id="calendarMonth" type="month" class="hidden" onchange="renderCalendar()">
+        <div id="calendarGrid"></div>
+      </div>
+    </section>
+
+    <section id="history" class="tab">
+      <div class="card">
+        <h2 class="section-title">Historikk</h2>
+        <div class="grid-2" style="margin-bottom:12px">
+          <div><label>Filter type</label><select id="historyFilter" onchange="render()"><option>Alle</option><option>Løping</option><option>Styrke</option><option>Mobilitet</option><option>Ski</option><option>Sykling</option><option>Annet</option></select></div>
+          <div><label>Sortering</label><select id="historySort" onchange="render()"><option value="desc">Nyeste først</option><option value="asc">Eldste først</option></select></div>
+        </div>
+        <div id="historyList"></div>
+      </div>
+    </section>
+
+    <section id="settings" class="tab">
+      <div class="card">
+        <h2 class="section-title">Backup</h2>
+        <p class="small-note">Data lagres lokalt i nettleseren. Ta jevnlig backup som JSON-fil.</p>
         <div class="button-row">
-          <button class="btn-primary" onclick="rescheduleWorkout()">Lagre ny dato</button>
-          <button class="btn-soft" onclick="closeRescheduleModal()">Avbryt</button>
+          <button class="btn-primary" onclick="exportData()">Eksporter backup</button>
+          <button class="btn-soft" onclick="document.getElementById('importFile').click()">Importer</button>
         </div>
+        <input id="importFile" type="file" accept="application/json" class="hidden" onchange="importData(event)">
+      </div>
+      <div class="card">
+        <h2 class="section-title">Demo / nullstilling</h2>
+        <div class="button-row">
+          <button class="btn-purple" onclick="seedDemoData()">Legg inn demo</button>
+          <button class="btn-danger" onclick="resetData()">Slett alt</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <nav>
+    <button class="active" onclick="showTab('dashboard',this)">Dash</button>
+    <button onclick="showTab('plan',this)">Plan</button>
+    <button onclick="showTab('library',this)">Økter</button>
+    <button onclick="showTab('calendar',this)">Kalender</button>
+    <button onclick="showTab('history',this)">Historikk</button>
+    <button onclick="showTab('settings',this)">Backup</button>
+  </nav>
+</div>
+
+<div id="rescheduleModal" class="modal-backdrop">
+  <div class="modal">
+    <h2>Endre dato</h2>
+    <input type="hidden" id="reschedulePlannedId">
+    <input type="hidden" id="rescheduleOldDate">
+    <div class="inline-form">
+      <div><label>Ny dato</label><input id="rescheduleNewDate" type="date"></div>
+      <label style="display:flex;align-items:center;gap:10px;text-transform:none;letter-spacing:0;font-size:.95rem;color:#000;font-weight:700">
+        <input id="rescheduleShiftFollowing" type="checkbox" style="width:auto" checked>
+        Flytt også alle senere planlagte økter
+      </label>
+      <p class="small-note">Hvis økten flyttes 2 dager frem, forskyves alle senere planlagte økter 2 dager frem.</p>
+      <div class="button-row">
+        <button class="btn-primary" onclick="rescheduleWorkout()">Lagre ny dato</button>
+        <button class="btn-soft" onclick="closeModal('rescheduleModal')">Avbryt</button>
       </div>
     </div>
   </div>
+</div>
 
-  <div id="completeModal" class="modal-backdrop">
-    <div class="modal">
-      <h2>Loggfør økt</h2>
-      <input type="hidden" id="completePlannedId" />
-      <div class="inline-form">
-        <div class="grid-2">
-          <div>
-            <label>Varighet min</label>
-            <input id="completeDuration" type="number" min="0" step="1" />
-          </div>
-          <div>
-            <label>Distanse km</label>
-            <input id="completeDistance" type="number" min="0" step="0.01" />
-          </div>
-        </div>
-        <div class="grid-2">
-          <div>
-            <label>Snittpuls</label>
-            <input id="completeAvgHr" type="number" min="0" step="1" />
-          </div>
-          <div>
-            <label>Makspuls</label>
-            <input id="completeMaxHr" type="number" min="0" step="1" />
-          </div>
-        </div>
-        <div>
-          <label>Opplevd intensitet 1-10</label>
-          <input id="completeRpe" type="number" min="1" max="10" step="1" />
-        </div>
-        <div>
-          <label>Notater</label>
-          <textarea id="completeNotes" placeholder="Hvordan føltes økten?"></textarea>
-        </div>
-        <div class="button-row">
-          <button class="btn-success" onclick="completeWorkout()">Marker utført</button>
-          <button class="btn-soft" onclick="closeCompleteModal()">Avbryt</button>
-        </div>
+<div id="completeModal" class="modal-backdrop">
+  <div class="modal">
+    <h2>Loggfør økt</h2>
+    <input type="hidden" id="completePlannedId">
+    <div class="inline-form">
+      <div class="grid-2">
+        <div><label>Varighet min</label><input id="completeDuration" type="number" min="0"></div>
+        <div><label>Distanse km</label><input id="completeDistance" type="number" min="0" step="0.01"></div>
+      </div>
+      <div class="grid-2">
+        <div><label>Snittpuls</label><input id="completeAvgHr" type="number" min="0"></div>
+        <div><label>Makspuls</label><input id="completeMaxHr" type="number" min="0"></div>
+      </div>
+      <div><label>Opplevd intensitet 1-10</label><input id="completeRpe" type="number" min="1" max="10"></div>
+      <div><label>Notater</label><textarea id="completeNotes"></textarea></div>
+      <div class="button-row">
+        <button class="btn-success" onclick="completeWorkout()">Marker utført</button>
+        <button class="btn-soft" onclick="closeModal('completeModal')">Avbryt</button>
       </div>
     </div>
   </div>
+</div>
 
-  <script>
-    const STORAGE_KEY = 'personal_training_app_v1';
+<script>
+var KEY = 'personal_training_app_v4';
+var blank = { templates: [], planned: [], completed: [] };
+var state = loadState();
 
-    const defaultState = {
-      templates: [],
-      planned: [],
-      completed: []
-    };
+function el(id) { return document.getElementById(id); }
+function clone(obj) { return JSON.parse(JSON.stringify(obj)); }
 
-    let state = loadState();
+function loadState() {
+  try {
+    var v = localStorage.getItem(KEY) ||
+      localStorage.getItem('personal_training_app_v3') ||
+      localStorage.getItem('personal_training_app_v2') ||
+      localStorage.getItem('personal_training_app_v1');
+    return v ? JSON.parse(v) : clone(blank);
+  } catch (e) {
+    return clone(blank);
+  }
+}
 
-    function loadState() {
-      try {
-        const stored = localStorage.getItem(STORAGE_KEY);
-        return stored ? JSON.parse(stored) : structuredClone(defaultState);
-      } catch (error) {
-        console.error(error);
-        return structuredClone(defaultState);
-      }
-    }
+function saveState() { localStorage.setItem(KEY, JSON.stringify(state)); }
+function uid(prefix) { return prefix + '_' + Date.now() + '_' + Math.random().toString(16).slice(2); }
+function todayISO() { return new Date().toISOString().slice(0, 10); }
 
-    function saveState() {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-    }
+function formatDate(iso) {
+  if (!iso) return '';
+  return new Date(iso + 'T12:00:00').toLocaleDateString('no-NO', {
+    weekday: 'short', day: '2-digit', month: 'short'
+  });
+}
 
-    function uid(prefix) {
-      return `${prefix}_${Date.now()}_${Math.random().toString(16).slice(2)}`;
-    }
+function escapeText(value) {
+  return String(value || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
 
-    function todayISO() {
-      return new Date().toISOString().slice(0, 10);
-    }
+function addDays(iso, days) {
+  var date = new Date(iso + 'T12:00:00');
+  date.setDate(date.getDate() + days);
+  return date.toISOString().slice(0, 10);
+}
 
-    function formatDate(iso) {
-      if (!iso) return '';
-      const d = new Date(`${iso}T12:00:00`);
-      return d.toLocaleDateString('no-NO', { weekday: 'short', day: '2-digit', month: 'short' });
-    }
+function daysBetween(oldDate, newDate) {
+  var oldTime = new Date(oldDate + 'T12:00:00').getTime();
+  var newTime = new Date(newDate + 'T12:00:00').getTime();
+  return Math.round((newTime - oldTime) / 86400000);
+}
 
-    function escapeHtml(str = '') {
-      return String(str)
-        .replaceAll('&', '&amp;')
-        .replaceAll('<', '&lt;')
-        .replaceAll('>', '&gt;')
-        .replaceAll('"', '&quot;')
-        .replaceAll("'", '&#039;');
-    }
+function getTemplate(id) {
+  for (var i = 0; i < state.templates.length; i++) {
+    if (state.templates[i].id === id) return state.templates[i];
+  }
+  return { id: '', name: 'Slettet øktmal', type: 'Annet', intensity: '', structure: '' };
+}
 
-    function showTab(tabId, btn) {
-      document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
-      document.getElementById(tabId).classList.add('active');
-      document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      render();
+function showTab(id, button) {
+  var tabs = document.querySelectorAll('.tab');
+  for (var i = 0; i < tabs.length; i++) tabs[i].classList.remove('active');
+  el(id).classList.add('active');
 
-    function renderCalendar() {
-      const input = document.getElementById('calendarMonth');
-      if (!input) return;
-      if (!input.value) input.value = todayISO().slice(0,7);
+  var buttons = document.querySelectorAll('nav button');
+  for (var j = 0; j < buttons.length; j++) buttons[j].classList.remove('active');
+  button.classList.add('active');
+  render();
+}
 
-      const [year, month] = input.value.split('-').map(Number);
-      const firstDay = new Date(year, month-1, 1);
-      const lastDay = new Date(year, month, 0);
+function closeModal(id) { el(id).classList.remove('active'); }
 
-      let html = '<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:6px;font-size:0.8rem;">';
+function saveTemplate() {
+  var editId = el('editingTemplateId').value;
+  var name = el('templateName').value.trim();
+  if (!name) { alert('Skriv inn navn på økten først.'); return; }
 
-      const weekdays = ['Man','Tir','Ons','Tor','Fre','Lør','Søn'];
-      weekdays.forEach(d => html += `<div style="text-align:center;font-weight:700;color:var(--warm-gray-3)">${d}</div>`);
+  var data = {
+    name: name,
+    type: el('templateType').value,
+    intensity: el('templateIntensity').value,
+    structure: el('templateStructure').value.trim()
+  };
 
-      let startOffset = (firstDay.getDay() + 6) % 7;
-      for (let i=0;i<startOffset;i++) html += '<div></div>';
+  if (editId) {
+    var existing = getTemplate(editId);
+    existing.name = data.name;
+    existing.type = data.type;
+    existing.intensity = data.intensity;
+    existing.structure = data.structure;
+    existing.updatedAt = new Date().toISOString();
+  } else {
+    data.id = uid('template');
+    data.createdAt = todayISO();
+    state.templates.push(data);
+  }
 
-      for (let day=1; day<=lastDay.getDate(); day++) {
-        const dateIso = new Date(year, month-1, day).toISOString().slice(0,10);
+  clearTemplateForm();
+  saveState();
+  render();
+}
 
-        const planned = state.planned.filter(p => p.date === dateIso && p.status !== 'done');
-        const done = state.completed.filter(c => c.date === dateIso);
+function editTemplate(id) {
+  var t = getTemplate(id);
+  el('editingTemplateId').value = t.id;
+  el('templateName').value = t.name;
+  el('templateType').value = t.type;
+  el('templateIntensity').value = t.intensity;
+  el('templateStructure').value = t.structure || '';
+  el('templateSubmitBtn').textContent = 'Lagre endringer';
+  el('cancelEditTemplateBtn').classList.remove('hidden');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
 
-        html += `
-          <div style="background:#fff;border-radius:10px;padding:6px;min-height:70px;font-size:0.7rem;">
-            <div style="font-weight:700;">${day}</div>
-            ${planned.map(p => `<div style="color:var(--primary);">• ${escapeHtml(getTemplate(p.templateId).name)}</div>`).join('')}
-            ${done.map(c => `<div style="color:var(--success);">✓ ${escapeHtml(getTemplate(c.templateId).name)}</div>`).join('')}
-          </div>
-        `;
-      }
+function clearTemplateForm() {
+  el('editingTemplateId').value = '';
+  el('templateName').value = '';
+  el('templateStructure').value = '';
+  el('templateSubmitBtn').textContent = 'Lagre øktmal';
+  el('cancelEditTemplateBtn').classList.add('hidden');
+}
 
-      html += '</div>';
-      document.getElementById('calendarGrid').innerHTML = html;
-    }
-    }
+function deleteTemplate(id) {
+  if (!confirm('Slette denne øktmalen? Planlagte økter blir ikke slettet.')) return;
+  state.templates = state.templates.filter(function(t) { return t.id !== id; });
+  saveState();
+  render();
+}
 
-    function saveTemplate() {
-      const editingId = document.getElementById('editingTemplateId').value;
-      const name = document.getElementById('templateName').value.trim();
-      if (!name) return alert('Skriv inn navn på økten først.');
+function toggleRepeatOptions() {
+  var repeat = el('planRepeat').value;
+  el('planRepeatWeeks').disabled = repeat === 'none';
+  el('customRepeatWrapper').classList.toggle('hidden', repeat !== 'custom');
+}
 
-      const templateData = {
-        name,
-        type: document.getElementById('templateType').value,
-        intensity: document.getElementById('templateIntensity').value,
-        structure: document.getElementById('templateStructure').value.trim()
-      };
+function addPlannedWorkout() {
+  var templateId = el('planTemplate').value;
+  var date = el('planDate').value;
+  var notes = el('planNotes').value.trim();
+  if (!templateId) { alert('Lag eller velg en øktmal først.'); return; }
+  if (!date) { alert('Velg dato.'); return; }
 
-      if (editingId) {
-        const template = state.templates.find(t => t.id === editingId);
-        if (!template) return alert('Fant ikke øktmalen som skulle redigeres.');
-        Object.assign(template, templateData, { updatedAt: new Date().toISOString() });
-      } else {
-        state.templates.push({
-          id: uid('template'),
-          ...templateData,
-          createdAt: todayISO()
-        });
-      }
+  var repeat = el('planRepeat').value;
+  var weeks = Number(el('planRepeatWeeks').value || 1);
+  var interval = 0;
+  if (repeat === 'weekly') interval = 1;
+  if (repeat === 'biweekly') interval = 2;
+  if (repeat === 'custom') interval = Math.max(1, Number(el('planRepeatInterval').value || 1));
 
-      clearTemplateForm();
-      saveState();
-      render();
-    }
-
-    function editTemplate(id) {
-      const template = state.templates.find(t => t.id === id);
-      if (!template) return;
-
-      document.getElementById('editingTemplateId').value = template.id;
-      document.getElementById('templateName').value = template.name;
-      document.getElementById('templateType').value = template.type;
-      document.getElementById('templateIntensity').value = template.intensity;
-      document.getElementById('templateStructure').value = template.structure || '';
-      document.getElementById('templateSubmitBtn').textContent = 'Lagre endringer';
-      document.getElementById('cancelEditTemplateBtn').classList.remove('hidden');
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
-
-    function cancelEditTemplate() {
-      clearTemplateForm();
-    }
-
-    function clearTemplateForm() {
-      document.getElementById('editingTemplateId').value = '';
-      document.getElementById('templateName').value = '';
-      document.getElementById('templateStructure').value = '';
-      document.getElementById('templateSubmitBtn').textContent = 'Lagre øktmal';
-      document.getElementById('cancelEditTemplateBtn').classList.add('hidden');
-    }
-
-    function deleteTemplate(id) {
-      if (!confirm('Slette denne øktmalen? Planlagte økter blir ikke slettet.')) return;
-      state.templates = state.templates.filter(t => t.id !== id);
-      saveState();
-      render();
-    }
-
-    function addPlannedWorkout() {
-      const templateId = document.getElementById('planTemplate').value;
-      const date = document.getElementById('planDate').value;
-      if (!templateId) return alert('Du må først lage eller velge en øktmal.');
-      if (!date) return alert('Velg dato.');
-
+  var groupId = uid('group');
+  if (repeat === 'none') {
+    state.planned.push({
+      id: uid('planned'), templateId: templateId, date: date,
+      status: 'planned', notes: notes, repeatGroupId: null, createdAt: todayISO()
+    });
+  } else {
+    for (var week = 0; week <= weeks; week += interval) {
       state.planned.push({
-        id: uid('planned'),
-        templateId,
-        date,
-        status: 'planned',
-        notes: document.getElementById('planNotes').value.trim(),
+        id: uid('planned'), templateId: templateId, date: addDays(date, week * 7),
+        status: 'planned', notes: notes, repeatGroupId: groupId,
+        repeatRule: { type: repeat, intervalWeeks: interval, totalWeeks: weeks },
         createdAt: todayISO()
       });
-
-      document.getElementById('planNotes').value = '';
-      saveState();
-      render();
     }
+  }
 
-    function deletePlanned(id) {
-      if (!confirm('Slette planlagt økt?')) return;
-      state.planned = state.planned.filter(p => p.id !== id);
-      saveState();
-      render();
-    }
+  el('planNotes').value = '';
+  el('planRepeat').value = 'none';
+  el('planRepeatWeeks').value = 8;
+  el('planRepeatInterval').value = 1;
+  toggleRepeatOptions();
+  saveState();
+  render();
+}
 
-    function daysBetween(oldDate, newDate) {
-      const oldTime = new Date(`${oldDate}T12:00:00`).getTime();
-      const newTime = new Date(`${newDate}T12:00:00`).getTime();
-      return Math.round((newTime - oldTime) / 86400000);
-    }
+function deletePlanned(id) {
+  if (!confirm('Slette planlagt økt?')) return;
+  state.planned = state.planned.filter(function(p) { return p.id !== id; });
+  saveState();
+  render();
+}
 
-    function addDays(dateIso, days) {
-      const date = new Date(`${dateIso}T12:00:00`);
-      date.setDate(date.getDate() + days);
-      return date.toISOString().slice(0, 10);
-    }
+function openRescheduleModal(id) {
+  var p = state.planned.find(function(x) { return x.id === id; });
+  if (!p) return;
+  el('reschedulePlannedId').value = id;
+  el('rescheduleOldDate').value = p.date;
+  el('rescheduleNewDate').value = p.date;
+  el('rescheduleShiftFollowing').checked = true;
+  el('rescheduleModal').classList.add('active');
+}
 
-    function openRescheduleModal(plannedId) {
-      const planned = state.planned.find(p => p.id === plannedId);
-      if (!planned) return;
-      document.getElementById('reschedulePlannedId').value = plannedId;
-      document.getElementById('rescheduleOldDate').value = planned.date;
-      document.getElementById('rescheduleNewDate').value = planned.date;
-      document.getElementById('rescheduleShiftFollowing').checked = true;
-      document.getElementById('rescheduleModal').classList.add('active');
-    }
+function rescheduleWorkout() {
+  var id = el('reschedulePlannedId').value;
+  var oldDate = el('rescheduleOldDate').value;
+  var newDate = el('rescheduleNewDate').value;
+  var diff = daysBetween(oldDate, newDate);
 
-    function closeRescheduleModal() {
-      document.getElementById('rescheduleModal').classList.remove('active');
-    }
-
-    function rescheduleWorkout() {
-      const plannedId = document.getElementById('reschedulePlannedId').value;
-      const oldDate = document.getElementById('rescheduleOldDate').value;
-      const newDate = document.getElementById('rescheduleNewDate').value;
-      const shiftFollowing = document.getElementById('rescheduleShiftFollowing').checked;
-      const planned = state.planned.find(p => p.id === plannedId);
-
-      if (!planned) return alert('Fant ikke økten som skulle flyttes.');
-      if (!newDate) return alert('Velg ny dato.');
-
-      const diffDays = daysBetween(oldDate, newDate);
-      if (diffDays === 0) {
-        closeRescheduleModal();
-        return;
+  if (el('rescheduleShiftFollowing').checked) {
+    for (var i = 0; i < state.planned.length; i++) {
+      if (state.planned[i].status !== 'done' && state.planned[i].date >= oldDate) {
+        state.planned[i].date = addDays(state.planned[i].date, diff);
       }
+    }
+  } else {
+    var p = state.planned.find(function(x) { return x.id === id; });
+    if (p) p.date = newDate;
+  }
 
-      if (shiftFollowing) {
-        state.planned.forEach(p => {
-          if (p.status !== 'done' && p.date >= oldDate) {
-            p.date = addDays(p.date, diffDays);
-            p.updatedAt = new Date().toISOString();
-          }
-        });
-      } else {
-        planned.date = newDate;
-        planned.updatedAt = new Date().toISOString();
+  closeModal('rescheduleModal');
+  saveState();
+  render();
+}
+
+function openCompleteModal(id) {
+  el('completePlannedId').value = id;
+  var ids = ['completeDuration','completeDistance','completeAvgHr','completeMaxHr','completeRpe','completeNotes'];
+  for (var i = 0; i < ids.length; i++) el(ids[i]).value = '';
+  el('completeModal').classList.add('active');
+}
+
+function completeWorkout() {
+  var id = el('completePlannedId').value;
+  var p = state.planned.find(function(x) { return x.id === id; });
+  if (!p) return;
+
+  p.status = 'done';
+  state.completed.push({
+    id: uid('completed'), plannedWorkoutId: p.id, templateId: p.templateId, date: p.date,
+    durationMinutes: el('completeDuration').value || '',
+    distanceKm: el('completeDistance').value || '',
+    avgHeartRate: el('completeAvgHr').value || '',
+    maxHeartRate: el('completeMaxHr').value || '',
+    rpe: el('completeRpe').value || '',
+    notes: el('completeNotes').value.trim(), completedAt: new Date().toISOString()
+  });
+
+  closeModal('completeModal');
+  saveState();
+  render();
+}
+
+function undoComplete(id) {
+  var c = state.completed.find(function(x) { return x.id === id; });
+  if (!c) return;
+  var p = state.planned.find(function(x) { return x.id === c.plannedWorkoutId; });
+  if (p) p.status = 'planned';
+  state.completed = state.completed.filter(function(x) { return x.id !== id; });
+  saveState();
+  render();
+}
+
+function workoutCard(p, canDelete) {
+  var t = getTemplate(p.templateId);
+  var html = '';
+  html += '<div class="workout-card">';
+  html += '<div class="workout-top"><div>';
+  html += '<h3 class="workout-title">' + escapeText(t.name) + '</h3>';
+  html += '<div class="meta">' + formatDate(p.date) + ' · ' + escapeText(t.type) + ' · ' + escapeText(t.intensity || '') + '</div>';
+  html += '</div><span class="tag ' + (p.status === 'done' ? 'done' : 'planned') + '">';
+  html += p.status === 'done' ? 'Utført' : 'Planlagt';
+  html += '</span></div>';
+  if (t.structure) html += '<p class="meta" style="white-space:pre-line">' + escapeText(t.structure) + '</p>';
+  if (p.notes) html += '<p class="meta"><b>Notat:</b> ' + escapeText(p.notes) + '</p>';
+  html += '<div class="button-row">';
+  if (p.status !== 'done') {
+    html += '<button class="btn-success" onclick="openCompleteModal(\'' + p.id + '\')">Marker utført</button>';
+    html += '<button class="btn-soft" onclick="openRescheduleModal(\'' + p.id + '\')">Endre dato</button>';
+  }
+  if (canDelete) html += '<button class="btn-soft" onclick="deletePlanned(\'' + p.id + '\')">Slett</button>';
+  html += '</div></div>';
+  return html;
+}
+
+function templateCard(t) {
+  var html = '';
+  html += '<div class="workout-card"><div class="workout-top"><div>';
+  html += '<h3 class="workout-title">' + escapeText(t.name) + '</h3>';
+  html += '<div class="meta">' + escapeText(t.type) + ' · ' + escapeText(t.intensity) + '</div>';
+  html += '</div><span class="tag">Mal</span></div>';
+  if (t.structure) html += '<p class="meta" style="white-space:pre-line">' + escapeText(t.structure) + '</p>';
+  html += '<div class="button-row">';
+  html += '<button class="btn-primary" onclick="editTemplate(\'' + t.id + '\')">Rediger</button>';
+  html += '<button class="btn-soft" onclick="deleteTemplate(\'' + t.id + '\')">Slett</button>';
+  html += '</div></div>';
+  return html;
+}
+
+function completedCard(c) {
+  var t = getTemplate(c.templateId);
+  var metrics = [];
+  if (c.durationMinutes) metrics.push(c.durationMinutes + ' min');
+  if (c.distanceKm) metrics.push(c.distanceKm + ' km');
+  if (c.avgHeartRate) metrics.push('Snitt ' + c.avgHeartRate + ' bpm');
+  if (c.maxHeartRate) metrics.push('Maks ' + c.maxHeartRate + ' bpm');
+  if (c.rpe) metrics.push('RPE ' + c.rpe + '/10');
+
+  var html = '';
+  html += '<div class="workout-card"><div class="workout-top"><div>';
+  html += '<h3 class="workout-title">' + escapeText(t.name) + '</h3>';
+  html += '<div class="meta">' + formatDate(c.date) + ' · ' + escapeText(t.type) + ' · ' + escapeText(t.intensity || '') + '</div>';
+  html += '</div><span class="tag done">Utført</span></div>';
+  if (metrics.length) html += '<p class="meta">' + escapeText(metrics.join(' · ')) + '</p>';
+  if (c.notes) html += '<p class="meta"><b>Notat:</b> ' + escapeText(c.notes) + '</p>';
+  html += '<div class="button-row"><button class="btn-soft" onclick="undoComplete(\'' + c.id + '\')">Angre utført</button></div>';
+  html += '</div>';
+  return html;
+}
+
+function changeMonth(direction) {
+  var input = el('calendarMonth');
+  if (!input.value) input.value = todayISO().slice(0, 7);
+  var parts = input.value.split('-');
+  var d = new Date(Number(parts[0]), Number(parts[1]) - 1 + direction, 1);
+  input.value = d.toISOString().slice(0, 7);
+  renderCalendar();
+}
+
+function renderCalendar() {
+  var input = el('calendarMonth');
+  if (!input) return;
+  if (!input.value) input.value = todayISO().slice(0, 7);
+
+  var parts = input.value.split('-');
+  var year = Number(parts[0]);
+  var month = Number(parts[1]);
+  var first = new Date(year, month - 1, 1);
+  var last = new Date(year, month, 0);
+
+  el('calendarLabel').textContent = new Date(year, month - 1, 1)
+    .toLocaleDateString('no-NO', { month: 'long', year: 'numeric' });
+
+  var html = '<div class="cal-grid">';
+  var weekdays = ['Man','Tir','Ons','Tor','Fre','Lør','Søn'];
+  for (var i = 0; i < weekdays.length; i++) html += '<div class="weekday">' + weekdays[i] + '</div>';
+
+  var offset = (first.getDay() + 6) % 7;
+  for (var blankDay = 0; blankDay < offset; blankDay++) html += '<div></div>';
+
+  for (var day = 1; day <= last.getDate(); day++) {
+    var iso = new Date(year, month - 1, day, 12).toISOString().slice(0, 10);
+    var planned = state.planned.filter(function(p) { return p.date === iso && p.status !== 'done'; });
+    var done = state.completed.filter(function(c) { return c.date === iso; });
+
+    html += '<div class="cal-day"><div class="cal-num">' + day + '</div>';
+    for (var p = 0; p < planned.length; p++) {
+      html += '<div class="cal-planned">• ' + escapeText(getTemplate(planned[p].templateId).name) + '</div>';
+    }
+    for (var c = 0; c < done.length; c++) {
+      html += '<div class="cal-done">✓ ' + escapeText(getTemplate(done[c].templateId).name) + '</div>';
+    }
+    html += '</div>';
+  }
+
+  html += '</div>';
+  el('calendarGrid').innerHTML = html;
+}
+
+function render() {
+  var today = todayISO();
+  el('todayPill').textContent = formatDate(today);
+  if (!el('planDate').value) el('planDate').value = today;
+
+  var active = state.planned.filter(function(p) { return p.status !== 'done'; });
+  var todayItems = active.filter(function(p) { return p.date === today; });
+  var upcoming = active.filter(function(p) { return p.date > today; });
+
+  todayItems.sort(function(a, b) { return a.createdAt.localeCompare(b.createdAt); });
+  upcoming.sort(function(a, b) { return a.date.localeCompare(b.date); });
+
+  el('statToday').textContent = todayItems.length;
+  el('statPlanned').textContent = active.length;
+  el('statDone').textContent = state.completed.length;
+
+  el('todayList').innerHTML = todayItems.length
+    ? todayItems.map(function(p) { return workoutCard(p, false); }).join('')
+    : '<div class="empty">Ingen planlagte økter i dag.</div>';
+
+  el('upcomingList').innerHTML = upcoming.length
+    ? upcoming.map(function(p) { return workoutCard(p, false); }).join('')
+    : '<div class="empty">Ingen kommende økter.</div>';
+
+  el('planTemplate').innerHTML = state.templates.length
+    ? state.templates.map(function(t) { return '<option value="' + t.id + '">' + escapeText(t.name) + ' · ' + escapeText(t.type) + '</option>'; }).join('')
+    : '<option value="">Lag en øktmal først</option>';
+
+  el('plannedList').innerHTML = state.planned.length
+    ? state.planned.slice().sort(function(a, b) { return a.date.localeCompare(b.date); }).map(function(p) { return workoutCard(p, true); }).join('')
+    : '<div class="empty">Du har ingen planlagte økter.</div>';
+
+  el('templateList').innerHTML = state.templates.length
+    ? state.templates.map(function(t) { return templateCard(t); }).join('')
+    : '<div class="empty">Ingen øktmaler enda.</div>';
+
+  var filter = el('historyFilter').value;
+  var sort = el('historySort').value;
+  var history = state.completed.slice();
+  if (filter !== 'Alle') history = history.filter(function(c) { return getTemplate(c.templateId).type === filter; });
+  history.sort(function(a, b) { return sort === 'desc' ? b.date.localeCompare(a.date) : a.date.localeCompare(b.date); });
+
+  el('historyList').innerHTML = history.length
+    ? history.map(function(c) { return completedCard(c); }).join('')
+    : '<div class="empty">Ingen historikk enda.</div>';
+
+  renderCalendar();
+}
+
+function exportData() {
+  var blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url;
+  a.download = 'treningsapp-backup-' + todayISO() + '.json';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function importData(event) {
+  var file = event.target.files[0];
+  if (!file) return;
+  var reader = new FileReader();
+  reader.onload = function() {
+    try {
+      var data = JSON.parse(reader.result);
+      if (!data.templates || !data.planned || !data.completed) throw new Error('Feil format');
+      if (confirm('Import vil overskrive data som ligger i appen nå. Fortsette?')) {
+        state = data;
+        saveState();
+        render();
       }
-
-      closeRescheduleModal();
-      saveState();
-      render();
+    } catch (err) {
+      alert('Kunne ikke importere filen.');
     }
+  };
+  reader.readAsText(file);
+  event.target.value = '';
+}
 
-    function openCompleteModal(plannedId) {
-      document.getElementById('completePlannedId').value = plannedId;
-      ['completeDuration','completeDistance','completeAvgHr','completeMaxHr','completeRpe','completeNotes'].forEach(id => document.getElementById(id).value = '');
-      document.getElementById('completeModal').classList.add('active');
-    }
+function seedDemoData() {
+  if (!confirm('Legge inn demo-data?')) return;
+  var t1 = {
+    id: uid('template'), name: '6 x 6 min terskel', type: 'Løping', intensity: 'Terskel',
+    structure: '10 min oppvarming\n6 x 6 min terskel\n90 sek pause\n10 min nedjogg', createdAt: todayISO()
+  };
+  var t2 = {
+    id: uid('template'), name: 'Basis styrke', type: 'Styrke', intensity: 'Styrke',
+    structure: 'Deadbugs 3 x 10\nTåhev 3 x 15\nUtfall 3 x 10 per bein\nPlanke 3 x 30 sek\nPushups 3 x kontrollert', createdAt: todayISO()
+  };
+  state.templates.push(t1, t2);
+  state.planned.push({ id: uid('planned'), templateId: t1.id, date: todayISO(), status: 'planned', notes: 'Hold kontrollert terskel.', createdAt: todayISO() });
+  state.planned.push({ id: uid('planned'), templateId: t2.id, date: todayISO(), status: 'planned', notes: '', createdAt: todayISO() });
+  saveState();
+  render();
+}
 
-    function closeCompleteModal() {
-      document.getElementById('completeModal').classList.remove('active');
-    }
+function resetData() {
+  if (!confirm('Dette sletter alle økter, planer og historikk i nettleseren. Fortsette?')) return;
+  state = clone(blank);
+  saveState();
+  render();
+}
 
-    function completeWorkout() {
-      const plannedId = document.getElementById('completePlannedId').value;
-      const planned = state.planned.find(p => p.id === plannedId);
-      if (!planned) return;
-
-      planned.status = 'done';
-      state.completed.push({
-        id: uid('completed'),
-        plannedWorkoutId: plannedId,
-        templateId: planned.templateId,
-        date: planned.date,
-        durationMinutes: document.getElementById('completeDuration').value || '',
-        distanceKm: document.getElementById('completeDistance').value || '',
-        avgHeartRate: document.getElementById('completeAvgHr').value || '',
-        maxHeartRate: document.getElementById('completeMaxHr').value || '',
-        rpe: document.getElementById('completeRpe').value || '',
-        notes: document.getElementById('completeNotes').value.trim(),
-        completedAt: new Date().toISOString()
-      });
-
-      closeCompleteModal();
-      saveState();
-      render();
-    }
-
-    function undoComplete(completedId) {
-      const completed = state.completed.find(c => c.id === completedId);
-      if (!completed) return;
-      const planned = state.planned.find(p => p.id === completed.plannedWorkoutId);
-      if (planned) planned.status = 'planned';
-      state.completed = state.completed.filter(c => c.id !== completedId);
-      saveState();
-      render();
-    }
-
-    function getTemplate(id) {
-      return state.templates.find(t => t.id === id) || { name: 'Slettet øktmal', type: 'Annet', intensity: '', structure: '' };
-    }
-
-    function workoutCard(planned, options = {}) {
-      const t = getTemplate(planned.templateId);
-      return `
-        <div class="workout-card">
-          <div class="workout-top">
-            <div>
-              <h3 class="workout-title">${escapeHtml(t.name)}</h3>
-              <div class="meta">${formatDate(planned.date)} · ${escapeHtml(t.type)} · ${escapeHtml(t.intensity || '')}</div>
-            </div>
-            <span class="tag ${planned.status === 'done' ? 'done' : 'planned'}">${planned.status === 'done' ? 'Utført' : 'Planlagt'}</span>
-          </div>
-          ${t.structure ? `<p class="meta" style="white-space:pre-line;">${escapeHtml(t.structure)}</p>` : ''}
-          ${planned.notes ? `<p class="meta"><strong>Notat:</strong> ${escapeHtml(planned.notes)}</p>` : ''}
-          <div class="button-row">
-            ${planned.status !== 'done' ? `<button class="btn-success" onclick="openCompleteModal('${planned.id}')">Marker utført</button>` : ''}
-            ${planned.status !== 'done' ? `<button class="btn-soft" onclick="openRescheduleModal('${planned.id}')">Endre dato</button>` : ''}
-            ${options.canDelete ? `<button class="btn-soft" onclick="deletePlanned('${planned.id}')">Slett</button>` : ''}
-          </div>
-        </div>`;
-    }
-
-    function templateCard(t) {
-      return `
-        <div class="workout-card">
-          <div class="workout-top">
-            <div>
-              <h3 class="workout-title">${escapeHtml(t.name)}</h3>
-              <div class="meta">${escapeHtml(t.type)} · ${escapeHtml(t.intensity)}</div>
-            </div>
-            <span class="tag">Mal</span>
-          </div>
-          ${t.structure ? `<p class="meta" style="white-space:pre-line;">${escapeHtml(t.structure)}</p>` : ''}
-          <div class="button-row">
-            <button class="btn-primary" onclick="editTemplate('${t.id}')">Rediger</button>
-            <button class="btn-soft" onclick="deleteTemplate('${t.id}')">Slett</button>
-          </div>
-        </div>`;
-    }
-
-    function completedCard(c) {
-      const t = getTemplate(c.templateId);
-      const metrics = [
-        c.durationMinutes ? `${c.durationMinutes} min` : null,
-        c.distanceKm ? `${c.distanceKm} km` : null,
-        c.avgHeartRate ? `Snitt ${c.avgHeartRate} bpm` : null,
-        c.maxHeartRate ? `Maks ${c.maxHeartRate} bpm` : null,
-        c.rpe ? `RPE ${c.rpe}/10` : null
-      ].filter(Boolean).join(' · ');
-
-      return `
-        <div class="workout-card">
-          <div class="workout-top">
-            <div>
-              <h3 class="workout-title">${escapeHtml(t.name)}</h3>
-              <div class="meta">${formatDate(c.date)} · ${escapeHtml(t.type)} · ${escapeHtml(t.intensity || '')}</div>
-            </div>
-            <span class="tag done">Utført</span>
-          </div>
-          ${metrics ? `<p class="meta">${escapeHtml(metrics)}</p>` : ''}
-          ${c.notes ? `<p class="meta"><strong>Notat:</strong> ${escapeHtml(c.notes)}</p>` : ''}
-          <div class="button-row">
-            <button class="btn-soft" onclick="undoComplete('${c.id}')">Angre utført</button>
-          </div>
-        </div>`;
-    }
-
-    function renderCalendar() {
-      const input = document.getElementById('calendarMonth');
-      if (!input) return;
-      if (!input.value) input.value = todayISO().slice(0, 7);
-
-      const [year, month] = input.value.split('-').map(Number);
-      const firstDay = new Date(year, month - 1, 1);
-      const lastDay = new Date(year, month, 0);
-
-      let html = '<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:6px;font-size:0.8rem;">';
-
-      const weekdays = ['Man', 'Tir', 'Ons', 'Tor', 'Fre', 'Lør', 'Søn'];
-      weekdays.forEach(d => {
-        html += `<div style="text-align:center;font-weight:700;color:var(--warm-gray-3)">${d}</div>`;
-      });
-
-      const startOffset = (firstDay.getDay() + 6) % 7;
-      for (let i = 0; i < startOffset; i++) html += '<div></div>';
-
-      for (let day = 1; day <= lastDay.getDate(); day++) {
-        const dateIso = new Date(year, month - 1, day + 1).toISOString().slice(0, 10);
-        const planned = state.planned.filter(p => p.date === dateIso && p.status !== 'done');
-        const done = state.completed.filter(c => c.date === dateIso);
-
-        html += `
-          <div style="background:#fff;border-radius:10px;padding:6px;min-height:70px;font-size:0.7rem;border:1px solid var(--warm-gray-1);">
-            <div style="font-weight:700;margin-bottom:4px;">${day}</div>
-            ${planned.map(p => `<div style="color:var(--primary);line-height:1.2;margin-top:2px;">• ${escapeHtml(getTemplate(p.templateId).name)}</div>`).join('')}
-            ${done.map(c => `<div style="color:var(--success);line-height:1.2;margin-top:2px;">✓ ${escapeHtml(getTemplate(c.templateId).name)}</div>`).join('')}
-          </div>
-        `;
-      }
-
-      html += '</div>';
-      document.getElementById('calendarGrid').innerHTML = html;
-    }
-
-    function render() {
-      renderCalendar();
-      const today = todayISO();
-      document.getElementById('todayPill').textContent = formatDate(today);
-      document.getElementById('planDate').value ||= today;
-
-      const plannedActive = state.planned.filter(p => p.status !== 'done');
-      const todayItems = plannedActive.filter(p => p.date === today).sort((a,b) => a.createdAt.localeCompare(b.createdAt));
-      const upcomingItems = plannedActive.filter(p => p.date > today).sort((a,b) => a.date.localeCompare(b.date));
-
-      document.getElementById('statToday').textContent = todayItems.length;
-      document.getElementById('statPlanned').textContent = plannedActive.length;
-      document.getElementById('statDone').textContent = state.completed.length;
-
-      document.getElementById('todayList').innerHTML = todayItems.length ? todayItems.map(p => workoutCard(p)).join('') : `<div class="empty">Ingen planlagte økter i dag.</div>`;
-      document.getElementById('upcomingList').innerHTML = upcomingItems.length ? upcomingItems.map(p => workoutCard(p)).join('') : `<div class="empty">Ingen kommende økter.</div>`;
-
-      const templateSelect = document.getElementById('planTemplate');
-      templateSelect.innerHTML = state.templates.length
-        ? state.templates.map(t => `<option value="${t.id}">${escapeHtml(t.name)} · ${escapeHtml(t.type)}</option>`).join('')
-        : `<option value="">Lag en øktmal først</option>`;
-
-      const sortedPlanned = [...state.planned].sort((a,b) => a.date.localeCompare(b.date));
-      document.getElementById('plannedList').innerHTML = sortedPlanned.length ? sortedPlanned.map(p => workoutCard(p, { canDelete: true })).join('') : `<div class="empty">Du har ingen planlagte økter.</div>`;
-
-      document.getElementById('templateList').innerHTML = state.templates.length ? state.templates.map(templateCard).join('') : `<div class="empty">Ingen øktmaler enda. Lag din første over.</div>`;
-
-      const filter = document.getElementById('historyFilter')?.value || 'Alle';
-      const sort = document.getElementById('historySort')?.value || 'desc';
-      let completed = [...state.completed];
-      if (filter !== 'Alle') completed = completed.filter(c => getTemplate(c.templateId).type === filter);
-      completed.sort((a,b) => sort === 'desc' ? b.date.localeCompare(a.date) : a.date.localeCompare(b.date));
-      document.getElementById('historyList').innerHTML = completed.length ? completed.map(completedCard).join('') : `<div class="empty">Ingen historikk enda.</div>`;
-    }
-
-    function exportData() {
-      const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `treningsapp-backup-${todayISO()}.json`;
-      a.click();
-      URL.revokeObjectURL(url);
-    }
-
-    function importData(event) {
-      const file = event.target.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = () => {
-        try {
-          const imported = JSON.parse(reader.result);
-          if (!imported.templates || !imported.planned || !imported.completed) throw new Error('Invalid format');
-          if (!confirm('Import vil overskrive data som ligger i appen nå. Fortsette?')) return;
-          state = imported;
-          saveState();
-          render();
-        } catch (error) {
-          alert('Kunne ikke importere filen. Sjekk at dette er en gyldig backup fra appen.');
-        }
-      };
-      reader.readAsText(file);
-      event.target.value = '';
-    }
-
-    function seedDemoData() {
-      if (!confirm('Legge inn demo-data?')) return;
-      const t1 = { id: uid('template'), name: '6 x 6 min terskel', type: 'Løping', intensity: 'Terskel', structure: '10 min oppvarming\n6 x 6 min terskel\n90 sek pause\n10 min nedjogg', createdAt: todayISO() };
-      const t2 = { id: uid('template'), name: 'Basis styrke', type: 'Styrke', intensity: 'Styrke', structure: 'Deadbugs 3 x 10\nTåhev 3 x 15\nUtfall 3 x 10 per bein\nPlanke 3 x 30 sek\nPushups 3 x kontrollert', createdAt: todayISO() };
-      state.templates.push(t1, t2);
-      state.planned.push(
-        { id: uid('planned'), templateId: t1.id, date: todayISO(), status: 'planned', notes: 'Hold kontrollert terskel, ikke makse.', createdAt: todayISO() },
-        { id: uid('planned'), templateId: t2.id, date: todayISO(), status: 'planned', notes: '', createdAt: todayISO() }
-      );
-      saveState();
-      render();
-    }
-
-    function resetData() {
-      if (!confirm('Dette sletter alle økter, planer og historikk i nettleseren. Fortsette?')) return;
-      state = structuredClone(defaultState);
-      saveState();
-      render();
-    }
-
-    render();
-  </script>
+render();
+</script>
 </body>
 </html>
