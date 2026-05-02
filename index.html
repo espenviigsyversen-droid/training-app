@@ -188,10 +188,9 @@
       max-height: 88vh;
       overflow: auto;
     }
-    .cal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
-    .cal-label { font-weight: 900; text-transform: capitalize; }
+    .cal-head { margin-bottom: 10px; }
     .month-picker {
-      max-width: 170px;
+      width: 100%;
       text-align: center;
       font-weight: 800;
       padding: 10px 8px;
@@ -276,12 +275,10 @@
 
     <section id="calendar" class="tab">
       <div class="card">
+        <h2 class="section-title">Kalender</h2>
         <div class="cal-head">
-          <button class="btn-soft" onclick="changeMonth(-1)">◀</button>
           <input id="calendarMonth" type="month" class="month-picker" onchange="renderCalendar()">
-          <button class="btn-soft" onclick="changeMonth(1)">▶</button>
         </div>
-        <div class="cal-label hidden" id="calendarLabel"></div>
         <div id="calendarGrid"></div>
       </div>
     </section>
@@ -711,27 +708,6 @@ function completedCard(c) {
   return html;
 }
 
-function monthValue(year, month) {
-  var y = year;
-  var m = month;
-  while (m < 1) { m += 12; y -= 1; }
-  while (m > 12) { m -= 12; y += 1; }
-  var monthText = m < 10 ? '0' + m : String(m);
-  return String(y) + '-' + monthText;
-}
-
-function changeMonth(direction) {
-  var input = el('calendarMonth');
-  if (!input.value) input.value = todayISO().slice(0, 7);
-
-  var parts = input.value.split('-');
-  var year = Number(parts[0]);
-  var month = Number(parts[1]);
-
-  input.value = monthValue(year, month + direction);
-  renderCalendar();
-}
-
 function renderCalendar() {
   var input = el('calendarMonth');
   if (!input) return;
@@ -743,11 +719,6 @@ function renderCalendar() {
   var first = new Date(year, month - 1, 1);
   var last = new Date(year, month, 0);
 
-  var label = el('calendarLabel');
-  if (label) {
-    label.textContent = new Date(year, month - 1, 1)
-      .toLocaleDateString('no-NO', { month: 'long', year: 'numeric' });
-  }
 
   var html = '<div class="cal-grid">';
   var weekdays = ['Man','Tir','Ons','Tor','Fre','Lør','Søn'];
