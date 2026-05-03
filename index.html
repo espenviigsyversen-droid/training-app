@@ -215,6 +215,19 @@
 
     .small-note { font-size: 0.82rem; color: var(--warm-gray-3); margin: 8px 0 0; }
     .inline-form { display: grid; gap: 10px; }
+    .settings-list { display: grid; gap: 8px; margin-top: 12px; }
+    .settings-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 10px 12px;
+      border: 1px solid var(--warm-gray-2);
+      border-radius: 15px;
+      background: #fff;
+      font-weight: 700;
+    }
+    .settings-item button { padding: 8px 10px; font-size: 0.78rem; border-radius: 12px; }
 
     .modal-backdrop {
       display: none;
@@ -525,6 +538,26 @@
       <section id="settings" class="tab">
         <div class="card">
           <h2 class="section-title">Innstillinger</h2>
+          <p class="small-note">Tilpass valgene som brukes når du lager nye øktmaler.</p>
+        </div>
+        <div class="card">
+          <h2 class="section-title">Aktivitetstyper</h2>
+          <div class="inline-form">
+            <div><label>Ny type</label><input id="newActivityType" placeholder="F.eks. Svømming" /></div>
+            <button class="btn-primary btn-full" onclick="addSettingOption('activityTypes')">Legg til type</button>
+          </div>
+          <div id="activityTypeList" class="settings-list"></div>
+        </div>
+        <div class="card">
+          <h2 class="section-title">Intensiteter</h2>
+          <div class="inline-form">
+            <div><label>Ny intensitet</label><input id="newIntensity" placeholder="F.eks. Langtur" /></div>
+            <button class="btn-primary btn-full" onclick="addSettingOption('intensities')">Legg til intensitet</button>
+          </div>
+          <div id="intensityList" class="settings-list"></div>
+        </div>
+        <div class="card">
+          <h2 class="section-title">Backup</h2>
           <p class="small-note">Data lagres i Firestore og synkroniseres automatisk mellom alle enheter. Du kan også eksportere en lokal JSON-kopi som ekstra sikkerhetskopi.</p>
           <div class="button-row">
             <button class="btn-primary" onclick="exportData()">Eksporter backup</button>
@@ -606,7 +639,7 @@
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
     import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut as fbSignOut }
       from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
-    import { getFirestore, doc, collection, getDocs, setDoc, deleteDoc, writeBatch }
+    import { getFirestore, doc, collection, getDoc, getDocs, setDoc, deleteDoc, writeBatch }
       from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
     const firebaseConfig = {
@@ -623,7 +656,11 @@
     const db = getFirestore(app);
 
     let currentUser = null;
-    let state = { templates: [], planned: [], completed: [] };
+    const defaultSettings = {
+      activityTypes: ['Løping', 'Styrke', 'Mobilitet', 'Ski', 'Sykling', 'Annet'],
+      intensities: ['Rolig', 'Tempo', 'Terskel', 'Intervall', 'Anaerob', 'Styrke', 'Restitusjon']
+    };
+    let state = { templates: [], planned: [], completed: [], settings: JSON.parse(JSON.stringify(defaultSettings)) };
 
     // ── Utilities ─────────────────────────────────────────────────────────────
     function uid(prefix) {
@@ -661,6 +698,25 @@
       return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
     }
 
+    function freshDefaultSettings() {
+      return JSON.parse(JSON.stringify(defaultSettings));
+    }
+
+    function normalizeSettings(settings = {}) {
+      return {
+        activityTypes: Array.isArray(settings.activityTypes) && settings.activityTypes.length
+          ? settings.activityTypes
+          : [...defaultSettings.activityTypes],
+        intensities: Array.isArray(settings.intensities) && settings.intensities.length
+          ? settings.intensities
+          : [...defaultSettings.intensities]
+      };
+    }
+
+    function uniqueValues(values) {
+      return [...new Set(values.filter(Boolean))];
+    }
+
     // ── Firestore ─────────────────────────────────────────────────────────────
     function userCol(colName) { return collection(db, 'users', currentUser.uid, colName); }
     function userDoc(colName, id) { return doc(db, 'users', currentUser.uid, colName, id); }
@@ -668,14 +724,17 @@
     async function loadFromFirestore() {
       setSyncStatus('syncing');
       try {
-        const [tSnap, pSnap, cSnap] = await Promise.all([
+        const [tSnap, pSnap, cSnap, settingsSnap] = await Promise.all([
           getDocs(userCol('templates')),
           getDocs(userCol('planned')),
-          getDocs(userCol('completed'))
+          getDocs(userCol('completed')),
+          getDoc(userDoc('settings', 'preferences'))
         ]);
         state.templates = tSnap.docs.map(d => ({ id: d.id, ...d.data() }));
         state.planned   = pSnap.docs.map(d => ({ id: d.id, ...d.data() }));
         state.completed = cSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+        state.settings = settingsSnap.exists() ? normalizeSettings(settingsSnap.data()) : freshDefaultSettings();
+        if (!settingsSnap.exists()) await fsSet('settings', 'preferences', state.settings);
         setSyncStatus('ok');
         render();
       } catch (err) {
@@ -759,7 +818,7 @@
         await loadFromFirestore();
       } else {
         currentUser = null;
-        state = { templates: [], planned: [], completed: [] };
+        state = { templates: [], planned: [], completed: [], settings: normalizeSettings(state.settings) };
         loading.classList.add('hidden');
         authScreen.classList.remove('hidden');
         mainApp.classList.add('hidden');
@@ -802,7 +861,43 @@
       render();
     };
 
+    // ── Settings ──────────────────────────────────────────────────────────────
+    async function saveSettings() {
+      state.settings = normalizeSettings(state.settings);
+      await fsSet('settings', 'preferences', state.settings);
+      render();
+    }
+
+    window.addSettingOption = async function(kind) {
+      const inputId = kind === 'activityTypes' ? 'newActivityType' : 'newIntensity';
+      const input = document.getElementById(inputId);
+      const value = input.value.trim();
+      if (!value) return alert('Skriv inn et navn først.');
+      const values = state.settings[kind] || [];
+      if (values.some(v => v.toLowerCase() === value.toLowerCase())) {
+        return alert('Dette valget finnes allerede.');
+      }
+      state.settings[kind] = [...values, value];
+      input.value = '';
+      await saveSettings();
+    };
+
+    window.deleteSettingOption = async function(kind, value) {
+      const values = state.settings[kind] || [];
+      if (values.length <= 1) return alert('Du må ha minst ett valg i listen.');
+      if (!confirm(`Fjerne "${value}" fra listen? Eksisterende øktmaler blir ikke endret.`)) return;
+      state.settings[kind] = values.filter(v => v !== value);
+      await saveSettings();
+    };
+
     // ── Templates ─────────────────────────────────────────────────────────────
+    function setSelectOptions(selectId, values, selectedValue = '') {
+      const select = document.getElementById(selectId);
+      const options = selectedValue && !values.includes(selectedValue) ? [...values, selectedValue] : values;
+      select.innerHTML = options.map(v => `<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join('');
+      if (selectedValue) select.value = selectedValue;
+    }
+
     window.saveTemplate = async function() {
       const editingId = document.getElementById('editingTemplateId').value;
       const name = document.getElementById('templateName').value.trim();
@@ -832,6 +927,8 @@
       if (!t) return;
       document.getElementById('editingTemplateId').value = t.id;
       document.getElementById('templateName').value = t.name;
+      setSelectOptions('templateType', state.settings.activityTypes, t.type);
+      setSelectOptions('templateIntensity', state.settings.intensities, t.intensity);
       document.getElementById('templateType').value = t.type;
       document.getElementById('templateIntensity').value = t.intensity;
       document.getElementById('templateStructure').value = t.structure || '';
@@ -1129,12 +1226,42 @@
       document.getElementById('calendarGrid').innerHTML = html;
     }
 
+    function renderSettingsList(kind, elementId) {
+      const values = state.settings[kind] || [];
+      document.getElementById(elementId).innerHTML = values.map(value => `
+        <div class="settings-item">
+          <span>${escapeHtml(value)}</span>
+          <button class="btn-soft" onclick="deleteSettingOption('${kind}', decodeURIComponent('${encodeURIComponent(value)}'))">Fjern</button>
+        </div>`).join('');
+    }
+
+    function renderHistoryFilterOptions() {
+      const select = document.getElementById('historyFilter');
+      const selected = select.value || 'Alle';
+      const templateTypes = state.templates.map(t => t.type);
+      const values = ['Alle', ...uniqueValues([...(state.settings.activityTypes || []), ...templateTypes])];
+      select.innerHTML = values.map(v => `<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join('');
+      select.value = values.includes(selected) ? selected : 'Alle';
+    }
+
     // ── Render ────────────────────────────────────────────────────────────────
     function render() {
       renderCalendar();
       const today = todayISO();
       document.getElementById('todayPill').textContent = formatDate(today);
       document.getElementById('planDate').value ||= today;
+      state.settings = normalizeSettings(state.settings);
+
+      const editingTemplateId = document.getElementById('editingTemplateId').value;
+      const selectedType = document.getElementById('templateType').value;
+      const selectedIntensity = document.getElementById('templateIntensity').value;
+      const typeToKeep = editingTemplateId || state.settings.activityTypes.includes(selectedType) ? selectedType : '';
+      const intensityToKeep = editingTemplateId || state.settings.intensities.includes(selectedIntensity) ? selectedIntensity : '';
+      setSelectOptions('templateType', state.settings.activityTypes, typeToKeep);
+      setSelectOptions('templateIntensity', state.settings.intensities, intensityToKeep);
+      renderSettingsList('activityTypes', 'activityTypeList');
+      renderSettingsList('intensities', 'intensityList');
+      renderHistoryFilterOptions();
 
       const plannedActive = state.planned.filter(p => p.status !== 'done');
       // BUGFIX punkt 3: trygg sortering selv om createdAt mangler
@@ -1196,12 +1323,13 @@
           const imported = JSON.parse(reader.result);
           if (!imported.templates || !imported.planned || !imported.completed) throw new Error('Invalid format');
           if (!confirm('Import vil overskrive data som ligger i appen nå. Fortsette?')) return;
-          state = imported;
+          state = { ...imported, settings: normalizeSettings(imported.settings) };
           render();
           await Promise.all([
             fsBatchSet('templates', state.templates),
             fsBatchSet('planned', state.planned),
-            fsBatchSet('completed', state.completed)
+            fsBatchSet('completed', state.completed),
+            fsSet('settings', 'preferences', state.settings)
           ]);
         } catch (err) {
           alert('Kunne ikke importere filen. Sjekk at dette er en gyldig backup fra appen.');
@@ -1236,7 +1364,7 @@
         const batch = writeBatch(db);
         [...tSnap.docs, ...pSnap.docs, ...cSnap.docs].forEach(d => batch.delete(d.ref));
         await batch.commit();
-        state = { templates: [], planned: [], completed: [] };
+        state = { templates: [], planned: [], completed: [], settings: normalizeSettings(state.settings) };
         setSyncStatus('ok');
         render();
       } catch (err) {
