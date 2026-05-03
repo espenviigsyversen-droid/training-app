@@ -1303,6 +1303,9 @@
         : `<div class="empty">Ingen historikk enda.</div>`;
     }
 
+    window.render = render;
+    window.renderCalendar = renderCalendar;
+
     // ── Backup ────────────────────────────────────────────────────────────────
     window.exportData = function() {
       const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
