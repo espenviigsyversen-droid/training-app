@@ -393,6 +393,9 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       state.planned = state.planned.filter(p => p.id !== id);
       await fsDelete('planned', id);
       render();
+      if (document.getElementById('calendarDayModal')?.classList.contains('active') && selectedCalendarDate) {
+        openCalendarDayModal(selectedCalendarDate);
+      }
     };
 
     // ── Reschedule ────────────────────────────────────────────────────────────
@@ -565,6 +568,29 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         </div>`;
     }
 
+    function shortCalendarLabel(template) {
+      const typeMap = {
+        'Løping': 'Løp',
+        'Styrke': 'Styrke',
+        'Mobilitet': 'Mob',
+        'Ski': 'Ski',
+        'Sykling': 'Sykkel',
+        'Annet': 'Annet'
+      };
+      const intensityMap = {
+        'Rolig': 'Rolig',
+        'Tempo': 'Tempo',
+        'Terskel': 'Tersk',
+        'Intervall': 'Interv',
+        'Anaerob': 'Ana',
+        'Styrke': 'Styrke',
+        'Restitusjon': 'Rest'
+      };
+      const type = typeMap[template.type] || template.type || template.name;
+      const intensity = intensityMap[template.intensity] || template.intensity || '';
+      return intensity && intensity !== type ? `${type} ${intensity}` : type;
+    }
+
     // ── Calendar ──────────────────────────────────────────────────────────────
     window.changeCalendarMonth = function(direction) {
       const input = document.getElementById('calendarMonth');
@@ -600,15 +626,21 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         const plannedItems = state.planned.filter(p => p.date === dateIso && p.status !== 'done');
         const doneItems = state.completed.filter(c => c.date === dateIso);
         const dayItems = [
-          ...plannedItems.map(p => ({ status: 'planned', name: getTemplate(p.templateId).name })),
-          ...doneItems.map(c => ({ status: 'done', name: getTemplate(c.templateId).name }))
+          ...plannedItems.map(p => {
+            const template = getTemplate(p.templateId);
+            return { status: 'planned', name: template.name, label: shortCalendarLabel(template) };
+          }),
+          ...doneItems.map(c => {
+            const template = getTemplate(c.templateId);
+            return { status: 'done', name: template.name, label: shortCalendarLabel(template) };
+          })
         ];
         const visibleItems = dayItems.slice(0, 3);
         const hiddenCount = dayItems.length - visibleItems.length;
         html += `
           <div class="calendar-day ${dateIso === todayISO() ? 'today' : ''}" onclick="openCalendarDayModal('${dateIso}')">
             <div class="calendar-date">${day}</div>
-            ${visibleItems.map(item => `<div class="calendar-entry ${item.status}">${item.status === 'done' ? '✓' : '•'} ${escapeHtml(item.name)}</div>`).join('')}
+            ${visibleItems.map(item => `<div class="calendar-entry ${item.status}" title="${escapeHtml(item.name)}">${item.status === 'done' ? '✓' : '•'} ${escapeHtml(item.label)}</div>`).join('')}
             ${hiddenCount > 0 ? `<div class="calendar-entry calendar-more">+${hiddenCount} flere</div>` : ''}
           </div>`;
       }
@@ -628,7 +660,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       document.getElementById('calendarDayTitle').textContent = formatDate(dateIso);
       document.getElementById('calendarDayList').innerHTML =
         [
-          ...plannedItems.map(p => workoutCard(p)),
+          ...plannedItems.map(p => workoutCard(p, { canDelete: true })),
           ...doneItems.map(completedCard)
         ].join('') || `<div class="empty">Ingen økter denne dagen.</div>`;
       document.getElementById('calendarDayModal').classList.add('active');
@@ -715,10 +747,6 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       document.getElementById('planTemplate').innerHTML = state.templates.length
         ? state.templates.map(t => `<option value="${t.id}">${escapeHtml(t.name)} · ${escapeHtml(t.type)}</option>`).join('')
         : `<option value="">Lag en øktmal først</option>`;
-
-      document.getElementById('plannedList').innerHTML = [...state.planned]
-        .sort((a,b) => a.date.localeCompare(b.date))
-        .map(p => workoutCard(p, { canDelete: true })).join('') || `<div class="empty">Ingen planlagte økter.</div>`;
 
       document.getElementById('templateList').innerHTML = state.templates.length
         ? state.templates.map(templateCard).join('')
