@@ -180,6 +180,32 @@
     .stat strong { display: block; font-size: 1.35rem; letter-spacing: -0.04em; }
     .stat span { color: var(--warm-gray-3); font-weight: 700; font-size: 0.72rem; text-transform: uppercase; }
 
+    .next-workout-banner {
+      background: linear-gradient(135deg, var(--black) 0%, #333 100%);
+      color: #fff;
+    }
+
+    .next-workout-label {
+      font-size: 0.72rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.55);
+      margin-bottom: 4px;
+      letter-spacing: 0.04em;
+    }
+
+    .next-workout-title {
+      font-size: 1.05rem;
+      font-weight: 800;
+      margin-bottom: 2px;
+      letter-spacing: -0.02em;
+    }
+
+    .next-workout-meta {
+      font-size: 0.85rem;
+      color: rgba(255,255,255,0.68);
+    }
+
     nav {
       position: fixed;
       bottom: 0;

@@ -659,6 +659,18 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       document.getElementById('statPlanned').textContent = plannedActive.length;
       document.getElementById('statDone').textContent = state.completed.length;
 
+      const nextWorkout = todayItems[0] || upcomingItems[0];
+      const nextBanner = document.getElementById('nextWorkoutBanner');
+      if (nextWorkout) {
+        const nextTemplate = getTemplate(nextWorkout.templateId);
+        document.getElementById('nextWorkoutTitle').textContent = nextTemplate.name;
+        document.getElementById('nextWorkoutMeta').textContent =
+          `${formatDate(nextWorkout.date)} · ${nextTemplate.type} · ${nextTemplate.intensity || ''}`;
+        nextBanner.classList.remove('hidden');
+      } else {
+        nextBanner.classList.add('hidden');
+      }
+
       document.getElementById('todayList').innerHTML = todayItems.length
         ? todayItems.map(p => workoutCard(p)).join('')
         : `<div class="empty">Ingen planlagte økter i dag.</div>`;
