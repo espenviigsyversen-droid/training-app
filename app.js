@@ -628,11 +628,11 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         const dayItems = [
           ...plannedItems.map(p => {
             const template = getTemplate(p.templateId);
-            return { status: 'planned', name: template.name, label: shortCalendarLabel(template) };
+            return { status: 'planned', name: template.name, shortLabel: shortCalendarLabel(template) };
           }),
           ...doneItems.map(c => {
             const template = getTemplate(c.templateId);
-            return { status: 'done', name: template.name, label: shortCalendarLabel(template) };
+            return { status: 'done', name: template.name, shortLabel: shortCalendarLabel(template) };
           })
         ];
         const visibleItems = dayItems.slice(0, 3);
@@ -640,7 +640,12 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         html += `
           <div class="calendar-day ${dateIso === todayISO() ? 'today' : ''}" onclick="openCalendarDayModal('${dateIso}')">
             <div class="calendar-date">${day}</div>
-            ${visibleItems.map(item => `<div class="calendar-entry ${item.status}" title="${escapeHtml(item.name)}">${item.status === 'done' ? '✓' : '•'} ${escapeHtml(item.label)}</div>`).join('')}
+            ${visibleItems.map(item => `
+              <div class="calendar-entry ${item.status}" title="${escapeHtml(item.name)}">
+                ${item.status === 'done' ? '✓' : '•'}
+                <span class="calendar-entry-short">${escapeHtml(item.shortLabel)}</span>
+                <span class="calendar-entry-full">${escapeHtml(item.name)}</span>
+              </div>`).join('')}
             ${hiddenCount > 0 ? `<div class="calendar-entry calendar-more">+${hiddenCount} flere</div>` : ''}
           </div>`;
       }
