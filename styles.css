@@ -342,7 +342,7 @@
       background: #fff;
       border-radius: 12px;
       padding: 6px 5px;
-      min-height: 96px;
+      min-height: 118px;
       border: 1px solid var(--warm-gray-1);
       cursor: pointer;
       transition: transform 0.08s ease, border-color 0.2s ease, box-shadow 0.2s ease;
@@ -364,9 +364,9 @@
     }
 
     .calendar-entry {
-      line-height: 1.15;
+      line-height: 1.16;
       margin-top: 4px;
-      font-size: 0.64rem;
+      font-size: 0.62rem;
       font-weight: 800;
       white-space: normal;
       overflow-wrap: anywhere;
@@ -376,13 +376,12 @@
     .calendar-entry.planned { color: var(--primary); }
     .calendar-entry.done { color: var(--success); }
     .calendar-more { color: var(--warm-gray-3); font-weight: 800; }
-    .calendar-entry-full { display: none; }
+    .calendar-entry-short { display: none; }
+    .calendar-entry-full { display: inline; }
 
     @media (orientation: landscape) {
-      .calendar-day { min-height: 112px; }
+      .calendar-day { min-height: 128px; }
       .calendar-entry { font-size: 0.7rem; line-height: 1.18; }
-      .calendar-entry-short { display: none; }
-      .calendar-entry-full { display: inline; }
     }
 
     #authScreen {

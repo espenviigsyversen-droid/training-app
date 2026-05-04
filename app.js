@@ -635,7 +635,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
             return { status: 'done', name: template.name, shortLabel: shortCalendarLabel(template) };
           })
         ];
-        const visibleItems = dayItems.slice(0, 3);
+        const visibleItems = dayItems.slice(0, 2);
         const hiddenCount = dayItems.length - visibleItems.length;
         html += `
           <div class="calendar-day ${dateIso === todayISO() ? 'today' : ''}" onclick="openCalendarDayModal('${dateIso}')">
