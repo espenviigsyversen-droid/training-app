@@ -210,8 +210,27 @@
       z-index: 10;
     }
 
-    nav button { padding: 8px 2px 6px; border-radius: 15px; background: transparent; color: var(--warm-gray-3); font-size: 0.62rem; display: flex; flex-direction: column; align-items: center; gap: 3px; }
+    nav button {
+      padding: 8px 2px 6px;
+      border-radius: 15px;
+      background: transparent;
+      color: var(--warm-gray-3);
+      font-size: 0.62rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 3px;
+      min-width: 0;
+    }
     nav button svg { width: 20px; height: 20px; flex-shrink: 0; }
+    nav button span {
+      display: block;
+      max-width: 100%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
     nav button.active { background: var(--black); color: #fff; }
 
     .small-note { font-size: 0.82rem; color: var(--warm-gray-3); margin: 8px 0 0; }
@@ -409,11 +428,6 @@
           <div class="stat"><strong id="statPlanned">0</strong><span>Planlagt</span></div>
           <div class="stat"><strong id="statDone">0</strong><span>Utført</span></div>
         </div>
-        <div id="nextWorkoutBanner" class="card" style="display:none;background:linear-gradient(135deg,var(--black) 0%,#333 100%);color:#fff;margin-bottom:14px;">
-          <div style="font-size:0.72rem;font-weight:800;text-transform:uppercase;letter-spacing:0.06em;color:rgba(255,255,255,0.55);margin-bottom:4px;">Neste økt</div>
-          <div id="nextWorkoutTitle" style="font-size:1.05rem;font-weight:800;margin-bottom:2px;"></div>
-          <div id="nextWorkoutMeta" style="font-size:0.85rem;color:rgba(255,255,255,0.65);"></div>
-        </div>
         <div class="card">
           <h2 class="section-title">Dagens økter</h2>
           <div id="todayList"></div>
@@ -441,9 +455,9 @@
                   <option value="custom">Egendefinert</option>
                 </select>
               </div>
-              <div id="planRepeatWeeksWrapper" style="display:none;">
+              <div>
                 <label>Antall uker frem</label>
-                <input id="planRepeatWeeks" type="number" min="1" max="52" step="1" value="8" />
+                <input id="planRepeatWeeks" type="number" min="1" max="52" step="1" value="8" disabled />
               </div>
             </div>
             <div id="customRepeatWrapper" class="hidden">
@@ -572,15 +586,11 @@
           <input id="importFile" type="file" accept="application/json" class="hidden" onchange="importData(event)" />
         </div>
         <div class="card">
-          <h2 class="section-title">Demo</h2>
+          <h2 class="section-title">Demo / nullstilling</h2>
           <div class="button-row">
             <button class="btn-purple" onclick="seedDemoData()">Legg inn demo</button>
+            <button class="btn-danger" onclick="resetData()">Slett alt</button>
           </div>
-        </div>
-        <div class="card" style="border: 2px solid var(--red);">
-          <h2 class="section-title" style="color: var(--red);">⚠️ Faresone</h2>
-          <p class="small-note" style="margin-bottom: 12px;">Dette sletter all din data permanent og kan ikke angres.</p>
-          <button class="btn-danger btn-full" onclick="confirmResetData()">Slett all data</button>
         </div>
         <div class="card">
           <h2 class="section-title">Konto</h2>
@@ -593,29 +603,53 @@
     </main>
 
     <nav>
-      <button class="active" onclick="showTab('dashboard', this)">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
-        Hjem
+      <button class="active" onclick="showTab('dashboard', this)" aria-label="Hjem">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <rect x="3" y="3" width="7" height="7"></rect>
+          <rect x="14" y="3" width="7" height="7"></rect>
+          <rect x="14" y="14" width="7" height="7"></rect>
+          <rect x="3" y="14" width="7" height="7"></rect>
+        </svg>
+        <span>Hjem</span>
       </button>
-      <button onclick="showTab('plan', this)">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="8" y1="14" x2="8" y2="14" stroke-width="3"/><line x1="12" y1="14" x2="16" y2="14" stroke-width="2"/><line x1="8" y1="18" x2="8" y2="18" stroke-width="3"/><line x1="12" y1="18" x2="16" y2="18" stroke-width="2"/></svg>
-        Planlegg
+      <button onclick="showTab('plan', this)" aria-label="Plan">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M8 2v4"></path>
+          <path d="M16 2v4"></path>
+          <rect x="3" y="4" width="18" height="18" rx="2"></rect>
+          <path d="M3 10h18"></path>
+          <path d="m9 16 2 2 4-4"></path>
+        </svg>
+        <span>Plan</span>
       </button>
-      <button onclick="showTab('library', this)">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
-        Maler
+      <button onclick="showTab('library', this)" aria-label="Maler">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M12 7v14"></path>
+          <path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"></path>
+        </svg>
+        <span>Maler</span>
       </button>
-      <button onclick="showTab('calendar', this)">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-        Kalender
+      <button onclick="showTab('calendar', this)" aria-label="Kalender">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M8 2v4"></path>
+          <path d="M16 2v4"></path>
+          <rect x="3" y="4" width="18" height="18" rx="2"></rect>
+          <path d="M3 10h18"></path>
+        </svg>
+        <span>Kalender</span>
       </button>
-      <button onclick="showTab('history', this)">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-        Historikk
+      <button onclick="showTab('history', this)" aria-label="Logg">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
+        </svg>
+        <span>Logg</span>
       </button>
-      <button onclick="showTab('settings', this)">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-        Innstillinger
+      <button onclick="showTab('settings', this)" aria-label="Setup">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.38a2 2 0 0 0-.73-2.73l-.15-.09a2 2 0 0 1-1-1.74v-.51a2 2 0 0 1 1-1.72l.15-.1a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path>
+          <circle cx="12" cy="12" r="3"></circle>
+        </svg>
+        <span>Setup</span>
       </button>
     </nav>
   </div>
@@ -647,9 +681,9 @@
       <div class="inline-form">
         <div class="grid-2">
           <div><label>Varighet min</label><input id="completeDuration" type="number" min="0" step="1" /></div>
-          <div id="completeDistanceRow"><label>Distanse km</label><input id="completeDistance" type="number" min="0" step="0.01" /></div>
+          <div><label>Distanse km</label><input id="completeDistance" type="number" min="0" step="0.01" /></div>
         </div>
-        <div class="grid-2" id="completeHrRow">
+        <div class="grid-2">
           <div><label>Snittpuls</label><input id="completeAvgHr" type="number" min="0" step="1" /></div>
           <div><label>Makspuls</label><input id="completeMaxHr" type="number" min="0" step="1" /></div>
         </div>
@@ -948,7 +982,7 @@
       }
       clearTemplateForm();
       render();
-      showToast(editingId ? '✓ Øktmal oppdatert' : '✓ Øktmal lagret');
+    };
 
     window.editTemplate = function(id) {
       const t = state.templates.find(t => t.id === id);
@@ -985,8 +1019,6 @@
     // ── Plan ──────────────────────────────────────────────────────────────────
     window.toggleRepeatOptions = function() {
       const repeat = document.getElementById('planRepeat').value;
-      const weeksWrapper = document.getElementById('planRepeatWeeksWrapper');
-      if (weeksWrapper) weeksWrapper.style.display = repeat === 'none' ? 'none' : '';
       document.getElementById('planRepeatWeeks').disabled = repeat === 'none';
       document.getElementById('customRepeatWrapper').classList.toggle('hidden', repeat !== 'custom');
     };
@@ -1031,7 +1063,6 @@
       document.getElementById('planRepeatInterval').value = 1;
       toggleRepeatOptions();
       render();
-      showToast(workoutsToAdd.length > 1 ? `✓ ${workoutsToAdd.length} økter planlagt` : '✓ Økt planlagt');
       await fsBatchSet('planned', workoutsToAdd);
     };
 
@@ -1098,16 +1129,6 @@
       document.getElementById('completePlannedId').value = plannedId;
       ['completeDuration','completeDistance','completeAvgHr','completeMaxHr','completeRpe','completeNotes']
         .forEach(id => document.getElementById(id).value = '');
-
-      // Show/hide fields contextually based on activity type
-      const planned = state.planned.find(p => p.id === plannedId);
-      const t = planned ? getTemplate(planned.templateId) : null;
-      const isEndurance = t && ['Løping','Sykling','Ski'].includes(t.type);
-      const distanceRow = document.getElementById('completeDistanceRow');
-      const hrRow = document.getElementById('completeHrRow');
-      if (distanceRow) distanceRow.style.display = isEndurance ? '' : 'none';
-      if (hrRow) hrRow.style.display = isEndurance ? '' : 'none';
-
       document.getElementById('completeModal').classList.add('active');
     };
 
@@ -1136,7 +1157,6 @@
       state.completed.push(completed);
       closeCompleteModal();
       render();
-      showToast('✓ Økt logget – bra jobba! 💪');
       await Promise.all([fsSet('planned', plannedId, planned), fsSet('completed', completed.id, completed)]);
     };
 
@@ -1222,15 +1242,6 @@
         </div>`;
     }
 
-    window.calendarDayClick = function(dateIso) {
-      // Navigate to plan tab and pre-fill the date
-      const planBtn = document.querySelector('nav button:nth-child(2)');
-      if (planBtn) {
-        showTab('plan', planBtn);
-        document.getElementById('planDate').value = dateIso;
-      }
-    };
-
     // ── Calendar ──────────────────────────────────────────────────────────────
     window.changeCalendarMonth = function(direction) {
       const input = document.getElementById('calendarMonth');
@@ -1266,7 +1277,7 @@
         const plannedItems = state.planned.filter(p => p.date === dateIso && p.status !== 'done');
         const doneItems = state.completed.filter(c => c.date === dateIso);
         html += `
-          <div onclick="calendarDayClick('${dateIso}')" style="background:#fff;border-radius:10px;padding:6px;min-height:70px;font-size:0.7rem;border:1px solid var(--warm-gray-1);cursor:pointer;transition:box-shadow 0.15s ease;" onmouseover="this.style.boxShadow='0 4px 12px rgba(0,0,0,0.1)'" onmouseout="this.style.boxShadow=''">
+          <div style="background:#fff;border-radius:10px;padding:6px;min-height:70px;font-size:0.7rem;border:1px solid var(--warm-gray-1);">
             <div style="font-weight:700;margin-bottom:4px;">${day}</div>
             ${plannedItems.map(p => `<div style="color:var(--primary);line-height:1.2;margin-top:2px;">• ${escapeHtml(getTemplate(p.templateId).name)}</div>`).join('')}
             ${doneItems.map(c => `<div style="color:var(--success);line-height:1.2;margin-top:2px;">✓ ${escapeHtml(getTemplate(c.templateId).name)}</div>`).join('')}
@@ -1325,24 +1336,12 @@
       document.getElementById('statPlanned').textContent = plannedActive.length;
       document.getElementById('statDone').textContent = state.completed.length;
 
-      // Next workout banner
-      const nextUpcoming = upcomingItems[0];
-      const banner = document.getElementById('nextWorkoutBanner');
-      if (nextUpcoming) {
-        const nt = getTemplate(nextUpcoming.templateId);
-        document.getElementById('nextWorkoutTitle').textContent = nt.name;
-        document.getElementById('nextWorkoutMeta').textContent = `${formatDate(nextUpcoming.date)} · ${nt.type} · ${nt.intensity || ''}`;
-        banner.style.display = 'block';
-      } else {
-        banner.style.display = 'none';
-      }
-
       document.getElementById('todayList').innerHTML = todayItems.length
         ? todayItems.map(p => workoutCard(p)).join('')
-        : `<div class="empty">🌅 Ingen planlagte økter i dag.<br><span style="font-size:0.82rem;">Gå til <strong>Planlegg</strong> for å legge til en økt.</span></div>`;
+        : `<div class="empty">Ingen planlagte økter i dag.</div>`;
       document.getElementById('upcomingList').innerHTML = upcomingItems.length
         ? upcomingItems.map(p => workoutCard(p)).join('')
-        : `<div class="empty">📅 Ingen kommende økter.<br><span style="font-size:0.82rem;">Legg til fremtidige økter under <strong>Planlegg</strong>.</span></div>`;
+        : `<div class="empty">Ingen kommende økter.</div>`;
 
       document.getElementById('planTemplate').innerHTML = state.templates.length
         ? state.templates.map(t => `<option value="${t.id}">${escapeHtml(t.name)} · ${escapeHtml(t.type)}</option>`).join('')
@@ -1354,7 +1353,7 @@
 
       document.getElementById('templateList').innerHTML = state.templates.length
         ? state.templates.map(templateCard).join('')
-        : `<div class="empty">📋 Ingen øktmaler enda.<br><span style="font-size:0.82rem;">Lag din første mal i skjemaet over.</span></div>`;
+        : `<div class="empty">Ingen øktmaler enda. Lag din første over.</div>`;
 
       const filter = document.getElementById('historyFilter')?.value || 'Alle';
       const sort = document.getElementById('historySort')?.value || 'desc';
@@ -1418,32 +1417,8 @@
       await Promise.all([fsBatchSet('templates', [t1, t2]), fsBatchSet('planned', [p1, p2])]);
     };
 
-    // ── Toast ──────────────────────────────────────────────────────────────────
-    function showToast(message, type = 'success') {
-      const existing = document.getElementById('toastNotification');
-      if (existing) existing.remove();
-      const toast = document.createElement('div');
-      toast.id = 'toastNotification';
-      const bg = type === 'success' ? 'var(--success)' : type === 'error' ? 'var(--red)' : 'var(--black)';
-      toast.style.cssText = `position:fixed;bottom:110px;left:50%;transform:translateX(-50%);background:${bg};color:#fff;padding:12px 20px;border-radius:999px;font-size:0.9rem;font-weight:700;z-index:50;box-shadow:0 8px 24px rgba(0,0,0,0.2);transition:opacity 0.4s ease;white-space:nowrap;`;
-      toast.textContent = message;
-      document.body.appendChild(toast);
-      setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 400); }, 2500);
-    }
-    window.showToast = showToast;
-
-    // ── Confirm reset with typed confirmation ──────────────────────────────────
-    window.confirmResetData = function() {
-      const userInput = prompt('Skriv inn "SLETT" for å bekrefte at du vil slette all data permanent:');
-      if (userInput !== 'SLETT') {
-        if (userInput !== null) alert('Feil tekst – sletting avbrutt.');
-        return;
-      }
-      resetData();
-    };
-
     window.resetData = async function() {
-      if (!confirm('SISTE ADVARSEL: Dette sletter alle økter, planer og historikk. Kan ikke angres. Fortsette?')) return;
+      if (!confirm('Dette sletter alle økter, planer og historikk. Kan ikke angres. Fortsette?')) return;
       setSyncStatus('syncing');
       try {
         const [tSnap, pSnap, cSnap] = await Promise.all([
