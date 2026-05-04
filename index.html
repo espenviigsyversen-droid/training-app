@@ -249,6 +249,31 @@
     }
     .settings-item button { padding: 8px 10px; font-size: 0.78rem; border-radius: 12px; }
 
+    .toast {
+      position: fixed;
+      bottom: 110px;
+      left: 50%;
+      transform: translateX(-50%);
+      max-width: calc(100% - 32px);
+      padding: 12px 18px;
+      border-radius: 999px;
+      color: #fff;
+      font-size: 0.9rem;
+      font-weight: 800;
+      z-index: 50;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+      opacity: 1;
+      transition: opacity 0.35s ease, transform 0.35s ease;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .toast.success { background: var(--success); }
+    .toast.error { background: var(--red); }
+    .toast.info { background: var(--black); }
+    .toast.hiding { opacity: 0; transform: translateX(-50%) translateY(8px); }
+
     .modal-backdrop {
       display: none;
       position: fixed;
@@ -757,6 +782,24 @@
       label.textContent = status === 'syncing' ? 'Synkroniserer...' : status === 'error' ? 'Feil ved synk' : 'Synkronisert';
     }
 
+    function showToast(message, type = 'success') {
+      const existing = document.getElementById('toastNotification');
+      if (existing) existing.remove();
+      const toast = document.createElement('div');
+      toast.id = 'toastNotification';
+      toast.className = `toast ${type}`;
+      toast.setAttribute('role', 'status');
+      toast.setAttribute('aria-live', 'polite');
+      toast.textContent = message;
+      document.body.appendChild(toast);
+      setTimeout(() => {
+        toast.classList.add('hiding');
+        setTimeout(() => toast.remove(), 350);
+      }, 2500);
+    }
+
+    window.showToast = showToast;
+
     function addDays(dateIso, days) {
       const d = new Date(`${dateIso}T12:00:00`);
       d.setDate(d.getDate() + days);
@@ -985,6 +1028,7 @@
       }
       clearTemplateForm();
       render();
+      showToast(editingId ? 'Øktmal oppdatert' : 'Øktmal lagret');
     };
 
     window.editTemplate = function(id) {
@@ -1069,6 +1113,7 @@
       toggleRepeatOptions();
       render();
       await fsBatchSet('planned', workoutsToAdd);
+      showToast(workoutsToAdd.length > 1 ? `${workoutsToAdd.length} økter planlagt` : 'Økt planlagt');
     };
 
     window.deletePlanned = async function(id) {
@@ -1163,6 +1208,7 @@
       closeCompleteModal();
       render();
       await Promise.all([fsSet('planned', plannedId, planned), fsSet('completed', completed.id, completed)]);
+      showToast('Økt logget - bra jobba!');
     };
 
     window.undoComplete = async function(completedId) {
