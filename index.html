@@ -586,11 +586,14 @@
           <input id="importFile" type="file" accept="application/json" class="hidden" onchange="importData(event)" />
         </div>
         <div class="card">
-          <h2 class="section-title">Demo / nullstilling</h2>
-          <div class="button-row">
-            <button class="btn-purple" onclick="seedDemoData()">Legg inn demo</button>
-            <button class="btn-danger" onclick="resetData()">Slett alt</button>
-          </div>
+          <h2 class="section-title">Demo</h2>
+          <p class="small-note">Legg inn eksempeldata hvis du vil teste appen med ferdige økter.</p>
+          <button class="btn-purple btn-full" onclick="seedDemoData()">Legg inn demo</button>
+        </div>
+        <div class="card" style="border:2px solid var(--red);">
+          <h2 class="section-title" style="color:var(--red);">Faresone</h2>
+          <p class="small-note">Dette sletter alle øktmaler, planlagte økter og historikk. Setup-valgene dine beholdes.</p>
+          <button class="btn-danger btn-full" onclick="confirmResetData()">Slett alt</button>
         </div>
         <div class="card">
           <h2 class="section-title">Konto</h2>
@@ -1417,8 +1420,17 @@
       await Promise.all([fsBatchSet('templates', [t1, t2]), fsBatchSet('planned', [p1, p2])]);
     };
 
+    window.confirmResetData = function() {
+      const userInput = prompt('Skriv inn "SLETT" for å bekrefte sletting av alle økter, planer og historikk.');
+      if (userInput !== 'SLETT') {
+        if (userInput !== null) alert('Feil tekst - sletting avbrutt.');
+        return;
+      }
+      resetData();
+    };
+
     window.resetData = async function() {
-      if (!confirm('Dette sletter alle økter, planer og historikk. Kan ikke angres. Fortsette?')) return;
+      if (!confirm('SISTE ADVARSEL: Dette sletter alle økter, planer og historikk. Dette kan ikke angres. Fortsette?')) return;
       setSyncStatus('syncing');
       try {
         const [tSnap, pSnap, cSnap] = await Promise.all([
