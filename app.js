@@ -580,7 +580,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       const intensityMap = {
         'Rolig': 'Rolig',
         'Tempo': 'Tempo',
-        'Terskel': 'Tersk',
+        'Terskel': 'Terskel',
         'Intervall': 'Interv',
         'Anaerob': 'Ana',
         'Styrke': 'Styrke',
@@ -642,7 +642,6 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
             <div class="calendar-date">${day}</div>
             ${visibleItems.map(item => `
               <div class="calendar-entry ${item.status}" title="${escapeHtml(item.name)}">
-                ${item.status === 'done' ? '✓' : '•'}
                 <span class="calendar-entry-short">${escapeHtml(item.shortLabel)}</span>
                 <span class="calendar-entry-full">${escapeHtml(item.name)}</span>
               </div>`).join('')}
