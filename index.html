@@ -297,6 +297,17 @@
     </nav>
   </div>
 
+  <div id="calendarDayModal" class="modal-backdrop">
+    <div class="modal">
+      <h2 id="calendarDayTitle">Kalenderdag</h2>
+      <div id="calendarDayList"></div>
+      <div class="button-row">
+        <button class="btn-primary" onclick="planFromCalendarDay()">Planlegg denne dagen</button>
+        <button class="btn-soft" onclick="closeCalendarDayModal()">Lukk</button>
+      </div>
+    </div>
+  </div>
+
   <div id="rescheduleModal" class="modal-backdrop">
     <div class="modal">
       <h2>Endre dato</h2>

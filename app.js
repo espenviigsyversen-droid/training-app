@@ -586,9 +586,9 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       const firstDay = new Date(year, month - 1, 1);
       const lastDay = new Date(year, month, 0);
 
-      let html = '<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:6px;font-size:0.8rem;">';
+      let html = '<div class="calendar-grid">';
       ['Man','Tir','Ons','Tor','Fre','Lør','Søn'].forEach(d => {
-        html += `<div style="text-align:center;font-weight:700;color:var(--warm-gray-3)">${d}</div>`;
+        html += `<div class="calendar-weekday">${d}</div>`;
       });
 
       const startOffset = (firstDay.getDay() + 6) % 7;
@@ -599,17 +599,51 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         const dateIso = new Date(year, month - 1, day, 12).toISOString().slice(0, 10);
         const plannedItems = state.planned.filter(p => p.date === dateIso && p.status !== 'done');
         const doneItems = state.completed.filter(c => c.date === dateIso);
+        const dayItems = [
+          ...plannedItems.map(p => ({ status: 'planned', name: getTemplate(p.templateId).name })),
+          ...doneItems.map(c => ({ status: 'done', name: getTemplate(c.templateId).name }))
+        ];
+        const visibleItems = dayItems.slice(0, 3);
+        const hiddenCount = dayItems.length - visibleItems.length;
         html += `
-          <div style="background:#fff;border-radius:10px;padding:6px;min-height:70px;font-size:0.7rem;border:1px solid var(--warm-gray-1);">
-            <div style="font-weight:700;margin-bottom:4px;">${day}</div>
-            ${plannedItems.map(p => `<div style="color:var(--primary);line-height:1.2;margin-top:2px;">• ${escapeHtml(getTemplate(p.templateId).name)}</div>`).join('')}
-            ${doneItems.map(c => `<div style="color:var(--success);line-height:1.2;margin-top:2px;">✓ ${escapeHtml(getTemplate(c.templateId).name)}</div>`).join('')}
+          <div class="calendar-day ${dateIso === todayISO() ? 'today' : ''}" onclick="openCalendarDayModal('${dateIso}')">
+            <div class="calendar-date">${day}</div>
+            ${visibleItems.map(item => `<div class="calendar-entry ${item.status}">${item.status === 'done' ? '✓' : '•'} ${escapeHtml(item.name)}</div>`).join('')}
+            ${hiddenCount > 0 ? `<div class="calendar-entry calendar-more">+${hiddenCount} flere</div>` : ''}
           </div>`;
       }
 
       html += '</div>';
       document.getElementById('calendarGrid').innerHTML = html;
     }
+
+    let selectedCalendarDate = '';
+
+    window.openCalendarDayModal = function(dateIso) {
+      selectedCalendarDate = dateIso;
+      const plannedItems = state.planned.filter(p => p.date === dateIso && p.status !== 'done')
+        .sort((a,b) => String(a.createdAt || '').localeCompare(String(b.createdAt || '')));
+      const doneItems = state.completed.filter(c => c.date === dateIso)
+        .sort((a,b) => String(a.completedAt || '').localeCompare(String(b.completedAt || '')));
+      document.getElementById('calendarDayTitle').textContent = formatDate(dateIso);
+      document.getElementById('calendarDayList').innerHTML =
+        [
+          ...plannedItems.map(p => workoutCard(p)),
+          ...doneItems.map(completedCard)
+        ].join('') || `<div class="empty">Ingen økter denne dagen.</div>`;
+      document.getElementById('calendarDayModal').classList.add('active');
+    };
+
+    window.closeCalendarDayModal = function() {
+      document.getElementById('calendarDayModal').classList.remove('active');
+    };
+
+    window.planFromCalendarDay = function() {
+      const planBtn = document.querySelector("nav button[aria-label='Plan']");
+      closeCalendarDayModal();
+      if (planBtn) showTab('plan', planBtn);
+      document.getElementById('planDate').value = selectedCalendarDate || todayISO();
+    };
 
     function renderSettingsList(kind, elementId) {
       const values = state.settings[kind] || [];
