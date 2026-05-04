@@ -455,9 +455,9 @@
                   <option value="custom">Egendefinert</option>
                 </select>
               </div>
-              <div>
+              <div id="planRepeatWeeksWrapper" style="display:none;">
                 <label>Antall uker frem</label>
-                <input id="planRepeatWeeks" type="number" min="1" max="52" step="1" value="8" disabled />
+                <input id="planRepeatWeeks" type="number" min="1" max="52" step="1" value="8" />
               </div>
             </div>
             <div id="customRepeatWrapper" class="hidden">
@@ -1022,6 +1022,8 @@
     // ── Plan ──────────────────────────────────────────────────────────────────
     window.toggleRepeatOptions = function() {
       const repeat = document.getElementById('planRepeat').value;
+      const weeksWrapper = document.getElementById('planRepeatWeeksWrapper');
+      if (weeksWrapper) weeksWrapper.style.display = repeat === 'none' ? 'none' : '';
       document.getElementById('planRepeatWeeks').disabled = repeat === 'none';
       document.getElementById('customRepeatWrapper').classList.toggle('hidden', repeat !== 'custom');
     };
