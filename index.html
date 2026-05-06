@@ -408,6 +408,25 @@
           <div><label>Snittpuls</label><input id="completeAvgHr" type="number" min="0" step="1" /></div>
           <div><label>Makspuls</label><input id="completeMaxHr" type="number" min="0" step="1" /></div>
         </div>
+        <div>
+          <label>Primær treningseffekt</label>
+          <select id="completeTrainingEffect">
+            <option value="">Velg fra Garmin</option>
+            <optgroup label="Low Aerobic">
+              <option value="recovery">Recovery</option>
+              <option value="base">Base</option>
+            </optgroup>
+            <optgroup label="High Aerobic">
+              <option value="tempo">Tempo</option>
+              <option value="threshold">Threshold</option>
+              <option value="vo2_max">VO2 Max</option>
+            </optgroup>
+            <optgroup label="Anaerobic">
+              <option value="anaerobic_capacity">Anaerobic Capacity</option>
+              <option value="sprint">Sprint</option>
+            </optgroup>
+          </select>
+        </div>
         <div class="grid-2">
           <div>
             <label>Gjennomføring</label>

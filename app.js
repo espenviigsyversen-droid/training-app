@@ -4,7 +4,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     import { getFirestore, doc, collection, getDoc, getDocs, setDoc, deleteDoc, writeBatch }
       from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
-    const APP_VERSION = 'v13';
+    const APP_VERSION = 'v14';
 
     const firebaseConfig = {
       apiKey: "AIzaSyAMPfQ9gX9rbuvcPsVjYVtq5IT_orjDBPs",
@@ -508,6 +508,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         'completeDistance',
         'completeAvgHr',
         'completeMaxHr',
+        'completeTrainingEffect',
         'completeExecution',
         'completeFeeling',
         'completeRpe',
@@ -540,6 +541,8 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         distanceKm: document.getElementById('completeDistance').value || '',
         avgHeartRate: document.getElementById('completeAvgHr').value || '',
         maxHeartRate: document.getElementById('completeMaxHr').value || '',
+        trainingEffectType: document.getElementById('completeTrainingEffect').value || '',
+        trainingEffectCategory: trainingEffectCategory(document.getElementById('completeTrainingEffect').value),
         execution: document.getElementById('completeExecution').value || '',
         feelingScore: document.getElementById('completeFeeling').value || '',
         rpe: document.getElementById('completeRpe').value || '',
@@ -652,6 +655,29 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       return parts.join(' · ');
     }
 
+    function trainingEffectInfo(type) {
+      const effects = {
+        recovery: { label: 'Recovery', category: 'low_aerobic', categoryLabel: 'Low Aerobic', className: 'effect-low' },
+        base: { label: 'Base', category: 'low_aerobic', categoryLabel: 'Low Aerobic', className: 'effect-low' },
+        tempo: { label: 'Tempo', category: 'high_aerobic', categoryLabel: 'High Aerobic', className: 'effect-high' },
+        threshold: { label: 'Threshold', category: 'high_aerobic', categoryLabel: 'High Aerobic', className: 'effect-high' },
+        vo2_max: { label: 'VO2 Max', category: 'high_aerobic', categoryLabel: 'High Aerobic', className: 'effect-high' },
+        anaerobic_capacity: { label: 'Anaerobic Capacity', category: 'anaerobic', categoryLabel: 'Anaerobic', className: 'effect-anaerobic' },
+        sprint: { label: 'Sprint', category: 'anaerobic', categoryLabel: 'Anaerobic', className: 'effect-anaerobic' }
+      };
+      return effects[type] || null;
+    }
+
+    function trainingEffectCategory(type) {
+      return trainingEffectInfo(type)?.category || '';
+    }
+
+    function trainingEffectTag(type) {
+      const info = trainingEffectInfo(type);
+      if (!info) return '';
+      return `<span class="tag ${info.className}">${escapeHtml(info.label)}</span>`;
+    }
+
     window.openCompleteModal = function(plannedId) {
       clearCompleteForm();
       setCompleteModalMode('create');
@@ -677,6 +703,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       document.getElementById('completeDistance').value = completed.distanceKm || '';
       document.getElementById('completeAvgHr').value = completed.avgHeartRate || '';
       document.getElementById('completeMaxHr').value = completed.maxHeartRate || '';
+      document.getElementById('completeTrainingEffect').value = completed.trainingEffectType || '';
       document.getElementById('completeExecution').value = completed.execution || '';
       document.getElementById('completeFeeling').value = completed.feelingScore || '';
       document.getElementById('completeRpe').value = completed.rpe || '';
@@ -804,6 +831,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       const feeling = feelingLabel(c.feelingScore);
       const readiness = readinessLabel(c.readiness);
       const bodyStatus = bodyStatusLabel(c.bodyStatus);
+      const trainingEffect = trainingEffectTag(c.trainingEffectType);
       const metrics = [
         durationLabel || null,
         c.distanceKm ? `${c.distanceKm} km` : null,
@@ -821,6 +849,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
             <span class="tag done">Utført</span>
           </div>
           ${metrics ? `<p class="meta">${escapeHtml(metrics)}</p>` : ''}
+          ${trainingEffect ? `<div class="meta">${trainingEffect}</div>` : ''}
           ${execution ? `<p class="meta"><strong>Gjennomføring:</strong> ${escapeHtml(execution)}</p>` : ''}
           ${feeling ? `<p class="meta"><strong>Følelse:</strong> ${escapeHtml(feeling)}</p>` : ''}
           ${readiness ? `<p class="meta"><strong>Dagsform:</strong> ${escapeHtml(readiness)}</p>` : ''}
