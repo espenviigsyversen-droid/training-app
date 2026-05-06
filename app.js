@@ -4,7 +4,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     import { getFirestore, doc, collection, getDoc, getDocs, setDoc, deleteDoc, writeBatch }
       from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
-    const APP_VERSION = 'v3';
+    const APP_VERSION = 'v4';
 
     const firebaseConfig = {
       apiKey: "AIzaSyAMPfQ9gX9rbuvcPsVjYVtq5IT_orjDBPs",
@@ -593,13 +593,19 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     window.undoComplete = async function(completedId) {
       const completed = state.completed.find(c => c.id === completedId);
       if (!completed) return;
+      const template = getTemplate(completed.templateId);
+      if (!confirm(`Er du sikker på at du vil angre utført økt?\n\n${template.name} flyttes tilbake til planlagt økt.`)) return;
       const planned = state.planned.find(p => p.id === completed.plannedWorkoutId);
       if (planned) planned.status = 'planned';
       state.completed = state.completed.filter(c => c.id !== completedId);
       render();
+      if (document.getElementById('calendarDayModal')?.classList.contains('active') && selectedCalendarDate) {
+        openCalendarDayModal(selectedCalendarDate);
+      }
       const ops = [fsDelete('completed', completedId)];
       if (planned) ops.push(fsSet('planned', planned.id, planned));
       await Promise.all(ops);
+      showToast('Økt flyttet tilbake til planlagt');
     };
 
     // ── Render helpers ────────────────────────────────────────────────────────
