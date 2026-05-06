@@ -4,7 +4,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     import { getFirestore, doc, collection, getDoc, getDocs, setDoc, deleteDoc, writeBatch }
       from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
-    const APP_VERSION = 'v23';
+    const APP_VERSION = 'v24';
 
     const firebaseConfig = {
       apiKey: "AIzaSyAMPfQ9gX9rbuvcPsVjYVtq5IT_orjDBPs",
@@ -467,6 +467,10 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         name,
         type: document.getElementById('templateType').value,
         intensity: document.getElementById('templateIntensity').value,
+        purpose: document.getElementById('templatePurpose').value,
+        load: document.getElementById('templateLoad').value,
+        recommendedWhen: document.getElementById('templateRecommendedWhen').value,
+        avoidWhen: document.getElementById('templateAvoidWhen').value,
         structure: document.getElementById('templateStructure').value.trim()
       };
       if (editingId) {
@@ -493,6 +497,10 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       setSelectOptions('templateIntensity', state.settings.intensities, t.intensity);
       document.getElementById('templateType').value = t.type;
       document.getElementById('templateIntensity').value = t.intensity;
+      document.getElementById('templatePurpose').value = t.purpose || '';
+      document.getElementById('templateLoad').value = t.load || '';
+      document.getElementById('templateRecommendedWhen').value = t.recommendedWhen || '';
+      document.getElementById('templateAvoidWhen').value = t.avoidWhen || '';
       document.getElementById('templateStructure').value = t.structure || '';
       document.getElementById('templateSubmitBtn').textContent = 'Lagre endringer';
       document.getElementById('cancelEditTemplateBtn').classList.remove('hidden');
@@ -504,6 +512,10 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     function clearTemplateForm() {
       document.getElementById('editingTemplateId').value = '';
       document.getElementById('templateName').value = '';
+      document.getElementById('templatePurpose').value = '';
+      document.getElementById('templateLoad').value = '';
+      document.getElementById('templateRecommendedWhen').value = '';
+      document.getElementById('templateAvoidWhen').value = '';
       document.getElementById('templateStructure').value = '';
       document.getElementById('templateSubmitBtn').textContent = 'Lagre øktmal';
       document.getElementById('cancelEditTemplateBtn').classList.add('hidden');
@@ -915,7 +927,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
 
     // ── Render helpers ────────────────────────────────────────────────────────
     function getTemplate(id) {
-      return state.templates.find(t => t.id === id) || { name: 'Slettet øktmal', type: 'Annet', intensity: '', structure: '' };
+      return state.templates.find(t => t.id === id) || { name: 'Slettet øktmal', type: 'Annet', intensity: '', purpose: '', load: '', recommendedWhen: '', avoidWhen: '', structure: '' };
     }
 
     function workoutCard(planned, options = {}) {
@@ -939,7 +951,59 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         </div>`;
     }
 
+    function labelFromMap(value, map) {
+      return value ? (map[value] || value) : '';
+    }
+
+    function templatePurposeLabel(value) {
+      return labelFromMap(value, {
+        base: 'Aerob base',
+        threshold: 'Terskel/kvalitet',
+        vo2max: 'VO2 maks',
+        recovery: 'Restitusjon',
+        strength: 'Styrke',
+        muscle_growth: 'Muskelvekst',
+        mobility: 'Mobilitet',
+        technique: 'Teknikk/ferdighet',
+        other: 'Annet formål'
+      });
+    }
+
+    function templateLoadLabel(value) {
+      return labelFromMap(value, {
+        low: 'Lav belastning',
+        moderate: 'Moderat belastning',
+        high: 'Høy belastning'
+      });
+    }
+
+    function templateRecommendedWhenLabel(value) {
+      return labelFromMap(value, {
+        normal: 'Passer normal dag',
+        fresh_legs: 'Passer med friske bein',
+        tired: 'Passer når litt sliten',
+        after_hard: 'Passer etter hard økt',
+        pain_adaptation: 'Passer ved småvondt/tilpasning',
+        bonus: 'Passer som bonusøkt'
+      });
+    }
+
+    function templateAvoidWhenLabel(value) {
+      return labelFromMap(value, {
+        pain: 'Unngå ved smerte',
+        heavy_legs: 'Unngå ved tunge bein',
+        many_hard: 'Unngå ved mye hardt',
+        low_hrv: 'Unngå ved lav HRV'
+      });
+    }
+
     function templateCard(t) {
+      const coachTags = [
+        templatePurposeLabel(t.purpose),
+        templateLoadLabel(t.load),
+        templateRecommendedWhenLabel(t.recommendedWhen),
+        templateAvoidWhenLabel(t.avoidWhen)
+      ].filter(Boolean);
       return `
         <div class="workout-card">
           <div class="workout-top">
@@ -949,6 +1013,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
             </div>
             <span class="tag">Mal</span>
           </div>
+          ${coachTags.length ? `<p class="meta"><strong>Coach:</strong> ${escapeHtml(coachTags.join(' · '))}</p>` : ''}
           ${t.structure ? `<p class="meta" style="white-space:pre-line;">${escapeHtml(t.structure)}</p>` : ''}
           <div class="button-row">
             <button class="btn-primary" onclick="editTemplate('${t.id}')">Rediger</button>
@@ -1230,17 +1295,34 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     }
 
     function templateMatches(template, keywords = []) {
-      const haystack = `${template.name} ${template.type} ${template.intensity} ${template.structure}`.toLowerCase();
+      const haystack = `${template.name} ${template.type} ${template.intensity} ${template.purpose || ''} ${template.load || ''} ${template.recommendedWhen || ''} ${template.avoidWhen || ''} ${template.structure}`.toLowerCase();
       return keywords.some(keyword => haystack.includes(keyword.toLowerCase()));
+    }
+
+    function templateSuggestionScore(template, suggestion) {
+      let score = 0;
+      if (suggestion.types?.includes(template.type)) score += 4;
+      if (suggestion.purposes?.includes(template.purpose)) score += 7;
+      if (suggestion.loads?.includes(template.load)) score += 5;
+      if (suggestion.recommendedWhen?.includes(template.recommendedWhen)) score += 4;
+      if (suggestion.intensities?.includes(template.intensity)) score += 3;
+      if (templateMatches(template, suggestion.keywords || [])) score += 2;
+      if (suggestion.avoidTemplateWhen?.includes(template.avoidWhen)) score -= 8;
+      return score;
     }
 
     function findSuggestedTemplate(suggestion) {
       const templates = state.templates || [];
       if (!templates.length) return null;
-      const typeMatch = templates.filter(t => suggestion.types.includes(t.type));
-      const pool = typeMatch.length ? typeMatch : templates;
-      return pool.find(t => templateMatches(t, suggestion.keywords))
-        || pool.find(t => suggestion.intensities.includes(t.intensity))
+      const ranked = templates
+        .map(template => ({ template, score: templateSuggestionScore(template, suggestion) }))
+        .sort((a, b) => b.score - a.score);
+      if (ranked[0]?.score > 0) return ranked[0].template;
+      const typeMatch = templates.filter(t => suggestion.types?.includes(t.type));
+      return typeMatch.find(t => templateMatches(t, suggestion.keywords))
+        || templates.find(t => templateMatches(t, suggestion.keywords))
+        || typeMatch.find(t => suggestion.intensities?.includes(t.intensity))
+        || templates.find(t => suggestion.intensities?.includes(t.intensity))
         || typeMatch[0]
         || null;
     }
@@ -1258,6 +1340,10 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         note: 'Foreslått fordi rolig volum gir best grunnlag for neste kvalitetsøkt.',
         types: ['Løping', 'Sykling', 'Ski'],
         intensities: ['Rolig', 'Restitusjon'],
+        purposes: ['base', 'recovery'],
+        loads: ['low'],
+        recommendedWhen: ['normal', 'tired', 'after_hard', 'bonus'],
+        avoidTemplateWhen: [],
         keywords: ['rolig', 'restitusjon', 'base', 'lett', 'fri']
       };
 
@@ -1268,6 +1354,11 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
           detail: 'Velg kort rolig løp, sykkel, mobilitet eller hvile hvis samme område fortsatt kjennes.',
           note: 'Foreslått fordi du har registrert smerte eller tilpasning nylig.',
           types: ['Mobilitet', 'Sykling', 'Løping', 'Ski'],
+          intensities: ['Rolig', 'Restitusjon'],
+          purposes: ['recovery', 'mobility', 'base'],
+          loads: ['low'],
+          recommendedWhen: ['pain_adaptation', 'tired', 'after_hard'],
+          avoidTemplateWhen: ['pain', 'heavy_legs', 'many_hard'],
           keywords: ['mobilitet', 'rolig', 'restitusjon', 'lett', 'sykkel']
         };
       }
@@ -1279,6 +1370,10 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
           note: 'Foreslått fordi treningsprofilen din står på muskelvekst/bulking.',
           types: ['Styrke'],
           intensities: ['Styrke'],
+          purposes: ['muscle_growth', 'strength'],
+          loads: ['moderate', 'high'],
+          recommendedWhen: ['fresh_legs', 'normal'],
+          avoidTemplateWhen: ['pain', 'low_hrv'],
           keywords: ['styrke', 'basis', 'helkropp', 'overkropp', 'bein', 'progresjon']
         };
       }
@@ -1290,6 +1385,10 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
           note: 'Foreslått fordi treningsprofilen prioriterer teknikk/ferdighet.',
           types: ['Ski'],
           intensities: ['Rolig', 'Tempo'],
+          purposes: ['technique', 'base'],
+          loads: ['low', 'moderate'],
+          recommendedWhen: ['normal', 'fresh_legs'],
+          avoidTemplateWhen: ['pain'],
           keywords: ['staking', 'teknikk', 'rolig', 'ski', 'kontrollert']
         };
       }
@@ -1308,6 +1407,10 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
             note: 'Foreslått fordi profilen din er Bakken-inspirert løping og uken tåler én kontrollert kvalitetsøkt.',
             types: ['Løping'],
             intensities: ['Terskel', 'Tempo'],
+            purposes: ['threshold'],
+            loads: ['moderate'],
+            recommendedWhen: ['fresh_legs', 'normal'],
+            avoidTemplateWhen: ['pain', 'heavy_legs', 'many_hard', 'low_hrv'],
             keywords: ['terskel', 'tempo', '6 x', '10x', 'intervall', 'drag']
           };
         }
@@ -1318,7 +1421,8 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         return {
           ...baseSuggestion,
           title: 'Bonusøkt med lav belastning',
-          note: 'Foreslått fordi ukesmålet allerede er nådd. Hold eventuell ekstra økt lett.'
+          note: 'Foreslått fordi ukesmålet allerede er nådd. Hold eventuell ekstra økt lett.',
+          recommendedWhen: ['bonus', 'after_hard', 'tired']
         };
       }
 
@@ -1328,6 +1432,10 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         note: 'Foreslått for å bygge kontinuitet uten å gjøre planleggingen for komplisert.',
         types: ['Løping', 'Styrke', 'Mobilitet', 'Sykling', 'Ski'],
         intensities: ['Rolig', 'Styrke', 'Mobilitet'],
+        purposes: ['base', 'strength', 'mobility', 'technique'],
+        loads: ['low', 'moderate'],
+        recommendedWhen: ['normal', 'fresh_legs', 'tired'],
+        avoidTemplateWhen: ['pain'],
         keywords: ['rolig', 'basis', 'mobilitet', 'styrke', 'lett']
       };
     }
@@ -1336,8 +1444,11 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       const suggestion = buildWorkoutSuggestion(today, weekSummary, weekItems, last14Days, profile);
       const template = findSuggestedTemplate(suggestion);
       const tomorrow = addDays(today, 1);
+      const templateCoachMeta = template
+        ? [templatePurposeLabel(template.purpose), templateLoadLabel(template.load)].filter(Boolean).join(' · ')
+        : '';
       const templateMeta = template
-        ? `<p class="meta"><strong>Passende mal:</strong> ${escapeHtml(template.name)} · ${escapeHtml(template.type)} · ${escapeHtml(template.intensity || '')}</p>`
+        ? `<p class="meta"><strong>Passende mal:</strong> ${escapeHtml(template.name)} · ${escapeHtml(template.type)} · ${escapeHtml(template.intensity || '')}${templateCoachMeta ? ` · ${escapeHtml(templateCoachMeta)}` : ''}</p>`
         : '<p class="meta">Ingen tydelig passende øktmal funnet ennå. Lag gjerne en mal som matcher forslaget.</p>';
       document.getElementById('homeWorkoutSuggestion').innerHTML = `
         <div class="suggestion-card">
