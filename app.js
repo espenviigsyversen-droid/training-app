@@ -4,7 +4,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     import { getFirestore, doc, collection, getDoc, getDocs, setDoc, deleteDoc, writeBatch }
       from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
-    const APP_VERSION = 'v18';
+    const APP_VERSION = 'v19';
 
     const firebaseConfig = {
       apiKey: "AIzaSyAMPfQ9gX9rbuvcPsVjYVtq5IT_orjDBPs",
@@ -35,9 +35,16 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         philosophy: 'bakken_threshold',
         priority: 'injury_free_progression',
         trainingFocus: 'base_threshold'
+      },
+      personProfile: {
+        name: '',
+        birthYear: '',
+        sex: '',
+        heightCm: '',
+        weightKg: ''
       }
     };
-    let state = { templates: [], planned: [], completed: [], settings: JSON.parse(JSON.stringify(defaultSettings)) };
+    let state = { templates: [], planned: [], completed: [], wellness: [], settings: JSON.parse(JSON.stringify(defaultSettings)) };
 
     // ── Utilities ─────────────────────────────────────────────────────────────
     function uid(prefix) {
@@ -106,7 +113,19 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
           ? settings.intensities
           : [...defaultSettings.intensities],
         goals: normalizeGoals(settings.goals),
-        trainingProfile: normalizeTrainingProfile(settings.trainingProfile)
+        trainingProfile: normalizeTrainingProfile(settings.trainingProfile),
+        personProfile: normalizePersonProfile(settings.personProfile)
+      };
+    }
+
+    function normalizePersonProfile(profile = {}) {
+      const defaults = defaultSettings.personProfile;
+      return {
+        name: profile.name || defaults.name,
+        birthYear: normalizeGoalNumber(profile.birthYear, defaults.birthYear, 1900),
+        sex: profile.sex || defaults.sex,
+        heightCm: normalizeGoalNumber(profile.heightCm, defaults.heightCm),
+        weightKg: normalizeGoalNumber(profile.weightKg, defaults.weightKg)
       };
     }
 
@@ -153,15 +172,17 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     async function loadFromFirestore() {
       setSyncStatus('syncing');
       try {
-        const [tSnap, pSnap, cSnap, settingsSnap] = await Promise.all([
+        const [tSnap, pSnap, cSnap, wSnap, settingsSnap] = await Promise.all([
           getDocs(userCol('templates')),
           getDocs(userCol('planned')),
           getDocs(userCol('completed')),
+          getDocs(userCol('wellness')),
           getDoc(userDoc('settings', 'preferences'))
         ]);
         state.templates = tSnap.docs.map(d => ({ id: d.id, ...d.data() }));
         state.planned   = pSnap.docs.map(d => ({ id: d.id, ...d.data() }));
         state.completed = cSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+        state.wellness = wSnap.docs.map(d => ({ id: d.id, ...d.data() }));
         state.settings = settingsSnap.exists() ? normalizeSettings(settingsSnap.data()) : freshDefaultSettings();
         if (!settingsSnap.exists()) await fsSet('settings', 'preferences', state.settings);
         setSyncStatus('ok');
@@ -247,7 +268,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         await loadFromFirestore();
       } else {
         currentUser = null;
-        state = { templates: [], planned: [], completed: [], settings: normalizeSettings(state.settings) };
+        state = { templates: [], planned: [], completed: [], wellness: [], settings: normalizeSettings(state.settings) };
         loading.classList.add('hidden');
         authScreen.classList.remove('hidden');
         mainApp.classList.add('hidden');
@@ -352,6 +373,78 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       });
       await saveSettings();
       showToast('Treningsprofil lagret');
+    };
+
+    window.savePersonProfile = async function() {
+      state.settings.personProfile = normalizePersonProfile({
+        name: document.getElementById('personName').value.trim(),
+        birthYear: document.getElementById('personBirthYear').value,
+        sex: document.getElementById('personSex').value,
+        heightCm: document.getElementById('personHeightCm').value,
+        weightKg: document.getElementById('personWeightKg').value
+      });
+      await saveSettings();
+      showToast('Personprofil lagret');
+    };
+
+    window.clearWellnessForm = function() {
+      document.getElementById('wellnessEditingId').value = '';
+      document.getElementById('wellnessDate').value = todayISO();
+      document.getElementById('wellnessVo2Max').value = '';
+      document.getElementById('wellnessHrv7d').value = '';
+      document.getElementById('wellnessSubmitBtn').textContent = 'Lagre måling';
+      document.getElementById('cancelEditWellnessBtn').classList.add('hidden');
+    };
+
+    window.saveWellnessMeasurement = async function() {
+      const date = document.getElementById('wellnessDate').value || todayISO();
+      const vo2Max = normalizeGoalNumber(document.getElementById('wellnessVo2Max').value, '');
+      const hrv7d = normalizeGoalNumber(document.getElementById('wellnessHrv7d').value, '');
+      if (vo2Max === '' && hrv7d === '') return alert('Legg inn VO2 Max, HRV eller begge deler.');
+
+      const editingId = document.getElementById('wellnessEditingId').value;
+      const measurement = {
+        id: editingId || uid('wellness'),
+        date,
+        vo2Max,
+        hrv7d,
+        createdAt: editingId ? state.wellness.find(item => item.id === editingId)?.createdAt || new Date().toISOString() : new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+
+      if (editingId) {
+        const index = state.wellness.findIndex(item => item.id === editingId);
+        if (index >= 0) state.wellness[index] = measurement;
+      } else {
+        state.wellness.push(measurement);
+      }
+      state.wellness.sort((a, b) => b.date.localeCompare(a.date));
+      clearWellnessForm();
+      render();
+      await fsSet('wellness', measurement.id, measurement);
+      showToast(editingId ? 'Formmåling oppdatert' : 'Formmåling lagret');
+    };
+
+    window.editWellnessMeasurement = function(id) {
+      const item = state.wellness.find(entry => entry.id === id);
+      if (!item) return;
+      document.getElementById('wellnessEditingId').value = item.id;
+      document.getElementById('wellnessDate').value = item.date || todayISO();
+      document.getElementById('wellnessVo2Max').value = item.vo2Max || '';
+      document.getElementById('wellnessHrv7d').value = item.hrv7d || '';
+      document.getElementById('wellnessSubmitBtn').textContent = 'Lagre endringer';
+      document.getElementById('cancelEditWellnessBtn').classList.remove('hidden');
+      showTab('settings');
+    };
+
+    window.deleteWellnessMeasurement = async function(id) {
+      const item = state.wellness.find(entry => entry.id === id);
+      if (!item) return;
+      if (!confirm(`Slette formmåling fra ${formatDate(item.date)}?`)) return;
+      state.wellness = state.wellness.filter(entry => entry.id !== id);
+      render();
+      await fsDelete('wellness', id);
+      showToast('Formmåling slettet');
     };
 
     // ── Templates ─────────────────────────────────────────────────────────────
@@ -1036,6 +1129,85 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       document.getElementById('profileRunningPhase').value = profile.trainingFocus;
     }
 
+    function renderPersonProfile() {
+      const profile = normalizePersonProfile(state.settings.personProfile);
+      document.getElementById('personName').value = profile.name;
+      document.getElementById('personBirthYear').value = profile.birthYear;
+      document.getElementById('personSex').value = profile.sex;
+      document.getElementById('personHeightCm').value = profile.heightCm;
+      document.getElementById('personWeightKg').value = profile.weightKg;
+    }
+
+    function formatMetricValue(value, decimals = 0) {
+      if (value === '' || value === null || value === undefined) return '-';
+      return Number(value).toLocaleString('no-NO', { maximumFractionDigits: decimals });
+    }
+
+    function sortedWellness() {
+      return [...(state.wellness || [])].sort((a, b) => b.date.localeCompare(a.date));
+    }
+
+    function latestMetric(metric) {
+      return sortedWellness().find(item => item[metric] !== '' && item[metric] !== null && item[metric] !== undefined);
+    }
+
+    function metricTrend(metric) {
+      const items = sortedWellness().filter(item => item[metric] !== '' && item[metric] !== null && item[metric] !== undefined);
+      if (items.length < 2) return { label: 'Ingen trend ennå', delta: 0 };
+      const latest = Number(items[0][metric]);
+      const previous = Number(items[1][metric]);
+      const delta = latest - previous;
+      if (Math.abs(delta) < 0.5) return { label: 'Stabil', delta };
+      return { label: delta > 0 ? `Opp ${formatMetricValue(delta, 1)}` : `Ned ${formatMetricValue(Math.abs(delta), 1)}`, delta };
+    }
+
+    function renderDashboardWellness() {
+      const latestVo2 = latestMetric('vo2Max');
+      const latestHrv = latestMetric('hrv7d');
+      document.getElementById('homeVo2Max').textContent = latestVo2 ? formatMetricValue(latestVo2.vo2Max, 1) : '-';
+      document.getElementById('homeHrv').textContent = latestHrv ? `${formatMetricValue(latestHrv.hrv7d)} ms` : '-';
+      const latestDates = [latestVo2?.date, latestHrv?.date].filter(Boolean).sort();
+      const latestDate = latestDates[latestDates.length - 1];
+      document.getElementById('homeWellnessNote').textContent = latestVo2 || latestHrv
+        ? `Sist oppdatert ${formatDate(latestDate)}. Følg trend over tid, ikke enkeltmålinger alene.`
+        : 'Legg inn VO2 Max og HRV fra Garmin under Setup for å følge formutvikling.';
+    }
+
+    function renderWellnessList() {
+      const items = sortedWellness().slice(0, 8);
+      const list = document.getElementById('wellnessList');
+      list.innerHTML = items.length ? items.map(item => `
+        <div class="settings-item">
+          <span>${escapeHtml(formatDate(item.date))} · VO2 ${escapeHtml(formatMetricValue(item.vo2Max, 1))} · HRV ${escapeHtml(formatMetricValue(item.hrv7d))} ms</span>
+          <span style="display:flex;gap:6px;">
+            <button class="btn-soft" onclick="editWellnessMeasurement('${item.id}')">Rediger</button>
+            <button class="btn-soft" onclick="deleteWellnessMeasurement('${item.id}')">Fjern</button>
+          </span>
+        </div>`).join('') : '<div class="empty">Ingen formmålinger enda.</div>';
+      if (!document.getElementById('wellnessDate').value) document.getElementById('wellnessDate').value = todayISO();
+    }
+
+    function wellnessTrendRow(label, metric, suffix = '') {
+      const latest = latestMetric(metric);
+      const trend = metricTrend(metric);
+      const value = latest ? `${formatMetricValue(latest[metric], metric === 'vo2Max' ? 1 : 0)}${suffix}` : '-';
+      return `
+        <div class="week-row">
+          <div class="week-row-top">
+            <span>${escapeHtml(label)}</span>
+            <span>${escapeHtml(value)} · ${escapeHtml(trend.label)}</span>
+          </div>
+          <p class="small-note">${latest ? `Siste måling ${formatDate(latest.date)}` : 'Ingen måling registrert ennå.'}</p>
+        </div>`;
+    }
+
+    function renderWellnessInsights() {
+      document.getElementById('insightWellnessTrend').innerHTML = [
+        wellnessTrendRow('VO2 Max', 'vo2Max'),
+        wellnessTrendRow('HRV 7d', 'hrv7d', ' ms')
+      ].join('');
+    }
+
     function renderHistoryFilterOptions() {
       const select = document.getElementById('historyFilter');
       const selected = select.value || 'Alle';
@@ -1368,6 +1540,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
           </div>`;
       }).join('');
 
+      renderWellnessInsights();
       document.getElementById('insightCoachNote').textContent = buildCoachNote(weekSummary, goals, last14Days, profile);
     }
 
@@ -1390,6 +1563,9 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       renderSettingsList('intensities', 'intensityList');
       renderTrainingGoals();
       renderTrainingProfile();
+      renderPersonProfile();
+      renderWellnessList();
+      renderDashboardWellness();
       renderHistoryFilterOptions();
       renderInsights();
 
@@ -1485,12 +1661,13 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
           const imported = JSON.parse(reader.result);
           if (!imported.templates || !imported.planned || !imported.completed) throw new Error('Invalid format');
           if (!confirm('Import vil overskrive data som ligger i appen nå. Fortsette?')) return;
-          state = { ...imported, settings: normalizeSettings(imported.settings) };
+          state = { ...imported, wellness: imported.wellness || [], settings: normalizeSettings(imported.settings) };
           render();
           await Promise.all([
             fsBatchSet('templates', state.templates),
             fsBatchSet('planned', state.planned),
             fsBatchSet('completed', state.completed),
+            fsBatchSet('wellness', state.wellness),
             fsSet('settings', 'preferences', state.settings)
           ]);
         } catch (err) {
@@ -1515,7 +1692,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     };
 
     window.confirmResetData = function() {
-      const userInput = prompt('Skriv inn "SLETT" for å bekrefte sletting av alle økter, planer og historikk.');
+      const userInput = prompt('Skriv inn "SLETT" for å bekrefte sletting av alle økter, planer, historikk og formmålinger.');
       if (userInput !== 'SLETT') {
         if (userInput !== null) alert('Feil tekst - sletting avbrutt.');
         return;
@@ -1524,18 +1701,19 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     };
 
     window.resetData = async function() {
-      if (!confirm('SISTE ADVARSEL: Dette sletter alle økter, planer og historikk. Dette kan ikke angres. Fortsette?')) return;
+      if (!confirm('SISTE ADVARSEL: Dette sletter alle økter, planer, historikk og formmålinger. Dette kan ikke angres. Fortsette?')) return;
       setSyncStatus('syncing');
       try {
-        const [tSnap, pSnap, cSnap] = await Promise.all([
+        const [tSnap, pSnap, cSnap, wSnap] = await Promise.all([
           getDocs(userCol('templates')),
           getDocs(userCol('planned')),
-          getDocs(userCol('completed'))
+          getDocs(userCol('completed')),
+          getDocs(userCol('wellness'))
         ]);
         const batch = writeBatch(db);
-        [...tSnap.docs, ...pSnap.docs, ...cSnap.docs].forEach(d => batch.delete(d.ref));
+        [...tSnap.docs, ...pSnap.docs, ...cSnap.docs, ...wSnap.docs].forEach(d => batch.delete(d.ref));
         await batch.commit();
-        state = { templates: [], planned: [], completed: [], settings: normalizeSettings(state.settings) };
+        state = { templates: [], planned: [], completed: [], wellness: [], settings: normalizeSettings(state.settings) };
         setSyncStatus('ok');
         render();
       } catch (err) {

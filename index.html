@@ -8,7 +8,7 @@
   <!-- iOS / iPhone hjemskjerm-ikon og PWA-innstillinger -->
   <link rel="apple-touch-icon" href="Icon1.png" />
   <link rel="manifest" href="manifest.json" />
-  <meta name="theme-color" content="#FF5A5F" />
+  <meta name="theme-color" content="#ff4f2e" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="Treningsapp" />
@@ -64,6 +64,14 @@
           <div class="stat"><strong id="statToday">0</strong><span>I dag</span></div>
           <div class="stat"><strong id="statPlanned">0</strong><span>Planlagt</span></div>
           <div class="stat"><strong id="statDone">0</strong><span>Utført</span></div>
+        </div>
+        <div class="card">
+          <h2 class="section-title">Formstatus</h2>
+          <div class="insight-grid">
+            <div class="insight-stat"><strong id="homeVo2Max">-</strong><span>VO2 Max</span></div>
+            <div class="insight-stat"><strong id="homeHrv">-</strong><span>HRV 7d</span></div>
+          </div>
+          <p id="homeWellnessNote" class="small-note"></p>
         </div>
         <div id="nextWorkoutBanner" class="card next-workout-banner hidden">
           <div class="next-workout-label">Neste økt</div>
@@ -241,6 +249,11 @@
           <div id="insightFourWeeks" class="insight-weeks"></div>
         </div>
         <div class="card">
+          <h2 class="section-title">Formutvikling</h2>
+          <p class="small-note">Manuelle målinger fra Garmin. Brukes som signaler, ikke som fasit alene.</p>
+          <div id="insightWellnessTrend" class="insight-weeks"></div>
+        </div>
+        <div class="card">
           <h2 class="section-title">Coach-notis</h2>
           <p id="insightCoachNote" class="coach-note"></p>
         </div>
@@ -353,6 +366,46 @@
           </div>
         </div>
         <div class="card">
+          <h2 class="section-title">Personprofil</h2>
+          <p class="small-note">Frivillig bakgrunnsinformasjon som senere kan hjelpe coachen å gi mer relevant kontekst.</p>
+          <div class="inline-form">
+            <div><label>Navn</label><input id="personName" placeholder="Valgfritt" /></div>
+            <div class="grid-2">
+              <div><label>Fødselsår</label><input id="personBirthYear" type="number" min="1900" max="2100" step="1" inputmode="numeric" placeholder="Valgfritt" /></div>
+              <div>
+                <label>Kjønn</label>
+                <select id="personSex">
+                  <option value="">Ikke satt</option>
+                  <option value="male">Mann</option>
+                  <option value="female">Kvinne</option>
+                  <option value="other">Annet</option>
+                  <option value="prefer_not">Vil ikke oppgi</option>
+                </select>
+              </div>
+            </div>
+            <div class="grid-2">
+              <div><label>Høyde cm</label><input id="personHeightCm" type="number" min="0" step="1" inputmode="numeric" placeholder="Valgfritt" /></div>
+              <div><label>Vekt kg</label><input id="personWeightKg" type="number" min="0" step="0.1" inputmode="decimal" placeholder="Valgfritt" /></div>
+            </div>
+            <button class="btn-primary btn-full" onclick="savePersonProfile()">Lagre personprofil</button>
+          </div>
+        </div>
+        <div class="card">
+          <h2 class="section-title">Formmålinger</h2>
+          <p class="small-note">Registrer VO2 Max og 7 dagers HRV-snitt fra Garmin når du vil følge utvikling over tid.</p>
+          <div class="inline-form">
+            <input type="hidden" id="wellnessEditingId" />
+            <div><label>Dato</label><input id="wellnessDate" type="date" /></div>
+            <div class="grid-2">
+              <div><label>VO2 Max</label><input id="wellnessVo2Max" type="number" min="0" step="0.1" inputmode="decimal" placeholder="Valgfritt" /></div>
+              <div><label>HRV 7d ms</label><input id="wellnessHrv7d" type="number" min="0" step="1" inputmode="numeric" placeholder="Valgfritt" /></div>
+            </div>
+            <button id="wellnessSubmitBtn" class="btn-primary btn-full" onclick="saveWellnessMeasurement()">Lagre måling</button>
+            <button id="cancelEditWellnessBtn" class="btn-soft btn-full hidden" onclick="clearWellnessForm()">Avbryt redigering</button>
+          </div>
+          <div id="wellnessList" class="settings-list"></div>
+        </div>
+        <div class="card">
           <h2 class="section-title">Backup</h2>
           <p class="small-note">Data lagres i Firestore og synkroniseres automatisk mellom alle enheter. Du kan også eksportere en lokal JSON-kopi som ekstra sikkerhetskopi.</p>
           <div class="button-row">
@@ -369,7 +422,7 @@
         </div>
         <div class="card" style="border:2px solid var(--red);">
           <h2 class="section-title" style="color:var(--red);">Faresone</h2>
-          <p class="small-note">Dette sletter alle øktmaler, planlagte økter og historikk. Setup-valgene dine beholdes.</p>
+          <p class="small-note">Dette sletter alle øktmaler, planlagte økter, historikk og formmålinger. Setup-valgene dine beholdes.</p>
           <button class="btn-danger btn-full" onclick="confirmResetData()">Slett alt</button>
         </div>
         <div class="card">
