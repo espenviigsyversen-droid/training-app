@@ -4,7 +4,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     import { getFirestore, doc, collection, getDoc, getDocs, setDoc, deleteDoc, writeBatch }
       from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
-    const APP_VERSION = 'v10';
+    const APP_VERSION = 'v11';
 
     const firebaseConfig = {
       apiKey: "AIzaSyAMPfQ9gX9rbuvcPsVjYVtq5IT_orjDBPs",
@@ -995,6 +995,14 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       return `${hours.toLocaleString('no-NO', { maximumFractionDigits: hours < 10 ? 1 : 0 })} t`;
     }
 
+    function formatClockDuration(seconds) {
+      const total = Math.max(0, Math.round(Number(seconds) || 0));
+      const hours = Math.floor(total / 3600);
+      const minutes = Math.floor((total % 3600) / 60);
+      const remainingSeconds = total % 60;
+      return `${hours}:${String(minutes).padStart(2, '0')}:${String(remainingSeconds).padStart(2, '0')}`;
+    }
+
     function formatKm(km) {
       const value = Number(km) || 0;
       return `${value.toLocaleString('no-NO', { maximumFractionDigits: value < 10 ? 1 : 0 })} km`;
@@ -1064,7 +1072,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       const last14Days = state.completed.filter(c => c.date >= last14Start && c.date <= today);
 
       document.getElementById('insightWeekSessions').textContent = `${weekSummary.sessions}/${goals.weeklySessionsTarget}`;
-      document.getElementById('insightWeekTime').textContent = formatHoursFromSeconds(weekSummary.seconds);
+      document.getElementById('insightWeekTime').textContent = formatClockDuration(weekSummary.seconds);
       document.getElementById('insightWeekKm').textContent = formatKm(weekSummary.km);
       document.getElementById('insightWeekHard').textContent = weekSummary.hard;
 
