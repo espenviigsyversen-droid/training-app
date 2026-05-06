@@ -4,7 +4,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     import { getFirestore, doc, collection, getDoc, getDocs, setDoc, deleteDoc, writeBatch }
       from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
-    const APP_VERSION = 'v1';
+    const APP_VERSION = 'v2';
 
     const firebaseConfig = {
       apiKey: "AIzaSyAMPfQ9gX9rbuvcPsVjYVtq5IT_orjDBPs",
@@ -452,18 +452,83 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     };
 
     // ── Complete ──────────────────────────────────────────────────────────────
-    window.openCompleteModal = function(plannedId) {
-      document.getElementById('completePlannedId').value = plannedId;
+    function clearCompleteForm() {
+      document.getElementById('completePlannedId').value = '';
+      document.getElementById('editingCompletedId').value = '';
       ['completeDuration','completeDistance','completeAvgHr','completeMaxHr','completeRpe','completeNotes']
         .forEach(id => document.getElementById(id).value = '');
+    }
+
+    function setCompleteModalMode(mode) {
+      const isEditing = mode === 'edit';
+      document.getElementById('completeModalTitle').textContent = isEditing ? 'Rediger økt' : 'Loggfør økt';
+      document.getElementById('completeSubmitBtn').textContent = isEditing ? 'Lagre endringer' : 'Marker utført';
+    }
+
+    function completedFormData() {
+      return {
+        durationMinutes: document.getElementById('completeDuration').value || '',
+        distanceKm: document.getElementById('completeDistance').value || '',
+        avgHeartRate: document.getElementById('completeAvgHr').value || '',
+        maxHeartRate: document.getElementById('completeMaxHr').value || '',
+        rpe: document.getElementById('completeRpe').value || '',
+        notes: document.getElementById('completeNotes').value.trim()
+      };
+    }
+
+    window.openCompleteModal = function(plannedId) {
+      clearCompleteForm();
+      setCompleteModalMode('create');
+      document.getElementById('completePlannedId').value = plannedId;
       document.getElementById('completeModal').classList.add('active');
     };
 
     window.closeCompleteModal = function() {
       document.getElementById('completeModal').classList.remove('active');
+      clearCompleteForm();
+      setCompleteModalMode('create');
+    };
+
+    window.editCompleted = function(completedId) {
+      const completed = state.completed.find(c => c.id === completedId);
+      if (!completed) return;
+
+      clearCompleteForm();
+      setCompleteModalMode('edit');
+      document.getElementById('editingCompletedId').value = completed.id;
+      document.getElementById('completePlannedId').value = completed.plannedWorkoutId || '';
+      document.getElementById('completeDuration').value = completed.durationMinutes || '';
+      document.getElementById('completeDistance').value = completed.distanceKm || '';
+      document.getElementById('completeAvgHr').value = completed.avgHeartRate || '';
+      document.getElementById('completeMaxHr').value = completed.maxHeartRate || '';
+      document.getElementById('completeRpe').value = completed.rpe || '';
+      document.getElementById('completeNotes').value = completed.notes || '';
+      document.getElementById('completeModal').classList.add('active');
     };
 
     window.completeWorkout = async function() {
+      const editingId = document.getElementById('editingCompletedId').value;
+      if (editingId) {
+        const completedIndex = state.completed.findIndex(c => c.id === editingId);
+        if (completedIndex === -1) return;
+
+        state.completed[completedIndex] = {
+          ...state.completed[completedIndex],
+          ...completedFormData(),
+          updatedAt: new Date().toISOString()
+        };
+
+        const updatedCompleted = state.completed[completedIndex];
+        closeCompleteModal();
+        render();
+        if (selectedCalendarDate && document.getElementById('calendarDayModal').classList.contains('active')) {
+          openCalendarDayModal(selectedCalendarDate);
+        }
+        await fsSet('completed', editingId, updatedCompleted);
+        showToast('Økt oppdatert');
+        return;
+      }
+
       const plannedId = document.getElementById('completePlannedId').value;
       const planned = state.planned.find(p => p.id === plannedId);
       if (!planned) return;
@@ -473,12 +538,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         plannedWorkoutId: plannedId,
         templateId: planned.templateId,
         date: planned.date,
-        durationMinutes: document.getElementById('completeDuration').value || '',
-        distanceKm: document.getElementById('completeDistance').value || '',
-        avgHeartRate: document.getElementById('completeAvgHr').value || '',
-        maxHeartRate: document.getElementById('completeMaxHr').value || '',
-        rpe: document.getElementById('completeRpe').value || '',
-        notes: document.getElementById('completeNotes').value.trim(),
+        ...completedFormData(),
         completedAt: new Date().toISOString()
       };
       state.completed.push(completed);
@@ -565,6 +625,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
           ${metrics ? `<p class="meta">${escapeHtml(metrics)}</p>` : ''}
           ${c.notes ? `<p class="meta"><strong>Notat:</strong> ${escapeHtml(c.notes)}</p>` : ''}
           <div class="button-row">
+            <button class="btn-primary" onclick="editCompleted('${c.id}')">Rediger</button>
             <button class="btn-soft" onclick="undoComplete('${c.id}')">Angre utført</button>
           </div>
         </div>`;
