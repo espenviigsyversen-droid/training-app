@@ -4,7 +4,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     import { getFirestore, doc, collection, getDoc, getDocs, setDoc, deleteDoc, writeBatch }
       from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
-    const APP_VERSION = 'v17';
+    const APP_VERSION = 'v18';
 
     const firebaseConfig = {
       apiKey: "AIzaSyAMPfQ9gX9rbuvcPsVjYVtq5IT_orjDBPs",
@@ -34,7 +34,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         level: 'building_beginner',
         philosophy: 'bakken_threshold',
         priority: 'injury_free_progression',
-        runningPhase: 'base_threshold'
+        trainingFocus: 'base_threshold'
       }
     };
     let state = { templates: [], planned: [], completed: [], settings: JSON.parse(JSON.stringify(defaultSettings)) };
@@ -112,12 +112,17 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
 
     function normalizeTrainingProfile(profile = {}) {
       const defaults = defaultSettings.trainingProfile;
+      const legacyFocusMap = {
+        base_building: 'base_threshold',
+        five_ten_k: 'competition_prep'
+      };
+      const rawTrainingFocus = profile.trainingFocus || profile.runningPhase || defaults.trainingFocus;
       return {
         primaryFocus: profile.primaryFocus || defaults.primaryFocus,
         level: profile.level || defaults.level,
         philosophy: profile.philosophy || defaults.philosophy,
         priority: profile.priority || defaults.priority,
-        runningPhase: profile.runningPhase || defaults.runningPhase
+        trainingFocus: legacyFocusMap[rawTrainingFocus] || rawTrainingFocus
       };
     }
 
@@ -343,7 +348,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         level: document.getElementById('profileLevel').value,
         philosophy: document.getElementById('profilePhilosophy').value,
         priority: document.getElementById('profilePriority').value,
-        runningPhase: document.getElementById('profileRunningPhase').value
+        trainingFocus: document.getElementById('profileRunningPhase').value
       });
       await saveSettings();
       showToast('Treningsprofil lagret');
@@ -1028,7 +1033,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       document.getElementById('profileLevel').value = profile.level;
       document.getElementById('profilePhilosophy').value = profile.philosophy;
       document.getElementById('profilePriority').value = profile.priority;
-      document.getElementById('profileRunningPhase').value = profile.runningPhase;
+      document.getElementById('profileRunningPhase').value = profile.trainingFocus;
     }
 
     function renderHistoryFilterOptions() {
