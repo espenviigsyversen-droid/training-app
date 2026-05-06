@@ -4,7 +4,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     import { getFirestore, doc, collection, getDoc, getDocs, setDoc, deleteDoc, writeBatch }
       from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
-    const APP_VERSION = 'v22';
+    const APP_VERSION = 'v23';
 
     const firebaseConfig = {
       apiKey: "AIzaSyAMPfQ9gX9rbuvcPsVjYVtq5IT_orjDBPs",
@@ -1229,6 +1229,137 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       return 'Kontrollert';
     }
 
+    function templateMatches(template, keywords = []) {
+      const haystack = `${template.name} ${template.type} ${template.intensity} ${template.structure}`.toLowerCase();
+      return keywords.some(keyword => haystack.includes(keyword.toLowerCase()));
+    }
+
+    function findSuggestedTemplate(suggestion) {
+      const templates = state.templates || [];
+      if (!templates.length) return null;
+      const typeMatch = templates.filter(t => suggestion.types.includes(t.type));
+      const pool = typeMatch.length ? typeMatch : templates;
+      return pool.find(t => templateMatches(t, suggestion.keywords))
+        || pool.find(t => suggestion.intensities.includes(t.intensity))
+        || typeMatch[0]
+        || null;
+    }
+
+    function buildWorkoutSuggestion(today, weekSummary, weekItems, last14Days, profile) {
+      const effectSummary = summarizeTrainingEffects(weekItems);
+      const painItems = last14Days.filter(c => c.bodyStatus?.painBefore || c.bodyStatus?.painAfter || c.bodyStatus?.area);
+      const high = effectSummary.categories.high_aerobic.count;
+      const anaerobic = effectSummary.categories.anaerobic.count;
+      const low = effectSummary.categories.low_aerobic.count;
+      const runningBakkenFocus = profile.primaryFocus === 'running' && profile.philosophy === 'bakken_threshold';
+      const baseSuggestion = {
+        title: 'Rolig aerob økt',
+        detail: 'Hold det lett og kontrollert. Målet er å bygge kontinuitet og komme ut med overskudd.',
+        note: 'Foreslått fordi rolig volum gir best grunnlag for neste kvalitetsøkt.',
+        types: ['Løping', 'Sykling', 'Ski'],
+        intensities: ['Rolig', 'Restitusjon'],
+        keywords: ['rolig', 'restitusjon', 'base', 'lett', 'fri']
+      };
+
+      if (painItems.length) {
+        return {
+          ...baseSuggestion,
+          title: 'Skånsom rolig økt eller alternativ trening',
+          detail: 'Velg kort rolig løp, sykkel, mobilitet eller hvile hvis samme område fortsatt kjennes.',
+          note: 'Foreslått fordi du har registrert smerte eller tilpasning nylig.',
+          types: ['Mobilitet', 'Sykling', 'Løping', 'Ski'],
+          keywords: ['mobilitet', 'rolig', 'restitusjon', 'lett', 'sykkel']
+        };
+      }
+
+      if (profile.primaryFocus === 'strength' && profile.trainingFocus === 'muscle_growth') {
+        return {
+          title: 'Styrke med progresjon',
+          detail: 'Prioriter store øvelser, nok volum og god teknikk. Ikke jag kondisjonsbelastning denne økten.',
+          note: 'Foreslått fordi treningsprofilen din står på muskelvekst/bulking.',
+          types: ['Styrke'],
+          intensities: ['Styrke'],
+          keywords: ['styrke', 'basis', 'helkropp', 'overkropp', 'bein', 'progresjon']
+        };
+      }
+
+      if (profile.primaryFocus === 'ski' && profile.trainingFocus === 'technique_skill') {
+        return {
+          title: 'Teknikkøkt ski/staking',
+          detail: 'Hold intensiteten kontrollert og fokuser på rytme, kraftoverføring og teknisk kvalitet.',
+          note: 'Foreslått fordi treningsprofilen prioriterer teknikk/ferdighet.',
+          types: ['Ski'],
+          intensities: ['Rolig', 'Tempo'],
+          keywords: ['staking', 'teknikk', 'rolig', 'ski', 'kontrollert']
+        };
+      }
+
+      if (runningBakkenFocus) {
+        if (anaerobic || high >= 2 || (high >= 1 && low === 0)) {
+          return {
+            ...baseSuggestion,
+            note: 'Foreslått fordi du allerede har nok høy belastning eller mangler rolig støtte rundt kvaliteten.'
+          };
+        }
+        if (weekSummary.sessions === 0 || (low >= 1 && high === 0 && weekSummary.sessions < 2)) {
+          return {
+            title: 'Kontrollert terskeløkt',
+            detail: 'Hold deg kontrollert under maks press. Målet er kvalitet med friske bein, ikke å vinne økten.',
+            note: 'Foreslått fordi profilen din er Bakken-inspirert løping og uken tåler én kontrollert kvalitetsøkt.',
+            types: ['Løping'],
+            intensities: ['Terskel', 'Tempo'],
+            keywords: ['terskel', 'tempo', '6 x', '10x', 'intervall', 'drag']
+          };
+        }
+        return baseSuggestion;
+      }
+
+      if (weekSummary.sessions >= normalizeGoals(state.settings.goals).weeklySessionsTarget) {
+        return {
+          ...baseSuggestion,
+          title: 'Bonusøkt med lav belastning',
+          note: 'Foreslått fordi ukesmålet allerede er nådd. Hold eventuell ekstra økt lett.'
+        };
+      }
+
+      return {
+        title: 'Gjennomførbar basisøkt',
+        detail: 'Velg en økt du vet du klarer å gjennomføre med god følelse.',
+        note: 'Foreslått for å bygge kontinuitet uten å gjøre planleggingen for komplisert.',
+        types: ['Løping', 'Styrke', 'Mobilitet', 'Sykling', 'Ski'],
+        intensities: ['Rolig', 'Styrke', 'Mobilitet'],
+        keywords: ['rolig', 'basis', 'mobilitet', 'styrke', 'lett']
+      };
+    }
+
+    function renderWorkoutSuggestion(today, weekSummary, weekItems, last14Days, profile) {
+      const suggestion = buildWorkoutSuggestion(today, weekSummary, weekItems, last14Days, profile);
+      const template = findSuggestedTemplate(suggestion);
+      const tomorrow = addDays(today, 1);
+      const templateMeta = template
+        ? `<p class="meta"><strong>Passende mal:</strong> ${escapeHtml(template.name)} · ${escapeHtml(template.type)} · ${escapeHtml(template.intensity || '')}</p>`
+        : '<p class="meta">Ingen tydelig passende øktmal funnet ennå. Lag gjerne en mal som matcher forslaget.</p>';
+      document.getElementById('homeWorkoutSuggestion').innerHTML = `
+        <div class="suggestion-card">
+          <div class="suggestion-kicker">Neste smarte valg</div>
+          <h3>${escapeHtml(suggestion.title)}</h3>
+          <p>${escapeHtml(suggestion.detail)}</p>
+          <p class="meta">${escapeHtml(suggestion.note)}</p>
+          ${templateMeta}
+          <div class="button-row">
+            ${template ? `<button class="btn-primary" onclick="planSuggestedWorkout('${template.id}', '${tomorrow}')">Planlegg forslaget</button>` : ''}
+            <button class="btn-soft" onclick="${template ? `openPlan('${tomorrow}')` : 'openLibrary()'}">${template ? 'Velg selv' : 'Lag øktmal'}</button>
+          </div>
+        </div>`;
+    }
+
+    window.planSuggestedWorkout = function(templateId, dateIso) {
+      openPlan(dateIso || addDays(todayISO(), 1));
+      document.getElementById('planTemplate').value = templateId;
+      document.getElementById('planNotes').value = 'Foreslått av coach-assistenten. Juster etter dagsform.';
+      showToast('Forslag lagt klart i planlegging');
+    };
+
     function renderDashboardSummary(today, todayItems, upcomingItems) {
       const goals = normalizeGoals(state.settings.goals);
       const profile = normalizeTrainingProfile(state.settings.trainingProfile);
@@ -1252,6 +1383,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         ? 'Ukesmålet er nådd. Videre trening bør styres av overskudd og dagsform.'
         : `${Math.max(0, goals.weeklySessionsTarget - weekSummary.sessions)} økt${Math.max(0, goals.weeklySessionsTarget - weekSummary.sessions) === 1 ? '' : 'er'} igjen til ukesmålet.`;
       document.getElementById('homeCoachNote').textContent = buildCoachNote(weekSummary, goals, last14Days, profile);
+      renderWorkoutSuggestion(today, weekSummary, weekItems, last14Days, profile);
     }
 
     function renderHistoryFilterOptions() {
