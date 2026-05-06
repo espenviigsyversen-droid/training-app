@@ -4,7 +4,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     import { getFirestore, doc, collection, getDoc, getDocs, setDoc, deleteDoc, writeBatch }
       from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
-    const APP_VERSION = 'v15';
+    const APP_VERSION = 'v16';
 
     const firebaseConfig = {
       apiKey: "AIzaSyAMPfQ9gX9rbuvcPsVjYVtq5IT_orjDBPs",
@@ -1131,6 +1131,113 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         : `${remaining} økt${remaining === 1 ? '' : 'er'} igjen for at denne uken skal telle i kontinuiteten.`;
     }
 
+    function summarizeTrainingEffects(items) {
+      const summary = {
+        total: 0,
+        seconds: 0,
+        missing: 0,
+        categories: {
+          low_aerobic: { label: 'Low Aerobic', shortLabel: 'Rolig', className: 'low', count: 0, seconds: 0 },
+          high_aerobic: { label: 'High Aerobic', shortLabel: 'Moderat', className: 'high', count: 0, seconds: 0 },
+          anaerobic: { label: 'Anaerobic', shortLabel: 'Hard', className: 'anaerobic', count: 0, seconds: 0 }
+        }
+      };
+
+      items.forEach(item => {
+        const category = item.trainingEffectCategory || trainingEffectCategory(item.trainingEffectType);
+        if (!category || !summary.categories[category]) {
+          summary.missing += 1;
+          return;
+        }
+        const seconds = completedDurationSeconds(item);
+        summary.total += 1;
+        summary.seconds += seconds;
+        summary.categories[category].count += 1;
+        summary.categories[category].seconds += seconds;
+      });
+
+      return summary;
+    }
+
+    function intensityBalanceCard(title, items) {
+      const summary = summarizeTrainingEffects(items);
+      const categories = Object.values(summary.categories);
+      const basis = summary.seconds > 0 ? 'seconds' : 'count';
+      const totalBasis = basis === 'seconds' ? summary.seconds : summary.total;
+      const stack = totalBasis
+        ? categories.map(category => {
+          const value = category[basis];
+          const width = Math.max(0, (value / totalBasis) * 100);
+          return `<div class="intensity-segment ${category.className}" style="width:${width}%;"></div>`;
+        }).join('')
+        : '';
+
+      const legend = categories.map(category => {
+        const value = category[basis];
+        const percent = totalBasis ? Math.round((value / totalBasis) * 100) : 0;
+        const detail = basis === 'seconds'
+          ? `${formatClockDuration(category.seconds)} · ${category.count} økt${category.count === 1 ? '' : 'er'}`
+          : `${category.count} økt${category.count === 1 ? '' : 'er'}`;
+        return `
+          <div class="intensity-legend-row">
+            <span class="intensity-dot ${category.className}"></span>
+            <span>${escapeHtml(category.shortLabel)} (${escapeHtml(category.label)})</span>
+            <span>${percent}% · ${escapeHtml(detail)}</span>
+          </div>`;
+      }).join('');
+
+      const missingText = summary.missing
+        ? `<p class="small-note">${summary.missing} økt${summary.missing === 1 ? '' : 'er'} mangler Garmin-valg.</p>`
+        : '';
+
+      return `
+        <div class="intensity-card">
+          <div class="intensity-header">
+            <strong>${escapeHtml(title)}</strong>
+            <span>${summary.total} registrert${summary.total === 1 ? '' : 'e'} med Garmin-valg</span>
+          </div>
+          <div class="intensity-stack">${stack}</div>
+          <div class="intensity-legend">${legend}</div>
+          ${missingText}
+        </div>`;
+    }
+
+    function buildIntensityNote(last7Items, last28Items) {
+      const last7 = summarizeTrainingEffects(last7Items);
+      const last28 = summarizeTrainingEffects(last28Items);
+      const hard7 = last7.categories.high_aerobic.count + last7.categories.anaerobic.count;
+      const low7 = last7.categories.low_aerobic.count;
+
+      if (!last7.total && last7.missing) {
+        return 'Du har logget økter siste 7 dager, men mangler Garmin-valg. Legg inn Primær treningseffekt på øktene for å få bedre analyse.';
+      }
+      if (!last7.total) {
+        return 'Når du logger økter med Garmin-feltet, får du en enkel balanse mellom rolig, moderat og hard trening her.';
+      }
+      if (last7.categories.anaerobic.count >= 2) {
+        return 'Du har flere anaerobe økter siste 7 dager. For kontinuitet og skadefri progresjon bør neste økt trolig være rolig eller teknisk kontrollert.';
+      }
+      if (hard7 >= 2 && low7 === 0) {
+        return 'Denne uken har mye moderat/hard belastning og lite rolig trening. Vurder en Base eller Recovery-økt neste gang.';
+      }
+      if (last28.total >= 4 && last28.categories.low_aerobic.count < last28.categories.high_aerobic.count + last28.categories.anaerobic.count) {
+        return 'Siste 4 uker har mer høy belastning enn rolig aerob trening. Litt mer Base/Recovery kan gi bedre kontinuitet og lavere skaderisiko.';
+      }
+      return 'Balansen ser kontrollert ut. Fortsett å bruke Garmin-valget etter øktene, så blir coach-vurderingene mer presise over tid.';
+    }
+
+    function renderIntensityBalance(today) {
+      const last7Start = addDays(today, -6);
+      const last28Start = addDays(today, -27);
+      const last7Items = state.completed.filter(c => c.date >= last7Start && c.date <= today);
+      const last28Items = state.completed.filter(c => c.date >= last28Start && c.date <= today);
+      document.getElementById('insightIntensityBalance').innerHTML = [
+        intensityBalanceCard('Siste 7 dager', last7Items),
+        intensityBalanceCard('Siste 4 uker', last28Items)
+      ].join('');
+      document.getElementById('insightIntensityNote').textContent = buildIntensityNote(last7Items, last28Items);
+    }
+
     function buildCoachNote(weekSummary, goals, last14Days) {
       const painItems = last14Days.filter(c => c.bodyStatus?.painBefore || c.bodyStatus?.painAfter || c.bodyStatus?.area);
       const hardItems = last14Days.filter(isHardWorkout);
@@ -1177,6 +1284,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         progressRow('Timer', hours, goals.weeklyHoursTarget, 't'),
         progressRow('Kilometer', weekSummary.km, goals.weeklyKmTarget, 'km')
       ].join('');
+      renderIntensityBalance(today);
       renderContinuity(weekSummary, goals, weekStart);
 
       const weeks = [];
