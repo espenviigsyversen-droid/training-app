@@ -4,7 +4,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     import { getFirestore, doc, collection, getDoc, getDocs, setDoc, deleteDoc, writeBatch }
       from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
-    const APP_VERSION = 'v12';
+    const APP_VERSION = 'v13';
 
     const firebaseConfig = {
       apiKey: "AIzaSyAMPfQ9gX9rbuvcPsVjYVtq5IT_orjDBPs",
@@ -1083,14 +1083,17 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       document.getElementById('insightCurrentWeekStatus').textContent = currentStatus;
 
       const weeks = buildContinuityWeeks(weekStart);
-      document.getElementById('insightContinuityWeeks').innerHTML = weeks.map(week => {
+      document.getElementById('insightContinuityWeeks').innerHTML = weeks.map((week, index) => {
         const sessions = week.summary.sessions;
         const status = sessions >= target ? 'done' : sessions > 0 ? 'partial' : 'empty';
-        const label = sessions >= target ? 'OK' : sessions > 0 ? `${sessions}/${target}` : '0';
+        const isCurrent = index === weeks.length - 1;
+        const weekLabel = isCurrent ? 'Nå' : `-${weeks.length - 1 - index}`;
+        const label = sessions >= target ? 'OK' : `${sessions}/${target}`;
         return `
-          <div class="continuity-chip ${status}" title="${escapeHtml(formatDate(week.start))} - ${escapeHtml(formatDate(week.end))}">
+          <div class="continuity-chip ${status} ${isCurrent ? 'current' : ''}" title="${escapeHtml(formatDate(week.start))} - ${escapeHtml(formatDate(week.end))}">
+            <span class="continuity-week-label">${escapeHtml(weekLabel)}</span>
             <strong>${escapeHtml(label)}</strong>
-            <span>uke</span>
+            <span>${sessions >= target ? 'i mål' : 'økter'}</span>
           </div>`;
       }).join('');
 

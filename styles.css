@@ -348,7 +348,7 @@
     }
 
     .continuity-chip {
-      min-height: 54px;
+      min-height: 64px;
       border-radius: 14px;
       border: 1px solid var(--warm-gray-2);
       display: flex;
@@ -360,6 +360,13 @@
       font-weight: 800;
       color: var(--warm-gray-3);
       background: #fff;
+    }
+
+    .continuity-week-label {
+      color: var(--warm-gray-3);
+      font-size: 0.58rem;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
     }
 
     .continuity-chip strong {
@@ -381,6 +388,11 @@
 
     .continuity-chip.empty {
       background: var(--warm-gray-1);
+    }
+
+    .continuity-chip.current {
+      border: 2px solid var(--black);
+      box-shadow: 0 5px 14px rgba(0,0,0,0.08);
     }
 
     .small-note { font-size: 0.82rem; color: var(--warm-gray-3); margin: 8px 0 0; }
