@@ -109,6 +109,18 @@
       box-shadow: 0 0 0 4px rgba(255,90,95,0.15);
     }
 
+    .duration-inputs {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 6px;
+    }
+
+    .duration-inputs input {
+      text-align: center;
+      padding-left: 6px;
+      padding-right: 6px;
+    }
+
     button {
       border: 0;
       border-radius: 16px;

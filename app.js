@@ -4,7 +4,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     import { getFirestore, doc, collection, getDoc, getDocs, setDoc, deleteDoc, writeBatch }
       from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
-    const APP_VERSION = 'v2';
+    const APP_VERSION = 'v3';
 
     const firebaseConfig = {
       apiKey: "AIzaSyAMPfQ9gX9rbuvcPsVjYVtq5IT_orjDBPs",
@@ -455,7 +455,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     function clearCompleteForm() {
       document.getElementById('completePlannedId').value = '';
       document.getElementById('editingCompletedId').value = '';
-      ['completeDuration','completeDistance','completeAvgHr','completeMaxHr','completeRpe','completeNotes']
+      ['completeDurationHours','completeDurationMinutes','completeDurationSeconds','completeDistance','completeAvgHr','completeMaxHr','completeRpe','completeNotes']
         .forEach(id => document.getElementById(id).value = '');
     }
 
@@ -466,14 +466,56 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     }
 
     function completedFormData() {
+      const durationSeconds = getDurationSecondsFromForm();
       return {
-        durationMinutes: document.getElementById('completeDuration').value || '',
+        durationSeconds: durationSeconds || '',
+        durationDisplay: durationSeconds ? formatDuration(durationSeconds) : '',
+        durationMinutes: durationSeconds ? Math.round(durationSeconds / 60) : '',
         distanceKm: document.getElementById('completeDistance').value || '',
         avgHeartRate: document.getElementById('completeAvgHr').value || '',
         maxHeartRate: document.getElementById('completeMaxHr').value || '',
         rpe: document.getElementById('completeRpe').value || '',
         notes: document.getElementById('completeNotes').value.trim()
       };
+    }
+
+    function getDurationSecondsFromForm() {
+      const hours = parseNonNegativeInteger(document.getElementById('completeDurationHours').value);
+      const minutes = parseNonNegativeInteger(document.getElementById('completeDurationMinutes').value);
+      const seconds = parseNonNegativeInteger(document.getElementById('completeDurationSeconds').value);
+      return (hours * 3600) + (Math.min(minutes, 59) * 60) + Math.min(seconds, 59);
+    }
+
+    function parseNonNegativeInteger(value) {
+      const parsed = Number.parseInt(value, 10);
+      return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
+    }
+
+    function setDurationFormFromSeconds(totalSeconds) {
+      const secondsTotal = parseNonNegativeInteger(totalSeconds);
+      const hours = Math.floor(secondsTotal / 3600);
+      const minutes = Math.floor((secondsTotal % 3600) / 60);
+      const seconds = secondsTotal % 60;
+      document.getElementById('completeDurationHours').value = hours || '';
+      document.getElementById('completeDurationMinutes').value = minutes || '';
+      document.getElementById('completeDurationSeconds').value = seconds || '';
+    }
+
+    function formatDuration(totalSeconds) {
+      const secondsTotal = parseNonNegativeInteger(totalSeconds);
+      if (!secondsTotal) return '';
+      const hours = Math.floor(secondsTotal / 3600);
+      const minutes = Math.floor((secondsTotal % 3600) / 60);
+      const seconds = secondsTotal % 60;
+      if (hours) return `${hours}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+      return `${minutes}:${String(seconds).padStart(2, '0')}`;
+    }
+
+    function completedDurationLabel(completed) {
+      if (completed.durationSeconds) return formatDuration(completed.durationSeconds);
+      if (completed.durationDisplay) return completed.durationDisplay;
+      if (completed.durationMinutes) return `${completed.durationMinutes} min`;
+      return '';
     }
 
     window.openCompleteModal = function(plannedId) {
@@ -497,7 +539,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       setCompleteModalMode('edit');
       document.getElementById('editingCompletedId').value = completed.id;
       document.getElementById('completePlannedId').value = completed.plannedWorkoutId || '';
-      document.getElementById('completeDuration').value = completed.durationMinutes || '';
+      setDurationFormFromSeconds(completed.durationSeconds || (completed.durationMinutes ? Number(completed.durationMinutes) * 60 : 0));
       document.getElementById('completeDistance').value = completed.distanceKm || '';
       document.getElementById('completeAvgHr').value = completed.avgHeartRate || '';
       document.getElementById('completeMaxHr').value = completed.maxHeartRate || '';
@@ -606,8 +648,9 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
 
     function completedCard(c) {
       const t = getTemplate(c.templateId);
+      const durationLabel = completedDurationLabel(c);
       const metrics = [
-        c.durationMinutes ? `${c.durationMinutes} min` : null,
+        durationLabel || null,
         c.distanceKm ? `${c.distanceKm} km` : null,
         c.avgHeartRate ? `Snitt ${c.avgHeartRate} bpm` : null,
         c.maxHeartRate ? `Maks ${c.maxHeartRate} bpm` : null,

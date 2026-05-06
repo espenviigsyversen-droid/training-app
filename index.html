@@ -334,7 +334,14 @@
       <input type="hidden" id="editingCompletedId" />
       <div class="inline-form">
         <div class="grid-2">
-          <div><label>Varighet min</label><input id="completeDuration" type="number" min="0" step="1" /></div>
+          <div>
+            <label>Varighet</label>
+            <div class="duration-inputs">
+              <input id="completeDurationHours" type="number" min="0" step="1" inputmode="numeric" placeholder="t" aria-label="Timer" />
+              <input id="completeDurationMinutes" type="number" min="0" max="59" step="1" inputmode="numeric" placeholder="min" aria-label="Minutter" />
+              <input id="completeDurationSeconds" type="number" min="0" max="59" step="1" inputmode="numeric" placeholder="sek" aria-label="Sekunder" />
+            </div>
+          </div>
           <div><label>Distanse km</label><input id="completeDistance" type="number" min="0" step="0.01" /></div>
         </div>
         <div class="grid-2">
