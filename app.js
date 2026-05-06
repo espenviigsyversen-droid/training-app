@@ -4,7 +4,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     import { getFirestore, doc, collection, getDoc, getDocs, setDoc, deleteDoc, writeBatch }
       from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
-    const APP_VERSION = 'v9';
+    const APP_VERSION = 'v10';
 
     const firebaseConfig = {
       apiKey: "AIzaSyAMPfQ9gX9rbuvcPsVjYVtq5IT_orjDBPs",
@@ -257,13 +257,25 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     });
 
     // ── Tabs ──────────────────────────────────────────────────────────────────
-    window.showTab = function(tabId, btn) {
+    window.showTab = function(tabId, btn = null) {
       document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
       document.getElementById(tabId).classList.add('active');
-      document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
+      const navBtn = btn || document.querySelector(`nav button[data-tab="${tabId}"]`);
+      if (navBtn) {
+        document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+        navBtn.classList.add('active');
+      }
       document.getElementById('userMenu').classList.add('hidden');
       render();
+    };
+
+    window.openPlan = function(dateIso = '') {
+      showTab('plan');
+      document.getElementById('planDate').value = dateIso || document.getElementById('planDate').value || todayISO();
+    };
+
+    window.openLibrary = function() {
+      showTab('library');
     };
 
     // ── Settings ──────────────────────────────────────────────────────────────
@@ -929,10 +941,8 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     };
 
     window.planFromCalendarDay = function() {
-      const planBtn = document.querySelector("nav button[aria-label='Plan']");
       closeCalendarDayModal();
-      if (planBtn) showTab('plan', planBtn);
-      document.getElementById('planDate').value = selectedCalendarDate || todayISO();
+      openPlan(selectedCalendarDate || todayISO());
     };
 
     function renderSettingsList(kind, elementId) {
