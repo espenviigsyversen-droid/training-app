@@ -60,10 +60,18 @@
 
     <main>
       <section id="dashboard" class="tab active">
-        <div class="stats">
-          <div class="stat"><strong id="statToday">0</strong><span>I dag</span></div>
-          <div class="stat"><strong id="statPlanned">0</strong><span>Planlagt</span></div>
-          <div class="stat"><strong id="statDone">0</strong><span>Utført</span></div>
+        <div class="card">
+          <h2 class="section-title" id="homePrimaryTitle">Dagens økt</h2>
+          <div id="homePrimaryWorkout"></div>
+        </div>
+        <div class="card">
+          <h2 class="section-title">Denne uken</h2>
+          <div class="insight-grid">
+            <div class="insight-stat"><strong id="homeWeekSessions">0/3</strong><span>Økter</span></div>
+            <div class="insight-stat"><strong id="homeWeekTime">0:00:00</strong><span>Tid</span></div>
+            <div class="insight-stat"><strong id="homeWeekLoad">-</strong><span>Belastning</span></div>
+          </div>
+          <p id="homeWeekNote" class="small-note"></p>
         </div>
         <div class="card">
           <h2 class="section-title">Formstatus</h2>
@@ -74,10 +82,9 @@
           </div>
           <p id="homeWellnessNote" class="small-note"></p>
         </div>
-        <div id="nextWorkoutBanner" class="card next-workout-banner hidden">
-          <div class="next-workout-label">Neste økt</div>
-          <div id="nextWorkoutTitle" class="next-workout-title"></div>
-          <div id="nextWorkoutMeta" class="next-workout-meta"></div>
+        <div class="card">
+          <h2 class="section-title">Coach-notis</h2>
+          <p id="homeCoachNote" class="coach-note"></p>
         </div>
         <div class="card">
           <h2 class="section-title">Handlinger</h2>
@@ -85,10 +92,6 @@
             <button class="btn-primary" onclick="openPlan()">Planlegg økt</button>
             <button class="btn-soft" onclick="openLibrary()">Øktmaler</button>
           </div>
-        </div>
-        <div class="card">
-          <h2 class="section-title">Dagens økter</h2>
-          <div id="todayList"></div>
         </div>
         <div class="card">
           <h2 class="section-title">Kommende økter</h2>

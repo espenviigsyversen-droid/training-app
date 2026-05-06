@@ -4,7 +4,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     import { getFirestore, doc, collection, getDoc, getDocs, setDoc, deleteDoc, writeBatch }
       from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
-    const APP_VERSION = 'v21';
+    const APP_VERSION = 'v22';
 
     const firebaseConfig = {
       apiKey: "AIzaSyAMPfQ9gX9rbuvcPsVjYVtq5IT_orjDBPs",
@@ -1215,6 +1215,45 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       ].join('');
     }
 
+    function homeLoadLabel(weekItems, profile) {
+      const summary = summarizeTrainingEffects(weekItems);
+      if (!summary.total) return weekItems.length ? 'Mangler data' : 'Ingen';
+      const high = summary.categories.high_aerobic.count;
+      const anaerobic = summary.categories.anaerobic.count;
+      const low = summary.categories.low_aerobic.count;
+      const runningBakkenFocus = profile.primaryFocus === 'running' && profile.philosophy === 'bakken_threshold';
+      if (anaerobic >= 1) return runningBakkenFocus ? 'Hard' : 'Høy';
+      if (high >= 2 && low === 0) return 'Kvalitet';
+      if (high >= 1 && low >= 1) return 'Balansert';
+      if (low >= 1 && high === 0) return 'Rolig';
+      return 'Kontrollert';
+    }
+
+    function renderDashboardSummary(today, todayItems, upcomingItems) {
+      const goals = normalizeGoals(state.settings.goals);
+      const profile = normalizeTrainingProfile(state.settings.trainingProfile);
+      const weekStart = startOfWeek(today);
+      const weekEnd = addDays(weekStart, 6);
+      const weekItems = state.completed.filter(c => c.date >= weekStart && c.date <= weekEnd);
+      const weekSummary = summarizeCompleted(weekItems);
+      const last14Start = addDays(today, -13);
+      const last14Days = state.completed.filter(c => c.date >= last14Start && c.date <= today);
+      const primaryItems = todayItems.length ? todayItems : upcomingItems.slice(0, 1);
+
+      document.getElementById('homePrimaryTitle').textContent = todayItems.length ? 'Dagens økt' : 'Neste økt';
+      document.getElementById('homePrimaryWorkout').innerHTML = primaryItems.length
+        ? primaryItems.map(p => workoutCard(p)).join('')
+        : `<div class="empty">Ingen økter planlagt. Gå til Planlegg for å legge inn neste økt.</div>`;
+
+      document.getElementById('homeWeekSessions').textContent = `${weekSummary.sessions}/${goals.weeklySessionsTarget}`;
+      document.getElementById('homeWeekTime').textContent = formatClockDuration(weekSummary.seconds);
+      document.getElementById('homeWeekLoad').textContent = homeLoadLabel(weekItems, profile);
+      document.getElementById('homeWeekNote').textContent = weekSummary.sessions >= goals.weeklySessionsTarget
+        ? 'Ukesmålet er nådd. Videre trening bør styres av overskudd og dagsform.'
+        : `${Math.max(0, goals.weeklySessionsTarget - weekSummary.sessions)} økt${Math.max(0, goals.weeklySessionsTarget - weekSummary.sessions) === 1 ? '' : 'er'} igjen til ukesmålet.`;
+      document.getElementById('homeCoachNote').textContent = buildCoachNote(weekSummary, goals, last14Days, profile);
+    }
+
     function renderHistoryFilterOptions() {
       const select = document.getElementById('historyFilter');
       const selected = select.value || 'Alle';
@@ -1650,27 +1689,9 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       const upcomingItems = plannedActive.filter(p => p.date > today)
         .sort((a,b) => a.date.localeCompare(b.date));
 
-      document.getElementById('statToday').textContent = todayItems.length;
-      document.getElementById('statPlanned').textContent = plannedActive.length;
-      document.getElementById('statDone').textContent = state.completed.length;
-
-      const nextWorkout = todayItems[0] || upcomingItems[0];
-      const nextBanner = document.getElementById('nextWorkoutBanner');
-      if (nextWorkout) {
-        const nextTemplate = getTemplate(nextWorkout.templateId);
-        document.getElementById('nextWorkoutTitle').textContent = nextTemplate.name;
-        document.getElementById('nextWorkoutMeta').textContent =
-          `${formatDate(nextWorkout.date)} · ${nextTemplate.type} · ${nextTemplate.intensity || ''}`;
-        nextBanner.classList.remove('hidden');
-      } else {
-        nextBanner.classList.add('hidden');
-      }
-
-      document.getElementById('todayList').innerHTML = todayItems.length
-        ? todayItems.map(p => workoutCard(p)).join('')
-        : `<div class="empty">Ingen planlagte økter i dag.</div>`;
+      renderDashboardSummary(today, todayItems, upcomingItems);
       document.getElementById('upcomingList').innerHTML = upcomingItems.length
-        ? upcomingItems.map(p => workoutCard(p)).join('')
+        ? upcomingItems.slice(0, 3).map(p => workoutCard(p)).join('')
         : `<div class="empty">Ingen kommende økter.</div>`;
 
       document.getElementById('planTemplate').innerHTML = state.templates.length
