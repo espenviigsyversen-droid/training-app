@@ -4,7 +4,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     import { getFirestore, doc, collection, getDoc, getDocs, setDoc, deleteDoc, writeBatch }
       from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
-    const APP_VERSION = 'v11';
+    const APP_VERSION = 'v12';
 
     const firebaseConfig = {
       apiKey: "AIzaSyAMPfQ9gX9rbuvcPsVjYVtq5IT_orjDBPs",
@@ -1037,6 +1037,68 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         </div>`;
     }
 
+    function weekSummaryForStart(startIso) {
+      const endIso = addDays(startIso, 6);
+      const items = state.completed.filter(c => c.date >= startIso && c.date <= endIso);
+      return { start: startIso, end: endIso, summary: summarizeCompleted(items) };
+    }
+
+    function buildContinuityWeeks(currentWeekStart) {
+      const weeks = [];
+      for (let i = 7; i >= 0; i--) {
+        weeks.push(weekSummaryForStart(addDays(currentWeekStart, -(i * 7))));
+      }
+      return weeks;
+    }
+
+    function calculateWeeklyStreak(currentWeekStart, weeklyTarget) {
+      let streak = 0;
+      let cursor = currentWeekStart;
+      const currentWeek = weekSummaryForStart(cursor);
+      if (currentWeek.summary.sessions >= weeklyTarget) {
+        streak += 1;
+        cursor = addDays(cursor, -7);
+      } else {
+        cursor = addDays(cursor, -7);
+      }
+
+      while (true) {
+        const week = weekSummaryForStart(cursor);
+        if (week.summary.sessions < weeklyTarget) break;
+        streak += 1;
+        cursor = addDays(cursor, -7);
+      }
+      return streak;
+    }
+
+    function renderContinuity(weekSummary, goals, weekStart) {
+      const target = goals.weeklySessionsTarget;
+      const streak = calculateWeeklyStreak(weekStart, target);
+      const remaining = Math.max(0, target - weekSummary.sessions);
+      const currentStatus = weekSummary.sessions >= target
+        ? 'I mål'
+        : `${weekSummary.sessions}/${target}`;
+
+      document.getElementById('insightStreakWeeks').textContent = streak;
+      document.getElementById('insightCurrentWeekStatus').textContent = currentStatus;
+
+      const weeks = buildContinuityWeeks(weekStart);
+      document.getElementById('insightContinuityWeeks').innerHTML = weeks.map(week => {
+        const sessions = week.summary.sessions;
+        const status = sessions >= target ? 'done' : sessions > 0 ? 'partial' : 'empty';
+        const label = sessions >= target ? 'OK' : sessions > 0 ? `${sessions}/${target}` : '0';
+        return `
+          <div class="continuity-chip ${status}" title="${escapeHtml(formatDate(week.start))} - ${escapeHtml(formatDate(week.end))}">
+            <strong>${escapeHtml(label)}</strong>
+            <span>uke</span>
+          </div>`;
+      }).join('');
+
+      document.getElementById('insightContinuityNote').textContent = weekSummary.sessions >= target
+        ? 'Denne uken teller som en kontinuitetsuke. Videre trening er bonus og bør styres av overskudd.'
+        : `${remaining} økt${remaining === 1 ? '' : 'er'} igjen for at denne uken skal telle i kontinuiteten.`;
+    }
+
     function buildCoachNote(weekSummary, goals, last14Days) {
       const painItems = last14Days.filter(c => c.bodyStatus?.painBefore || c.bodyStatus?.painAfter || c.bodyStatus?.area);
       const hardItems = last14Days.filter(isHardWorkout);
@@ -1083,6 +1145,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         progressRow('Timer', hours, goals.weeklyHoursTarget, 't'),
         progressRow('Kilometer', weekSummary.km, goals.weeklyKmTarget, 'km')
       ].join('');
+      renderContinuity(weekSummary, goals, weekStart);
 
       const weeks = [];
       for (let i = 3; i >= 0; i--) {
