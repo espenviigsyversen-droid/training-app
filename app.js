@@ -780,6 +780,27 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       URL.revokeObjectURL(url);
     };
 
+    window.refreshApp = async function() {
+      showToast('Oppdaterer app ...', 'info');
+      try {
+        if ('serviceWorker' in navigator) {
+          const registration = await navigator.serviceWorker.getRegistration();
+          if (registration) await registration.update();
+        }
+        if ('caches' in window) {
+          const keys = await caches.keys();
+          await Promise.all(keys.filter(key => key.startsWith('treningsapp-')).map(key => caches.delete(key)));
+        }
+        await Promise.all(['./index.html', './styles.css', './app.js'].map(path =>
+          fetch(path, { cache: 'reload' }).catch(() => null)
+        ));
+      } finally {
+        const url = new URL(window.location.href);
+        url.searchParams.set('refresh', Date.now());
+        window.setTimeout(() => window.location.replace(url.toString()), 500);
+      }
+    };
+
     window.importData = async function(event) {
       const file = event.target.files[0];
       if (!file) return;
