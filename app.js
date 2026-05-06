@@ -4,7 +4,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     import { getFirestore, doc, collection, getDoc, getDocs, setDoc, deleteDoc, writeBatch }
       from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
-    const APP_VERSION = 'v19';
+    const APP_VERSION = 'v20';
 
     const firebaseConfig = {
       apiKey: "AIzaSyAMPfQ9gX9rbuvcPsVjYVtq5IT_orjDBPs",
@@ -1376,6 +1376,48 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       return summary;
     }
 
+    function profileLabel(value, fallback = '') {
+      const labels = {
+        running: 'Løping',
+        general_fitness: 'Generell form',
+        strength: 'Styrke',
+        ski: 'Ski',
+        mixed: 'Blandet trening',
+        bakken_threshold: 'Bakken-inspirert terskel',
+        polarized: 'Polarisert',
+        general_health: 'Generell helse',
+        flexible: 'Fleksibel',
+        injury_free_progression: 'Skadefri progresjon',
+        consistency: 'Kontinuitet',
+        performance: 'Prestasjon',
+        volume: 'Volum',
+        base_threshold: 'Base / grunntrening',
+        threshold_development: 'Kontrollert terskel / kapasitet',
+        competition_prep: 'Konkurranseforberedelse',
+        muscle_growth: 'Muskelvekst / bulking',
+        max_strength: 'Maksimal styrke',
+        technique_skill: 'Teknikk / ferdighet',
+        injury_rebuild: 'Skadefri oppbygging',
+        maintenance: 'Vedlikehold',
+        mixed_focus: 'Blandet fokus'
+      };
+      return labels[value] || fallback || value || '';
+    }
+
+    function intensityProfileText(profile) {
+      return `Tolkes mot: ${profileLabel(profile.primaryFocus)} · ${profileLabel(profile.philosophy)} · ${profileLabel(profile.priority)} · ${profileLabel(profile.trainingFocus)}`;
+    }
+
+    function weightedLoadScore(summary, profile) {
+      const runningBakkenFocus = profile.primaryFocus === 'running' && profile.philosophy === 'bakken_threshold';
+      const weights = runningBakkenFocus
+        ? { low_aerobic: 1, high_aerobic: 2.2, anaerobic: 4.5 }
+        : { low_aerobic: 1, high_aerobic: 2, anaerobic: 3.5 };
+      return Object.entries(summary.categories).reduce((score, [key, category]) => {
+        return score + (category.count * (weights[key] || 1));
+      }, 0);
+    }
+
     function intensityBalanceCard(title, items) {
       const summary = summarizeTrainingEffects(items);
       const categories = Object.values(summary.categories);
@@ -1424,7 +1466,14 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       const last28 = summarizeTrainingEffects(last28Items);
       const hard7 = last7.categories.high_aerobic.count + last7.categories.anaerobic.count;
       const low7 = last7.categories.low_aerobic.count;
+      const high7 = last7.categories.high_aerobic.count;
+      const anaerobic7 = last7.categories.anaerobic.count;
+      const low28 = last28.categories.low_aerobic.count;
+      const hard28 = last28.categories.high_aerobic.count + last28.categories.anaerobic.count;
+      const loadScore7 = weightedLoadScore(last7, profile);
       const runningBakkenFocus = profile.primaryFocus === 'running' && profile.philosophy === 'bakken_threshold';
+      const strengthGrowthFocus = profile.primaryFocus === 'strength' && profile.trainingFocus === 'muscle_growth';
+      const skiTechniqueFocus = profile.primaryFocus === 'ski' && profile.trainingFocus === 'technique_skill';
 
       if (!last7.total && last7.missing) {
         return 'Du har logget økter siste 7 dager, men mangler Garmin-valg. Legg inn Primær treningseffekt på øktene for å få bedre analyse.';
@@ -1432,19 +1481,28 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       if (!last7.total) {
         return 'Når du logger økter med Garmin-feltet, får du en enkel balanse mellom rolig, moderat og hard trening her.';
       }
-      if (last7.categories.anaerobic.count >= 2) {
+      if (strengthGrowthFocus) {
+        return 'Med muskelvekst som treningsfokus er Garmin-intensitet bare et sekundært signal. Viktigst blir styrkevolum, progresjon, nok mat og nok restitusjon mellom tunge økter.';
+      }
+      if (skiTechniqueFocus && anaerobic7 >= 1) {
+        return 'Med teknikk/staking som fokus bør hard anaerob belastning doseres forsiktig. Prioriter teknisk kvalitet og kontrollerte drag fremfor å jage høyest mulig belastning.';
+      }
+      if (anaerobic7 >= 2) {
         return 'Du har flere anaerobe økter siste 7 dager. For kontinuitet og skadefri progresjon bør neste økt trolig være rolig eller teknisk kontrollert.';
       }
-      if (runningBakkenFocus && last7.categories.anaerobic.count >= 1) {
+      if (runningBakkenFocus && anaerobic7 >= 1) {
         return 'Med Bakken-inspirert løpsfokus bør anaerob belastning brukes forsiktig. Neste løpeøkt bør trolig være Base/Recovery eller kontrollert terskel under maks press.';
       }
       if (hard7 >= 2 && low7 === 0) {
         return 'Denne uken har mye moderat/hard belastning og lite rolig trening. Vurder en Base eller Recovery-økt neste gang.';
       }
-      if (runningBakkenFocus && last7.categories.high_aerobic.count >= 2 && low7 < 1) {
+      if (runningBakkenFocus && high7 >= 2 && low7 < 1) {
         return 'Du har nok terskelnær kvalitet denne uken, men lite rolig støtte rundt den. For sprekere bein og bedre kontinuitet bør neste økt være rolig aerob.';
       }
-      if (last28.total >= 4 && last28.categories.low_aerobic.count < last28.categories.high_aerobic.count + last28.categories.anaerobic.count) {
+      if (runningBakkenFocus && high7 >= 1 && low7 >= 1 && anaerobic7 === 0 && loadScore7 <= 5.5) {
+        return 'Dette ligner en god Bakken-inspirert uke: rolig aerob støtte rundt kontrollert kvalitet, uten unødvendig anaerob toppbelastning.';
+      }
+      if (last28.total >= 4 && low28 < hard28) {
         return 'Siste 4 uker har mer høy belastning enn rolig aerob trening. Litt mer Base/Recovery kan gi bedre kontinuitet og lavere skaderisiko.';
       }
       return runningBakkenFocus
@@ -1457,6 +1515,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       const last28Start = addDays(today, -27);
       const last7Items = state.completed.filter(c => c.date >= last7Start && c.date <= today);
       const last28Items = state.completed.filter(c => c.date >= last28Start && c.date <= today);
+      document.getElementById('insightIntensityProfile').textContent = intensityProfileText(profile);
       document.getElementById('insightIntensityBalance').innerHTML = [
         intensityBalanceCard('Siste 7 dager', last7Items),
         intensityBalanceCard('Siste 4 uker', last28Items)
@@ -1468,10 +1527,18 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       const painItems = last14Days.filter(c => c.bodyStatus?.painBefore || c.bodyStatus?.painAfter || c.bodyStatus?.area);
       const hardItems = last14Days.filter(isHardWorkout);
       const runningBakkenFocus = profile.primaryFocus === 'running' && profile.philosophy === 'bakken_threshold';
+      const strengthGrowthFocus = profile.primaryFocus === 'strength' && profile.trainingFocus === 'muscle_growth';
+      const skiTechniqueFocus = profile.primaryFocus === 'ski' && profile.trainingFocus === 'technique_skill';
       if (painItems.length >= 2) {
         return runningBakkenFocus
           ? 'Du har registrert smerte eller kroppsnotat på flere økter de siste 14 dagene. Med skadefri løpsprogresjon som mål bør neste økt være rolig, alternativ trening eller hvile hvis smerten øker.'
           : 'Du har registrert smerte eller kroppsnotat på flere økter de siste 14 dagene. Hold neste økt kontrollert, og vurder rolig alternativ eller hvile hvis smerten øker.';
+      }
+      if (strengthGrowthFocus && weekSummary.sessions >= goals.weeklySessionsTarget) {
+        return 'Du ligger godt an mot ukesmålet. Med muskelvekst som fokus blir neste steg å sikre nok restitusjon, jevn progresjon og nok energi inn, ikke bare flere økter.';
+      }
+      if (skiTechniqueFocus && hardItems.length >= 2) {
+        return 'Du har nok hard belastning tett på teknikkfokuset. Neste skiøkt bør trolig handle om stakingsteknikk, rytme og kontrollert kapasitet.';
       }
       if (painItems.length === 1) {
         return 'Du har registrert smerte eller tilpasning på en nylig økt. Smart å justere belastningen tidlig, spesielt hvis samme område fortsatt kjennes.';
