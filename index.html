@@ -215,6 +215,21 @@
           <div id="intensityList" class="settings-list"></div>
         </div>
         <div class="card">
+          <h2 class="section-title">Treningsmål</h2>
+          <p class="small-note">Økter teller alle aktivitetstyper. Timer og kilometer er valgfrie mål som kan brukes senere i Innsikt.</p>
+          <div class="inline-form">
+            <div class="grid-2">
+              <div><label>Ukesmål økter</label><input id="weeklySessionsTarget" type="number" min="0" step="1" inputmode="numeric" /></div>
+              <div><label>Stretch økter</label><input id="weeklyStretchSessionsTarget" type="number" min="0" step="1" inputmode="numeric" /></div>
+            </div>
+            <div class="grid-2">
+              <div><label>Timer per uke</label><input id="weeklyHoursTarget" type="number" min="0" step="0.25" inputmode="decimal" placeholder="Valgfritt" /></div>
+              <div><label>Kilometer per uke</label><input id="weeklyKmTarget" type="number" min="0" step="0.1" inputmode="decimal" placeholder="Valgfritt" /></div>
+            </div>
+            <button class="btn-primary btn-full" onclick="saveTrainingGoals()">Lagre mål</button>
+          </div>
+        </div>
+        <div class="card">
           <h2 class="section-title">Backup</h2>
           <p class="small-note">Data lagres i Firestore og synkroniseres automatisk mellom alle enheter. Du kan også eksportere en lokal JSON-kopi som ekstra sikkerhetskopi.</p>
           <div class="button-row">

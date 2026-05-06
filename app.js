@@ -4,7 +4,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     import { getFirestore, doc, collection, getDoc, getDocs, setDoc, deleteDoc, writeBatch }
       from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
-    const APP_VERSION = 'v7';
+    const APP_VERSION = 'v8';
 
     const firebaseConfig = {
       apiKey: "AIzaSyAMPfQ9gX9rbuvcPsVjYVtq5IT_orjDBPs",
@@ -22,7 +22,13 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     let currentUser = null;
     const defaultSettings = {
       activityTypes: ['Løping', 'Styrke', 'Mobilitet', 'Ski', 'Sykling', 'Annet'],
-      intensities: ['Rolig', 'Tempo', 'Terskel', 'Intervall', 'Anaerob', 'Styrke', 'Restitusjon']
+      intensities: ['Rolig', 'Tempo', 'Terskel', 'Intervall', 'Anaerob', 'Styrke', 'Restitusjon'],
+      goals: {
+        weeklySessionsTarget: 3,
+        weeklyStretchSessionsTarget: 4,
+        weeklyHoursTarget: '',
+        weeklyKmTarget: ''
+      }
     };
     let state = { templates: [], planned: [], completed: [], settings: JSON.parse(JSON.stringify(defaultSettings)) };
 
@@ -91,8 +97,25 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
           : [...defaultSettings.activityTypes],
         intensities: Array.isArray(settings.intensities) && settings.intensities.length
           ? settings.intensities
-          : [...defaultSettings.intensities]
+          : [...defaultSettings.intensities],
+        goals: normalizeGoals(settings.goals)
       };
+    }
+
+    function normalizeGoals(goals = {}) {
+      return {
+        weeklySessionsTarget: normalizeGoalNumber(goals.weeklySessionsTarget, defaultSettings.goals.weeklySessionsTarget),
+        weeklyStretchSessionsTarget: normalizeGoalNumber(goals.weeklyStretchSessionsTarget, defaultSettings.goals.weeklyStretchSessionsTarget),
+        weeklyHoursTarget: normalizeGoalNumber(goals.weeklyHoursTarget, ''),
+        weeklyKmTarget: normalizeGoalNumber(goals.weeklyKmTarget, '')
+      };
+    }
+
+    function normalizeGoalNumber(value, fallback = '') {
+      if (value === '' || value === null || value === undefined) return fallback;
+      const number = Number(value);
+      if (!Number.isFinite(number) || number < 0) return fallback;
+      return number;
     }
 
     function uniqueValues(values) {
@@ -270,6 +293,17 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       if (!confirm(`Fjerne "${value}" fra listen? Eksisterende øktmaler blir ikke endret.`)) return;
       state.settings[kind] = values.filter(v => v !== value);
       await saveSettings();
+    };
+
+    window.saveTrainingGoals = async function() {
+      state.settings.goals = normalizeGoals({
+        weeklySessionsTarget: document.getElementById('weeklySessionsTarget').value,
+        weeklyStretchSessionsTarget: document.getElementById('weeklyStretchSessionsTarget').value,
+        weeklyHoursTarget: document.getElementById('weeklyHoursTarget').value,
+        weeklyKmTarget: document.getElementById('weeklyKmTarget').value
+      });
+      await saveSettings();
+      showToast('Treningsmål lagret');
     };
 
     // ── Templates ─────────────────────────────────────────────────────────────
@@ -910,6 +944,14 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         </div>`).join('');
     }
 
+    function renderTrainingGoals() {
+      const goals = normalizeGoals(state.settings.goals);
+      document.getElementById('weeklySessionsTarget').value = goals.weeklySessionsTarget;
+      document.getElementById('weeklyStretchSessionsTarget').value = goals.weeklyStretchSessionsTarget;
+      document.getElementById('weeklyHoursTarget').value = goals.weeklyHoursTarget;
+      document.getElementById('weeklyKmTarget').value = goals.weeklyKmTarget;
+    }
+
     function renderHistoryFilterOptions() {
       const select = document.getElementById('historyFilter');
       const selected = select.value || 'Alle';
@@ -936,6 +978,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       setSelectOptions('templateIntensity', state.settings.intensities, intensityToKeep);
       renderSettingsList('activityTypes', 'activityTypeList');
       renderSettingsList('intensities', 'intensityList');
+      renderTrainingGoals();
       renderHistoryFilterOptions();
 
       const plannedActive = state.planned.filter(p => p.status !== 'done');
