@@ -4,6 +4,8 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     import { getFirestore, doc, collection, getDoc, getDocs, setDoc, deleteDoc, writeBatch }
       from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
+    const APP_VERSION = 'v1';
+
     const firebaseConfig = {
       apiKey: "AIzaSyAMPfQ9gX9rbuvcPsVjYVtq5IT_orjDBPs",
       authDomain: "home-tasks-app-18de3.firebaseapp.com",
@@ -867,4 +869,10 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         console.error('Reset error:', err);
         setSyncStatus('error');
       }
+    };
+
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register(`./service-worker.js?v=${APP_VERSION}`).catch(() => {});
+      });
     };
