@@ -394,6 +394,27 @@
             </select>
           </div>
         </div>
+        <div>
+          <label>Kropp og tilpasning</label>
+          <div class="grid-2">
+            <div><input id="completePainBefore" type="number" min="0" max="10" step="1" inputmode="numeric" placeholder="Smerte før 0-10" aria-label="Smerte før økt" /></div>
+            <div><input id="completePainAfter" type="number" min="0" max="10" step="1" inputmode="numeric" placeholder="Smerte etter 0-10" aria-label="Smerte etter økt" /></div>
+          </div>
+          <div class="grid-2" style="margin-top:10px;">
+            <div><input id="completePainArea" type="text" placeholder="Område, f.eks. venstre fot" aria-label="Område" /></div>
+            <div>
+              <select id="completeAdaptation" aria-label="Tilpasning">
+                <option value="">Tilpasning</option>
+                <option value="none">Ingen</option>
+                <option value="shorter">Kortere</option>
+                <option value="easier">Roligere</option>
+                <option value="alternative">Alternativ økt</option>
+                <option value="aborted">Avbrutt</option>
+              </select>
+            </div>
+          </div>
+          <textarea id="completeBodyNotes" style="margin-top:10px;" placeholder="Årsak / notat, f.eks. vond fot i to dager, kuttet ned intensitet"></textarea>
+        </div>
         <div><label>Notater</label><textarea id="completeNotes" placeholder="Hvordan føltes økten?"></textarea></div>
         <div class="button-row">
           <button id="completeSubmitBtn" class="btn-success" onclick="completeWorkout()">Marker utført</button>

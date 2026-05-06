@@ -4,7 +4,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     import { getFirestore, doc, collection, getDoc, getDocs, setDoc, deleteDoc, writeBatch }
       from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
-    const APP_VERSION = 'v5';
+    const APP_VERSION = 'v6';
 
     const firebaseConfig = {
       apiKey: "AIzaSyAMPfQ9gX9rbuvcPsVjYVtq5IT_orjDBPs",
@@ -469,6 +469,11 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         'completeLegs',
         'completeSleep',
         'completeStress',
+        'completePainBefore',
+        'completePainAfter',
+        'completePainArea',
+        'completeAdaptation',
+        'completeBodyNotes',
         'completeNotes'
       ]
         .forEach(id => document.getElementById(id).value = '');
@@ -497,6 +502,13 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
           legs: document.getElementById('completeLegs').value || '',
           sleep: document.getElementById('completeSleep').value || '',
           stress: document.getElementById('completeStress').value || ''
+        },
+        bodyStatus: {
+          painBefore: document.getElementById('completePainBefore').value || '',
+          painAfter: document.getElementById('completePainAfter').value || '',
+          area: document.getElementById('completePainArea').value.trim(),
+          adaptation: document.getElementById('completeAdaptation').value || '',
+          notes: document.getElementById('completeBodyNotes').value.trim()
         },
         notes: document.getElementById('completeNotes').value.trim()
       };
@@ -573,6 +585,27 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       return parts.join(' · ');
     }
 
+    function adaptationLabel(value) {
+      const labels = {
+        none: 'Ingen',
+        shorter: 'Kortere',
+        easier: 'Roligere',
+        alternative: 'Alternativ økt',
+        aborted: 'Avbrutt'
+      };
+      return labels[value] || '';
+    }
+
+    function bodyStatusLabel(bodyStatus = {}) {
+      const parts = [
+        bodyStatus.painBefore ? `Smerte før ${bodyStatus.painBefore}/10` : null,
+        bodyStatus.painAfter ? `Smerte etter ${bodyStatus.painAfter}/10` : null,
+        bodyStatus.area ? `Område: ${bodyStatus.area}` : null,
+        bodyStatus.adaptation ? `Tilpasning: ${adaptationLabel(bodyStatus.adaptation)}` : null
+      ].filter(Boolean);
+      return parts.join(' · ');
+    }
+
     window.openCompleteModal = function(plannedId) {
       clearCompleteForm();
       setCompleteModalMode('create');
@@ -605,6 +638,11 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       document.getElementById('completeLegs').value = completed.readiness?.legs || '';
       document.getElementById('completeSleep').value = completed.readiness?.sleep || '';
       document.getElementById('completeStress').value = completed.readiness?.stress || '';
+      document.getElementById('completePainBefore').value = completed.bodyStatus?.painBefore || '';
+      document.getElementById('completePainAfter').value = completed.bodyStatus?.painAfter || '';
+      document.getElementById('completePainArea').value = completed.bodyStatus?.area || '';
+      document.getElementById('completeAdaptation').value = completed.bodyStatus?.adaptation || '';
+      document.getElementById('completeBodyNotes').value = completed.bodyStatus?.notes || '';
       document.getElementById('completeNotes').value = completed.notes || '';
       document.getElementById('completeModal').classList.add('active');
     };
@@ -719,6 +757,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       const execution = executionLabel(c.execution);
       const feeling = feelingLabel(c.feelingScore);
       const readiness = readinessLabel(c.readiness);
+      const bodyStatus = bodyStatusLabel(c.bodyStatus);
       const metrics = [
         durationLabel || null,
         c.distanceKm ? `${c.distanceKm} km` : null,
@@ -739,6 +778,8 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
           ${execution ? `<p class="meta"><strong>Gjennomføring:</strong> ${escapeHtml(execution)}</p>` : ''}
           ${feeling ? `<p class="meta"><strong>Følelse:</strong> ${escapeHtml(feeling)}</p>` : ''}
           ${readiness ? `<p class="meta"><strong>Dagsform:</strong> ${escapeHtml(readiness)}</p>` : ''}
+          ${bodyStatus ? `<p class="meta"><strong>Kropp:</strong> ${escapeHtml(bodyStatus)}</p>` : ''}
+          ${c.bodyStatus?.notes ? `<p class="meta"><strong>Kroppsnotat:</strong> ${escapeHtml(c.bodyStatus.notes)}</p>` : ''}
           ${c.notes ? `<p class="meta"><strong>Notat:</strong> ${escapeHtml(c.notes)}</p>` : ''}
           <div class="button-row">
             <button class="btn-primary" onclick="editCompleted('${c.id}')">Rediger</button>
