@@ -70,6 +70,7 @@
           <div class="insight-grid">
             <div class="insight-stat"><strong id="homeVo2Max">-</strong><span>VO2 Max</span></div>
             <div class="insight-stat"><strong id="homeHrv">-</strong><span>HRV 7d</span></div>
+            <div class="insight-stat"><strong id="homeRestingHr">-</strong><span>Hvilepuls 7d</span></div>
           </div>
           <p id="homeWellnessNote" class="small-note"></p>
         </div>
@@ -393,7 +394,7 @@
         </div>
         <div class="card">
           <h2 class="section-title">Formmålinger</h2>
-          <p class="small-note">Registrer VO2 Max og 7 dagers HRV-snitt fra Garmin når du vil følge utvikling over tid.</p>
+          <p class="small-note">Registrer VO2 Max, 7 dagers HRV-snitt og 7 dagers hvilepuls fra Garmin når du vil følge utvikling over tid.</p>
           <div class="inline-form">
             <input type="hidden" id="wellnessEditingId" />
             <div><label>Dato</label><input id="wellnessDate" type="date" /></div>
@@ -401,6 +402,7 @@
               <div><label>VO2 Max</label><input id="wellnessVo2Max" type="number" min="0" step="0.1" inputmode="decimal" placeholder="Valgfritt" /></div>
               <div><label>HRV 7d ms</label><input id="wellnessHrv7d" type="number" min="0" step="1" inputmode="numeric" placeholder="Valgfritt" /></div>
             </div>
+            <div><label>Hvilepuls 7d bpm</label><input id="wellnessRestingHr7d" type="number" min="0" step="1" inputmode="numeric" placeholder="Valgfritt" /></div>
             <button id="wellnessSubmitBtn" class="btn-primary btn-full" onclick="saveWellnessMeasurement()">Lagre måling</button>
             <button id="cancelEditWellnessBtn" class="btn-soft btn-full hidden" onclick="clearWellnessForm()">Avbryt redigering</button>
           </div>

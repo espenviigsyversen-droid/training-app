@@ -4,7 +4,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     import { getFirestore, doc, collection, getDoc, getDocs, setDoc, deleteDoc, writeBatch }
       from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
-    const APP_VERSION = 'v20';
+    const APP_VERSION = 'v21';
 
     const firebaseConfig = {
       apiKey: "AIzaSyAMPfQ9gX9rbuvcPsVjYVtq5IT_orjDBPs",
@@ -392,6 +392,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       document.getElementById('wellnessDate').value = todayISO();
       document.getElementById('wellnessVo2Max').value = '';
       document.getElementById('wellnessHrv7d').value = '';
+      document.getElementById('wellnessRestingHr7d').value = '';
       document.getElementById('wellnessSubmitBtn').textContent = 'Lagre måling';
       document.getElementById('cancelEditWellnessBtn').classList.add('hidden');
     };
@@ -400,7 +401,8 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       const date = document.getElementById('wellnessDate').value || todayISO();
       const vo2Max = normalizeGoalNumber(document.getElementById('wellnessVo2Max').value, '');
       const hrv7d = normalizeGoalNumber(document.getElementById('wellnessHrv7d').value, '');
-      if (vo2Max === '' && hrv7d === '') return alert('Legg inn VO2 Max, HRV eller begge deler.');
+      const restingHeartRate7d = normalizeGoalNumber(document.getElementById('wellnessRestingHr7d').value, '');
+      if (vo2Max === '' && hrv7d === '' && restingHeartRate7d === '') return alert('Legg inn VO2 Max, HRV, hvilepuls eller flere av disse.');
 
       const editingId = document.getElementById('wellnessEditingId').value;
       const measurement = {
@@ -408,6 +410,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         date,
         vo2Max,
         hrv7d,
+        restingHeartRate7d,
         createdAt: editingId ? state.wellness.find(item => item.id === editingId)?.createdAt || new Date().toISOString() : new Date().toISOString(),
         updatedAt: new Date().toISOString()
       };
@@ -432,6 +435,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       document.getElementById('wellnessDate').value = item.date || todayISO();
       document.getElementById('wellnessVo2Max').value = item.vo2Max || '';
       document.getElementById('wellnessHrv7d').value = item.hrv7d || '';
+      document.getElementById('wellnessRestingHr7d').value = item.restingHeartRate7d || '';
       document.getElementById('wellnessSubmitBtn').textContent = 'Lagre endringer';
       document.getElementById('cancelEditWellnessBtn').classList.remove('hidden');
       showTab('settings');
@@ -1164,9 +1168,11 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     function renderDashboardWellness() {
       const latestVo2 = latestMetric('vo2Max');
       const latestHrv = latestMetric('hrv7d');
+      const latestRestingHr = latestMetric('restingHeartRate7d');
       document.getElementById('homeVo2Max').textContent = latestVo2 ? formatMetricValue(latestVo2.vo2Max, 1) : '-';
       document.getElementById('homeHrv').textContent = latestHrv ? `${formatMetricValue(latestHrv.hrv7d)} ms` : '-';
-      const latestDates = [latestVo2?.date, latestHrv?.date].filter(Boolean).sort();
+      document.getElementById('homeRestingHr').textContent = latestRestingHr ? `${formatMetricValue(latestRestingHr.restingHeartRate7d)} bpm` : '-';
+      const latestDates = [latestVo2?.date, latestHrv?.date, latestRestingHr?.date].filter(Boolean).sort();
       const latestDate = latestDates[latestDates.length - 1];
       document.getElementById('homeWellnessNote').textContent = latestVo2 || latestHrv
         ? `Sist oppdatert ${formatDate(latestDate)}. Følg trend over tid, ikke enkeltmålinger alene.`
@@ -1178,7 +1184,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       const list = document.getElementById('wellnessList');
       list.innerHTML = items.length ? items.map(item => `
         <div class="settings-item">
-          <span>${escapeHtml(formatDate(item.date))} · VO2 ${escapeHtml(formatMetricValue(item.vo2Max, 1))} · HRV ${escapeHtml(formatMetricValue(item.hrv7d))} ms</span>
+          <span>${escapeHtml(formatDate(item.date))} · VO2 ${escapeHtml(formatMetricValue(item.vo2Max, 1))} · HRV ${escapeHtml(formatMetricValue(item.hrv7d))} ms · Hvilepuls ${escapeHtml(formatMetricValue(item.restingHeartRate7d))} bpm</span>
           <span style="display:flex;gap:6px;">
             <button class="btn-soft" onclick="editWellnessMeasurement('${item.id}')">Rediger</button>
             <button class="btn-soft" onclick="deleteWellnessMeasurement('${item.id}')">Fjern</button>
@@ -1204,7 +1210,8 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     function renderWellnessInsights() {
       document.getElementById('insightWellnessTrend').innerHTML = [
         wellnessTrendRow('VO2 Max', 'vo2Max'),
-        wellnessTrendRow('HRV 7d', 'hrv7d', ' ms')
+        wellnessTrendRow('HRV 7d', 'hrv7d', ' ms'),
+        wellnessTrendRow('Hvilepuls 7d', 'restingHeartRate7d', ' bpm')
       ].join('');
     }
 
