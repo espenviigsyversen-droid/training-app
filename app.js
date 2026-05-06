@@ -4,7 +4,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     import { getFirestore, doc, collection, getDoc, getDocs, setDoc, deleteDoc, writeBatch }
       from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
-    const APP_VERSION = 'v4';
+    const APP_VERSION = 'v5';
 
     const firebaseConfig = {
       apiKey: "AIzaSyAMPfQ9gX9rbuvcPsVjYVtq5IT_orjDBPs",
@@ -455,7 +455,22 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     function clearCompleteForm() {
       document.getElementById('completePlannedId').value = '';
       document.getElementById('editingCompletedId').value = '';
-      ['completeDurationHours','completeDurationMinutes','completeDurationSeconds','completeDistance','completeAvgHr','completeMaxHr','completeRpe','completeNotes']
+      [
+        'completeDurationHours',
+        'completeDurationMinutes',
+        'completeDurationSeconds',
+        'completeDistance',
+        'completeAvgHr',
+        'completeMaxHr',
+        'completeExecution',
+        'completeFeeling',
+        'completeRpe',
+        'completeEnergy',
+        'completeLegs',
+        'completeSleep',
+        'completeStress',
+        'completeNotes'
+      ]
         .forEach(id => document.getElementById(id).value = '');
     }
 
@@ -474,7 +489,15 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         distanceKm: document.getElementById('completeDistance').value || '',
         avgHeartRate: document.getElementById('completeAvgHr').value || '',
         maxHeartRate: document.getElementById('completeMaxHr').value || '',
+        execution: document.getElementById('completeExecution').value || '',
+        feelingScore: document.getElementById('completeFeeling').value || '',
         rpe: document.getElementById('completeRpe').value || '',
+        readiness: {
+          energy: document.getElementById('completeEnergy').value || '',
+          legs: document.getElementById('completeLegs').value || '',
+          sleep: document.getElementById('completeSleep').value || '',
+          stress: document.getElementById('completeStress').value || ''
+        },
         notes: document.getElementById('completeNotes').value.trim()
       };
     }
@@ -518,6 +541,38 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       return '';
     }
 
+    function executionLabel(value) {
+      const labels = {
+        as_planned: 'Som planlagt',
+        easier: 'Lettere',
+        harder: 'Hardere',
+        changed: 'Endret',
+        aborted: 'Avbrutt'
+      };
+      return labels[value] || '';
+    }
+
+    function feelingLabel(value) {
+      const labels = {
+        '1': 'Veldig tung',
+        '2': 'Tung',
+        '3': 'OK',
+        '4': 'Bra',
+        '5': 'Veldig bra'
+      };
+      return labels[value] ? `${value}/5 - ${labels[value]}` : '';
+    }
+
+    function readinessLabel(readiness = {}) {
+      const parts = [
+        readiness.energy ? `Energi ${readiness.energy}/5` : null,
+        readiness.legs ? `Ben ${readiness.legs}/5` : null,
+        readiness.sleep ? `Søvn ${readiness.sleep}/5` : null,
+        readiness.stress ? `Stress ${readiness.stress}/5` : null
+      ].filter(Boolean);
+      return parts.join(' · ');
+    }
+
     window.openCompleteModal = function(plannedId) {
       clearCompleteForm();
       setCompleteModalMode('create');
@@ -543,7 +598,13 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       document.getElementById('completeDistance').value = completed.distanceKm || '';
       document.getElementById('completeAvgHr').value = completed.avgHeartRate || '';
       document.getElementById('completeMaxHr').value = completed.maxHeartRate || '';
+      document.getElementById('completeExecution').value = completed.execution || '';
+      document.getElementById('completeFeeling').value = completed.feelingScore || '';
       document.getElementById('completeRpe').value = completed.rpe || '';
+      document.getElementById('completeEnergy').value = completed.readiness?.energy || '';
+      document.getElementById('completeLegs').value = completed.readiness?.legs || '';
+      document.getElementById('completeSleep').value = completed.readiness?.sleep || '';
+      document.getElementById('completeStress').value = completed.readiness?.stress || '';
       document.getElementById('completeNotes').value = completed.notes || '';
       document.getElementById('completeModal').classList.add('active');
     };
@@ -655,6 +716,9 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     function completedCard(c) {
       const t = getTemplate(c.templateId);
       const durationLabel = completedDurationLabel(c);
+      const execution = executionLabel(c.execution);
+      const feeling = feelingLabel(c.feelingScore);
+      const readiness = readinessLabel(c.readiness);
       const metrics = [
         durationLabel || null,
         c.distanceKm ? `${c.distanceKm} km` : null,
@@ -672,6 +736,9 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
             <span class="tag done">Utført</span>
           </div>
           ${metrics ? `<p class="meta">${escapeHtml(metrics)}</p>` : ''}
+          ${execution ? `<p class="meta"><strong>Gjennomføring:</strong> ${escapeHtml(execution)}</p>` : ''}
+          ${feeling ? `<p class="meta"><strong>Følelse:</strong> ${escapeHtml(feeling)}</p>` : ''}
+          ${readiness ? `<p class="meta"><strong>Dagsform:</strong> ${escapeHtml(readiness)}</p>` : ''}
           ${c.notes ? `<p class="meta"><strong>Notat:</strong> ${escapeHtml(c.notes)}</p>` : ''}
           <div class="button-row">
             <button class="btn-primary" onclick="editCompleted('${c.id}')">Rediger</button>

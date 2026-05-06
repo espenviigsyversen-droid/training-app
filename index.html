@@ -348,7 +348,52 @@
           <div><label>Snittpuls</label><input id="completeAvgHr" type="number" min="0" step="1" /></div>
           <div><label>Makspuls</label><input id="completeMaxHr" type="number" min="0" step="1" /></div>
         </div>
+        <div class="grid-2">
+          <div>
+            <label>Gjennomføring</label>
+            <select id="completeExecution">
+              <option value="">Velg</option>
+              <option value="as_planned">Som planlagt</option>
+              <option value="easier">Lettere</option>
+              <option value="harder">Hardere</option>
+              <option value="changed">Endret</option>
+              <option value="aborted">Avbrutt</option>
+            </select>
+          </div>
+          <div>
+            <label>Følelse etter økt</label>
+            <select id="completeFeeling">
+              <option value="">Velg</option>
+              <option value="1">1 - Veldig tung</option>
+              <option value="2">2 - Tung</option>
+              <option value="3">3 - OK</option>
+              <option value="4">4 - Bra</option>
+              <option value="5">5 - Veldig bra</option>
+            </select>
+          </div>
+        </div>
         <div><label>Opplevd intensitet 1-10</label><input id="completeRpe" type="number" min="1" max="10" step="1" /></div>
+        <div>
+          <label>Dagsform før økt</label>
+          <div class="grid-4">
+            <select id="completeEnergy" aria-label="Energi">
+              <option value="">Energi</option>
+              <option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option>
+            </select>
+            <select id="completeLegs" aria-label="Ben">
+              <option value="">Ben</option>
+              <option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option>
+            </select>
+            <select id="completeSleep" aria-label="Søvn">
+              <option value="">Søvn</option>
+              <option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option>
+            </select>
+            <select id="completeStress" aria-label="Stress">
+              <option value="">Stress</option>
+              <option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option>
+            </select>
+          </div>
+        </div>
         <div><label>Notater</label><textarea id="completeNotes" placeholder="Hvordan føltes økten?"></textarea></div>
         <div class="button-row">
           <button id="completeSubmitBtn" class="btn-success" onclick="completeWorkout()">Marker utført</button>
