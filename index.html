@@ -195,15 +195,14 @@
             <div class="grid-2">
               <div>
                 <label>Passer best når</label>
-                <select id="templateRecommendedWhen">
-                  <option value="">Ikke satt</option>
-                  <option value="normal">Normal dag</option>
-                  <option value="fresh_legs">Friske bein</option>
-                  <option value="tired">Litt sliten</option>
-                  <option value="after_hard">Etter hard økt</option>
-                  <option value="pain_adaptation">Småvondt / tilpasning</option>
-                  <option value="bonus">Bonusøkt</option>
-                </select>
+                <div id="templateRecommendedWhen" class="checkbox-grid">
+                  <label class="checkbox-option"><input type="checkbox" value="normal" /> Normal dag</label>
+                  <label class="checkbox-option"><input type="checkbox" value="fresh_legs" /> Friske bein</label>
+                  <label class="checkbox-option"><input type="checkbox" value="tired" /> Litt sliten</label>
+                  <label class="checkbox-option"><input type="checkbox" value="after_hard" /> Etter hard økt</label>
+                  <label class="checkbox-option"><input type="checkbox" value="pain_adaptation" /> Småvondt / tilpasning</label>
+                  <label class="checkbox-option"><input type="checkbox" value="bonus" /> Bonusøkt</label>
+                </div>
               </div>
               <div>
                 <label>Unngå når</label>

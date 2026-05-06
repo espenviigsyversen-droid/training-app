@@ -111,6 +111,34 @@
       box-shadow: 0 0 0 4px rgba(255,79,46,0.16);
     }
 
+    .checkbox-grid {
+      display: grid;
+      gap: 7px;
+      border: 1px solid var(--warm-gray-2);
+      background: #fff;
+      border-radius: 14px;
+      padding: 10px;
+    }
+
+    .checkbox-option {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin: 0;
+      color: var(--black);
+      font-size: 0.85rem;
+      font-weight: 700;
+      letter-spacing: 0;
+      text-transform: none;
+    }
+
+    .checkbox-option input {
+      width: 18px;
+      height: 18px;
+      accent-color: var(--primary);
+      flex-shrink: 0;
+    }
+
     .duration-inputs {
       display: grid;
       grid-template-columns: repeat(3, minmax(0, 1fr));

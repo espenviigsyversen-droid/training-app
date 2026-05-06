@@ -4,7 +4,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     import { getFirestore, doc, collection, getDoc, getDocs, setDoc, deleteDoc, writeBatch }
       from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
-    const APP_VERSION = 'v24';
+    const APP_VERSION = 'v25';
 
     const firebaseConfig = {
       apiKey: "AIzaSyAMPfQ9gX9rbuvcPsVjYVtq5IT_orjDBPs",
@@ -49,6 +49,22 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     // ── Utilities ─────────────────────────────────────────────────────────────
     function uid(prefix) {
       return `${prefix}_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+    }
+
+    function asArray(value) {
+      if (Array.isArray(value)) return value.filter(Boolean);
+      return value ? [value] : [];
+    }
+
+    function getCheckedValues(containerId) {
+      return [...document.querySelectorAll(`#${containerId} input[type="checkbox"]:checked`)].map(input => input.value);
+    }
+
+    function setCheckedValues(containerId, values) {
+      const selected = new Set(asArray(values));
+      document.querySelectorAll(`#${containerId} input[type="checkbox"]`).forEach(input => {
+        input.checked = selected.has(input.value);
+      });
     }
 
     function todayISO() {
@@ -469,7 +485,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         intensity: document.getElementById('templateIntensity').value,
         purpose: document.getElementById('templatePurpose').value,
         load: document.getElementById('templateLoad').value,
-        recommendedWhen: document.getElementById('templateRecommendedWhen').value,
+        recommendedWhen: getCheckedValues('templateRecommendedWhen'),
         avoidWhen: document.getElementById('templateAvoidWhen').value,
         structure: document.getElementById('templateStructure').value.trim()
       };
@@ -499,7 +515,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       document.getElementById('templateIntensity').value = t.intensity;
       document.getElementById('templatePurpose').value = t.purpose || '';
       document.getElementById('templateLoad').value = t.load || '';
-      document.getElementById('templateRecommendedWhen').value = t.recommendedWhen || '';
+      setCheckedValues('templateRecommendedWhen', t.recommendedWhen);
       document.getElementById('templateAvoidWhen').value = t.avoidWhen || '';
       document.getElementById('templateStructure').value = t.structure || '';
       document.getElementById('templateSubmitBtn').textContent = 'Lagre endringer';
@@ -514,7 +530,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       document.getElementById('templateName').value = '';
       document.getElementById('templatePurpose').value = '';
       document.getElementById('templateLoad').value = '';
-      document.getElementById('templateRecommendedWhen').value = '';
+      setCheckedValues('templateRecommendedWhen', []);
       document.getElementById('templateAvoidWhen').value = '';
       document.getElementById('templateStructure').value = '';
       document.getElementById('templateSubmitBtn').textContent = 'Lagre øktmal';
@@ -978,14 +994,15 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     }
 
     function templateRecommendedWhenLabel(value) {
-      return labelFromMap(value, {
+      const map = {
         normal: 'Passer normal dag',
         fresh_legs: 'Passer med friske bein',
         tired: 'Passer når litt sliten',
         after_hard: 'Passer etter hard økt',
         pain_adaptation: 'Passer ved småvondt/tilpasning',
         bonus: 'Passer som bonusøkt'
-      });
+      };
+      return asArray(value).map(item => labelFromMap(item, map)).filter(Boolean).join(' · ');
     }
 
     function templateAvoidWhenLabel(value) {
@@ -1295,7 +1312,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     }
 
     function templateMatches(template, keywords = []) {
-      const haystack = `${template.name} ${template.type} ${template.intensity} ${template.purpose || ''} ${template.load || ''} ${template.recommendedWhen || ''} ${template.avoidWhen || ''} ${template.structure}`.toLowerCase();
+      const haystack = `${template.name} ${template.type} ${template.intensity} ${template.purpose || ''} ${template.load || ''} ${asArray(template.recommendedWhen).join(' ')} ${template.avoidWhen || ''} ${template.structure}`.toLowerCase();
       return keywords.some(keyword => haystack.includes(keyword.toLowerCase()));
     }
 
@@ -1304,7 +1321,8 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       if (suggestion.types?.includes(template.type)) score += 4;
       if (suggestion.purposes?.includes(template.purpose)) score += 7;
       if (suggestion.loads?.includes(template.load)) score += 5;
-      if (suggestion.recommendedWhen?.includes(template.recommendedWhen)) score += 4;
+      const recommendedMatches = asArray(template.recommendedWhen).filter(value => suggestion.recommendedWhen?.includes(value)).length;
+      score += recommendedMatches * 4;
       if (suggestion.intensities?.includes(template.intensity)) score += 3;
       if (templateMatches(template, suggestion.keywords || [])) score += 2;
       if (suggestion.avoidTemplateWhen?.includes(template.avoidWhen)) score -= 8;
