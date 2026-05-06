@@ -4,7 +4,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     import { getFirestore, doc, collection, getDoc, getDocs, setDoc, deleteDoc, writeBatch }
       from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
-    const APP_VERSION = 'v16';
+    const APP_VERSION = 'v17';
 
     const firebaseConfig = {
       apiKey: "AIzaSyAMPfQ9gX9rbuvcPsVjYVtq5IT_orjDBPs",
@@ -28,6 +28,13 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         weeklyStretchSessionsTarget: 4,
         weeklyHoursTarget: '',
         weeklyKmTarget: ''
+      },
+      trainingProfile: {
+        primaryFocus: 'running',
+        level: 'building_beginner',
+        philosophy: 'bakken_threshold',
+        priority: 'injury_free_progression',
+        runningPhase: 'base_threshold'
       }
     };
     let state = { templates: [], planned: [], completed: [], settings: JSON.parse(JSON.stringify(defaultSettings)) };
@@ -98,7 +105,19 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         intensities: Array.isArray(settings.intensities) && settings.intensities.length
           ? settings.intensities
           : [...defaultSettings.intensities],
-        goals: normalizeGoals(settings.goals)
+        goals: normalizeGoals(settings.goals),
+        trainingProfile: normalizeTrainingProfile(settings.trainingProfile)
+      };
+    }
+
+    function normalizeTrainingProfile(profile = {}) {
+      const defaults = defaultSettings.trainingProfile;
+      return {
+        primaryFocus: profile.primaryFocus || defaults.primaryFocus,
+        level: profile.level || defaults.level,
+        philosophy: profile.philosophy || defaults.philosophy,
+        priority: profile.priority || defaults.priority,
+        runningPhase: profile.runningPhase || defaults.runningPhase
       };
     }
 
@@ -316,6 +335,18 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       });
       await saveSettings();
       showToast('Treningsmål lagret');
+    };
+
+    window.saveTrainingProfile = async function() {
+      state.settings.trainingProfile = normalizeTrainingProfile({
+        primaryFocus: document.getElementById('profilePrimaryFocus').value,
+        level: document.getElementById('profileLevel').value,
+        philosophy: document.getElementById('profilePhilosophy').value,
+        priority: document.getElementById('profilePriority').value,
+        runningPhase: document.getElementById('profileRunningPhase').value
+      });
+      await saveSettings();
+      showToast('Treningsprofil lagret');
     };
 
     // ── Templates ─────────────────────────────────────────────────────────────
@@ -991,6 +1022,15 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       document.getElementById('weeklyKmTarget').value = goals.weeklyKmTarget;
     }
 
+    function renderTrainingProfile() {
+      const profile = normalizeTrainingProfile(state.settings.trainingProfile);
+      document.getElementById('profilePrimaryFocus').value = profile.primaryFocus;
+      document.getElementById('profileLevel').value = profile.level;
+      document.getElementById('profilePhilosophy').value = profile.philosophy;
+      document.getElementById('profilePriority').value = profile.priority;
+      document.getElementById('profileRunningPhase').value = profile.runningPhase;
+    }
+
     function renderHistoryFilterOptions() {
       const select = document.getElementById('historyFilter');
       const selected = select.value || 'Alle';
@@ -1202,11 +1242,12 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         </div>`;
     }
 
-    function buildIntensityNote(last7Items, last28Items) {
+    function buildIntensityNote(last7Items, last28Items, profile) {
       const last7 = summarizeTrainingEffects(last7Items);
       const last28 = summarizeTrainingEffects(last28Items);
       const hard7 = last7.categories.high_aerobic.count + last7.categories.anaerobic.count;
       const low7 = last7.categories.low_aerobic.count;
+      const runningBakkenFocus = profile.primaryFocus === 'running' && profile.philosophy === 'bakken_threshold';
 
       if (!last7.total && last7.missing) {
         return 'Du har logget økter siste 7 dager, men mangler Garmin-valg. Legg inn Primær treningseffekt på øktene for å få bedre analyse.';
@@ -1217,16 +1258,24 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       if (last7.categories.anaerobic.count >= 2) {
         return 'Du har flere anaerobe økter siste 7 dager. For kontinuitet og skadefri progresjon bør neste økt trolig være rolig eller teknisk kontrollert.';
       }
+      if (runningBakkenFocus && last7.categories.anaerobic.count >= 1) {
+        return 'Med Bakken-inspirert løpsfokus bør anaerob belastning brukes forsiktig. Neste løpeøkt bør trolig være Base/Recovery eller kontrollert terskel under maks press.';
+      }
       if (hard7 >= 2 && low7 === 0) {
         return 'Denne uken har mye moderat/hard belastning og lite rolig trening. Vurder en Base eller Recovery-økt neste gang.';
+      }
+      if (runningBakkenFocus && last7.categories.high_aerobic.count >= 2 && low7 < 1) {
+        return 'Du har nok terskelnær kvalitet denne uken, men lite rolig støtte rundt den. For sprekere bein og bedre kontinuitet bør neste økt være rolig aerob.';
       }
       if (last28.total >= 4 && last28.categories.low_aerobic.count < last28.categories.high_aerobic.count + last28.categories.anaerobic.count) {
         return 'Siste 4 uker har mer høy belastning enn rolig aerob trening. Litt mer Base/Recovery kan gi bedre kontinuitet og lavere skaderisiko.';
       }
-      return 'Balansen ser kontrollert ut. Fortsett å bruke Garmin-valget etter øktene, så blir coach-vurderingene mer presise over tid.';
+      return runningBakkenFocus
+        ? 'Balansen ser kontrollert ut for Bakken-inspirert løping: bygg rolig volum rundt kontrollert terskel, og spar anaerob belastning til sjeldnere behov.'
+        : 'Balansen ser kontrollert ut. Fortsett å bruke Garmin-valget etter øktene, så blir coach-vurderingene mer presise over tid.';
     }
 
-    function renderIntensityBalance(today) {
+    function renderIntensityBalance(today, profile) {
       const last7Start = addDays(today, -6);
       const last28Start = addDays(today, -27);
       const last7Items = state.completed.filter(c => c.date >= last7Start && c.date <= today);
@@ -1235,17 +1284,23 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         intensityBalanceCard('Siste 7 dager', last7Items),
         intensityBalanceCard('Siste 4 uker', last28Items)
       ].join('');
-      document.getElementById('insightIntensityNote').textContent = buildIntensityNote(last7Items, last28Items);
+      document.getElementById('insightIntensityNote').textContent = buildIntensityNote(last7Items, last28Items, profile);
     }
 
-    function buildCoachNote(weekSummary, goals, last14Days) {
+    function buildCoachNote(weekSummary, goals, last14Days, profile) {
       const painItems = last14Days.filter(c => c.bodyStatus?.painBefore || c.bodyStatus?.painAfter || c.bodyStatus?.area);
       const hardItems = last14Days.filter(isHardWorkout);
+      const runningBakkenFocus = profile.primaryFocus === 'running' && profile.philosophy === 'bakken_threshold';
       if (painItems.length >= 2) {
-        return 'Du har registrert smerte eller kroppsnotat på flere økter de siste 14 dagene. Hold neste økt kontrollert, og vurder rolig alternativ eller hvile hvis smerten øker.';
+        return runningBakkenFocus
+          ? 'Du har registrert smerte eller kroppsnotat på flere økter de siste 14 dagene. Med skadefri løpsprogresjon som mål bør neste økt være rolig, alternativ trening eller hvile hvis smerten øker.'
+          : 'Du har registrert smerte eller kroppsnotat på flere økter de siste 14 dagene. Hold neste økt kontrollert, og vurder rolig alternativ eller hvile hvis smerten øker.';
       }
       if (painItems.length === 1) {
         return 'Du har registrert smerte eller tilpasning på en nylig økt. Smart å justere belastningen tidlig, spesielt hvis samme område fortsatt kjennes.';
+      }
+      if (runningBakkenFocus && hardItems.length >= 2) {
+        return 'Du har allerede nok høy belastning i en Bakken-inspirert løpsuke. Prioriter rolig volum eller kontrollert terskel med overskudd, ikke mer hard intensitet.';
       }
       if (hardItems.length >= 3) {
         return 'Det har vært flere harde økter tett på hverandre. For kontinuitet og skadefri progresjon kan neste økt gjerne være rolig eller restitusjon.';
@@ -1265,6 +1320,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     function renderInsights() {
       const today = todayISO();
       const goals = normalizeGoals(state.settings.goals);
+      const profile = normalizeTrainingProfile(state.settings.trainingProfile);
       const weekStart = startOfWeek(today);
       const weekEnd = addDays(weekStart, 6);
       const weekItems = state.completed.filter(c => c.date >= weekStart && c.date <= weekEnd);
@@ -1284,7 +1340,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         progressRow('Timer', hours, goals.weeklyHoursTarget, 't'),
         progressRow('Kilometer', weekSummary.km, goals.weeklyKmTarget, 'km')
       ].join('');
-      renderIntensityBalance(today);
+      renderIntensityBalance(today, profile);
       renderContinuity(weekSummary, goals, weekStart);
 
       const weeks = [];
@@ -1307,7 +1363,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
           </div>`;
       }).join('');
 
-      document.getElementById('insightCoachNote').textContent = buildCoachNote(weekSummary, goals, last14Days);
+      document.getElementById('insightCoachNote').textContent = buildCoachNote(weekSummary, goals, last14Days, profile);
     }
 
     // ── Render ────────────────────────────────────────────────────────────────
@@ -1328,6 +1384,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       renderSettingsList('activityTypes', 'activityTypeList');
       renderSettingsList('intensities', 'intensityList');
       renderTrainingGoals();
+      renderTrainingProfile();
       renderHistoryFilterOptions();
       renderInsights();
 
