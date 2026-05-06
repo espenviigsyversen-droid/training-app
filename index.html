@@ -193,6 +193,31 @@
         </div>
       </section>
 
+      <section id="insights" class="tab">
+        <div class="card">
+          <h2 class="section-title">Innsikt</h2>
+          <p class="small-note">Følg kontinuitet, volum og enkle signaler fra siste økter.</p>
+        </div>
+        <div class="card">
+          <h2 class="section-title">Denne uken</h2>
+          <div class="insight-grid">
+            <div class="insight-stat"><strong id="insightWeekSessions">0/3</strong><span>Økter</span></div>
+            <div class="insight-stat"><strong id="insightWeekTime">0 t</strong><span>Tid</span></div>
+            <div class="insight-stat"><strong id="insightWeekKm">0 km</strong><span>Kilometer</span></div>
+            <div class="insight-stat"><strong id="insightWeekHard">0</strong><span>Harde</span></div>
+          </div>
+          <div id="insightWeekProgress" class="progress-block"></div>
+        </div>
+        <div class="card">
+          <h2 class="section-title">Siste 4 uker</h2>
+          <div id="insightFourWeeks" class="insight-weeks"></div>
+        </div>
+        <div class="card">
+          <h2 class="section-title">Coach-notis</h2>
+          <p id="insightCoachNote" class="coach-note"></p>
+        </div>
+      </section>
+
       <section id="settings" class="tab">
         <div class="card">
           <h2 class="section-title">Innstillinger</h2>
@@ -219,8 +244,8 @@
           <p class="small-note">Økter teller alle aktivitetstyper. Timer og kilometer er valgfrie mål som kan brukes senere i Innsikt.</p>
           <div class="inline-form">
             <div class="grid-2">
-              <div><label>Ukesmål økter</label><input id="weeklySessionsTarget" type="number" min="0" step="1" inputmode="numeric" /></div>
-              <div><label>Stretch økter</label><input id="weeklyStretchSessionsTarget" type="number" min="0" step="1" inputmode="numeric" /></div>
+              <div><label>Ukesmål økter</label><input id="weeklySessionsTarget" type="number" min="1" step="1" inputmode="numeric" /></div>
+              <div><label>Stretch økter</label><input id="weeklyStretchSessionsTarget" type="number" min="1" step="1" inputmode="numeric" /></div>
             </div>
             <div class="grid-2">
               <div><label>Timer per uke</label><input id="weeklyHoursTarget" type="number" min="0" step="0.25" inputmode="decimal" placeholder="Valgfritt" /></div>
@@ -300,6 +325,13 @@
           <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
         </svg>
         <span>Logg</span>
+      </button>
+      <button onclick="showTab('insights', this)" aria-label="Innsikt">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M3 3v18h18"></path>
+          <path d="M7 15l4-4 3 3 5-7"></path>
+        </svg>
+        <span>Innsikt</span>
       </button>
       <button onclick="showTab('settings', this)" aria-label="Setup">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">

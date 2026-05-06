@@ -4,7 +4,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     import { getFirestore, doc, collection, getDoc, getDocs, setDoc, deleteDoc, writeBatch }
       from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
-    const APP_VERSION = 'v8';
+    const APP_VERSION = 'v9';
 
     const firebaseConfig = {
       apiKey: "AIzaSyAMPfQ9gX9rbuvcPsVjYVtq5IT_orjDBPs",
@@ -104,17 +104,17 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
 
     function normalizeGoals(goals = {}) {
       return {
-        weeklySessionsTarget: normalizeGoalNumber(goals.weeklySessionsTarget, defaultSettings.goals.weeklySessionsTarget),
-        weeklyStretchSessionsTarget: normalizeGoalNumber(goals.weeklyStretchSessionsTarget, defaultSettings.goals.weeklyStretchSessionsTarget),
+        weeklySessionsTarget: normalizeGoalNumber(goals.weeklySessionsTarget, defaultSettings.goals.weeklySessionsTarget, 1),
+        weeklyStretchSessionsTarget: normalizeGoalNumber(goals.weeklyStretchSessionsTarget, defaultSettings.goals.weeklyStretchSessionsTarget, 1),
         weeklyHoursTarget: normalizeGoalNumber(goals.weeklyHoursTarget, ''),
         weeklyKmTarget: normalizeGoalNumber(goals.weeklyKmTarget, '')
       };
     }
 
-    function normalizeGoalNumber(value, fallback = '') {
+    function normalizeGoalNumber(value, fallback = '', min = 0) {
       if (value === '' || value === null || value === undefined) return fallback;
       const number = Number(value);
-      if (!Number.isFinite(number) || number < 0) return fallback;
+      if (!Number.isFinite(number) || number < min) return fallback;
       return number;
     }
 
@@ -961,6 +961,134 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       select.value = values.includes(selected) ? selected : 'Alle';
     }
 
+    function dateToISO(date) {
+      return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`;
+    }
+
+    function startOfWeek(dateIso) {
+      const date = new Date(`${dateIso}T12:00:00`);
+      const day = date.getDay() || 7;
+      date.setDate(date.getDate() - day + 1);
+      return dateToISO(date);
+    }
+
+    function completedDurationSeconds(completed) {
+      if (completed.durationSeconds) return Number(completed.durationSeconds) || 0;
+      if (completed.durationMinutes) return (Number(completed.durationMinutes) || 0) * 60;
+      return 0;
+    }
+
+    function formatHoursFromSeconds(seconds) {
+      const total = Number(seconds) || 0;
+      const hours = total / 3600;
+      if (!hours) return '0 t';
+      return `${hours.toLocaleString('no-NO', { maximumFractionDigits: hours < 10 ? 1 : 0 })} t`;
+    }
+
+    function formatKm(km) {
+      const value = Number(km) || 0;
+      return `${value.toLocaleString('no-NO', { maximumFractionDigits: value < 10 ? 1 : 0 })} km`;
+    }
+
+    function isHardWorkout(completed) {
+      const template = getTemplate(completed.templateId);
+      const hardIntensities = ['Tempo', 'Terskel', 'Intervall', 'Anaerob'];
+      return hardIntensities.includes(template.intensity) || Number(completed.rpe || 0) >= 7;
+    }
+
+    function summarizeCompleted(items) {
+      return items.reduce((summary, completed) => {
+        summary.sessions += 1;
+        summary.seconds += completedDurationSeconds(completed);
+        summary.km += Number(completed.distanceKm) || 0;
+        if (isHardWorkout(completed)) summary.hard += 1;
+        if (completed.bodyStatus?.painBefore || completed.bodyStatus?.painAfter || completed.bodyStatus?.area) summary.pain += 1;
+        return summary;
+      }, { sessions: 0, seconds: 0, km: 0, hard: 0, pain: 0 });
+    }
+
+    function progressRow(label, current, target, suffix = '') {
+      if (!target) return '';
+      const percent = Math.max(0, Math.min(100, (current / target) * 100));
+      const currentText = suffix ? `${current.toLocaleString('no-NO', { maximumFractionDigits: 1 })} ${suffix}` : String(current);
+      const targetText = suffix ? `${target.toLocaleString('no-NO', { maximumFractionDigits: 1 })} ${suffix}` : String(target);
+      return `
+        <div class="progress-row">
+          <div class="progress-label"><span>${escapeHtml(label)}</span><span>${escapeHtml(currentText)} / ${escapeHtml(targetText)}</span></div>
+          <div class="progress-track"><div class="progress-fill" style="width:${percent}%;"></div></div>
+        </div>`;
+    }
+
+    function buildCoachNote(weekSummary, goals, last14Days) {
+      const painItems = last14Days.filter(c => c.bodyStatus?.painBefore || c.bodyStatus?.painAfter || c.bodyStatus?.area);
+      const hardItems = last14Days.filter(isHardWorkout);
+      if (painItems.length >= 2) {
+        return 'Du har registrert smerte eller kroppsnotat på flere økter de siste 14 dagene. Hold neste økt kontrollert, og vurder rolig alternativ eller hvile hvis smerten øker.';
+      }
+      if (painItems.length === 1) {
+        return 'Du har registrert smerte eller tilpasning på en nylig økt. Smart å justere belastningen tidlig, spesielt hvis samme område fortsatt kjennes.';
+      }
+      if (hardItems.length >= 3) {
+        return 'Det har vært flere harde økter tett på hverandre. For kontinuitet og skadefri progresjon kan neste økt gjerne være rolig eller restitusjon.';
+      }
+      if (weekSummary.sessions >= goals.weeklySessionsTarget) {
+        return weekSummary.sessions >= goals.weeklyStretchSessionsTarget
+          ? 'Sterk kontinuitet denne uken. Du har nådd stretch-målet, så videre trening bør styres av overskudd og dagsform.'
+          : 'Du er i mål med ukesmålet. En eventuell ekstra økt kan være bonus, ikke press.';
+      }
+      if (weekSummary.sessions > 0) {
+        const remaining = Math.max(0, goals.weeklySessionsTarget - weekSummary.sessions);
+        return `Du er i gang denne uken. ${remaining} økt${remaining === 1 ? '' : 'er'} igjen til ukesmålet. Velg neste økt ut fra kropp og dagsform.`;
+      }
+      return 'Ingen økter logget denne uken ennå. Start med én gjennomførbar økt, gjerne kontrollert og realistisk.';
+    }
+
+    function renderInsights() {
+      const today = todayISO();
+      const goals = normalizeGoals(state.settings.goals);
+      const weekStart = startOfWeek(today);
+      const weekEnd = addDays(weekStart, 6);
+      const weekItems = state.completed.filter(c => c.date >= weekStart && c.date <= weekEnd);
+      const weekSummary = summarizeCompleted(weekItems);
+      const last14Start = addDays(today, -13);
+      const last14Days = state.completed.filter(c => c.date >= last14Start && c.date <= today);
+
+      document.getElementById('insightWeekSessions').textContent = `${weekSummary.sessions}/${goals.weeklySessionsTarget}`;
+      document.getElementById('insightWeekTime').textContent = formatHoursFromSeconds(weekSummary.seconds);
+      document.getElementById('insightWeekKm').textContent = formatKm(weekSummary.km);
+      document.getElementById('insightWeekHard').textContent = weekSummary.hard;
+
+      const hours = weekSummary.seconds / 3600;
+      document.getElementById('insightWeekProgress').innerHTML = [
+        progressRow('Ukesmål økter', weekSummary.sessions, goals.weeklySessionsTarget),
+        progressRow('Stretch økter', weekSummary.sessions, goals.weeklyStretchSessionsTarget),
+        progressRow('Timer', hours, goals.weeklyHoursTarget, 't'),
+        progressRow('Kilometer', weekSummary.km, goals.weeklyKmTarget, 'km')
+      ].join('');
+
+      const weeks = [];
+      for (let i = 3; i >= 0; i--) {
+        const start = addDays(weekStart, -(i * 7));
+        const end = addDays(start, 6);
+        const items = state.completed.filter(c => c.date >= start && c.date <= end);
+        weeks.push({ start, end, summary: summarizeCompleted(items) });
+      }
+      const maxSessions = Math.max(1, ...weeks.map(w => w.summary.sessions), goals.weeklySessionsTarget);
+      document.getElementById('insightFourWeeks').innerHTML = weeks.map(week => {
+        const percent = Math.max(0, Math.min(100, (week.summary.sessions / maxSessions) * 100));
+        return `
+          <div class="week-row">
+            <div class="week-row-top">
+              <span>${escapeHtml(formatDate(week.start))} - ${escapeHtml(formatDate(week.end))}</span>
+              <span>${week.summary.sessions} økter · ${escapeHtml(formatHoursFromSeconds(week.summary.seconds))} · ${escapeHtml(formatKm(week.summary.km))}</span>
+            </div>
+            <div class="progress-track"><div class="progress-fill" style="width:${percent}%;"></div></div>
+          </div>`;
+      }).join('');
+
+      document.getElementById('insightCoachNote').textContent = buildCoachNote(weekSummary, goals, last14Days);
+    }
+
     // ── Render ────────────────────────────────────────────────────────────────
     function render() {
       renderCalendar();
@@ -980,6 +1108,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       renderSettingsList('intensities', 'intensityList');
       renderTrainingGoals();
       renderHistoryFilterOptions();
+      renderInsights();
 
       const plannedActive = state.planned.filter(p => p.status !== 'done');
       // BUGFIX punkt 3: trygg sortering selv om createdAt mangler
