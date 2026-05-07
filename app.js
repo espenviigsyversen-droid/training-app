@@ -4,7 +4,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     import { getFirestore, doc, collection, getDoc, getDocs, setDoc, deleteDoc, writeBatch }
       from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
-    const APP_VERSION = 'v30';
+    const APP_VERSION = 'v31';
 
     const firebaseConfig = {
       apiKey: "AIzaSyAMPfQ9gX9rbuvcPsVjYVtq5IT_orjDBPs",
@@ -999,6 +999,77 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         return `${intro} Dette er en fin treningsbelastning, men neste kvalitetsøkt bør helst komme med friske bein.`;
       }
       return `${intro} Kroppen ser ut til å tåle normal plan videre, så lenge dagsformen fortsatt er grei.`;
+    }
+
+    function weeklyTrainingStatus(weekItems, weekSummary, goals, profile) {
+      const loadCounts = weekItems.reduce((counts, item) => {
+        const level = completedLoadAssessment(item).level;
+        counts[level] += 1;
+        return counts;
+      }, { low: 0, moderate: 0, high: 0 });
+      const adaptationCount = weekItems.filter(item => {
+        const adaptation = item.bodyStatus?.adaptation || '';
+        return adaptation && adaptation !== 'none';
+      }).length;
+      const painCount = weekItems.filter(item => item.bodyStatus?.painBefore || item.bodyStatus?.painAfter || item.bodyStatus?.area).length;
+      const bodySignals = painCount + adaptationCount;
+      const runningBakkenFocus = profile.primaryFocus === 'running' && profile.philosophy === 'bakken_threshold';
+      let level = 'good';
+      let label = 'På plan';
+      let note = 'Uken ser balansert ut så langt. Fortsett å styre neste økt etter dagsform.';
+
+      if (!weekItems.length) {
+        level = 'calm';
+        label = 'Bygg rolig';
+        note = 'Ingen utførte økter denne uken ennå. Start med én gjennomførbar økt før du vurderer mer belastning.';
+      } else if (bodySignals >= 2) {
+        level = 'caution';
+        label = 'Vær forsiktig';
+        note = 'Flere kroppssignaler eller tilpasninger er registrert. Hold neste økt rolig eller alternativ hvis samme område fortsatt kjennes.';
+      } else if (loadCounts.high >= 2 || (runningBakkenFocus && loadCounts.high >= 1 && loadCounts.low === 0)) {
+        level = 'caution';
+        label = 'Nok hardt';
+        note = runningBakkenFocus
+          ? 'For Bakken-inspirert løpsfokus bør hard belastning pakkes inn i rolig volum og friske bein.'
+          : 'Det er nok høy belastning denne uken til at neste økt gjerne kan være rolig eller kontrollert.';
+      } else if (weekSummary.sessions >= goals.weeklySessionsTarget) {
+        level = 'good';
+        label = 'På plan';
+        note = 'Ukesmålet er nådd. Eventuelle ekstra økter bør være bonus og styres av overskudd.';
+      } else if (loadCounts.low >= 1 && loadCounts.high === 0) {
+        level = 'calm';
+        label = 'Bygg rolig';
+        note = 'Du bygger kontinuitet med kontrollert belastning. En kvalitetsøkt kan vurderes hvis kroppen kjennes fin.';
+      }
+
+      return { label, level, note, loadCounts, painCount, adaptationCount };
+    }
+
+    function renderWeeklyTrainingStatus(weekItems, weekSummary, goals, profile) {
+      const status = weeklyTrainingStatus(weekItems, weekSummary, goals, profile);
+      const total = Math.max(1, weekItems.length);
+      const lowPct = (status.loadCounts.low / total) * 100;
+      const moderatePct = (status.loadCounts.moderate / total) * 100;
+      const highPct = (status.loadCounts.high / total) * 100;
+      document.getElementById('insightWeeklyStatus').innerHTML = `
+        <div class="weekly-status ${status.level}">
+          <div class="weekly-status-top">
+            <span class="tag weekly-${status.level}">${escapeHtml(status.label)}</span>
+            <span>${escapeHtml(weekSummary.sessions)} økt${weekSummary.sessions === 1 ? '' : 'er'} · ${escapeHtml(formatClockDuration(weekSummary.seconds))}</span>
+          </div>
+          <div class="weekly-load-stack" aria-label="Fordeling av belastning">
+            <span class="weekly-load-low" style="width:${lowPct}%"></span>
+            <span class="weekly-load-moderate" style="width:${moderatePct}%"></span>
+            <span class="weekly-load-high" style="width:${highPct}%"></span>
+          </div>
+          <div class="weekly-status-grid">
+            <div><strong>${status.loadCounts.low}</strong><span>Lav</span></div>
+            <div><strong>${status.loadCounts.moderate}</strong><span>Moderat</span></div>
+            <div><strong>${status.loadCounts.high}</strong><span>Høy</span></div>
+            <div><strong>${status.painCount}/${status.adaptationCount}</strong><span>Smerte/tilpasning</span></div>
+          </div>
+          <p>${escapeHtml(status.note)}</p>
+        </div>`;
     }
 
     window.openCompleteModal = function(plannedId) {
@@ -2062,6 +2133,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         progressRow('Timer', hours, goals.weeklyHoursTarget, 't'),
         progressRow('Kilometer', weekSummary.km, goals.weeklyKmTarget, 'km')
       ].join('');
+      renderWeeklyTrainingStatus(weekItems, weekSummary, goals, profile);
       renderIntensityBalance(today, profile);
       renderContinuity(weekSummary, goals, weekStart);
 
