@@ -4,7 +4,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     import { getFirestore, doc, collection, getDoc, getDocs, setDoc, deleteDoc, writeBatch }
       from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
-    const APP_VERSION = 'v40';
+    const APP_VERSION = 'v41';
 
     const firebaseConfig = {
       apiKey: "AIzaSyAMPfQ9gX9rbuvcPsVjYVtq5IT_orjDBPs",
@@ -2282,7 +2282,64 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       }, 0);
     }
 
-    function intensityBalanceCard(title, items) {
+    function categoryShare(summary, key) {
+      const category = summary.categories[key];
+      if (!category) return 0;
+      if (summary.seconds > 0) return category.seconds / summary.seconds;
+      if (summary.total > 0) return category.count / summary.total;
+      return 0;
+    }
+
+    function intensityCoachLine(summary, profile) {
+      const low = summary.categories.low_aerobic;
+      const high = summary.categories.high_aerobic;
+      const anaerobic = summary.categories.anaerobic;
+      const lowShare = categoryShare(summary, 'low_aerobic');
+      const highShare = categoryShare(summary, 'high_aerobic');
+      const anaerobicShare = categoryShare(summary, 'anaerobic');
+      const runningBakkenFocus = profile.primaryFocus === 'running' && profile.philosophy === 'bakken_threshold';
+      const strengthGrowthFocus = profile.primaryFocus === 'strength' && profile.trainingFocus === 'muscle_growth';
+      const skiTechniqueFocus = profile.primaryFocus === 'ski' && profile.trainingFocus === 'technique_skill';
+
+      if (!summary.total && summary.missing) {
+        return `${summary.missing} økt${summary.missing === 1 ? '' : 'er'} mangler Garmin-valg, så balansen blir usikker.`;
+      }
+      if (!summary.total) {
+        return 'Ingen Garmin-klassifiserte økter i perioden ennå.';
+      }
+      if (strengthGrowthFocus) {
+        return 'For styrkefokus er dette mest et restitusjonssignal; tung styrke bør vurderes med volum, øvelser og progresjon.';
+      }
+      if (skiTechniqueFocus && anaerobic.count > 0) {
+        return 'Anaerob belastning kan være nyttig, men teknikkøkter bør fortsatt ha kontrollert kvalitet.';
+      }
+      if (runningBakkenFocus) {
+        if (anaerobic.count >= 2 || anaerobicShare >= 0.2) {
+          return 'Mye hard anaerob belastning for Bakken-inspirert løpsfokus. Neste løpeøkt bør trolig være rolig.';
+        }
+        if (lowShare < 0.4 && summary.total >= 3) {
+          return 'Rolig andel er litt lav for skadefri progresjon. Legg mer Base/Recovery rundt kvalitetsøktene.';
+        }
+        if (high.count >= 1 && anaerobic.count === 0 && low.count >= 1) {
+          return 'Mye kontrollert terskel uten anaerob topping. Dette passer godt med Bakken-inspirert oppbygging.';
+        }
+        if (lowShare >= 0.55 && highShare <= 0.35 && anaerobic.count === 0) {
+          return 'God rolig støtte og lav risiko. Du bygger kapasitet uten å jage for hard belastning.';
+        }
+      }
+      if (anaerobic.count >= 2 || anaerobicShare >= 0.25) {
+        return 'Hard andel er høy. Vurder rolig eller teknisk kontrollert neste økt.';
+      }
+      if (lowShare < 0.35 && summary.total >= 3) {
+        return 'Lite rolig trening i miksen. Mer lav aerob støtte kan gi bedre kontinuitet.';
+      }
+      if (lowShare >= 0.5 && (high.count > 0 || anaerobic.count > 0)) {
+        return 'Fin miks av rolig støtte og kvalitet.';
+      }
+      return 'Balansen ser kontrollert ut ut fra registrerte Garmin-valg.';
+    }
+
+    function intensityBalanceCard(title, items, profile) {
       const summary = summarizeTrainingEffects(items);
       const categories = Object.values(summary.categories);
       const basis = summary.seconds > 0 ? 'seconds' : 'count';
@@ -2319,6 +2376,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
             <strong>${escapeHtml(title)}</strong>
             <span>${summary.total} registrert${summary.total === 1 ? '' : 'e'} med Garmin-valg</span>
           </div>
+          <p class="intensity-coach-line">${escapeHtml(intensityCoachLine(summary, profile))}</p>
           <div class="intensity-stack">${stack}</div>
           <div class="intensity-legend">${legend}</div>
           ${missingText}
@@ -2334,6 +2392,9 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       const anaerobic7 = last7.categories.anaerobic.count;
       const low28 = last28.categories.low_aerobic.count;
       const hard28 = last28.categories.high_aerobic.count + last28.categories.anaerobic.count;
+      const lowShare7 = categoryShare(last7, 'low_aerobic');
+      const lowShare28 = categoryShare(last28, 'low_aerobic');
+      const anaerobicShare7 = categoryShare(last7, 'anaerobic');
       const loadScore7 = weightedLoadScore(last7, profile);
       const runningBakkenFocus = profile.primaryFocus === 'running' && profile.philosophy === 'bakken_threshold';
       const strengthGrowthFocus = profile.primaryFocus === 'strength' && profile.trainingFocus === 'muscle_growth';
@@ -2341,6 +2402,9 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
 
       if (!last7.total && last7.missing) {
         return 'Du har logget økter siste 7 dager, men mangler Garmin-valg. Legg inn Primær treningseffekt på øktene for å få bedre analyse.';
+      }
+      if (last7.missing) {
+        return `${last7.missing} økt${last7.missing === 1 ? '' : 'er'} siste 7 dager mangler Garmin-valg. Fyll det inn først, så blir coachingen mer presis.`;
       }
       if (!last7.total) {
         return 'Når du logger økter med Garmin-feltet, får du en enkel balanse mellom rolig, moderat og hard trening her.';
@@ -2351,7 +2415,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       if (skiTechniqueFocus && anaerobic7 >= 1) {
         return 'Med teknikk/staking som fokus bør hard anaerob belastning doseres forsiktig. Prioriter teknisk kvalitet og kontrollerte drag fremfor å jage høyest mulig belastning.';
       }
-      if (anaerobic7 >= 2) {
+      if (anaerobic7 >= 2 || anaerobicShare7 >= 0.25) {
         return 'Du har flere anaerobe økter siste 7 dager. For kontinuitet og skadefri progresjon bør neste økt trolig være rolig eller teknisk kontrollert.';
       }
       if (runningBakkenFocus && anaerobic7 >= 1) {
@@ -2360,13 +2424,16 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       if (hard7 >= 2 && low7 === 0) {
         return 'Denne uken har mye moderat/hard belastning og lite rolig trening. Vurder en Base eller Recovery-økt neste gang.';
       }
+      if (runningBakkenFocus && last7.total >= 3 && lowShare7 < 0.4) {
+        return 'Rolig andel er litt lav for skadefri løpsprogresjon. Neste løpeøkt bør trolig være Base/Recovery før mer terskel.';
+      }
       if (runningBakkenFocus && high7 >= 2 && low7 < 1) {
         return 'Du har nok terskelnær kvalitet denne uken, men lite rolig støtte rundt den. For sprekere bein og bedre kontinuitet bør neste økt være rolig aerob.';
       }
       if (runningBakkenFocus && high7 >= 1 && low7 >= 1 && anaerobic7 === 0 && loadScore7 <= 5.5) {
         return 'Dette ligner en god Bakken-inspirert uke: rolig aerob støtte rundt kontrollert kvalitet, uten unødvendig anaerob toppbelastning.';
       }
-      if (last28.total >= 4 && low28 < hard28) {
+      if (last28.total >= 4 && (low28 < hard28 || lowShare28 < 0.45)) {
         return 'Siste 4 uker har mer høy belastning enn rolig aerob trening. Litt mer Base/Recovery kan gi bedre kontinuitet og lavere skaderisiko.';
       }
       return runningBakkenFocus
@@ -2381,8 +2448,8 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       const last28Items = state.completed.filter(c => c.date >= last28Start && c.date <= today);
       document.getElementById('insightIntensityProfile').textContent = intensityProfileText(profile);
       document.getElementById('insightIntensityBalance').innerHTML = [
-        intensityBalanceCard('Siste 7 dager', last7Items),
-        intensityBalanceCard('Siste 4 uker', last28Items)
+        intensityBalanceCard('Siste 7 dager', last7Items, profile),
+        intensityBalanceCard('Siste 4 uker', last28Items, profile)
       ].join('');
       document.getElementById('insightIntensityNote').textContent = buildIntensityNote(last7Items, last28Items, profile);
     }
