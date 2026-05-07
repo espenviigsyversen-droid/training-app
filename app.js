@@ -4,7 +4,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     import { getFirestore, doc, collection, getDoc, getDocs, setDoc, deleteDoc, writeBatch }
       from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
-    const APP_VERSION = 'v27';
+    const APP_VERSION = 'v28';
 
     const firebaseConfig = {
       apiKey: "AIzaSyAMPfQ9gX9rbuvcPsVjYVtq5IT_orjDBPs",
@@ -669,6 +669,8 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         'completeDistance',
         'completeAvgHr',
         'completeMaxHr',
+        'completeElevationGain',
+        'completeTreadmillIncline',
         'completeTrainingEffect',
         'completeExecution',
         'completeFeeling',
@@ -702,6 +704,8 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         distanceKm: document.getElementById('completeDistance').value || '',
         avgHeartRate: document.getElementById('completeAvgHr').value || '',
         maxHeartRate: document.getElementById('completeMaxHr').value || '',
+        elevationGainM: document.getElementById('completeElevationGain').value || '',
+        treadmillInclinePercent: document.getElementById('completeTreadmillIncline').value || '',
         trainingEffectType: document.getElementById('completeTrainingEffect').value || '',
         trainingEffectCategory: trainingEffectCategory(document.getElementById('completeTrainingEffect').value),
         execution: document.getElementById('completeExecution').value || '',
@@ -886,6 +890,8 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       document.getElementById('completeDistance').value = completed.distanceKm || '';
       document.getElementById('completeAvgHr').value = completed.avgHeartRate || '';
       document.getElementById('completeMaxHr').value = completed.maxHeartRate || '';
+      document.getElementById('completeElevationGain').value = completed.elevationGainM || '';
+      document.getElementById('completeTreadmillIncline').value = completed.treadmillInclinePercent || '';
       document.getElementById('completeTrainingEffect').value = completed.trainingEffectType || '';
       document.getElementById('completeExecution').value = completed.execution || '';
       document.getElementById('completeFeeling').value = completed.feelingScore || '';
@@ -1072,6 +1078,8 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       const metrics = [
         durationLabel || null,
         c.distanceKm ? `${c.distanceKm} km` : null,
+        c.elevationGainM ? `${c.elevationGainM} hm` : null,
+        c.treadmillInclinePercent ? `${c.treadmillInclinePercent}% mølle` : null,
         c.avgHeartRate ? `Snitt ${c.avgHeartRate} bpm` : null,
         c.maxHeartRate ? `Maks ${c.maxHeartRate} bpm` : null,
         c.rpe ? `RPE ${c.rpe}/10` : null
