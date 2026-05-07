@@ -4,7 +4,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     import { getFirestore, doc, collection, getDoc, getDocs, setDoc, deleteDoc, writeBatch }
       from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
-    const APP_VERSION = 'v34';
+    const APP_VERSION = 'v35';
 
     const firebaseConfig = {
       apiKey: "AIzaSyAMPfQ9gX9rbuvcPsVjYVtq5IT_orjDBPs",
@@ -41,7 +41,9 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         birthYear: '',
         sex: '',
         heightCm: '',
-        weightKg: ''
+        weightKg: '',
+        maxHeartRate: '',
+        thresholdHeartRate: ''
       }
     };
     let state = { templates: [], planned: [], completed: [], wellness: [], settings: JSON.parse(JSON.stringify(defaultSettings)) };
@@ -141,7 +143,9 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         birthYear: normalizeGoalNumber(profile.birthYear, defaults.birthYear, 1900),
         sex: profile.sex || defaults.sex,
         heightCm: normalizeGoalNumber(profile.heightCm, defaults.heightCm),
-        weightKg: normalizeGoalNumber(profile.weightKg, defaults.weightKg)
+        weightKg: normalizeGoalNumber(profile.weightKg, defaults.weightKg),
+        maxHeartRate: normalizeGoalNumber(profile.maxHeartRate, defaults.maxHeartRate),
+        thresholdHeartRate: normalizeGoalNumber(profile.thresholdHeartRate, defaults.thresholdHeartRate)
       };
     }
 
@@ -397,7 +401,9 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         birthYear: document.getElementById('personBirthYear').value,
         sex: document.getElementById('personSex').value,
         heightCm: document.getElementById('personHeightCm').value,
-        weightKg: document.getElementById('personWeightKg').value
+        weightKg: document.getElementById('personWeightKg').value,
+        maxHeartRate: document.getElementById('personMaxHeartRate').value,
+        thresholdHeartRate: document.getElementById('personThresholdHeartRate').value
       });
       await saveSettings();
       showToast('Personprofil lagret');
@@ -822,6 +828,21 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         completed.durationSeconds || (completed.durationMinutes ? Number(completed.durationMinutes) * 60 : 0),
         completed.distanceKm
       );
+    }
+
+    function heartRateContextLabel(value, profile = normalizePersonProfile(state.settings.personProfile)) {
+      const hr = Number(value);
+      if (!Number.isFinite(hr) || hr <= 0) return '';
+      const parts = [];
+      const maxHeartRate = Number(profile.maxHeartRate);
+      const thresholdHeartRate = Number(profile.thresholdHeartRate);
+      if (Number.isFinite(maxHeartRate) && maxHeartRate > 0) {
+        parts.push(`${Math.round((hr / maxHeartRate) * 100)}% maks`);
+      }
+      if (Number.isFinite(thresholdHeartRate) && thresholdHeartRate > 0) {
+        parts.push(`${Math.round((hr / thresholdHeartRate) * 100)}% terskel`);
+      }
+      return parts.length ? ` (${parts.join(' · ')})` : '';
     }
 
     function executionLabel(value) {
@@ -1400,6 +1421,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
 
     function completedCard(c) {
       const t = completedTemplate(c);
+      const personProfile = normalizePersonProfile(state.settings.personProfile);
       const durationLabel = completedDurationLabel(c);
       const execution = executionLabel(c.execution);
       const feeling = feelingLabel(c.feelingScore);
@@ -1414,8 +1436,8 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         pace.paceDisplay ? `${pace.paceDisplay} min/km` : null,
         c.elevationGainM ? `${c.elevationGainM} hm` : null,
         c.treadmillInclinePercent ? `${c.treadmillInclinePercent}% mølle` : null,
-        c.avgHeartRate ? `Snitt ${c.avgHeartRate} bpm` : null,
-        c.maxHeartRate ? `Maks ${c.maxHeartRate} bpm` : null,
+        c.avgHeartRate ? `Snitt ${c.avgHeartRate} bpm${heartRateContextLabel(c.avgHeartRate, personProfile)}` : null,
+        c.maxHeartRate ? `Maks ${c.maxHeartRate} bpm${heartRateContextLabel(c.maxHeartRate, personProfile)}` : null,
         c.rpe ? `RPE ${c.rpe}/10` : null
       ].filter(Boolean).join(' · ');
       return `
@@ -1587,6 +1609,8 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       document.getElementById('personSex').value = profile.sex;
       document.getElementById('personHeightCm').value = profile.heightCm;
       document.getElementById('personWeightKg').value = profile.weightKg;
+      document.getElementById('personMaxHeartRate').value = profile.maxHeartRate;
+      document.getElementById('personThresholdHeartRate').value = profile.thresholdHeartRate;
     }
 
     function formatMetricValue(value, decimals = 0) {
