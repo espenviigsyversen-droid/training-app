@@ -4,7 +4,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     import { getFirestore, doc, collection, getDoc, getDocs, setDoc, deleteDoc, writeBatch }
       from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
-    const APP_VERSION = 'v46';
+    const APP_VERSION = 'v47';
 
     const firebaseConfig = {
       apiKey: "AIzaSyAMPfQ9gX9rbuvcPsVjYVtq5IT_orjDBPs",
@@ -1202,6 +1202,10 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       }
 
       return { label, level, note, loadCounts, painCount, adaptationCount };
+    }
+
+    function weeklySignalLabel(count) {
+      return `${count} signal${count === 1 ? '' : 'er'}`;
     }
 
     function renderWeeklyTrainingStatus(weekItems, weekSummary, goals, profile) {
@@ -2712,15 +2716,16 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       const last14Start = addDays(today, -13);
       const last14Days = state.completed.filter(c => c.date >= last14Start && c.date <= today);
 
-      document.getElementById('insightWeekSessions').textContent = `${weekSummary.sessions}/${goals.weeklySessionsTarget}`;
+      const status = weeklyTrainingStatus(weekItems, weekSummary, goals, profile);
+      const signalCount = status.painCount + status.adaptationCount;
       document.getElementById('insightWeekTime').textContent = formatClockDuration(weekSummary.seconds);
       document.getElementById('insightWeekKm').textContent = formatKm(weekSummary.km);
-      document.getElementById('insightWeekHard').textContent = weekSummary.hard;
+      document.getElementById('insightWeekLoad').textContent = status.label;
+      document.getElementById('insightWeekSignals').textContent = weeklySignalLabel(signalCount);
 
       const hours = weekSummary.seconds / 3600;
       document.getElementById('insightWeekProgress').innerHTML = [
         progressRow('Ukesmål økter', weekSummary.sessions, goals.weeklySessionsTarget),
-        progressRow('Stretch økter', weekSummary.sessions, goals.weeklyStretchSessionsTarget),
         progressRow('Timer', hours, goals.weeklyHoursTarget, 't'),
         progressRow('Kilometer', weekSummary.km, goals.weeklyKmTarget, 'km')
       ].join('');
