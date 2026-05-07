@@ -579,15 +579,13 @@
       <input type="hidden" id="editingCompletedId" />
       <div class="inline-form">
         <div id="completeManualFields" class="hidden">
-          <div class="grid-2">
-            <div>
-              <label>Dato</label>
-              <input id="completeDate" type="date" />
-            </div>
-            <div>
-              <label>Øktmal</label>
-              <select id="completeTemplate"></select>
-            </div>
+          <div>
+            <label>Dato</label>
+            <input id="completeDate" type="date" />
+          </div>
+          <div>
+            <label>Øktmal</label>
+            <select id="completeTemplate"></select>
           </div>
           <div>
             <label>Eget øktnavn</label>
@@ -604,6 +602,16 @@
             </div>
           </div>
           <div><label>Distanse km</label><input id="completeDistance" type="number" min="0" step="0.01" /></div>
+        </div>
+        <div id="completePacePreview" class="pace-preview hidden">
+          <div>
+            <strong id="completeSpeedPreview">-</strong>
+            <span>km/t</span>
+          </div>
+          <div>
+            <strong id="completePaceTextPreview">-</strong>
+            <span>min/km</span>
+          </div>
         </div>
         <div class="grid-2">
           <div><label>Snittpuls</label><input id="completeAvgHr" type="number" min="0" step="1" /></div>

@@ -151,6 +151,35 @@
       padding-right: 6px;
     }
 
+    .pace-preview {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .pace-preview div {
+      border: 1px solid var(--warm-gray-2);
+      border-radius: 14px;
+      background: var(--warm-gray-1);
+      padding: 12px;
+    }
+
+    .pace-preview strong {
+      display: block;
+      font-size: 1.15rem;
+      letter-spacing: 0;
+      color: var(--black);
+    }
+
+    .pace-preview span {
+      display: block;
+      margin-top: 2px;
+      font-size: 0.72rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      color: var(--warm-gray-3);
+    }
+
     @media (max-width: 420px) {
       .grid-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     }

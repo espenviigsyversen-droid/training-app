@@ -4,7 +4,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     import { getFirestore, doc, collection, getDoc, getDocs, setDoc, deleteDoc, writeBatch }
       from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
-    const APP_VERSION = 'v32';
+    const APP_VERSION = 'v33';
 
     const firebaseConfig = {
       apiKey: "AIzaSyAMPfQ9gX9rbuvcPsVjYVtq5IT_orjDBPs",
@@ -690,6 +690,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         'completeNotes'
       ]
         .forEach(id => document.getElementById(id).value = '');
+      updatePacePreview();
     }
 
     function setCompleteModalMode(mode) {
@@ -702,11 +703,16 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
 
     function completedFormData() {
       const durationSeconds = getDurationSecondsFromForm();
+      const distanceKm = document.getElementById('completeDistance').value || '';
+      const pace = calculatePaceMetrics(durationSeconds, distanceKm);
       return {
         durationSeconds: durationSeconds || '',
         durationDisplay: durationSeconds ? formatDuration(durationSeconds) : '',
         durationMinutes: durationSeconds ? Math.round(durationSeconds / 60) : '',
-        distanceKm: document.getElementById('completeDistance').value || '',
+        distanceKm,
+        averageSpeedKmh: pace.averageSpeedKmh || '',
+        paceSecondsPerKm: pace.paceSecondsPerKm || '',
+        paceDisplay: pace.paceDisplay || '',
         avgHeartRate: document.getElementById('completeAvgHr').value || '',
         maxHeartRate: document.getElementById('completeMaxHr').value || '',
         elevationGainM: document.getElementById('completeElevationGain').value || '',
@@ -765,11 +771,56 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       return `${minutes}:${String(seconds).padStart(2, '0')}`;
     }
 
+    function calculatePaceMetrics(durationSeconds, distanceKm) {
+      const seconds = parseNonNegativeInteger(durationSeconds);
+      const distance = Number(String(distanceKm || '').replace(',', '.'));
+      if (!seconds || !Number.isFinite(distance) || distance <= 0) {
+        return { averageSpeedKmh: '', paceSecondsPerKm: '', paceDisplay: '' };
+      }
+      const averageSpeedKmh = distance / (seconds / 3600);
+      const paceSecondsPerKm = Math.round(seconds / distance);
+      return {
+        averageSpeedKmh: averageSpeedKmh.toFixed(1),
+        paceSecondsPerKm,
+        paceDisplay: formatPace(paceSecondsPerKm)
+      };
+    }
+
+    function formatPace(secondsPerKm) {
+      const secondsTotal = parseNonNegativeInteger(secondsPerKm);
+      if (!secondsTotal) return '';
+      const minutes = Math.floor(secondsTotal / 60);
+      const seconds = secondsTotal % 60;
+      return `${minutes}:${String(seconds).padStart(2, '0')}`;
+    }
+
+    function updatePacePreview() {
+      const preview = document.getElementById('completePacePreview');
+      if (!preview) return;
+      const pace = calculatePaceMetrics(getDurationSecondsFromForm(), document.getElementById('completeDistance').value);
+      document.getElementById('completeSpeedPreview').textContent = pace.averageSpeedKmh || '-';
+      document.getElementById('completePaceTextPreview').textContent = pace.paceDisplay || '-';
+      preview.classList.toggle('hidden', !pace.averageSpeedKmh);
+    }
+
     function completedDurationLabel(completed) {
       if (completed.durationSeconds) return formatDuration(completed.durationSeconds);
       if (completed.durationDisplay) return completed.durationDisplay;
       if (completed.durationMinutes) return `${completed.durationMinutes} min`;
       return '';
+    }
+
+    function completedPaceMetrics(completed) {
+      if (completed.averageSpeedKmh || completed.paceDisplay) {
+        return {
+          averageSpeedKmh: completed.averageSpeedKmh || '',
+          paceDisplay: completed.paceDisplay || ''
+        };
+      }
+      return calculatePaceMetrics(
+        completed.durationSeconds || (completed.durationMinutes ? Number(completed.durationMinutes) * 60 : 0),
+        completed.distanceKm
+      );
     }
 
     function executionLabel(value) {
@@ -1354,9 +1405,12 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       const readiness = readinessLabel(c.readiness);
       const bodyStatus = bodyStatusLabel(c.bodyStatus);
       const trainingEffect = trainingEffectTag(c.trainingEffectType);
+      const pace = completedPaceMetrics(c);
       const metrics = [
         durationLabel || null,
         c.distanceKm ? `${c.distanceKm} km` : null,
+        pace.averageSpeedKmh ? `${pace.averageSpeedKmh} km/t` : null,
+        pace.paceDisplay ? `${pace.paceDisplay} min/km` : null,
         c.elevationGainM ? `${c.elevationGainM} hm` : null,
         c.treadmillInclinePercent ? `${c.treadmillInclinePercent}% mølle` : null,
         c.avgHeartRate ? `Snitt ${c.avgHeartRate} bpm` : null,
@@ -2396,6 +2450,13 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         setSyncStatus('error');
       }
     };
+
+    [
+      'completeDurationHours',
+      'completeDurationMinutes',
+      'completeDurationSeconds',
+      'completeDistance'
+    ].forEach(id => document.getElementById(id)?.addEventListener('input', updatePacePreview));
 
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
