@@ -257,6 +257,89 @@
       line-height: 1.35;
     }
 
+    .detail-modal { padding: 0; overflow: hidden; }
+
+    #workoutDetailContent {
+      max-height: 88vh;
+      overflow: auto;
+      padding: 18px;
+    }
+
+    .detail-hero {
+      margin: -18px -18px 16px;
+      padding: 22px 18px 20px;
+      background: linear-gradient(135deg, var(--black) 0%, #2f1a16 100%);
+      color: #fff;
+    }
+
+    .detail-hero h2 {
+      margin: 10px 0 4px;
+      font-size: 1.45rem;
+      line-height: 1.12;
+    }
+
+    .detail-hero p {
+      margin: 0;
+      color: rgba(255,255,255,0.72);
+      font-weight: 700;
+    }
+
+    .detail-metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    .detail-metric {
+      border: 1px solid var(--warm-gray-2);
+      border-radius: 16px;
+      padding: 12px;
+      background: #fff;
+    }
+
+    .detail-metric strong {
+      display: block;
+      color: var(--black);
+      font-size: 1.12rem;
+      line-height: 1.1;
+    }
+
+    .detail-metric span {
+      display: block;
+      margin-top: 5px;
+      color: var(--warm-gray-3);
+      font-size: 0.72rem;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: 0;
+    }
+
+    .detail-section {
+      border-top: 1px solid var(--warm-gray-1);
+      padding-top: 14px;
+      margin-top: 14px;
+    }
+
+    .detail-section h3 {
+      margin: 0 0 8px;
+      font-size: 0.82rem;
+      color: var(--warm-gray-3);
+      text-transform: uppercase;
+      letter-spacing: 0;
+    }
+
+    .detail-section p,
+    .detail-text {
+      margin: 6px 0 0;
+      color: var(--warm-gray-3);
+      line-height: 1.42;
+      font-size: 0.94rem;
+    }
+
+    .detail-section p strong,
+    .detail-text strong { color: var(--black); }
+
     .tag.weekly-good { background: rgba(31,157,85,0.12); color: var(--success); }
     .tag.weekly-calm { background: rgba(255,79,46,0.13); color: var(--burgundy); }
     .tag.weekly-caution { background: rgba(225,29,72,0.12); color: var(--red); }

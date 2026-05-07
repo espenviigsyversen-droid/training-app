@@ -4,7 +4,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     import { getFirestore, doc, collection, getDoc, getDocs, setDoc, deleteDoc, writeBatch }
       from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
-    const APP_VERSION = 'v36';
+    const APP_VERSION = 'v37';
 
     const firebaseConfig = {
       apiKey: "AIzaSyAMPfQ9gX9rbuvcPsVjYVtq5IT_orjDBPs",
@@ -1310,6 +1310,10 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       showToast(planned ? 'Økt flyttet tilbake til planlagt' : 'Historisk økt slettet');
     };
 
+    window.closeWorkoutDetailModal = function() {
+      document.getElementById('workoutDetailModal').classList.remove('active');
+    };
+
     // ── Render helpers ────────────────────────────────────────────────────────
     function getTemplate(id) {
       return state.templates.find(t => t.id === id) || { name: 'Slettet øktmal', type: 'Annet', intensity: '', purpose: '', load: '', recommendedWhen: '', avoidWhen: '', structure: '' };
@@ -1335,6 +1339,95 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         structure: completed.templateSnapshot?.structure || ''
       };
     }
+
+    function detailMetric(label, value) {
+      return value
+        ? `<div class="detail-metric"><strong>${escapeHtml(value)}</strong><span>${escapeHtml(label)}</span></div>`
+        : '';
+    }
+
+    function detailSection(title, html) {
+      return html
+        ? `<section class="detail-section"><h3>${escapeHtml(title)}</h3>${html}</section>`
+        : '';
+    }
+
+    function detailLine(label, value) {
+      return value
+        ? `<p><strong>${escapeHtml(label)}:</strong> ${escapeHtml(value)}</p>`
+        : '';
+    }
+
+    function completedDetailHtml(c) {
+      const t = completedTemplate(c);
+      const personProfile = normalizePersonProfile(state.settings.personProfile);
+      const profile = normalizeTrainingProfile(state.settings.trainingProfile);
+      const durationLabel = completedDurationLabel(c);
+      const pace = completedPaceMetrics(c);
+      const execution = executionLabel(c.execution);
+      const feeling = feelingLabel(c.feelingScore);
+      const readiness = readinessLabel(c.readiness);
+      const bodyStatus = bodyStatusLabel(c.bodyStatus);
+      const trainingEffect = trainingEffectInfo(c.trainingEffectType);
+      const assessment = completedLoadAssessment(c);
+      const coachNote = lastWorkoutCoachNote(c, profile).replace(/^Siste økt/, 'Denne økten');
+      const heartRateLines = [
+        detailLine('Snittpuls', c.avgHeartRate ? `${c.avgHeartRate} bpm${heartRateContextLabel(c.avgHeartRate, personProfile)}` : ''),
+        detailLine('Makspuls økt', c.maxHeartRate ? `${c.maxHeartRate} bpm${heartRateContextLabel(c.maxHeartRate, personProfile)}` : ''),
+        detailLine('Din maks/terskel', personProfile.maxHeartRate || personProfile.thresholdHeartRate
+          ? `${personProfile.maxHeartRate || '-'} / ${personProfile.thresholdHeartRate || '-'} bpm`
+          : '')
+      ].join('');
+      const terrainLines = [
+        detailLine('Høydemeter', c.elevationGainM ? `${c.elevationGainM} hm` : ''),
+        detailLine('Møllestigning', c.treadmillInclinePercent ? `${c.treadmillInclinePercent}%` : '')
+      ].join('');
+      const bodyLines = [
+        detailLine('Status', bodyStatus),
+        detailLine('Kroppsnotat', c.bodyStatus?.notes || '')
+      ].join('');
+      return `
+        <div class="detail-hero">
+          <span class="tag done">Utført</span>
+          <h2>${escapeHtml(t.name)}</h2>
+          <p>${formatDate(c.date)} · ${escapeHtml(t.type)}${t.intensity ? ` · ${escapeHtml(t.intensity)}` : ''}</p>
+        </div>
+        <div class="detail-metrics-grid">
+          ${detailMetric('Varighet', durationLabel)}
+          ${detailMetric('Distanse', c.distanceKm ? `${c.distanceKm} km` : '')}
+          ${detailMetric('Pace', pace.paceDisplay ? `${pace.paceDisplay} min/km` : '')}
+          ${detailMetric('Fart', pace.averageSpeedKmh ? `${pace.averageSpeedKmh} km/t` : '')}
+        </div>
+        ${detailSection('Belastning', `
+          <div class="load-assessment ${assessment.level}">
+            <span class="tag load-${assessment.level}">${escapeHtml(assessment.label)}</span>
+            <p>${escapeHtml(assessment.reason)}</p>
+          </div>
+          ${trainingEffect ? `<p class="detail-text"><strong>Garmin:</strong> ${escapeHtml(trainingEffect.label)} · ${escapeHtml(trainingEffect.categoryLabel)}</p>` : ''}
+          ${c.rpe ? `<p class="detail-text"><strong>Opplevd intensitet:</strong> ${escapeHtml(c.rpe)}/10</p>` : ''}
+        `)}
+        ${detailSection('Puls', heartRateLines)}
+        ${detailSection('Terreng og stigning', terrainLines)}
+        ${detailSection('Gjennomføring', [
+          detailLine('Gjennomføring', execution),
+          detailLine('Følelse etter økt', feeling),
+          detailLine('Dagsform før økt', readiness)
+        ].join(''))}
+        ${detailSection('Kropp og tilpasning', bodyLines)}
+        ${detailSection('Coach-notat', `<p>${escapeHtml(coachNote)}</p>`)}
+        ${detailSection('Egne notater', c.notes ? `<p>${escapeHtml(c.notes)}</p>` : '')}
+        <div class="button-row">
+          <button class="btn-primary" onclick="editCompleted('${c.id}'); closeWorkoutDetailModal();">Rediger</button>
+          <button class="btn-soft" onclick="closeWorkoutDetailModal()">Lukk</button>
+        </div>`;
+    }
+
+    window.openWorkoutDetail = function(completedId) {
+      const completed = state.completed.find(c => c.id === completedId);
+      if (!completed) return;
+      document.getElementById('workoutDetailContent').innerHTML = completedDetailHtml(completed);
+      document.getElementById('workoutDetailModal').classList.add('active');
+    };
 
     function workoutCard(planned, options = {}) {
       const t = getTemplate(planned.templateId);
@@ -1469,6 +1562,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
           ${c.bodyStatus?.notes ? `<p class="meta"><strong>Kroppsnotat:</strong> ${escapeHtml(c.bodyStatus.notes)}</p>` : ''}
           ${c.notes ? `<p class="meta"><strong>Notat:</strong> ${escapeHtml(c.notes)}</p>` : ''}
           <div class="button-row">
+            <button class="btn-primary" onclick="openWorkoutDetail('${c.id}')">Detaljer</button>
             <button class="btn-primary" onclick="editCompleted('${c.id}')">Rediger</button>
             <button class="btn-soft" onclick="undoComplete('${c.id}')">${c.plannedWorkoutId ? 'Angre utført' : 'Slett'}</button>
           </div>
