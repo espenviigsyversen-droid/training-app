@@ -4,7 +4,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     import { getFirestore, doc, collection, getDoc, getDocs, setDoc, deleteDoc, writeBatch }
       from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
-    const APP_VERSION = 'v29';
+    const APP_VERSION = 'v30';
 
     const firebaseConfig = {
       apiKey: "AIzaSyAMPfQ9gX9rbuvcPsVjYVtq5IT_orjDBPs",
@@ -956,6 +956,49 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
           <span class="tag load-${assessment.level}">Belastning: ${escapeHtml(assessment.label)}</span>
           <p>${escapeHtml(assessment.reason)}</p>
         </div>`;
+    }
+
+    function latestCompletedWorkout(items = state.completed) {
+      return [...items].sort((a, b) => {
+        const dateCompare = String(b.date || '').localeCompare(String(a.date || ''));
+        if (dateCompare) return dateCompare;
+        return String(b.completedAt || b.updatedAt || '').localeCompare(String(a.completedAt || a.updatedAt || ''));
+      })[0] || null;
+    }
+
+    function lastWorkoutCoachNote(completed, profile) {
+      if (!completed) return '';
+      const template = getTemplate(completed.templateId);
+      const assessment = completedLoadAssessment(completed);
+      const painBefore = numberOrZero(completed.bodyStatus?.painBefore);
+      const painAfter = numberOrZero(completed.bodyStatus?.painAfter);
+      const adaptation = completed.bodyStatus?.adaptation || '';
+      const incline = numberOrZero(completed.treadmillInclinePercent);
+      const elevationGain = numberOrZero(completed.elevationGainM);
+      const distance = numberOrZero(completed.distanceKm);
+      const elevationPerKm = distance ? elevationGain / distance : 0;
+      const hillContext = incline >= 4 || elevationPerKm >= 20 || elevationGain >= 150;
+      const runningBakkenFocus = profile.primaryFocus === 'running' && profile.philosophy === 'bakken_threshold';
+      const intro = `Siste økt (${template.name}) vurderes som ${assessment.label.toLowerCase()}.`;
+
+      if (painAfter >= 4 || painAfter > painBefore + 1) {
+        return `${intro} Siden smerte ble registrert eller økte, bør neste økt være rolig, alternativ eller hvile hvis samme område fortsatt kjennes.`;
+      }
+      if (assessment.level === 'high') {
+        return runningBakkenFocus
+          ? `${intro} Med Bakken-inspirert løpsfokus bør neste økt gi overskudd tilbake: rolig volum, mobilitet eller hvile før mer kvalitet.`
+          : `${intro} Neste økt bør trolig være rolig eller kontrollert, spesielt hvis beina kjennes tunge.`;
+      }
+      if (adaptation && adaptation !== 'none') {
+        return `${intro} Økten ble tilpasset (${adaptationLabel(adaptation).toLowerCase()}). Bruk neste økt til å bekrefte at kroppen responderer fint før du øker belastningen.`;
+      }
+      if (hillContext && assessment.level === 'moderate') {
+        return `${intro} Bakke eller møllestigning forklarer noe av innsatsen, så vurder neste økt etter bein og pulsrespons, ikke bare tempo.`;
+      }
+      if (assessment.level === 'moderate') {
+        return `${intro} Dette er en fin treningsbelastning, men neste kvalitetsøkt bør helst komme med friske bein.`;
+      }
+      return `${intro} Kroppen ser ut til å tåle normal plan videre, så lenge dagsformen fortsatt er grei.`;
     }
 
     window.openCompleteModal = function(plannedId) {
@@ -1955,6 +1998,10 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     }
 
     function buildCoachNote(weekSummary, goals, last14Days, profile) {
+      const latest = latestCompletedWorkout(state.completed.filter(c => c.date <= todayISO()));
+      const latestNote = lastWorkoutCoachNote(latest, profile);
+      if (latestNote) return latestNote;
+
       const painItems = last14Days.filter(c => c.bodyStatus?.painBefore || c.bodyStatus?.painAfter || c.bodyStatus?.area);
       const hardItems = last14Days.filter(isHardWorkout);
       const runningBakkenFocus = profile.primaryFocus === 'running' && profile.philosophy === 'bakken_threshold';
