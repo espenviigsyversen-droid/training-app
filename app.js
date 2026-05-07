@@ -4,7 +4,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     import { getFirestore, doc, collection, getDoc, getDocs, setDoc, deleteDoc, writeBatch }
       from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
-    const APP_VERSION = 'v41';
+    const APP_VERSION = 'v42';
 
     const firebaseConfig = {
       apiKey: "AIzaSyAMPfQ9gX9rbuvcPsVjYVtq5IT_orjDBPs",
@@ -2079,6 +2079,90 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       select.value = values.includes(selected) ? selected : 'Alle';
     }
 
+    function hasBodySignal(completed) {
+      const adaptation = completed.bodyStatus?.adaptation || '';
+      return Boolean(
+        completed.bodyStatus?.painBefore ||
+        completed.bodyStatus?.painAfter ||
+        completed.bodyStatus?.area ||
+        completed.bodyStatus?.notes ||
+        (adaptation && adaptation !== 'none')
+      );
+    }
+
+    function completedSearchText(completed) {
+      const template = completedTemplate(completed);
+      return [
+        template.name,
+        template.type,
+        template.intensity,
+        template.structure,
+        completed.manualName,
+        completed.notes,
+        completed.bodyStatus?.area,
+        completed.bodyStatus?.notes,
+        executionLabel(completed.execution),
+        feelingLabel(completed.feelingScore),
+        trainingEffectInfo(completed.trainingEffectType)?.label,
+        completedLoadAssessment(completed).label
+      ].filter(Boolean).join(' ').toLowerCase();
+    }
+
+    function historyPeriodRange(period) {
+      const today = todayISO();
+      if (period === '7') return { from: addDays(today, -6), to: today };
+      if (period === '28') return { from: addDays(today, -27), to: today };
+      if (period === 'month') return { from: `${today.slice(0, 8)}01`, to: today };
+      if (period === 'custom') {
+        return {
+          from: document.getElementById('historyFromDate')?.value || '',
+          to: document.getElementById('historyToDate')?.value || ''
+        };
+      }
+      return { from: '', to: '' };
+    }
+
+    function filteredCompletedHistory() {
+      const typeFilter = document.getElementById('historyFilter')?.value || 'Alle';
+      const sort = document.getElementById('historySort')?.value || 'desc';
+      const period = document.getElementById('historyPeriod')?.value || 'all';
+      const effect = document.getElementById('historyEffect')?.value || 'all';
+      const load = document.getElementById('historyLoad')?.value || 'all';
+      const bodySignal = document.getElementById('historyBodySignal')?.value || 'all';
+      const search = (document.getElementById('historySearch')?.value || '').trim().toLowerCase();
+      const range = historyPeriodRange(period);
+
+      let completed = [...state.completed];
+      if (typeFilter !== 'Alle') completed = completed.filter(c => completedTemplate(c).type === typeFilter);
+      if (range.from) completed = completed.filter(c => c.date >= range.from);
+      if (range.to) completed = completed.filter(c => c.date <= range.to);
+      if (effect !== 'all') {
+        completed = completed.filter(c => {
+          const category = c.trainingEffectCategory || trainingEffectCategory(c.trainingEffectType);
+          return effect === 'missing' ? !category : category === effect;
+        });
+      }
+      if (load !== 'all') completed = completed.filter(c => completedLoadAssessment(c).level === load);
+      if (bodySignal !== 'all') completed = completed.filter(c => hasBodySignal(c) === (bodySignal === 'yes'));
+      if (search) completed = completed.filter(c => completedSearchText(c).includes(search));
+      completed.sort((a,b) => sort === 'desc'
+        ? String(b.date || '').localeCompare(String(a.date || ''))
+        : String(a.date || '').localeCompare(String(b.date || '')));
+      return completed;
+    }
+
+    function renderHistoryFilterSummary(completed) {
+      const period = document.getElementById('historyPeriod')?.value || 'all';
+      const customRange = document.getElementById('historyCustomRange');
+      if (customRange) customRange.classList.toggle('hidden', period !== 'custom');
+      const total = state.completed.length;
+      const summary = document.getElementById('historyFilterSummary');
+      if (!summary) return;
+      summary.textContent = total === completed.length
+        ? `${completed.length} økt${completed.length === 1 ? '' : 'er'} i historikken.`
+        : `Viser ${completed.length} av ${total} økt${total === 1 ? '' : 'er'}.`;
+    }
+
     function dateToISO(date) {
       return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`;
     }
@@ -2609,14 +2693,11 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         ? state.templates.map(templateCard).join('')
         : `<div class="empty">Ingen øktmaler enda. Lag din første over.</div>`;
 
-      const filter = document.getElementById('historyFilter')?.value || 'Alle';
-      const sort = document.getElementById('historySort')?.value || 'desc';
-      let completed = [...state.completed];
-      if (filter !== 'Alle') completed = completed.filter(c => completedTemplate(c).type === filter);
-      completed.sort((a,b) => sort === 'desc' ? b.date.localeCompare(a.date) : a.date.localeCompare(b.date));
+      const completed = filteredCompletedHistory();
+      renderHistoryFilterSummary(completed);
       document.getElementById('historyList').innerHTML = completed.length
         ? completed.map(completedCard).join('')
-        : `<div class="empty">Ingen historikk enda.</div>`;
+        : `<div class="empty">Ingen økter matcher filtrene.</div>`;
     }
 
     window.render = render;

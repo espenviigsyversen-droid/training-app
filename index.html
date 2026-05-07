@@ -247,7 +247,21 @@
         <div class="card">
           <h2 class="section-title">Historikk</h2>
           <button class="btn-primary btn-full" onclick="openHistoricalCompleteModal()" style="margin-bottom:12px;">+ Legg inn historisk økt</button>
-          <div class="grid-2" style="margin-bottom:12px;">
+          <div class="history-filters">
+            <div>
+              <label>Søk</label>
+              <input id="historySearch" type="search" placeholder="Øktnavn, notat, område" oninput="render()" />
+            </div>
+            <div>
+              <label>Periode</label>
+              <select id="historyPeriod" onchange="render()">
+                <option value="all">Alle datoer</option>
+                <option value="7">Siste 7 dager</option>
+                <option value="28">Siste 4 uker</option>
+                <option value="month">Denne måneden</option>
+                <option value="custom">Egendefinert</option>
+              </select>
+            </div>
             <div>
               <label>Filter type</label>
               <select id="historyFilter" onchange="render()">
@@ -261,6 +275,33 @@
               </select>
             </div>
             <div>
+              <label>Garmin-effekt</label>
+              <select id="historyEffect" onchange="render()">
+                <option value="all">Alle</option>
+                <option value="low_aerobic">Rolig / Low Aerobic</option>
+                <option value="high_aerobic">Moderat / High Aerobic</option>
+                <option value="anaerobic">Hard / Anaerobic</option>
+                <option value="missing">Mangler Garmin-valg</option>
+              </select>
+            </div>
+            <div>
+              <label>Belastning</label>
+              <select id="historyLoad" onchange="render()">
+                <option value="all">Alle</option>
+                <option value="low">Lav</option>
+                <option value="moderate">Moderat</option>
+                <option value="high">Høy</option>
+              </select>
+            </div>
+            <div>
+              <label>Kroppssignal</label>
+              <select id="historyBodySignal" onchange="render()">
+                <option value="all">Alle</option>
+                <option value="yes">Kun med signal</option>
+                <option value="no">Uten signal</option>
+              </select>
+            </div>
+            <div>
               <label>Sortering</label>
               <select id="historySort" onchange="render()">
                 <option value="desc">Nyeste først</option>
@@ -268,6 +309,11 @@
               </select>
             </div>
           </div>
+          <div id="historyCustomRange" class="history-custom-range hidden">
+            <div><label>Fra</label><input id="historyFromDate" type="date" onchange="render()" /></div>
+            <div><label>Til</label><input id="historyToDate" type="date" onchange="render()" /></div>
+          </div>
+          <p id="historyFilterSummary" class="small-note"></p>
           <div id="historyList"></div>
         </div>
       </section>
