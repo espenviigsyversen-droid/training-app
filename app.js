@@ -4,7 +4,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     import { getFirestore, doc, collection, getDoc, getDocs, setDoc, deleteDoc, writeBatch }
       from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
-    const APP_VERSION = 'v33';
+    const APP_VERSION = 'v34';
 
     const firebaseConfig = {
       apiKey: "AIzaSyAMPfQ9gX9rbuvcPsVjYVtq5IT_orjDBPs",
@@ -690,6 +690,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         'completeNotes'
       ]
         .forEach(id => document.getElementById(id).value = '');
+      document.getElementById('completeAdaptation').value = 'none';
       updatePacePreview();
     }
 
@@ -732,7 +733,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
           painBefore: document.getElementById('completePainBefore').value || '',
           painAfter: document.getElementById('completePainAfter').value || '',
           area: document.getElementById('completePainArea').value.trim(),
-          adaptation: document.getElementById('completeAdaptation').value || '',
+          adaptation: document.getElementById('completeAdaptation').value || 'none',
           notes: document.getElementById('completeBodyNotes').value.trim()
         },
         notes: document.getElementById('completeNotes').value.trim()
@@ -893,7 +894,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         bodyStatus.painBefore ? `Smerte før ${painScaleLabel(bodyStatus.painBefore)}` : null,
         bodyStatus.painAfter ? `Smerte etter ${painScaleLabel(bodyStatus.painAfter)}` : null,
         bodyStatus.area ? `Område: ${bodyStatus.area}` : null,
-        bodyStatus.adaptation ? `Tilpasning: ${adaptationLabel(bodyStatus.adaptation)}` : null
+        bodyStatus.adaptation && bodyStatus.adaptation !== 'none' ? `Tilpasning: ${adaptationLabel(bodyStatus.adaptation)}` : null
       ].filter(Boolean);
       return parts.join(' · ');
     }
@@ -1177,7 +1178,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       document.getElementById('completePainBefore').value = completed.bodyStatus?.painBefore || '';
       document.getElementById('completePainAfter').value = completed.bodyStatus?.painAfter || '';
       document.getElementById('completePainArea').value = completed.bodyStatus?.area || '';
-      document.getElementById('completeAdaptation').value = completed.bodyStatus?.adaptation || '';
+      document.getElementById('completeAdaptation').value = completed.bodyStatus?.adaptation || 'none';
       document.getElementById('completeBodyNotes').value = completed.bodyStatus?.notes || '';
       document.getElementById('completeNotes').value = completed.notes || '';
       document.getElementById('completeModal').classList.add('active');
