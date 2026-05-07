@@ -4,7 +4,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     import { getFirestore, doc, collection, getDoc, getDocs, setDoc, deleteDoc, writeBatch }
       from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
-    const APP_VERSION = 'v45';
+    const APP_VERSION = 'v46';
 
     const firebaseConfig = {
       apiKey: "AIzaSyAMPfQ9gX9rbuvcPsVjYVtq5IT_orjDBPs",
@@ -1899,15 +1899,15 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       const deltaText = latest && previous && Math.abs(delta) > 0.05
         ? `${delta > 0 ? 'Opp' : 'Ned'} ${formatter(Math.abs(delta))}`
         : latest && previous ? 'Stabil' : 'Ingen trend ennå';
-      const summaryText = latest && previous
-        ? `Nå ${latestDisplay} · Forrige ${formatter(previous.value)} · ${deltaText}`
-        : latest ? `Nå ${latestDisplay} · ${deltaText}` : deltaText;
+      const summaryItems = latest && previous
+        ? [`Nå: ${latestDisplay}`, `Forrige: ${formatter(previous.value)}`, deltaText]
+        : latest ? [`Nå: ${latestDisplay}`, deltaText] : [deltaText];
       const displayPoints = points.map(point => ({ ...point, display: formatter(point.value) }));
       return `
         <div class="trend-card">
           <div class="trend-card-top">
             <strong>${escapeHtml(title)}</strong>
-            <span>${escapeHtml(summaryText)}</span>
+            <span class="trend-summary">${summaryItems.map(item => `<em>${escapeHtml(item)}</em>`).join('')}</span>
           </div>
           ${trendSvg(displayPoints, mode)}
           <div class="trend-labels">
@@ -2396,7 +2396,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     }
 
     function renderVolumeTrends(weeks) {
-      const shortWeekLabel = week => week.start === startOfWeek(todayISO()) ? 'Nå' : formatShortDate(week.start);
+      const shortWeekLabel = week => week.start === startOfWeek(todayISO()) ? 'Nå' : formatShortDate(week.start).replace('.', '');
       const sessionPoints = weeks.map(week => ({
         label: shortWeekLabel(week),
         value: week.summary.sessions
@@ -2728,7 +2728,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       renderIntensityBalance(today, profile);
       renderContinuity(weekSummary, goals, weekStart);
 
-      const trendWeeks = recentWeekSummaries(weekStart, 8);
+      const trendWeeks = recentWeekSummaries(weekStart, 6);
       renderVolumeTrends(trendWeeks);
 
       const weeks = trendWeeks.slice(-4);
