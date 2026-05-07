@@ -4,7 +4,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     import { getFirestore, doc, collection, getDoc, getDocs, setDoc, deleteDoc, writeBatch }
       from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
-    const APP_VERSION = 'v28';
+    const APP_VERSION = 'v29';
 
     const firebaseConfig = {
       apiKey: "AIzaSyAMPfQ9gX9rbuvcPsVjYVtq5IT_orjDBPs",
@@ -865,6 +865,99 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       return `<span class="tag ${info.className}">${escapeHtml(info.label)}</span>`;
     }
 
+    function numberOrZero(value) {
+      return Number(String(value || '').replace(',', '.')) || 0;
+    }
+
+    function completedLoadAssessment(completed) {
+      const effectCategory = completed.trainingEffectCategory || trainingEffectCategory(completed.trainingEffectType);
+      const rpe = numberOrZero(completed.rpe);
+      const feeling = numberOrZero(completed.feelingScore);
+      const painBefore = numberOrZero(completed.bodyStatus?.painBefore);
+      const painAfter = numberOrZero(completed.bodyStatus?.painAfter);
+      const elevationGain = numberOrZero(completed.elevationGainM);
+      const incline = numberOrZero(completed.treadmillInclinePercent);
+      const distance = numberOrZero(completed.distanceKm);
+      const elevationPerKm = distance ? elevationGain / distance : 0;
+      const adaptation = completed.bodyStatus?.adaptation || '';
+      const reasons = [];
+      let score = 0;
+
+      if (effectCategory === 'anaerobic') {
+        score += 4;
+        reasons.push('Garmin-effekt anaerob');
+      } else if (effectCategory === 'high_aerobic') {
+        score += 3;
+        reasons.push('Garmin-effekt høy aerob');
+      } else if (effectCategory === 'low_aerobic') {
+        score += 1;
+        reasons.push('Garmin-effekt lav aerob');
+      }
+
+      if (rpe >= 8) {
+        score += 4;
+        reasons.push(`RPE ${completed.rpe}/10`);
+      } else if (rpe >= 6) {
+        score += 2;
+        reasons.push(`RPE ${completed.rpe}/10`);
+      } else if (rpe > 0) {
+        reasons.push(`RPE ${completed.rpe}/10`);
+      }
+
+      if (feeling && feeling <= 2) {
+        score += 1;
+        reasons.push('føltes tung');
+      }
+
+      if (painAfter >= 4 || painAfter > painBefore + 1) {
+        score += 2;
+        reasons.push('smerte økte/betydelig');
+      } else if (painBefore || painAfter) {
+        reasons.push('smerte registrert');
+      }
+
+      if (['shorter', 'easier', 'alternative', 'aborted'].includes(adaptation)) {
+        score += 1;
+        reasons.push(`tilpasning: ${adaptationLabel(adaptation).toLowerCase()}`);
+      }
+
+      if (incline >= 4 || elevationPerKm >= 20 || elevationGain >= 150) {
+        score += 1;
+        reasons.push(incline >= 4 ? `${completed.treadmillInclinePercent}% møllestigning` : `${completed.elevationGainM} hm`);
+      }
+
+      let level = 'low';
+      let label = 'Lav belastning';
+      if (score >= 6) {
+        level = 'high';
+        label = 'Høy belastning';
+      } else if (score >= 3) {
+        level = 'moderate';
+        label = 'Moderat belastning';
+      }
+
+      if ((incline >= 4 || elevationPerKm >= 20 || elevationGain >= 150) && level !== 'low') {
+        label += ' - bakke/stigning påvirker';
+      }
+      if ((painAfter >= 4 || painAfter > painBefore + 1) && level !== 'low') {
+        label += ' - følg med på kroppen';
+      }
+
+      const reason = reasons.length
+        ? reasons.slice(0, 3).join(' · ')
+        : 'Mangler nok intensitetsdata for tydelig vurdering.';
+      return { level, label, reason };
+    }
+
+    function loadAssessmentHtml(completed) {
+      const assessment = completedLoadAssessment(completed);
+      return `
+        <div class="load-assessment ${assessment.level}">
+          <span class="tag load-${assessment.level}">Belastning: ${escapeHtml(assessment.label)}</span>
+          <p>${escapeHtml(assessment.reason)}</p>
+        </div>`;
+    }
+
     window.openCompleteModal = function(plannedId) {
       clearCompleteForm();
       setCompleteModalMode('create');
@@ -1095,6 +1188,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
           </div>
           ${metrics ? `<p class="meta">${escapeHtml(metrics)}</p>` : ''}
           ${trainingEffect ? `<div class="meta">${trainingEffect}</div>` : ''}
+          ${loadAssessmentHtml(c)}
           ${execution ? `<p class="meta"><strong>Gjennomføring:</strong> ${escapeHtml(execution)}</p>` : ''}
           ${feeling ? `<p class="meta"><strong>Følelse:</strong> ${escapeHtml(feeling)}</p>` : ''}
           ${readiness ? `<p class="meta"><strong>Dagsform:</strong> ${escapeHtml(readiness)}</p>` : ''}
