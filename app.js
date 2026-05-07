@@ -4,7 +4,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     import { getFirestore, doc, collection, getDoc, getDocs, setDoc, deleteDoc, writeBatch }
       from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
-    const APP_VERSION = 'v25';
+    const APP_VERSION = 'v26';
 
     const firebaseConfig = {
       apiKey: "AIzaSyAMPfQ9gX9rbuvcPsVjYVtq5IT_orjDBPs",
@@ -785,12 +785,34 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       return labels[value] ? `${value}/5 - ${labels[value]}` : '';
     }
 
+    function scale5Label(value, labels) {
+      if (!value) return '';
+      return `${value}/5 (${labels[value] || 'OK'})`;
+    }
+
+    function painScaleLabel(value) {
+      if (value === '' || value === null || value === undefined) return '';
+      const num = Number(value);
+      let label = 'moderat';
+      if (num === 0) label = 'ingen';
+      else if (num <= 2) label = 'lett';
+      else if (num <= 4) label = 'merkbar';
+      else if (num <= 6) label = 'moderat';
+      else if (num <= 8) label = 'høy';
+      else label = 'svært høy';
+      return `${value}/10 (${label})`;
+    }
+
     function readinessLabel(readiness = {}) {
+      const energyLabels = { '1': 'lav', '2': 'litt lav', '3': 'OK', '4': 'bra', '5': 'høy' };
+      const legsLabels = { '1': 'tunge', '2': 'litt tunge', '3': 'OK', '4': 'bra', '5': 'lette' };
+      const sleepLabels = { '1': 'dårlig', '2': 'litt dårlig', '3': 'OK', '4': 'bra', '5': 'god' };
+      const stressLabels = { '1': 'lavt', '2': 'litt lavt', '3': 'OK', '4': 'høyt', '5': 'veldig høyt' };
       const parts = [
-        readiness.energy ? `Energi ${readiness.energy}/5` : null,
-        readiness.legs ? `Ben ${readiness.legs}/5` : null,
-        readiness.sleep ? `Søvn ${readiness.sleep}/5` : null,
-        readiness.stress ? `Stress ${readiness.stress}/5` : null
+        readiness.energy ? `Energi ${scale5Label(readiness.energy, energyLabels)}` : null,
+        readiness.legs ? `Ben ${scale5Label(readiness.legs, legsLabels)}` : null,
+        readiness.sleep ? `Søvn ${scale5Label(readiness.sleep, sleepLabels)}` : null,
+        readiness.stress ? `Stress ${scale5Label(readiness.stress, stressLabels)}` : null
       ].filter(Boolean);
       return parts.join(' · ');
     }
@@ -808,8 +830,8 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
 
     function bodyStatusLabel(bodyStatus = {}) {
       const parts = [
-        bodyStatus.painBefore ? `Smerte før ${bodyStatus.painBefore}/10` : null,
-        bodyStatus.painAfter ? `Smerte etter ${bodyStatus.painAfter}/10` : null,
+        bodyStatus.painBefore ? `Smerte før ${painScaleLabel(bodyStatus.painBefore)}` : null,
+        bodyStatus.painAfter ? `Smerte etter ${painScaleLabel(bodyStatus.painAfter)}` : null,
         bodyStatus.area ? `Område: ${bodyStatus.area}` : null,
         bodyStatus.adaptation ? `Tilpasning: ${adaptationLabel(bodyStatus.adaptation)}` : null
       ].filter(Boolean);
