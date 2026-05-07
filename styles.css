@@ -238,6 +238,14 @@
     .tag.load-low { background: rgba(31,157,85,0.12); color: var(--success); }
     .tag.load-moderate { background: rgba(217,119,6,0.14); color: var(--warning); }
     .tag.load-high { background: rgba(225,29,72,0.12); color: var(--red); }
+    .tag.body-signal { background: rgba(225,29,72,0.1); color: var(--red); }
+
+    .compact-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 7px;
+      margin-top: 10px;
+    }
 
     .load-assessment {
       margin-top: 8px;

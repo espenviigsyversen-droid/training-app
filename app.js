@@ -4,7 +4,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     import { getFirestore, doc, collection, getDoc, getDocs, setDoc, deleteDoc, writeBatch }
       from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
-    const APP_VERSION = 'v37';
+    const APP_VERSION = 'v38';
 
     const firebaseConfig = {
       apiKey: "AIzaSyAMPfQ9gX9rbuvcPsVjYVtq5IT_orjDBPs",
@@ -1524,25 +1524,18 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
 
     function completedCard(c) {
       const t = completedTemplate(c);
-      const personProfile = normalizePersonProfile(state.settings.personProfile);
       const durationLabel = completedDurationLabel(c);
-      const execution = executionLabel(c.execution);
-      const feeling = feelingLabel(c.feelingScore);
-      const readiness = readinessLabel(c.readiness);
-      const bodyStatus = bodyStatusLabel(c.bodyStatus);
       const trainingEffect = trainingEffectTag(c.trainingEffectType);
+      const assessment = completedLoadAssessment(c);
       const pace = completedPaceMetrics(c);
       const metrics = [
         durationLabel || null,
         c.distanceKm ? `${c.distanceKm} km` : null,
-        pace.averageSpeedKmh ? `${pace.averageSpeedKmh} km/t` : null,
         pace.paceDisplay ? `${pace.paceDisplay} min/km` : null,
-        c.elevationGainM ? `${c.elevationGainM} hm` : null,
-        c.treadmillInclinePercent ? `${c.treadmillInclinePercent}% mølle` : null,
-        c.avgHeartRate ? `Snitt ${c.avgHeartRate} bpm${heartRateContextLabel(c.avgHeartRate, personProfile)}` : null,
-        c.maxHeartRate ? `Maks ${c.maxHeartRate} bpm${heartRateContextLabel(c.maxHeartRate, personProfile)}` : null,
+        c.avgHeartRate ? `${c.avgHeartRate} bpm snitt` : null,
         c.rpe ? `RPE ${c.rpe}/10` : null
       ].filter(Boolean).join(' · ');
+      const bodySignal = c.bodyStatus?.painBefore || c.bodyStatus?.painAfter || (c.bodyStatus?.adaptation && c.bodyStatus.adaptation !== 'none');
       return `
         <div class="workout-card">
           <div class="workout-top">
@@ -1553,14 +1546,11 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
             <span class="tag done">Utført</span>
           </div>
           ${metrics ? `<p class="meta">${escapeHtml(metrics)}</p>` : ''}
-          ${trainingEffect ? `<div class="meta">${trainingEffect}</div>` : ''}
-          ${loadAssessmentHtml(c)}
-          ${execution ? `<p class="meta"><strong>Gjennomføring:</strong> ${escapeHtml(execution)}</p>` : ''}
-          ${feeling ? `<p class="meta"><strong>Følelse:</strong> ${escapeHtml(feeling)}</p>` : ''}
-          ${readiness ? `<p class="meta"><strong>Dagsform:</strong> ${escapeHtml(readiness)}</p>` : ''}
-          ${bodyStatus ? `<p class="meta"><strong>Kropp:</strong> ${escapeHtml(bodyStatus)}</p>` : ''}
-          ${c.bodyStatus?.notes ? `<p class="meta"><strong>Kroppsnotat:</strong> ${escapeHtml(c.bodyStatus.notes)}</p>` : ''}
-          ${c.notes ? `<p class="meta"><strong>Notat:</strong> ${escapeHtml(c.notes)}</p>` : ''}
+          <div class="compact-tags">
+            ${trainingEffect}
+            <span class="tag load-${assessment.level}">${escapeHtml(assessment.label)}</span>
+            ${bodySignal ? '<span class="tag body-signal">Kroppssignal</span>' : ''}
+          </div>
           <div class="button-row">
             <button class="btn-primary" onclick="openWorkoutDetail('${c.id}')">Detaljer</button>
             <button class="btn-primary" onclick="editCompleted('${c.id}')">Rediger</button>
