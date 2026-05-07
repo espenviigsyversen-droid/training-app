@@ -4,7 +4,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     import { getFirestore, doc, collection, getDoc, getDocs, setDoc, deleteDoc, writeBatch }
       from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
-    const APP_VERSION = 'v39';
+    const APP_VERSION = 'v40';
 
     const firebaseConfig = {
       apiKey: "AIzaSyAMPfQ9gX9rbuvcPsVjYVtq5IT_orjDBPs",
@@ -958,8 +958,69 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       return Number(String(value || '').replace(',', '.')) || 0;
     }
 
+    function heartRateLoadSignals(completed, profile = normalizePersonProfile(state.settings.personProfile)) {
+      const avgHr = numberOrZero(completed.avgHeartRate);
+      const workoutMaxHr = numberOrZero(completed.maxHeartRate);
+      const profileMaxHr = numberOrZero(profile.maxHeartRate);
+      const thresholdHr = numberOrZero(profile.thresholdHeartRate);
+      const rpe = numberOrZero(completed.rpe);
+      const reasons = [];
+      let score = 0;
+      let highPulse = false;
+      let calmPulse = false;
+
+      if (avgHr && thresholdHr) {
+        const thresholdPct = avgHr / thresholdHr;
+        if (thresholdPct >= 1.02) {
+          score += 3;
+          highPulse = true;
+          reasons.push(`snittpuls ${Math.round(thresholdPct * 100)}% av terskel`);
+        } else if (thresholdPct >= 0.97) {
+          score += 2;
+          highPulse = true;
+          reasons.push(`snittpuls tett på terskel (${Math.round(thresholdPct * 100)}%)`);
+        } else if (thresholdPct >= 0.92) {
+          score += 1;
+          reasons.push(`snittpuls kontrollert høy (${Math.round(thresholdPct * 100)}% terskel)`);
+        } else if (thresholdPct <= 0.82 && rpe > 0 && rpe <= 3) {
+          score -= 1;
+          calmPulse = true;
+          reasons.push('lav puls og lav RPE');
+        }
+      } else if (avgHr && profileMaxHr) {
+        const maxPct = avgHr / profileMaxHr;
+        if (maxPct >= 0.88) {
+          score += 2;
+          highPulse = true;
+          reasons.push(`snittpuls ${Math.round(maxPct * 100)}% av maks`);
+        } else if (maxPct >= 0.82) {
+          score += 1;
+          reasons.push(`snittpuls ${Math.round(maxPct * 100)}% av maks`);
+        } else if (maxPct <= 0.72 && rpe > 0 && rpe <= 3) {
+          score -= 1;
+          calmPulse = true;
+          reasons.push('lav puls og lav RPE');
+        }
+      }
+
+      if (workoutMaxHr && profileMaxHr) {
+        const maxPct = workoutMaxHr / profileMaxHr;
+        if (maxPct >= 0.95) {
+          score += 2;
+          highPulse = true;
+          reasons.push(`makspuls nær maks (${Math.round(maxPct * 100)}%)`);
+        } else if (maxPct >= 0.90) {
+          score += 1;
+          reasons.push(`makspuls høy (${Math.round(maxPct * 100)}% maks)`);
+        }
+      }
+
+      return { score, reasons, highPulse, calmPulse };
+    }
+
     function completedLoadAssessment(completed) {
       const effectCategory = completed.trainingEffectCategory || trainingEffectCategory(completed.trainingEffectType);
+      const personProfile = normalizePersonProfile(state.settings.personProfile);
       const rpe = numberOrZero(completed.rpe);
       const feeling = numberOrZero(completed.feelingScore);
       const painBefore = numberOrZero(completed.bodyStatus?.painBefore);
@@ -982,6 +1043,10 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         score += 1;
         reasons.push('Garmin-effekt lav aerob');
       }
+
+      const hrSignals = heartRateLoadSignals(completed, personProfile);
+      score += hrSignals.score;
+      reasons.push(...hrSignals.reasons);
 
       if (rpe >= 8) {
         score += 4;
@@ -1031,9 +1096,15 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       if ((painAfter >= 4 || painAfter > painBefore + 1) && level !== 'low') {
         label += ' - følg med på kroppen';
       }
+      if (hrSignals.highPulse && level !== 'low') {
+        label += ' - høy pulsbelastning';
+      }
+      if (hrSignals.calmPulse && level === 'low') {
+        label = 'Lav belastning - rolig pulsrespons';
+      }
 
       const reason = reasons.length
-        ? reasons.slice(0, 3).join(' · ')
+        ? reasons.slice(0, 4).join(' · ')
         : 'Mangler nok intensitetsdata for tydelig vurdering.';
       return { level, label, reason };
     }
