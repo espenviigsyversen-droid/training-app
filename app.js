@@ -4,7 +4,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     import { getFirestore, doc, collection, getDoc, getDocs, setDoc, deleteDoc, writeBatch }
       from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
-    const APP_VERSION = 'v31';
+    const APP_VERSION = 'v32';
 
     const firebaseConfig = {
       apiKey: "AIzaSyAMPfQ9gX9rbuvcPsVjYVtq5IT_orjDBPs",
@@ -663,6 +663,9 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       document.getElementById('completePlannedId').value = '';
       document.getElementById('editingCompletedId').value = '';
       [
+        'completeDate',
+        'completeTemplate',
+        'completeManualName',
         'completeDurationHours',
         'completeDurationMinutes',
         'completeDurationSeconds',
@@ -691,8 +694,10 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
 
     function setCompleteModalMode(mode) {
       const isEditing = mode === 'edit';
-      document.getElementById('completeModalTitle').textContent = isEditing ? 'Rediger økt' : 'Loggfør økt';
-      document.getElementById('completeSubmitBtn').textContent = isEditing ? 'Lagre endringer' : 'Marker utført';
+      const isHistorical = mode === 'historical';
+      document.getElementById('completeModalTitle').textContent = isEditing ? 'Rediger økt' : isHistorical ? 'Legg inn historisk økt' : 'Loggfør økt';
+      document.getElementById('completeSubmitBtn').textContent = isEditing ? 'Lagre endringer' : isHistorical ? 'Lagre historisk økt' : 'Marker utført';
+      document.getElementById('completeManualFields').classList.toggle('hidden', !(isEditing || isHistorical));
     }
 
     function completedFormData() {
@@ -1079,6 +1084,14 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       document.getElementById('completeModal').classList.add('active');
     };
 
+    window.openHistoricalCompleteModal = function() {
+      clearCompleteForm();
+      setCompleteModalMode('historical');
+      document.getElementById('completeDate').value = todayISO();
+      document.getElementById('completeTemplate').value = state.templates[0]?.id || '';
+      document.getElementById('completeModal').classList.add('active');
+    };
+
     window.closeCompleteModal = function() {
       document.getElementById('completeModal').classList.remove('active');
       clearCompleteForm();
@@ -1093,6 +1106,9 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       setCompleteModalMode('edit');
       document.getElementById('editingCompletedId').value = completed.id;
       document.getElementById('completePlannedId').value = completed.plannedWorkoutId || '';
+      document.getElementById('completeDate').value = completed.date || todayISO();
+      document.getElementById('completeTemplate').value = completed.templateId || '';
+      document.getElementById('completeManualName').value = completed.manualName || '';
       setDurationFormFromSeconds(completed.durationSeconds || (completed.durationMinutes ? Number(completed.durationMinutes) * 60 : 0));
       document.getElementById('completeDistance').value = completed.distanceKm || '';
       document.getElementById('completeAvgHr').value = completed.avgHeartRate || '';
@@ -1121,9 +1137,16 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       if (editingId) {
         const completedIndex = state.completed.findIndex(c => c.id === editingId);
         if (completedIndex === -1) return;
+        const date = document.getElementById('completeDate').value || state.completed[completedIndex].date;
+        const templateId = document.getElementById('completeTemplate').value || state.completed[completedIndex].templateId;
+        const manualName = document.getElementById('completeManualName').value.trim();
 
         state.completed[completedIndex] = {
           ...state.completed[completedIndex],
+          date,
+          templateId,
+          manualName,
+          templateSnapshot: completedTemplateSnapshot(templateId, manualName),
           ...completedFormData(),
           updatedAt: new Date().toISOString()
         };
@@ -1141,12 +1164,37 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
 
       const plannedId = document.getElementById('completePlannedId').value;
       const planned = state.planned.find(p => p.id === plannedId);
-      if (!planned) return;
+      if (!planned) {
+        const date = document.getElementById('completeDate').value;
+        const templateId = document.getElementById('completeTemplate').value;
+        const manualName = document.getElementById('completeManualName').value.trim();
+        if (!date) return alert('Velg dato for økten.');
+        if (!templateId && !manualName) return alert('Velg en øktmal eller skriv inn eget øktnavn.');
+        const completed = {
+          id: uid('completed'),
+          plannedWorkoutId: '',
+          templateId,
+          manualName,
+          templateSnapshot: completedTemplateSnapshot(templateId, manualName),
+          date,
+          ...completedFormData(),
+          completedAt: new Date().toISOString(),
+          source: 'manual'
+        };
+        state.completed.push(completed);
+        closeCompleteModal();
+        render();
+        await fsSet('completed', completed.id, completed);
+        showToast('Historisk økt lagret');
+        return;
+      }
       planned.status = 'done';
       const completed = {
         id: uid('completed'),
         plannedWorkoutId: plannedId,
         templateId: planned.templateId,
+        manualName: '',
+        templateSnapshot: completedTemplateSnapshot(planned.templateId, ''),
         date: planned.date,
         ...completedFormData(),
         completedAt: new Date().toISOString()
@@ -1161,9 +1209,12 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     window.undoComplete = async function(completedId) {
       const completed = state.completed.find(c => c.id === completedId);
       if (!completed) return;
-      const template = getTemplate(completed.templateId);
-      if (!confirm(`Er du sikker på at du vil angre utført økt?\n\n${template.name} flyttes tilbake til planlagt økt.`)) return;
+      const template = completedTemplate(completed);
       const planned = state.planned.find(p => p.id === completed.plannedWorkoutId);
+      const confirmText = planned
+        ? `Er du sikker på at du vil angre utført økt?\n\n${template.name} flyttes tilbake til planlagt økt.`
+        : `Er du sikker på at du vil slette denne historiske økten?\n\n${template.name} fjernes fra historikken.`;
+      if (!confirm(confirmText)) return;
       if (planned) planned.status = 'planned';
       state.completed = state.completed.filter(c => c.id !== completedId);
       render();
@@ -1173,12 +1224,33 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       const ops = [fsDelete('completed', completedId)];
       if (planned) ops.push(fsSet('planned', planned.id, planned));
       await Promise.all(ops);
-      showToast('Økt flyttet tilbake til planlagt');
+      showToast(planned ? 'Økt flyttet tilbake til planlagt' : 'Historisk økt slettet');
     };
 
     // ── Render helpers ────────────────────────────────────────────────────────
     function getTemplate(id) {
       return state.templates.find(t => t.id === id) || { name: 'Slettet øktmal', type: 'Annet', intensity: '', purpose: '', load: '', recommendedWhen: '', avoidWhen: '', structure: '' };
+    }
+
+    function completedTemplateSnapshot(templateId, manualName) {
+      const template = state.templates.find(t => t.id === templateId);
+      return {
+        name: manualName || template?.name || 'Historisk økt',
+        type: template?.type || 'Annet',
+        intensity: template?.intensity || '',
+        structure: template?.structure || ''
+      };
+    }
+
+    function completedTemplate(completed) {
+      const template = state.templates.find(t => t.id === completed.templateId);
+      if (template) return { ...template, name: completed.manualName || template.name };
+      return {
+        name: completed.manualName || completed.templateSnapshot?.name || 'Historisk økt',
+        type: completed.templateSnapshot?.type || 'Annet',
+        intensity: completed.templateSnapshot?.intensity || '',
+        structure: completed.templateSnapshot?.structure || ''
+      };
     }
 
     function workoutCard(planned, options = {}) {
@@ -1275,7 +1347,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     }
 
     function completedCard(c) {
-      const t = getTemplate(c.templateId);
+      const t = completedTemplate(c);
       const durationLabel = completedDurationLabel(c);
       const execution = executionLabel(c.execution);
       const feeling = feelingLabel(c.feelingScore);
@@ -1311,7 +1383,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
           ${c.notes ? `<p class="meta"><strong>Notat:</strong> ${escapeHtml(c.notes)}</p>` : ''}
           <div class="button-row">
             <button class="btn-primary" onclick="editCompleted('${c.id}')">Rediger</button>
-            <button class="btn-soft" onclick="undoComplete('${c.id}')">Angre utført</button>
+            <button class="btn-soft" onclick="undoComplete('${c.id}')">${c.plannedWorkoutId ? 'Angre utført' : 'Slett'}</button>
           </div>
         </div>`;
     }
@@ -1379,7 +1451,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
             return { status: 'planned', name: template.name, shortLabel: shortCalendarLabel(template) };
           }),
           ...doneItems.map(c => {
-            const template = getTemplate(c.templateId);
+            const template = completedTemplate(c);
             return { status: 'done', name: template.name, shortLabel: shortCalendarLabel(template) };
           })
         ];
@@ -2201,6 +2273,10 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       document.getElementById('planTemplate').innerHTML = state.templates.length
         ? state.templates.map(t => `<option value="${t.id}">${escapeHtml(t.name)} · ${escapeHtml(t.type)}</option>`).join('')
         : `<option value="">Lag en øktmal først</option>`;
+      document.getElementById('completeTemplate').innerHTML = [
+        `<option value="">Ingen / eget navn</option>`,
+        ...state.templates.map(t => `<option value="${t.id}">${escapeHtml(t.name)} · ${escapeHtml(t.type)}</option>`)
+      ].join('');
 
       document.getElementById('templateList').innerHTML = state.templates.length
         ? state.templates.map(templateCard).join('')
@@ -2209,7 +2285,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       const filter = document.getElementById('historyFilter')?.value || 'Alle';
       const sort = document.getElementById('historySort')?.value || 'desc';
       let completed = [...state.completed];
-      if (filter !== 'Alle') completed = completed.filter(c => getTemplate(c.templateId).type === filter);
+      if (filter !== 'Alle') completed = completed.filter(c => completedTemplate(c).type === filter);
       completed.sort((a,b) => sort === 'desc' ? b.date.localeCompare(a.date) : a.date.localeCompare(b.date));
       document.getElementById('historyList').innerHTML = completed.length
         ? completed.map(completedCard).join('')

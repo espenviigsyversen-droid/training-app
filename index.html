@@ -246,6 +246,7 @@
       <section id="history" class="tab">
         <div class="card">
           <h2 class="section-title">Historikk</h2>
+          <button class="btn-primary btn-full" onclick="openHistoricalCompleteModal()" style="margin-bottom:12px;">+ Legg inn historisk økt</button>
           <div class="grid-2" style="margin-bottom:12px;">
             <div>
               <label>Filter type</label>
@@ -577,6 +578,22 @@
       <input type="hidden" id="completePlannedId" />
       <input type="hidden" id="editingCompletedId" />
       <div class="inline-form">
+        <div id="completeManualFields" class="hidden">
+          <div class="grid-2">
+            <div>
+              <label>Dato</label>
+              <input id="completeDate" type="date" />
+            </div>
+            <div>
+              <label>Øktmal</label>
+              <select id="completeTemplate"></select>
+            </div>
+          </div>
+          <div>
+            <label>Eget øktnavn</label>
+            <input id="completeManualName" type="text" placeholder="F.eks. Rolig tur rundt vannet" />
+          </div>
+        </div>
         <div class="grid-2">
           <div>
             <label>Varighet</label>
