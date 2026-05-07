@@ -4,7 +4,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     import { getFirestore, doc, collection, getDoc, getDocs, setDoc, deleteDoc, writeBatch }
       from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
-    const APP_VERSION = 'v42';
+    const APP_VERSION = 'v43';
 
     const firebaseConfig = {
       apiKey: "AIzaSyAMPfQ9gX9rbuvcPsVjYVtq5IT_orjDBPs",
@@ -1006,11 +1006,10 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       if (workoutMaxHr && profileMaxHr) {
         const maxPct = workoutMaxHr / profileMaxHr;
         if (maxPct >= 0.95) {
-          score += 2;
+          score += 1;
           highPulse = true;
           reasons.push(`makspuls nær maks (${Math.round(maxPct * 100)}%)`);
         } else if (maxPct >= 0.90) {
-          score += 1;
           reasons.push(`makspuls høy (${Math.round(maxPct * 100)}% maks)`);
         }
       }
