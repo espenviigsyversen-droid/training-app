@@ -751,6 +751,79 @@
     .intensity-dot.high { background: var(--warning); }
     .intensity-dot.anaerobic { background: var(--purple); }
 
+    .trend-grid {
+      display: grid;
+      gap: 12px;
+      margin-top: 12px;
+    }
+
+    .trend-card {
+      border: 1px solid var(--warm-gray-2);
+      border-radius: 16px;
+      padding: 12px;
+      background: #fff;
+    }
+
+    .trend-card-top {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      align-items: baseline;
+      margin-bottom: 8px;
+    }
+
+    .trend-card-top strong {
+      color: var(--black);
+      font-size: 0.95rem;
+    }
+
+    .trend-card-top span {
+      color: var(--warm-gray-3);
+      font-size: 0.78rem;
+      font-weight: 900;
+      text-align: right;
+    }
+
+    .trend-chart {
+      display: block;
+      width: 100%;
+      height: auto;
+      min-height: 112px;
+    }
+
+    .trend-chart line {
+      stroke: var(--warm-gray-2);
+      stroke-width: 2;
+    }
+
+    .trend-chart.bar rect {
+      fill: var(--primary);
+    }
+
+    .trend-chart.line polyline {
+      fill: none;
+      stroke: var(--primary);
+      stroke-width: 4;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    .trend-chart.line circle {
+      fill: #fff;
+      stroke: var(--primary);
+      stroke-width: 3;
+    }
+
+    .trend-empty {
+      display: grid;
+      min-height: 112px;
+      place-items: center;
+      border-radius: 14px;
+      background: var(--warm-gray-1);
+      color: var(--warm-gray-3);
+      font-weight: 800;
+    }
+
     .coach-note {
       margin: 0;
       color: var(--black);

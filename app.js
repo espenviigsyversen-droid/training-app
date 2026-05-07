@@ -4,7 +4,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     import { getFirestore, doc, collection, getDoc, getDocs, setDoc, deleteDoc, writeBatch }
       from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
-    const APP_VERSION = 'v43';
+    const APP_VERSION = 'v44';
 
     const firebaseConfig = {
       apiKey: "AIzaSyAMPfQ9gX9rbuvcPsVjYVtq5IT_orjDBPs",
@@ -1843,11 +1843,90 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         </div>`;
     }
 
+    function trendSvg(points, mode = 'bar') {
+      const values = points.map(point => Number(point.value) || 0);
+      const max = Math.max(...values, 1);
+      const min = mode === 'line' ? Math.min(...values) : 0;
+      const range = Math.max(1, max - min);
+      const width = 320;
+      const height = 112;
+      const padX = 16;
+      const padY = 14;
+      const innerW = width - (padX * 2);
+      const innerH = height - (padY * 2);
+
+      if (!points.length) {
+        return `<div class="trend-empty">Ingen data ennå</div>`;
+      }
+
+      if (mode === 'line') {
+        const coords = points.map((point, index) => {
+          const x = points.length === 1 ? width / 2 : padX + ((index / (points.length - 1)) * innerW);
+          const y = padY + ((max - (Number(point.value) || 0)) / range) * innerH;
+          return { x, y, point };
+        });
+        const polyline = coords.map(coord => `${coord.x.toFixed(1)},${coord.y.toFixed(1)}`).join(' ');
+        const dots = coords.map(coord => `<circle cx="${coord.x.toFixed(1)}" cy="${coord.y.toFixed(1)}" r="3.5"><title>${escapeHtml(coord.point.label)}: ${escapeHtml(coord.point.display)}</title></circle>`).join('');
+        return `
+          <svg class="trend-chart line" viewBox="0 0 ${width} ${height}" role="img" aria-label="Trendgraf">
+            <line x1="${padX}" y1="${height - padY}" x2="${width - padX}" y2="${height - padY}"></line>
+            <polyline points="${polyline}"></polyline>
+            ${dots}
+          </svg>`;
+      }
+
+      const gap = 7;
+      const barW = Math.max(10, (innerW - (gap * Math.max(0, points.length - 1))) / points.length);
+      const bars = points.map((point, index) => {
+        const value = Number(point.value) || 0;
+        const barH = Math.max(value > 0 ? 7 : 2, (value / max) * innerH);
+        const x = padX + index * (barW + gap);
+        const y = height - padY - barH;
+        return `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${barW.toFixed(1)}" height="${barH.toFixed(1)}" rx="5"><title>${escapeHtml(point.label)}: ${escapeHtml(point.display)}</title></rect>`;
+      }).join('');
+      return `
+        <svg class="trend-chart bar" viewBox="0 0 ${width} ${height}" role="img" aria-label="Trendgraf">
+          <line x1="${padX}" y1="${height - padY}" x2="${width - padX}" y2="${height - padY}"></line>
+          ${bars}
+        </svg>`;
+    }
+
+    function trendCard(title, points, formatter, mode = 'bar', note = '') {
+      const latest = points[points.length - 1];
+      const previous = points[points.length - 2];
+      const latestDisplay = latest ? formatter(latest.value) : '-';
+      const delta = latest && previous ? (Number(latest.value) || 0) - (Number(previous.value) || 0) : 0;
+      const deltaText = latest && previous && Math.abs(delta) > 0.05
+        ? `${delta > 0 ? 'Opp' : 'Ned'} ${formatter(Math.abs(delta))}`
+        : latest && previous ? 'Stabil' : 'Ingen trend ennå';
+      const displayPoints = points.map(point => ({ ...point, display: formatter(point.value) }));
+      return `
+        <div class="trend-card">
+          <div class="trend-card-top">
+            <strong>${escapeHtml(title)}</strong>
+            <span>${escapeHtml(latestDisplay)} · ${escapeHtml(deltaText)}</span>
+          </div>
+          ${trendSvg(displayPoints, mode)}
+          ${note ? `<p class="small-note">${escapeHtml(note)}</p>` : ''}
+        </div>`;
+    }
+
+    function wellnessTrendPoints(metric) {
+      return sortedWellness()
+        .filter(item => item[metric] !== '' && item[metric] !== null && item[metric] !== undefined)
+        .slice(0, 8)
+        .reverse()
+        .map(item => ({
+          label: formatShortDate(item.date),
+          value: Number(item[metric]) || 0
+        }));
+    }
+
     function renderWellnessInsights() {
       document.getElementById('insightWellnessTrend').innerHTML = [
-        wellnessTrendRow('VO2 Max', 'vo2Max'),
-        wellnessTrendRow('HRV 7d', 'hrv7d', ' ms'),
-        wellnessTrendRow('Hvilepuls 7d', 'restingHeartRate7d', ' bpm')
+        trendCard('VO2 Max', wellnessTrendPoints('vo2Max'), value => formatMetricValue(value, 1), 'line'),
+        trendCard('HRV 7d', wellnessTrendPoints('hrv7d'), value => `${formatMetricValue(value)} ms`, 'line'),
+        trendCard('Hvilepuls 7d', wellnessTrendPoints('restingHeartRate7d'), value => `${formatMetricValue(value)} bpm`, 'line', 'Lavere hvilepuls kan være positivt, men vurder sammen med HRV og dagsform.')
       ].join('');
     }
 
@@ -2295,6 +2374,39 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         : `${remaining} økt${remaining === 1 ? '' : 'er'} igjen for at denne uken skal telle i kontinuiteten.`;
     }
 
+    function recentWeekSummaries(weekStart, count = 8) {
+      const weeks = [];
+      for (let i = count - 1; i >= 0; i--) {
+        const start = addDays(weekStart, -(i * 7));
+        const end = addDays(start, 6);
+        const items = state.completed.filter(c => c.date >= start && c.date <= end);
+        weeks.push({ start, end, summary: summarizeCompleted(items) });
+      }
+      return weeks;
+    }
+
+    function renderVolumeTrends(weeks) {
+      const shortWeekLabel = week => week.start === startOfWeek(todayISO()) ? 'Nå' : formatShortDate(week.start);
+      const sessionPoints = weeks.map(week => ({
+        label: shortWeekLabel(week),
+        value: week.summary.sessions
+      }));
+      const hourPoints = weeks.map(week => ({
+        label: shortWeekLabel(week),
+        value: week.summary.seconds / 3600
+      }));
+      const kmPoints = weeks.map(week => ({
+        label: shortWeekLabel(week),
+        value: week.summary.km
+      }));
+
+      document.getElementById('insightVolumeTrends').innerHTML = [
+        trendCard('Økter per uke', sessionPoints, value => `${Math.round(Number(value) || 0)} økt${Math.round(Number(value) || 0) === 1 ? '' : 'er'}`, 'bar'),
+        trendCard('Timer per uke', hourPoints, value => `${(Number(value) || 0).toLocaleString('no-NO', { maximumFractionDigits: 1 })} t`, 'bar'),
+        trendCard('Kilometer per uke', kmPoints, value => formatKm(value), 'bar')
+      ].join('');
+    }
+
     function summarizeTrainingEffects(items) {
       const summary = {
         total: 0,
@@ -2606,13 +2718,10 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       renderIntensityBalance(today, profile);
       renderContinuity(weekSummary, goals, weekStart);
 
-      const weeks = [];
-      for (let i = 3; i >= 0; i--) {
-        const start = addDays(weekStart, -(i * 7));
-        const end = addDays(start, 6);
-        const items = state.completed.filter(c => c.date >= start && c.date <= end);
-        weeks.push({ start, end, summary: summarizeCompleted(items) });
-      }
+      const trendWeeks = recentWeekSummaries(weekStart, 8);
+      renderVolumeTrends(trendWeeks);
+
+      const weeks = trendWeeks.slice(-4);
       document.getElementById('insightFourWeeks').innerHTML = weeks.map((week, index) => {
         const target = goals.weeklySessionsTarget;
         const percent = Math.max(0, Math.min(100, (week.summary.sessions / Math.max(1, target)) * 100));
