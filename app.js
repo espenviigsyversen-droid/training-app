@@ -4,7 +4,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     import { getFirestore, doc, collection, getDoc, getDocs, setDoc, deleteDoc, writeBatch }
       from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
-    const APP_VERSION = 'v35';
+    const APP_VERSION = 'v36';
 
     const firebaseConfig = {
       apiKey: "AIzaSyAMPfQ9gX9rbuvcPsVjYVtq5IT_orjDBPs",
@@ -78,6 +78,16 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       if (!iso) return '';
       const d = new Date(`${iso}T12:00:00`);
       return d.toLocaleDateString('no-NO', { weekday: 'short', day: '2-digit', month: 'short' });
+    }
+
+    function formatShortDate(iso) {
+      if (!iso) return '';
+      const d = new Date(`${iso}T12:00:00`);
+      return d.toLocaleDateString('no-NO', { day: 'numeric', month: 'short' }).replace('.', '');
+    }
+
+    function formatWeekRange(startIso, endIso) {
+      return `${formatShortDate(startIso)}-${formatShortDate(endIso)}`;
     }
 
     function escapeHtml(str = '') {
@@ -2029,13 +2039,15 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         const sessions = week.summary.sessions;
         const status = sessions >= target ? 'done' : sessions > 0 ? 'partial' : 'empty';
         const isCurrent = index === weeks.length - 1;
-        const weekLabel = isCurrent ? 'Nå' : `-${weeks.length - 1 - index}`;
+        const distance = weeks.length - 1 - index;
+        const weekLabel = isCurrent ? 'Denne uken' : distance === 1 ? 'Forrige' : `-${distance} uker`;
         const label = sessions >= target ? 'OK' : `${sessions}/${target}`;
         return `
           <div class="continuity-chip ${status} ${isCurrent ? 'current' : ''}" title="${escapeHtml(formatDate(week.start))} - ${escapeHtml(formatDate(week.end))}">
             <span class="continuity-week-label">${escapeHtml(weekLabel)}</span>
             <strong>${escapeHtml(label)}</strong>
-            <span>${sessions >= target ? 'i mål' : 'økter'}</span>
+            <span>${sessions >= target ? 'i mål' : `${sessions} økt${sessions === 1 ? '' : 'er'}`}</span>
+            <small>${escapeHtml(formatWeekRange(week.start, week.end))}</small>
           </div>`;
       }).join('');
 
@@ -2295,16 +2307,29 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         const items = state.completed.filter(c => c.date >= start && c.date <= end);
         weeks.push({ start, end, summary: summarizeCompleted(items) });
       }
-      const maxSessions = Math.max(1, ...weeks.map(w => w.summary.sessions), goals.weeklySessionsTarget);
-      document.getElementById('insightFourWeeks').innerHTML = weeks.map(week => {
-        const percent = Math.max(0, Math.min(100, (week.summary.sessions / maxSessions) * 100));
+      document.getElementById('insightFourWeeks').innerHTML = weeks.map((week, index) => {
+        const target = goals.weeklySessionsTarget;
+        const percent = Math.max(0, Math.min(100, (week.summary.sessions / Math.max(1, target)) * 100));
+        const isCurrent = index === weeks.length - 1;
+        const isPrevious = index === weeks.length - 2;
+        const status = week.summary.sessions >= target ? 'done' : week.summary.sessions > 0 ? 'partial' : 'empty';
+        const title = isCurrent ? 'Denne uken' : isPrevious ? 'Forrige uke' : formatWeekRange(week.start, week.end);
+        const range = isCurrent || isPrevious ? formatWeekRange(week.start, week.end) : '';
         return `
-          <div class="week-row">
+          <div class="week-row ${status}">
             <div class="week-row-top">
-              <span>${escapeHtml(formatDate(week.start))} - ${escapeHtml(formatDate(week.end))}</span>
-              <span>${week.summary.sessions} økter · ${escapeHtml(formatHoursFromSeconds(week.summary.seconds))} · ${escapeHtml(formatKm(week.summary.km))}</span>
+              <div>
+                <strong>${escapeHtml(title)}</strong>
+                ${range ? `<span>${escapeHtml(range)}</span>` : ''}
+              </div>
+              <span class="week-status ${status}">${week.summary.sessions >= target ? 'I mål' : `${week.summary.sessions}/${target}`}</span>
             </div>
-            <div class="progress-track"><div class="progress-fill" style="width:${percent}%;"></div></div>
+            <div class="week-row-metrics">
+              <span>${week.summary.sessions} økt${week.summary.sessions === 1 ? '' : 'er'}</span>
+              <span>${escapeHtml(formatClockDuration(week.summary.seconds))}</span>
+              <span>${escapeHtml(formatKm(week.summary.km))}</span>
+            </div>
+            <div class="progress-track"><div class="progress-fill ${status}" style="width:${percent}%;"></div></div>
           </div>`;
       }).join('');
 
