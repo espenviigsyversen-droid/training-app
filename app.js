@@ -4,7 +4,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     import { getFirestore, doc, collection, getDoc, getDocs, setDoc, deleteDoc, writeBatch }
       from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
-    const APP_VERSION = 'v47';
+    const APP_VERSION = 'v48';
 
     const firebaseConfig = {
       apiKey: "AIzaSyAMPfQ9gX9rbuvcPsVjYVtq5IT_orjDBPs",
@@ -1204,8 +1204,80 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       return { label, level, note, loadCounts, painCount, adaptationCount };
     }
 
-    function weeklySignalLabel(count) {
-      return `${count} signal${count === 1 ? '' : 'er'}`;
+    function weeklySignalLabel(status) {
+      const parts = [];
+      if (status.painCount) parts.push(`${status.painCount} smerte`);
+      if (status.adaptationCount) parts.push(`${status.adaptationCount} tilpasning`);
+      return parts.length ? parts.join(' · ') : 'Ingen';
+    }
+
+    function hasPainSignal(item) {
+      return Boolean(item.bodyStatus?.painBefore || item.bodyStatus?.painAfter || item.bodyStatus?.area);
+    }
+
+    function hasAdaptationSignal(item) {
+      const adaptation = item.bodyStatus?.adaptation || '';
+      return Boolean(adaptation && adaptation !== 'none');
+    }
+
+    function weeklyBodySignalNote(items) {
+      if (!items.length) return '';
+      const areas = [...new Set(items.map(item => item.bodyStatus?.area).filter(Boolean).map(area => area.trim()))];
+      const adapted = items.filter(hasAdaptationSignal).length;
+      const pain = items.filter(hasPainSignal).length;
+      if (areas.length) {
+        return `Følg spesielt med på ${areas.slice(0, 2).join(' og ')} før neste økt. Velg rolig eller alternativ trening hvis samme område fortsatt kjennes.`;
+      }
+      if (pain && adapted) return 'Det finnes både smerte og tilpasning denne uken. Bruk neste økt til å bekrefte at kroppen responderer fint.';
+      if (adapted) return 'En eller flere økter ble tilpasset. Det er nyttig informasjon for å styre progresjon uten å presse for hardt.';
+      return 'Smerte er registrert denne uken. Se etter mønster før du øker belastningen videre.';
+    }
+
+    function renderWeeklyBodySignals(weekItems) {
+      const signalItems = weekItems
+        .filter(item => hasPainSignal(item) || hasAdaptationSignal(item))
+        .sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')));
+      const card = document.getElementById('insightBodySignalsCard');
+      const list = document.getElementById('insightBodySignals');
+      const note = document.getElementById('insightBodySignalsNote');
+      if (!card || !list || !note) return;
+      if (!signalItems.length) {
+        card.style.display = 'none';
+        list.innerHTML = '';
+        note.textContent = '';
+        return;
+      }
+      card.style.display = '';
+      note.textContent = weeklyBodySignalNote(signalItems);
+      list.innerHTML = signalItems.map(item => {
+        const template = getTemplate(item.templateId);
+        const body = item.bodyStatus || {};
+        const chips = [
+          hasPainSignal(item) ? 'Smerte' : null,
+          hasAdaptationSignal(item) ? adaptationLabel(body.adaptation) : null
+        ].filter(Boolean);
+        const details = [
+          body.area ? `Område: ${body.area}` : null,
+          body.painBefore ? `Før: ${painScaleLabel(body.painBefore)}` : null,
+          body.painAfter ? `Etter: ${painScaleLabel(body.painAfter)}` : null,
+          hasAdaptationSignal(item) ? `Tilpasning: ${adaptationLabel(body.adaptation)}` : null
+        ].filter(Boolean);
+        return `
+          <div class="body-signal-item">
+            <div class="body-signal-top">
+              <div>
+                <strong>${escapeHtml(template.name)}</strong>
+                <span>${escapeHtml(formatDate(item.date))}</span>
+              </div>
+              <div class="body-signal-tags">
+                ${chips.map(chip => `<span>${escapeHtml(chip)}</span>`).join('')}
+              </div>
+            </div>
+            <p>${escapeHtml(details.join(' · ') || 'Kroppssignal registrert.')}</p>
+            ${body.notes ? `<p class="body-signal-note">${escapeHtml(body.notes)}</p>` : ''}
+            <button class="btn-soft" onclick="openWorkoutDetail('${item.id}')">Se detaljer</button>
+          </div>`;
+      }).join('');
     }
 
     function renderWeeklyTrainingStatus(weekItems, weekSummary, goals, profile) {
@@ -2717,11 +2789,10 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       const last14Days = state.completed.filter(c => c.date >= last14Start && c.date <= today);
 
       const status = weeklyTrainingStatus(weekItems, weekSummary, goals, profile);
-      const signalCount = status.painCount + status.adaptationCount;
       document.getElementById('insightWeekTime').textContent = formatClockDuration(weekSummary.seconds);
       document.getElementById('insightWeekKm').textContent = formatKm(weekSummary.km);
       document.getElementById('insightWeekLoad').textContent = status.label;
-      document.getElementById('insightWeekSignals').textContent = weeklySignalLabel(signalCount);
+      document.getElementById('insightWeekSignals').textContent = weeklySignalLabel(status);
 
       const hours = weekSummary.seconds / 3600;
       document.getElementById('insightWeekProgress').innerHTML = [
@@ -2730,6 +2801,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         progressRow('Kilometer', weekSummary.km, goals.weeklyKmTarget, 'km')
       ].join('');
       renderWeeklyTrainingStatus(weekItems, weekSummary, goals, profile);
+      renderWeeklyBodySignals(weekItems);
       renderIntensityBalance(today, profile);
       renderContinuity(weekSummary, goals, weekStart);
 

@@ -546,6 +546,8 @@
       display: block;
       font-size: 1.25rem;
       letter-spacing: -0.03em;
+      line-height: 1.08;
+      overflow-wrap: anywhere;
     }
 
     .insight-stat span {
@@ -594,6 +596,66 @@
     .progress-fill.done { background: var(--success); }
     .progress-fill.partial { background: linear-gradient(90deg, var(--primary), var(--warning)); }
     .progress-fill.empty { background: var(--warm-gray-2); }
+
+    .body-signal-list {
+      display: grid;
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    .body-signal-item {
+      border: 1px solid rgba(225,29,72,0.18);
+      border-radius: 14px;
+      background: rgba(225,29,72,0.035);
+      padding: 12px;
+    }
+
+    .body-signal-top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+
+    .body-signal-top strong,
+    .body-signal-top span {
+      display: block;
+    }
+
+    .body-signal-top span {
+      color: var(--warm-gray-3);
+      font-size: 0.76rem;
+      margin-top: 2px;
+    }
+
+    .body-signal-tags {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      gap: 5px;
+      flex-shrink: 0;
+    }
+
+    .body-signal-tags span {
+      border-radius: 999px;
+      background: var(--primary-soft);
+      color: var(--burgundy);
+      padding: 5px 8px;
+      font-size: 0.64rem;
+      font-weight: 900;
+    }
+
+    .body-signal-item p {
+      margin: 0 0 10px;
+      color: var(--black);
+      font-size: 0.86rem;
+      line-height: 1.38;
+    }
+
+    .body-signal-note {
+      color: var(--warm-gray-3) !important;
+    }
 
     .week-row {
       display: grid;
