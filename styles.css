@@ -765,8 +765,8 @@
     }
 
     .trend-card-top {
-      display: flex;
-      justify-content: space-between;
+      display: grid;
+      grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.4fr);
       gap: 10px;
       align-items: baseline;
       margin-bottom: 8px;
@@ -782,6 +782,7 @@
       font-size: 0.78rem;
       font-weight: 900;
       text-align: right;
+      line-height: 1.25;
     }
 
     .trend-chart {
@@ -822,6 +823,39 @@
       background: var(--warm-gray-1);
       color: var(--warm-gray-3);
       font-weight: 800;
+    }
+
+    .trend-labels {
+      display: grid;
+      grid-template-columns: repeat(8, minmax(0, 1fr));
+      gap: 4px;
+      margin-top: -4px;
+    }
+
+    .trend-labels div {
+      min-width: 0;
+      text-align: center;
+    }
+
+    .trend-labels span,
+    .trend-labels strong {
+      display: block;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .trend-labels span {
+      color: var(--warm-gray-3);
+      font-size: 0.58rem;
+      font-weight: 900;
+    }
+
+    .trend-labels strong {
+      margin-top: 2px;
+      color: var(--black);
+      font-size: 0.58rem;
+      font-weight: 900;
     }
 
     .coach-note {

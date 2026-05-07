@@ -4,7 +4,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     import { getFirestore, doc, collection, getDoc, getDocs, setDoc, deleteDoc, writeBatch }
       from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
-    const APP_VERSION = 'v44';
+    const APP_VERSION = 'v45';
 
     const firebaseConfig = {
       apiKey: "AIzaSyAMPfQ9gX9rbuvcPsVjYVtq5IT_orjDBPs",
@@ -1899,14 +1899,24 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       const deltaText = latest && previous && Math.abs(delta) > 0.05
         ? `${delta > 0 ? 'Opp' : 'Ned'} ${formatter(Math.abs(delta))}`
         : latest && previous ? 'Stabil' : 'Ingen trend ennå';
+      const summaryText = latest && previous
+        ? `Nå ${latestDisplay} · Forrige ${formatter(previous.value)} · ${deltaText}`
+        : latest ? `Nå ${latestDisplay} · ${deltaText}` : deltaText;
       const displayPoints = points.map(point => ({ ...point, display: formatter(point.value) }));
       return `
         <div class="trend-card">
           <div class="trend-card-top">
             <strong>${escapeHtml(title)}</strong>
-            <span>${escapeHtml(latestDisplay)} · ${escapeHtml(deltaText)}</span>
+            <span>${escapeHtml(summaryText)}</span>
           </div>
           ${trendSvg(displayPoints, mode)}
+          <div class="trend-labels">
+            ${displayPoints.map(point => `
+              <div>
+                <span>${escapeHtml(point.label)}</span>
+                <strong>${escapeHtml(point.display)}</strong>
+              </div>`).join('')}
+          </div>
           ${note ? `<p class="small-note">${escapeHtml(note)}</p>` : ''}
         </div>`;
     }
