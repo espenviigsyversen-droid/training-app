@@ -281,6 +281,46 @@
       margin-bottom: 8px;
     }
 
+    .template-card .workout-top {
+      align-items: flex-start;
+    }
+
+    .template-card .workout-top > div {
+      min-width: 0;
+    }
+
+    .template-card .workout-title {
+      font-size: 0.96rem;
+      line-height: 1.15;
+      overflow-wrap: anywhere;
+    }
+
+    .template-card > .workout-top > .tag {
+      max-width: 42%;
+      justify-content: center;
+      text-align: center;
+      white-space: normal;
+      line-height: 1.15;
+      flex-shrink: 0;
+    }
+
+    .template-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 7px;
+      margin-top: 10px;
+      min-width: 0;
+    }
+
+    .template-tag {
+      max-width: 100%;
+      white-space: normal;
+      overflow-wrap: anywhere;
+      text-align: left;
+      line-height: 1.2;
+      font-size: 0.68rem;
+    }
+
     .template-structure {
       margin: 10px 0 0;
       color: var(--warm-gray-3);

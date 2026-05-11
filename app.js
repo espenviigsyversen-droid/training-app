@@ -4,7 +4,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     import { getFirestore, doc, collection, getDoc, getDocs, setDoc, deleteDoc, writeBatch, enableIndexedDbPersistence }
       from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
-    const APP_VERSION = 'v54';
+    const APP_VERSION = 'v55';
 
     const firebaseConfig = {
       apiKey: "AIzaSyAMPfQ9gX9rbuvcPsVjYVtq5IT_orjDBPs",
@@ -1906,7 +1906,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
             </div>
             <span class="tag">${escapeHtml(templateLoadLabel(t.load) || 'Mal')}</span>
           </div>
-          ${coachTags.length ? `<div class="compact-tags">${coachTags.map(tag => `<span class="tag">${escapeHtml(tag)}</span>`).join('')}</div>` : ''}
+          ${coachTags.length ? `<div class="template-tags">${coachTags.map(tag => `<span class="tag template-tag">${escapeHtml(tag)}</span>`).join('')}</div>` : ''}
           ${t.structure ? `<p class="template-structure">${escapeHtml(t.structure)}</p>` : ''}
           <div class="button-row">
             <button class="btn-primary" onclick="editTemplate('${t.id}')">Rediger</button>
