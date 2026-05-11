@@ -4,7 +4,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     import { getFirestore, doc, collection, getDoc, getDocs, setDoc, deleteDoc, writeBatch, enableIndexedDbPersistence }
       from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
-    const APP_VERSION = 'v51';
+    const APP_VERSION = 'v52';
 
     const firebaseConfig = {
       apiKey: "AIzaSyAMPfQ9gX9rbuvcPsVjYVtq5IT_orjDBPs",
@@ -2630,11 +2630,48 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       ].join('');
     }
 
+    function templateForCompleted(item) {
+      return getTemplate(item.templateId);
+    }
+
+    function isWalkingCompleted(item) {
+      const template = templateForCompleted(item);
+      const type = String(template.type || '').toLowerCase();
+      return type.includes('gå') || type.includes('walk');
+    }
+
+    function isRunningCompleted(item) {
+      const template = templateForCompleted(item);
+      const type = String(template.type || '').toLowerCase();
+      return type.includes('løp') || type.includes('lop') || type.includes('run');
+    }
+
+    function isRestorativeCompleted(item) {
+      const template = templateForCompleted(item);
+      const type = String(template.type || '').toLowerCase();
+      const intensity = String(template.intensity || '').toLowerCase();
+      const purpose = String(template.purpose || '').toLowerCase();
+      return (
+        isWalkingCompleted(item) ||
+        type.includes('mobilitet') ||
+        type.includes('yoga') ||
+        intensity.includes('restitusjon') ||
+        purpose === 'recovery' ||
+        purpose === 'mobility' ||
+        item.trainingEffectType === 'recovery'
+      );
+    }
+
     function summarizeTrainingEffects(items) {
       const summary = {
         total: 0,
         seconds: 0,
         missing: 0,
+        activity: {
+          walkingCount: 0,
+          restorativeCount: 0,
+          lowRunningCount: 0
+        },
         categories: {
           low_aerobic: { label: 'Low Aerobic', shortLabel: 'Rolig', className: 'low', count: 0, seconds: 0 },
           high_aerobic: { label: 'High Aerobic', shortLabel: 'Moderat', className: 'high', count: 0, seconds: 0 },
@@ -2653,6 +2690,9 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         summary.seconds += seconds;
         summary.categories[category].count += 1;
         summary.categories[category].seconds += seconds;
+        if (isWalkingCompleted(item)) summary.activity.walkingCount += 1;
+        if (isRestorativeCompleted(item)) summary.activity.restorativeCount += 1;
+        if (category === 'low_aerobic' && isRunningCompleted(item)) summary.activity.lowRunningCount += 1;
       });
 
       return summary;
@@ -2718,6 +2758,8 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       const runningBakkenFocus = profile.primaryFocus === 'running' && profile.philosophy === 'bakken_threshold';
       const strengthGrowthFocus = profile.primaryFocus === 'strength' && profile.trainingFocus === 'muscle_growth';
       const skiTechniqueFocus = profile.primaryFocus === 'ski' && profile.trainingFocus === 'technique_skill';
+      const restorativeShare = summary.total ? summary.activity.restorativeCount / summary.total : 0;
+      const mostlyRestorative = restorativeShare >= 0.5;
 
       if (!summary.total && summary.missing) {
         return `${summary.missing} økt${summary.missing === 1 ? '' : 'er'} mangler Garmin-valg, så balansen blir usikker.`;
@@ -2742,7 +2784,13 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
           return 'Mye kontrollert terskel uten anaerob topping. Dette passer godt med Bakken-inspirert oppbygging.';
         }
         if (lowShare >= 0.55 && highShare <= 0.35 && anaerobic.count === 0) {
-          return 'God rolig støtte og lav risiko. Du bygger kapasitet uten å jage for hard belastning.';
+          if (mostlyRestorative) {
+            return 'Skånsom uke med lav risiko. Gåturer og restitusjon støtter kontinuitet, men gir begrenset løpsspesifikk stimulus alene.';
+          }
+          if (summary.activity.lowRunningCount > 0) {
+            return 'God rolig løpsstøtte og lav risiko. Dette bygger grunnlag uten å jage for hard belastning.';
+          }
+          return 'Lav risiko og god kontinuitet. Hvis kroppen kjennes fin, kan neste steg være kontrollert løping eller lett kvalitet.';
         }
       }
       if (anaerobic.count >= 2 || anaerobicShare >= 0.25) {
@@ -2768,6 +2816,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       if (anaerobicShare >= 0.2 || summary.categories.anaerobic.count >= 2) return 'Nok hardt nå';
       if (runningBakkenFocus && lowShare < 0.4 && summary.total >= 3) return 'Litt lite rolig';
       if (highShare >= 0.45 && lowShare < 0.45) return 'Mye kvalitet';
+      if (summary.total && summary.activity.restorativeCount / summary.total >= 0.5 && lowShare >= 0.65) return 'Skånsom uke';
       if (lowShare >= 0.65 && anaerobicShare === 0) return 'Kontrollert uke';
       if (lowShare >= 0.5 && highShare > 0) return 'Fin balanse';
       return 'Kontrollert';
