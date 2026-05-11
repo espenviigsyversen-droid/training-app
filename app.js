@@ -4,7 +4,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     import { getFirestore, doc, collection, getDoc, getDocs, setDoc, deleteDoc, writeBatch, enableIndexedDbPersistence }
       from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
-    const APP_VERSION = 'v57';
+    const APP_VERSION = 'v58';
 
     const firebaseConfig = {
       apiKey: "AIzaSyAMPfQ9gX9rbuvcPsVjYVtq5IT_orjDBPs",
@@ -24,6 +24,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
 
     let currentUser = null;
     let hasPendingLocalWrites = false;
+    let authResolved = false;
     const defaultSettings = {
       activityTypes: ['Løping', 'Styrke', 'Mobilitet', 'Ski', 'Sykling', 'Annet'],
       intensities: ['Rolig', 'Tempo', 'Terskel', 'Intervall', 'Anaerob', 'Styrke', 'Restitusjon'],
@@ -127,6 +128,50 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       }
       setSyncStatus(hasPendingLocalWrites ? 'syncing' : 'ok');
     }
+
+    function revealOfflineStart(reason = '') {
+      const message = document.getElementById('loadingMessage');
+      const button = document.getElementById('offlineStartBtn');
+      const hint = document.getElementById('loadingHint');
+      if (!message || !button || !hint) return;
+      message.textContent = navigator.onLine ? 'Oppstart tar litt tid' : 'Offline-modus';
+      button.classList.remove('hidden');
+      hint.classList.remove('hidden');
+      hint.textContent = reason || (
+        navigator.onLine
+          ? 'Du kan prøve å åpne appen med data som allerede finnes på telefonen.'
+          : 'Du er offline. Appen kan åpnes hvis innlogging og appdata allerede finnes på telefonen.'
+      );
+    }
+
+    window.startOfflineFallback = function() {
+      const loading = document.getElementById('loadingOverlay');
+      const authScreen = document.getElementById('authScreen');
+      const mainApp = document.getElementById('mainApp');
+      const hint = document.getElementById('loadingHint');
+
+      if (currentUser) {
+        loading.classList.add('hidden');
+        authScreen.classList.add('hidden');
+        mainApp.classList.remove('hidden');
+        setSyncStatus('offline');
+        render();
+        return;
+      }
+
+      const message = document.getElementById('loadingMessage');
+      const button = document.getElementById('offlineStartBtn');
+      if (message) message.textContent = 'Offline krever lagret innlogging';
+      if (button) button.classList.add('hidden');
+      if (hint) {
+        hint.textContent = 'Fant ikke innlogging lagret lokalt. Åpne appen én gang med nett etter oppdatering, så blir offline-modus klar til neste gang.';
+        hint.classList.remove('hidden');
+      }
+    };
+
+    window.setTimeout(() => {
+      if (!authResolved) revealOfflineStart();
+    }, 4500);
 
     function showToast(message, type = 'success') {
       const existing = document.getElementById('toastNotification');
@@ -249,7 +294,8 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         render();
       } catch (err) {
         console.error('Firestore load error:', err);
-        setSyncStatus('error');
+        setSyncStatus(navigator.onLine ? 'error' : 'offline');
+        render();
       }
     }
 
@@ -367,6 +413,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     });
 
     onAuthStateChanged(auth, async (user) => {
+      authResolved = true;
       const loading = document.getElementById('loadingOverlay');
       const authScreen = document.getElementById('authScreen');
       const mainApp = document.getElementById('mainApp');

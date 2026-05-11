@@ -18,7 +18,9 @@
 
   <div id="loadingOverlay">
     <div class="spinner"></div>
-    <div style="color:var(--warm-gray-3);font-size:0.9rem;">Laster...</div>
+    <div id="loadingMessage" style="color:var(--warm-gray-3);font-size:0.9rem;">Laster...</div>
+    <button id="offlineStartBtn" class="btn-soft hidden" type="button" onclick="startOfflineFallback()">Åpne offline</button>
+    <p id="loadingHint" class="small-note hidden">Hvis du er offline kan appen åpnes med data som allerede finnes på telefonen.</p>
   </div>
 
   <div id="authScreen" class="hidden">

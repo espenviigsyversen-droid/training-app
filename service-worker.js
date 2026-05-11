@@ -1,11 +1,17 @@
-const CACHE_NAME = "treningsapp-v57";
+const CACHE_NAME = "treningsapp-v58";
+const FIREBASE_MODULES = [
+  "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js",
+  "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js",
+  "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js"
+];
 const APP_SHELL = [
   "./",
   "./index.html",
   "./styles.css",
   "./app.js",
   "./manifest.json",
-  "./Icon1.png"
+  "./Icon1.png",
+  ...FIREBASE_MODULES
 ];
 
 self.addEventListener("install", (event) => {
@@ -36,6 +42,8 @@ self.addEventListener("fetch", (event) => {
     url.pathname.endsWith("/manifest.json") ||
     url.pathname.endsWith("/service-worker.js")
   );
+  const isFirebaseModule = url.origin === "https://www.gstatic.com" &&
+    url.pathname.startsWith("/firebasejs/10.12.2/");
 
   if (isAppFile) {
     event.respondWith(
@@ -46,6 +54,19 @@ self.addEventListener("fetch", (event) => {
           return response;
         })
         .catch(() => caches.match(event.request).then((cached) => cached || caches.match("./index.html")))
+    );
+    return;
+  }
+
+  if (isFirebaseModule) {
+    event.respondWith(
+      caches.match(event.request).then((cached) =>
+        cached || fetch(event.request).then((response) => {
+          const copy = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
+          return response;
+        })
+      )
     );
     return;
   }
