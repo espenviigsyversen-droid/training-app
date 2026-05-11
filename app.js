@@ -4,7 +4,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     import { getFirestore, doc, collection, getDoc, getDocs, setDoc, deleteDoc, writeBatch }
       from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
-    const APP_VERSION = 'v49';
+    const APP_VERSION = 'v50';
 
     const firebaseConfig = {
       apiKey: "AIzaSyAMPfQ9gX9rbuvcPsVjYVtq5IT_orjDBPs",
@@ -1220,6 +1220,45 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       return Boolean(adaptation && adaptation !== 'none');
     }
 
+    function workoutSortValue(item) {
+      return `${item.date || ''}T${item.completedAt || item.updatedAt || ''}`;
+    }
+
+    function sortedCompletedItems(items) {
+      return [...items].sort((a, b) => workoutSortValue(a).localeCompare(workoutSortValue(b)));
+    }
+
+    function bodySignalState(items) {
+      const sorted = sortedCompletedItems(items);
+      const signalItems = sorted.filter(item => hasPainSignal(item) || hasAdaptationSignal(item));
+      const latest = sorted[sorted.length - 1] || null;
+      const latestSignal = signalItems[signalItems.length - 1] || null;
+      if (!latestSignal) {
+        return { level: 'none', signalItems, cleanAfter: [], latest, latestSignal };
+      }
+
+      const latestSignalSort = workoutSortValue(latestSignal);
+      const afterSignal = sorted.filter(item => workoutSortValue(item) > latestSignalSort);
+      const cleanAfter = afterSignal.filter(item => !hasPainSignal(item) && !hasAdaptationSignal(item));
+      const painBefore = numberOrZero(latestSignal.bodyStatus?.painBefore);
+      const painAfter = numberOrZero(latestSignal.bodyStatus?.painAfter);
+      const area = (latestSignal.bodyStatus?.area || '').trim().toLowerCase();
+      const sameAreaSignals = area
+        ? signalItems.filter(item => (item.bodyStatus?.area || '').trim().toLowerCase() === area).length
+        : 0;
+      const latestHasSignal = latest && workoutSortValue(latest) === latestSignalSort;
+      const worseningPain = painAfter >= 4 || painAfter > painBefore + 1;
+      const repeatedSameArea = sameAreaSignals >= 2 && cleanAfter.length < 2;
+
+      let level = 'resolved';
+      if (latestHasSignal && worseningPain) level = 'active';
+      else if (latestHasSignal || repeatedSameArea) level = 'caution';
+      else if (cleanAfter.length >= 2) level = 'resolved';
+      else if (cleanAfter.length === 1) level = 'cooling';
+
+      return { level, signalItems, cleanAfter, latest, latestSignal, painBefore, painAfter, area, repeatedSameArea };
+    }
+
     function weeklyBodySignalNote(items) {
       if (!items.length) return '';
       const areas = [...new Set(items.map(item => item.bodyStatus?.area).filter(Boolean).map(area => area.trim()))];
@@ -2066,7 +2105,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
 
     function buildWorkoutSuggestion(today, weekSummary, weekItems, last14Days, profile) {
       const effectSummary = summarizeTrainingEffects(weekItems);
-      const painItems = last14Days.filter(c => c.bodyStatus?.painBefore || c.bodyStatus?.painAfter || c.bodyStatus?.area);
+      const bodyState = bodySignalState(last14Days);
       const high = effectSummary.categories.high_aerobic.count;
       const anaerobic = effectSummary.categories.anaerobic.count;
       const low = effectSummary.categories.low_aerobic.count;
@@ -2084,12 +2123,16 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         keywords: ['rolig', 'restitusjon', 'base', 'lett', 'fri']
       };
 
-      if (painItems.length) {
+      if (bodyState.level === 'active' || bodyState.level === 'caution') {
         return {
           ...baseSuggestion,
-          title: 'Skånsom rolig økt eller alternativ trening',
-          detail: 'Velg kort rolig løp, sykkel, mobilitet eller hvile hvis samme område fortsatt kjennes.',
-          note: 'Foreslått fordi du har registrert smerte eller tilpasning nylig.',
+          title: 'Skånsom rolig økt',
+          detail: bodyState.repeatedSameArea
+            ? 'Samme område har dukket opp flere ganger. Hold økten lett, eller velg alternativ trening.'
+            : 'Velg kort og lett. Hvis samme område fortsatt kjennes, bytt til sykkel, mobilitet eller hvile.',
+          note: bodyState.level === 'active'
+            ? 'Passer fordi siste registrerte kroppssignal fortsatt er relevant.'
+            : 'Passer fordi kroppssignalet bør bekreftes med en kontrollert økt før du øker.',
           types: ['Mobilitet', 'Sykling', 'Løping', 'Ski'],
           intensities: ['Rolig', 'Restitusjon'],
           purposes: ['recovery', 'mobility', 'base'],
@@ -2097,6 +2140,17 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
           recommendedWhen: ['pain_adaptation', 'tired', 'after_hard'],
           avoidTemplateWhen: ['pain', 'heavy_legs', 'many_hard'],
           keywords: ['mobilitet', 'rolig', 'restitusjon', 'lett', 'sykkel']
+        };
+      }
+
+      if (bodyState.level === 'cooling') {
+        return {
+          ...baseSuggestion,
+          title: 'Kontrollert rolig økt',
+          detail: 'Siste økt etter kroppssignalet var uten nye signaler. Bygg videre rolig og se at kroppen svarer fint.',
+          note: 'Passer fordi signalet virker på vei ned, men progresjonen bør fortsatt være kontrollert.',
+          recommendedWhen: ['normal', 'tired', 'pain_adaptation'],
+          keywords: ['rolig', 'base', 'lett', 'restitusjon']
         };
       }
 
@@ -2185,18 +2239,18 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         ? [templatePurposeLabel(template.purpose), templateLoadLabel(template.load)].filter(Boolean).join(' · ')
         : '';
       const templateMeta = template
-        ? `<p class="meta"><strong>Passende mal:</strong> ${escapeHtml(template.name)} · ${escapeHtml(template.type)} · ${escapeHtml(template.intensity || '')}${templateCoachMeta ? ` · ${escapeHtml(templateCoachMeta)}` : ''}</p>`
-        : '<p class="meta">Ingen tydelig passende øktmal funnet ennå. Lag gjerne en mal som matcher forslaget.</p>';
+        ? `<div class="suggestion-template"><span>Passende mal</span><strong>${escapeHtml(template.name)}</strong><small>${escapeHtml([template.type, template.intensity, templateCoachMeta].filter(Boolean).join(' · '))}</small></div>`
+        : '<div class="suggestion-template"><span>Passende mal</span><strong>Ingen tydelig match</strong><small>Lag gjerne en mal som matcher forslaget.</small></div>';
       document.getElementById('homeWorkoutSuggestion').innerHTML = `
         <div class="suggestion-card">
           <div class="suggestion-kicker">Neste smarte valg</div>
           <h3>${escapeHtml(suggestion.title)}</h3>
-          <p>${escapeHtml(suggestion.detail)}</p>
-          <p class="meta">${escapeHtml(suggestion.note)}</p>
+          <p class="suggestion-main">${escapeHtml(suggestion.detail)}</p>
+          <p class="suggestion-reason">${escapeHtml(suggestion.note)}</p>
           ${templateMeta}
           <div class="button-row">
-            ${template ? `<button class="btn-primary" onclick="planSuggestedWorkout('${template.id}', '${tomorrow}')">Planlegg forslaget</button>` : ''}
-            <button class="btn-soft" onclick="${template ? `openPlan('${tomorrow}')` : 'openLibrary()'}">${template ? 'Velg selv' : 'Lag øktmal'}</button>
+            ${template ? `<button class="btn-primary" onclick="planSuggestedWorkout('${template.id}', '${tomorrow}')">Planlegg</button>` : ''}
+            <button class="btn-soft" onclick="${template ? `openPlan('${tomorrow}')` : 'openLibrary()'}">${template ? 'Velg annen' : 'Lag øktmal'}</button>
           </div>
         </div>`;
     }
@@ -2773,24 +2827,24 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       const latestNote = lastWorkoutCoachNote(latest, profile);
       if (latestNote) return latestNote;
 
-      const painItems = last14Days.filter(c => c.bodyStatus?.painBefore || c.bodyStatus?.painAfter || c.bodyStatus?.area);
+      const bodyState = bodySignalState(last14Days);
       const hardItems = last14Days.filter(isHardWorkout);
       const runningBakkenFocus = profile.primaryFocus === 'running' && profile.philosophy === 'bakken_threshold';
       const strengthGrowthFocus = profile.primaryFocus === 'strength' && profile.trainingFocus === 'muscle_growth';
       const skiTechniqueFocus = profile.primaryFocus === 'ski' && profile.trainingFocus === 'technique_skill';
-      if (painItems.length >= 2) {
+      if (bodyState.level === 'active' || bodyState.level === 'caution') {
         return runningBakkenFocus
-          ? 'Du har registrert smerte eller kroppsnotat på flere økter de siste 14 dagene. Med skadefri løpsprogresjon som mål bør neste økt være rolig, alternativ trening eller hvile hvis smerten øker.'
-          : 'Du har registrert smerte eller kroppsnotat på flere økter de siste 14 dagene. Hold neste økt kontrollert, og vurder rolig alternativ eller hvile hvis smerten øker.';
+          ? 'Kroppssignalet er fortsatt relevant. Med skadefri løpsprogresjon som mål bør neste økt være rolig, alternativ trening eller hvile hvis samme område fortsatt kjennes.'
+          : 'Kroppssignalet er fortsatt relevant. Hold neste økt kontrollert, og vurder alternativ trening eller hvile hvis samme område fortsatt kjennes.';
+      }
+      if (bodyState.level === 'cooling') {
+        return 'Tidligere kroppssignal er fulgt av en smertefri økt. Bygg videre kontrollert, men du trenger ikke la det styre hele treningsuken.';
       }
       if (strengthGrowthFocus && weekSummary.sessions >= goals.weeklySessionsTarget) {
         return 'Du ligger godt an mot ukesmålet. Med muskelvekst som fokus blir neste steg å sikre nok restitusjon, jevn progresjon og nok energi inn, ikke bare flere økter.';
       }
       if (skiTechniqueFocus && hardItems.length >= 2) {
         return 'Du har nok hard belastning tett på teknikkfokuset. Neste skiøkt bør trolig handle om stakingsteknikk, rytme og kontrollert kapasitet.';
-      }
-      if (painItems.length === 1) {
-        return 'Du har registrert smerte eller tilpasning på en nylig økt. Smart å justere belastningen tidlig, spesielt hvis samme område fortsatt kjennes.';
       }
       if (runningBakkenFocus && hardItems.length >= 2) {
         return 'Du har allerede nok høy belastning i en Bakken-inspirert løpsuke. Prioriter rolig volum eller kontrollert terskel med overskudd, ikke mer hard intensitet.';

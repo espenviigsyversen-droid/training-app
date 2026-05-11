@@ -1030,6 +1030,46 @@
       line-height: 1.42;
     }
 
+    .suggestion-card .suggestion-main {
+      font-weight: 650;
+    }
+
+    .suggestion-card .suggestion-reason {
+      color: var(--warm-gray-3);
+      font-size: 0.82rem;
+      font-weight: 750;
+    }
+
+    .suggestion-template {
+      display: grid;
+      gap: 2px;
+      border-radius: 12px;
+      background: rgba(255,255,255,0.72);
+      border: 1px solid rgba(17,17,17,0.06);
+      padding: 10px;
+      margin: 10px 0 12px;
+    }
+
+    .suggestion-template span {
+      color: var(--warm-gray-3);
+      font-size: 0.64rem;
+      font-weight: 900;
+      text-transform: uppercase;
+    }
+
+    .suggestion-template strong {
+      color: var(--black);
+      font-size: 0.94rem;
+      line-height: 1.18;
+    }
+
+    .suggestion-template small {
+      color: var(--warm-gray-3);
+      font-size: 0.75rem;
+      font-weight: 750;
+      line-height: 1.25;
+    }
+
     .continuity-weeks {
       display: grid;
       grid-template-columns: repeat(4, minmax(0, 1fr));
