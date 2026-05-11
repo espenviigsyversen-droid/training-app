@@ -4,7 +4,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     import { getFirestore, doc, collection, getDoc, getDocs, setDoc, deleteDoc, writeBatch, enableIndexedDbPersistence }
       from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
-    const APP_VERSION = 'v62';
+    const APP_VERSION = 'v63';
 
     const firebaseConfig = {
       apiKey: "AIzaSyAMPfQ9gX9rbuvcPsVjYVtq5IT_orjDBPs",
@@ -564,10 +564,19 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       document.getElementById('settings')?.scrollIntoView({ block: 'start' });
     };
 
+    function scrollAppToTop() {
+      window.requestAnimationFrame(() => {
+        const scrollTarget = document.scrollingElement || document.documentElement || document.body;
+        scrollTarget.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+      });
+    }
+
     window.showTab = function(tabId, btn = null) {
+      const previousTab = document.querySelector('.tab.active')?.id || '';
       document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
       document.getElementById(tabId).classList.add('active');
       const navBtn = btn || document.querySelector(`nav button[data-tab="${tabId}"]`);
+      const isMainNavTab = Boolean(navBtn);
       if (navBtn) {
         document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
         navBtn.classList.add('active');
@@ -575,6 +584,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       document.getElementById('userMenu').classList.add('hidden');
       if (tabId === 'settings' && btn) openSetupSection('overview');
       render();
+      if (isMainNavTab || previousTab === tabId) scrollAppToTop();
     };
 
     window.openPlan = function(dateIso = '') {
