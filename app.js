@@ -4,7 +4,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     import { getFirestore, doc, collection, getDoc, getDocs, setDoc, deleteDoc, writeBatch, enableIndexedDbPersistence }
       from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
-    const APP_VERSION = 'v58';
+    const APP_VERSION = 'v59';
 
     const firebaseConfig = {
       apiKey: "AIzaSyAMPfQ9gX9rbuvcPsVjYVtq5IT_orjDBPs",
@@ -25,6 +25,8 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     let currentUser = null;
     let hasPendingLocalWrites = false;
     let authResolved = false;
+    let offlineSnapshotMode = false;
+    const LOCAL_STATE_KEY = 'treningsapp:last-state:v1';
     const defaultSettings = {
       activityTypes: ['Løping', 'Styrke', 'Mobilitet', 'Ski', 'Sykling', 'Annet'],
       intensities: ['Rolig', 'Tempo', 'Terskel', 'Intervall', 'Anaerob', 'Styrke', 'Restitusjon'],
@@ -129,6 +131,46 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       setSyncStatus(hasPendingLocalWrites ? 'syncing' : 'ok');
     }
 
+    function saveLocalStateSnapshot() {
+      try {
+        localStorage.setItem(LOCAL_STATE_KEY, JSON.stringify({
+          savedAt: new Date().toISOString(),
+          state
+        }));
+      } catch (err) {
+        console.warn('Could not save local state snapshot:', err);
+      }
+    }
+
+    function loadLocalStateSnapshot() {
+      try {
+        const raw = localStorage.getItem(LOCAL_STATE_KEY);
+        if (!raw) return null;
+        const snapshot = JSON.parse(raw);
+        if (!snapshot || !snapshot.state) return null;
+        state = {
+          templates: Array.isArray(snapshot.state.templates) ? snapshot.state.templates : [],
+          planned: Array.isArray(snapshot.state.planned) ? snapshot.state.planned : [],
+          completed: Array.isArray(snapshot.state.completed) ? snapshot.state.completed : [],
+          wellness: Array.isArray(snapshot.state.wellness) ? snapshot.state.wellness : [],
+          settings: normalizeSettings(snapshot.state.settings)
+        };
+        return snapshot.savedAt || null;
+      } catch (err) {
+        console.warn('Could not load local state snapshot:', err);
+        return null;
+      }
+    }
+
+    function blockOfflineSnapshotWrite() {
+      if (!offlineSnapshotMode) return false;
+      loadLocalStateSnapshot();
+      setSyncStatus('offline');
+      render();
+      alert('Du er i offline-visning med siste lagrede kopi. Koble til nett for å endre eller logge økter trygt.');
+      return true;
+    }
+
     function revealOfflineStart(reason = '') {
       const message = document.getElementById('loadingMessage');
       const button = document.getElementById('offlineStartBtn');
@@ -140,7 +182,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       hint.textContent = reason || (
         navigator.onLine
           ? 'Du kan prøve å åpne appen med data som allerede finnes på telefonen.'
-          : 'Du er offline. Appen kan åpnes hvis innlogging og appdata allerede finnes på telefonen.'
+          : 'Du er offline. Appen kan åpnes med siste lagrede kopi hvis appen har vært brukt på denne telefonen før.'
       );
     }
 
@@ -151,6 +193,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       const hint = document.getElementById('loadingHint');
 
       if (currentUser) {
+        offlineSnapshotMode = false;
         loading.classList.add('hidden');
         authScreen.classList.add('hidden');
         mainApp.classList.remove('hidden');
@@ -159,12 +202,26 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         return;
       }
 
+      const savedAt = loadLocalStateSnapshot();
+      if (savedAt) {
+        offlineSnapshotMode = true;
+        loading.classList.add('hidden');
+        authScreen.classList.add('hidden');
+        mainApp.classList.remove('hidden');
+        setSyncStatus('offline');
+        const email = document.getElementById('settingsUserEmail');
+        if (email) email.textContent = 'Offline-visning med siste lagrede kopi';
+        render();
+        showToast('Offline-visning åpnet', 'info');
+        return;
+      }
+
       const message = document.getElementById('loadingMessage');
       const button = document.getElementById('offlineStartBtn');
       if (message) message.textContent = 'Offline krever lagret innlogging';
       if (button) button.classList.add('hidden');
       if (hint) {
-        hint.textContent = 'Fant ikke innlogging lagret lokalt. Åpne appen én gang med nett etter oppdatering, så blir offline-modus klar til neste gang.';
+        hint.textContent = 'Fant ingen lagret appkopi på telefonen. Åpne appen én gang med nett, så blir offline-visning tilgjengelig neste gang.';
         hint.classList.remove('hidden');
       }
     };
@@ -285,6 +342,8 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         state.wellness = wSnap.docs.map(d => ({ id: d.id, ...d.data() }));
         state.settings = settingsSnap.exists() ? normalizeSettings(settingsSnap.data()) : freshDefaultSettings();
         if (!settingsSnap.exists()) await fsSet('settings', 'preferences', state.settings);
+        offlineSnapshotMode = false;
+        saveLocalStateSnapshot();
         if (navigator.onLine) {
           hasPendingLocalWrites = false;
           setSyncStatus('ok');
@@ -300,6 +359,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     }
 
     async function fsSet(colName, id, data) {
+      if (blockOfflineSnapshotWrite()) throw new Error('Offline snapshot is read-only');
       const wasOffline = !navigator.onLine;
       if (wasOffline) {
         hasPendingLocalWrites = true;
@@ -316,6 +376,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         } else {
           setSyncStatus('ok');
         }
+        saveLocalStateSnapshot();
       } catch (err) {
         console.error('Firestore write error:', err);
         setSyncStatus('error');
@@ -324,6 +385,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     }
 
     async function fsDelete(colName, id) {
+      if (blockOfflineSnapshotWrite()) throw new Error('Offline snapshot is read-only');
       const wasOffline = !navigator.onLine;
       if (wasOffline) {
         hasPendingLocalWrites = true;
@@ -339,6 +401,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         } else {
           setSyncStatus('ok');
         }
+        saveLocalStateSnapshot();
       } catch (err) {
         console.error('Firestore delete error:', err);
         setSyncStatus('error');
@@ -348,6 +411,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
 
     async function fsBatchSet(colName, items) {
       if (!items.length) return;
+      if (blockOfflineSnapshotWrite()) throw new Error('Offline snapshot is read-only');
       const wasOffline = !navigator.onLine;
       if (wasOffline) {
         hasPendingLocalWrites = true;
@@ -368,6 +432,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         } else {
           setSyncStatus('ok');
         }
+        saveLocalStateSnapshot();
       } catch (err) {
         console.error('Firestore batch error:', err);
         setSyncStatus('error');
@@ -420,6 +485,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
 
       if (user) {
         currentUser = user;
+        offlineSnapshotMode = false;
         loading.classList.add('hidden');
         authScreen.classList.add('hidden');
         mainApp.classList.remove('hidden');
@@ -427,7 +493,21 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         document.getElementById('settingsUserEmail').textContent = `Innlogget som: ${user.email}`;
         await loadFromFirestore();
       } else {
+        const savedAt = !navigator.onLine ? loadLocalStateSnapshot() : null;
+        if (savedAt) {
+          currentUser = null;
+          offlineSnapshotMode = true;
+          loading.classList.add('hidden');
+          authScreen.classList.add('hidden');
+          mainApp.classList.remove('hidden');
+          setSyncStatus('offline');
+          const email = document.getElementById('settingsUserEmail');
+          if (email) email.textContent = 'Offline-visning med siste lagrede kopi';
+          render();
+          return;
+        }
         currentUser = null;
+        offlineSnapshotMode = false;
         state = { templates: [], planned: [], completed: [], wellness: [], settings: normalizeSettings(state.settings) };
         loading.classList.add('hidden');
         authScreen.classList.remove('hidden');
