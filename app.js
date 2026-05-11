@@ -4,7 +4,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     import { getFirestore, doc, collection, getDoc, getDocs, setDoc, deleteDoc, writeBatch, enableIndexedDbPersistence }
       from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
-    const APP_VERSION = 'v55';
+    const APP_VERSION = 'v56';
 
     const firebaseConfig = {
       apiKey: "AIzaSyAMPfQ9gX9rbuvcPsVjYVtq5IT_orjDBPs",
@@ -1330,7 +1330,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         note = 'Du bygger kontinuitet med kontrollert belastning. En kvalitetsøkt kan vurderes hvis kroppen kjennes fin.';
       }
 
-      return { label, level, note, loadCounts, painCount, adaptationCount };
+      return { label, level, note, loadCounts, painCount, adaptationCount, bodySignals };
     }
 
     function weeklySignalLabel(status) {
@@ -1466,12 +1466,12 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
             <span class="weekly-load-high" style="width:${highPct}%"></span>
           </div>
           <div class="weekly-status-grid">
-            <div><strong>${status.loadCounts.low}</strong><span>Lav</span></div>
+            <div><strong>${status.loadCounts.low}</strong><span>Lav belastning</span></div>
             <div><strong>${status.loadCounts.moderate}</strong><span>Moderat</span></div>
-            <div><strong>${status.loadCounts.high}</strong><span>Høy</span></div>
-            <div><strong>${status.painCount}/${status.adaptationCount}</strong><span>Smerte/tilpasning</span></div>
+            <div><strong>${status.loadCounts.high}</strong><span>Høy belastning</span></div>
+            <div><strong>${status.bodySignals}</strong><span>Kroppssignaler</span></div>
           </div>
-          <p>${escapeHtml(status.note)}</p>
+          <p><strong>Neste steg:</strong> ${escapeHtml(status.note)}</p>
         </div>`;
     }
 
