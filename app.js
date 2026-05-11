@@ -4,7 +4,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     import { getFirestore, doc, collection, getDoc, getDocs, setDoc, deleteDoc, writeBatch, enableIndexedDbPersistence }
       from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
-    const APP_VERSION = 'v52';
+    const APP_VERSION = 'v53';
 
     const firebaseConfig = {
       apiKey: "AIzaSyAMPfQ9gX9rbuvcPsVjYVtq5IT_orjDBPs",
@@ -572,6 +572,52 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       const options = selectedValue && !values.includes(selectedValue) ? [...values, selectedValue] : values;
       select.innerHTML = options.map(v => `<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join('');
       if (selectedValue) select.value = selectedValue;
+    }
+
+    function compareText(a, b) {
+      return String(a || '').localeCompare(String(b || ''), 'nb', { numeric: true, sensitivity: 'base' });
+    }
+
+    function sortedTemplatesForSelect() {
+      const activityOrder = state.settings.activityTypes || [];
+      return [...state.templates].sort((a, b) => {
+        const aIndex = activityOrder.indexOf(a.type);
+        const bIndex = activityOrder.indexOf(b.type);
+        const aRank = aIndex === -1 ? 999 : aIndex;
+        const bRank = bIndex === -1 ? 999 : bIndex;
+        if (aRank !== bRank) return aRank - bRank;
+        const typeCompare = compareText(a.type, b.type);
+        if (typeCompare !== 0) return typeCompare;
+        return compareText(a.name, b.name);
+      });
+    }
+
+    function templateSelectLabel(template) {
+      return template.intensity
+        ? `${template.name} · ${template.intensity}`
+        : template.name;
+    }
+
+    function templateSelectOptions({ includeManual = false } = {}) {
+      const options = [];
+      if (includeManual) options.push('<option value="">Ingen / eget navn</option>');
+      if (!state.templates.length) {
+        options.push('<option value="">Lag en øktmal først</option>');
+        return options.join('');
+      }
+
+      let currentType = null;
+      sortedTemplatesForSelect().forEach(template => {
+        const type = template.type || 'Annet';
+        if (type !== currentType) {
+          if (currentType !== null) options.push('</optgroup>');
+          options.push(`<optgroup label="${escapeHtml(type)}">`);
+          currentType = type;
+        }
+        options.push(`<option value="${template.id}">${escapeHtml(templateSelectLabel(template))}</option>`);
+      });
+      if (currentType !== null) options.push('</optgroup>');
+      return options.join('');
     }
 
     window.saveTemplate = async function() {
@@ -3095,13 +3141,8 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         ? upcomingItems.slice(0, 3).map(p => workoutCard(p)).join('')
         : `<div class="empty">Ingen kommende økter.</div>`;
 
-      document.getElementById('planTemplate').innerHTML = state.templates.length
-        ? state.templates.map(t => `<option value="${t.id}">${escapeHtml(t.name)} · ${escapeHtml(t.type)}</option>`).join('')
-        : `<option value="">Lag en øktmal først</option>`;
-      document.getElementById('completeTemplate').innerHTML = [
-        `<option value="">Ingen / eget navn</option>`,
-        ...state.templates.map(t => `<option value="${t.id}">${escapeHtml(t.name)} · ${escapeHtml(t.type)}</option>`)
-      ].join('');
+      document.getElementById('planTemplate').innerHTML = templateSelectOptions();
+      document.getElementById('completeTemplate').innerHTML = templateSelectOptions({ includeManual: true });
 
       document.getElementById('templateList').innerHTML = state.templates.length
         ? state.templates.map(templateCard).join('')
