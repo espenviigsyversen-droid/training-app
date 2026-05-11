@@ -4,7 +4,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     import { getFirestore, doc, collection, getDoc, getDocs, setDoc, deleteDoc, writeBatch, enableIndexedDbPersistence }
       from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
-    const APP_VERSION = 'v53';
+    const APP_VERSION = 'v54';
 
     const firebaseConfig = {
       apiKey: "AIzaSyAMPfQ9gX9rbuvcPsVjYVtq5IT_orjDBPs",
@@ -1812,6 +1812,84 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       });
     }
 
+    function templateSearchText(t) {
+      return [
+        t.name,
+        t.type,
+        t.intensity,
+        t.structure,
+        templatePurposeLabel(t.purpose),
+        templateLoadLabel(t.load),
+        templateRecommendedWhenLabel(t.recommendedWhen),
+        templateAvoidWhenLabel(t.avoidWhen)
+      ].filter(Boolean).join(' ').toLowerCase();
+    }
+
+    function filteredTemplatesForLibrary() {
+      const query = (document.getElementById('templateSearch')?.value || '').trim().toLowerCase();
+      const typeFilter = document.getElementById('templateFilterType')?.value || 'Alle';
+      return sortedTemplatesForSelect().filter(t => {
+        const matchesType = typeFilter === 'Alle' || (t.type || 'Annet') === typeFilter;
+        const matchesQuery = !query || templateSearchText(t).includes(query);
+        return matchesType && matchesQuery;
+      });
+    }
+
+    function renderTemplateTypeFilter() {
+      const select = document.getElementById('templateFilterType');
+      if (!select) return;
+      const selected = select.value || 'Alle';
+      const values = ['Alle', ...uniqueValues([...(state.settings.activityTypes || []), ...state.templates.map(t => t.type || 'Annet')])];
+      select.innerHTML = values.map(v => `<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join('');
+      select.value = values.includes(selected) ? selected : 'Alle';
+    }
+
+    window.renderTemplateLibrary = function() {
+      renderTemplateTypeFilter();
+      const list = document.getElementById('templateList');
+      const summary = document.getElementById('templateLibrarySummary');
+      if (!list) return;
+
+      if (!state.templates.length) {
+        if (summary) summary.textContent = '';
+        list.innerHTML = `<div class="empty">Ingen øktmaler enda. Lag din første over.</div>`;
+        return;
+      }
+
+      const templates = filteredTemplatesForLibrary();
+      if (summary) {
+        summary.textContent = templates.length === state.templates.length
+          ? `${state.templates.length} øktmaler i biblioteket.`
+          : `${templates.length} av ${state.templates.length} øktmaler vises.`;
+      }
+
+      if (!templates.length) {
+        list.innerHTML = `<div class="empty">Ingen øktmaler matcher søket.</div>`;
+        return;
+      }
+
+      const groups = [];
+      templates.forEach(template => {
+        const type = template.type || 'Annet';
+        let group = groups.find(item => item.type === type);
+        if (!group) {
+          group = { type, templates: [] };
+          groups.push(group);
+        }
+        group.templates.push(template);
+      });
+
+      list.innerHTML = groups.map(group => `
+        <div class="template-group">
+          <div class="template-group-header">
+            <h3>${escapeHtml(group.type)}</h3>
+            <span>${group.templates.length} ${group.templates.length === 1 ? 'mal' : 'maler'}</span>
+          </div>
+          ${group.templates.map(templateCard).join('')}
+        </div>
+      `).join('');
+    };
+
     function templateCard(t) {
       const coachTags = [
         templatePurposeLabel(t.purpose),
@@ -1820,16 +1898,16 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         templateAvoidWhenLabel(t.avoidWhen)
       ].filter(Boolean);
       return `
-        <div class="workout-card">
+        <div class="workout-card template-card">
           <div class="workout-top">
             <div>
               <h3 class="workout-title">${escapeHtml(t.name)}</h3>
-              <div class="meta">${escapeHtml(t.type)} · ${escapeHtml(t.intensity)}</div>
+              <div class="meta">${escapeHtml(t.intensity || 'Uten intensitet')}</div>
             </div>
-            <span class="tag">Mal</span>
+            <span class="tag">${escapeHtml(templateLoadLabel(t.load) || 'Mal')}</span>
           </div>
-          ${coachTags.length ? `<p class="meta"><strong>Coach:</strong> ${escapeHtml(coachTags.join(' · '))}</p>` : ''}
-          ${t.structure ? `<p class="meta" style="white-space:pre-line;">${escapeHtml(t.structure)}</p>` : ''}
+          ${coachTags.length ? `<div class="compact-tags">${coachTags.map(tag => `<span class="tag">${escapeHtml(tag)}</span>`).join('')}</div>` : ''}
+          ${t.structure ? `<p class="template-structure">${escapeHtml(t.structure)}</p>` : ''}
           <div class="button-row">
             <button class="btn-primary" onclick="editTemplate('${t.id}')">Rediger</button>
             <button class="btn-soft" onclick="deleteTemplate('${t.id}')">Slett</button>
@@ -3144,9 +3222,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       document.getElementById('planTemplate').innerHTML = templateSelectOptions();
       document.getElementById('completeTemplate').innerHTML = templateSelectOptions({ includeManual: true });
 
-      document.getElementById('templateList').innerHTML = state.templates.length
-        ? state.templates.map(templateCard).join('')
-        : `<div class="empty">Ingen øktmaler enda. Lag din første over.</div>`;
+      renderTemplateLibrary();
 
       const completed = filteredCompletedHistory();
       renderHistoryFilterSummary(completed);

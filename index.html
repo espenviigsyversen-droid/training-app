@@ -223,6 +223,17 @@
         </div>
         <div class="card">
           <h2 class="section-title">Øktbibliotek</h2>
+          <div class="library-tools">
+            <div>
+              <label>Søk</label>
+              <input id="templateSearch" placeholder="Søk etter navn, type eller formål" oninput="renderTemplateLibrary()" />
+            </div>
+            <div>
+              <label>Type</label>
+              <select id="templateFilterType" onchange="renderTemplateLibrary()"></select>
+            </div>
+          </div>
+          <div id="templateLibrarySummary" class="small-note"></div>
           <div id="templateList"></div>
         </div>
       </section>
