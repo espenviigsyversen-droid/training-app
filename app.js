@@ -4,7 +4,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     import { getFirestore, doc, collection, getDoc, getDocs, setDoc, deleteDoc, writeBatch, enableIndexedDbPersistence }
       from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
-    const APP_VERSION = 'v59';
+    const APP_VERSION = 'v60';
 
     const firebaseConfig = {
       apiKey: "AIzaSyAMPfQ9gX9rbuvcPsVjYVtq5IT_orjDBPs",
@@ -542,6 +542,28 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     });
 
     // ── Tabs ──────────────────────────────────────────────────────────────────
+    window.openSetupSection = function(section = 'overview') {
+      const overview = document.getElementById('setupOverview');
+      const sections = {
+        activityTypes: document.getElementById('setupActivityTypes'),
+        intensities: document.getElementById('setupIntensities'),
+        goals: document.getElementById('setupGoals'),
+        trainingProfile: document.getElementById('setupTrainingProfile'),
+        personProfile: document.getElementById('setupPersonProfile'),
+        wellness: document.getElementById('setupWellness'),
+        data: document.getElementById('setupData'),
+        danger: document.getElementById('setupDanger')
+      };
+      Object.values(sections).forEach(el => el?.classList.add('hidden'));
+      if (section === 'overview' || !sections[section]) {
+        overview?.classList.remove('hidden');
+      } else {
+        overview?.classList.add('hidden');
+        sections[section].classList.remove('hidden');
+      }
+      document.getElementById('settings')?.scrollIntoView({ block: 'start' });
+    };
+
     window.showTab = function(tabId, btn = null) {
       document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
       document.getElementById(tabId).classList.add('active');
@@ -551,6 +573,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         navBtn.classList.add('active');
       }
       document.getElementById('userMenu').classList.add('hidden');
+      if (tabId === 'settings' && btn) openSetupSection('overview');
       render();
     };
 

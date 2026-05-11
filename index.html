@@ -395,9 +395,10 @@
       </section>
 
       <section id="settings" class="tab">
+        <div id="setupOverview">
         <div class="card">
           <h2 class="section-title">Innstillinger</h2>
-          <p class="small-note">Tilpass valgene som brukes når du lager nye øktmaler.</p>
+          <p class="small-note">Administrer planlegging, treningsstyring, profil og data på ett sted.</p>
         </div>
         <div class="card">
           <h2 class="section-title">Planlegging</h2>
@@ -408,22 +409,68 @@
           </div>
         </div>
         <div class="card">
+          <h2 class="section-title">App-oppsett</h2>
+          <p class="small-note">Valgene som brukes når du bygger øktmaler og logger trening.</p>
+          <div class="setup-menu">
+            <button class="setup-menu-item" onclick="openSetupSection('activityTypes')"><span>Aktivitetstyper</span><small>Løping, styrke, gåtur og egne aktiviteter</small></button>
+            <button class="setup-menu-item" onclick="openSetupSection('intensities')"><span>Intensiteter</span><small>Rolig, terskel, intervall og egne valg</small></button>
+          </div>
+        </div>
+        <div class="card">
+          <h2 class="section-title">Treningsstyring</h2>
+          <p class="small-note">Mål og profil som brukes av Innsikt og coach-notiser.</p>
+          <div class="setup-menu">
+            <button class="setup-menu-item" onclick="openSetupSection('goals')"><span>Treningsmål</span><small>Ukesmål for økter, tid og kilometer</small></button>
+            <button class="setup-menu-item" onclick="openSetupSection('trainingProfile')"><span>Treningsprofil</span><small>Fokus, filosofi, nivå og prioritet</small></button>
+          </div>
+        </div>
+        <div class="card">
+          <h2 class="section-title">Person og form</h2>
+          <p class="small-note">Bakgrunn og Garmin-målinger som gir bedre kontekst over tid.</p>
+          <div class="setup-menu">
+            <button class="setup-menu-item" onclick="openSetupSection('personProfile')"><span>Personprofil</span><small>Alder, puls, høyde, vekt og terskelpuls</small></button>
+            <button class="setup-menu-item" onclick="openSetupSection('wellness')"><span>Formmålinger</span><small>VO2 Max, HRV og hvilepuls fra Garmin</small></button>
+          </div>
+        </div>
+        <div class="card">
+          <h2 class="section-title">Data og system</h2>
+          <p class="small-note">Oppdater appen, ta backup eller administrer konto.</p>
+          <div class="setup-menu">
+            <button class="setup-menu-item" onclick="openSetupSection('data')"><span>Backup og oppdatering</span><small>Eksport, import, demo og appoppdatering</small></button>
+            <button class="setup-menu-item danger" onclick="openSetupSection('danger')"><span>Faresone</span><small>Slett data eller logg ut</small></button>
+          </div>
+        </div>
+        </div>
+
+        <div id="setupActivityTypes" class="setup-section hidden">
+        <div class="card">
+          <button class="btn-soft setup-back" onclick="openSetupSection('overview')">Tilbake til Setup</button>
           <h2 class="section-title">Aktivitetstyper</h2>
+          <p class="small-note">Legg til eller fjern aktivitetene du vil bruke i øktmaler og historikk.</p>
           <div class="inline-form">
             <div><label>Ny type</label><input id="newActivityType" placeholder="F.eks. Svømming" /></div>
             <button class="btn-primary btn-full" onclick="addSettingOption('activityTypes')">Legg til type</button>
           </div>
           <div id="activityTypeList" class="settings-list"></div>
         </div>
+        </div>
+
+        <div id="setupIntensities" class="setup-section hidden">
         <div class="card">
+          <button class="btn-soft setup-back" onclick="openSetupSection('overview')">Tilbake til Setup</button>
           <h2 class="section-title">Intensiteter</h2>
+          <p class="small-note">Brukes på øktmaler og planlagte økter, mens Garmin-effekt logges separat etter utført økt.</p>
           <div class="inline-form">
             <div><label>Ny intensitet</label><input id="newIntensity" placeholder="F.eks. Langtur" /></div>
             <button class="btn-primary btn-full" onclick="addSettingOption('intensities')">Legg til intensitet</button>
           </div>
           <div id="intensityList" class="settings-list"></div>
         </div>
+        </div>
+
+        <div id="setupGoals" class="setup-section hidden">
         <div class="card">
+          <button class="btn-soft setup-back" onclick="openSetupSection('overview')">Tilbake til Setup</button>
           <h2 class="section-title">Treningsmål</h2>
           <p class="small-note">Økter teller alle aktivitetstyper. Timer og kilometer er valgfrie mål som kan brukes senere i Innsikt.</p>
           <div class="inline-form">
@@ -438,7 +485,11 @@
             <button class="btn-primary btn-full" onclick="saveTrainingGoals()">Lagre mål</button>
           </div>
         </div>
+        </div>
+
+        <div id="setupTrainingProfile" class="setup-section hidden">
         <div class="card">
+          <button class="btn-soft setup-back" onclick="openSetupSection('overview')">Tilbake til Setup</button>
           <h2 class="section-title">Treningsprofil</h2>
           <p class="small-note">Brukes av Innsikt og coach-notis for å tolke belastning, balanse og anbefalinger mer personlig.</p>
           <div class="inline-form">
@@ -500,7 +551,11 @@
             <button class="btn-primary btn-full" onclick="saveTrainingProfile()">Lagre treningsprofil</button>
           </div>
         </div>
+        </div>
+
+        <div id="setupPersonProfile" class="setup-section hidden">
         <div class="card">
+          <button class="btn-soft setup-back" onclick="openSetupSection('overview')">Tilbake til Setup</button>
           <h2 class="section-title">Personprofil</h2>
           <p class="small-note">Frivillig bakgrunnsinformasjon som senere kan hjelpe coachen å gi mer relevant kontekst.</p>
           <div class="inline-form">
@@ -529,7 +584,11 @@
             <button class="btn-primary btn-full" onclick="savePersonProfile()">Lagre personprofil</button>
           </div>
         </div>
+        </div>
+
+        <div id="setupWellness" class="setup-section hidden">
         <div class="card">
+          <button class="btn-soft setup-back" onclick="openSetupSection('overview')">Tilbake til Setup</button>
           <h2 class="section-title">Formmålinger</h2>
           <p class="small-note">Registrer VO2 Max, 7 dagers HRV-snitt og 7 dagers hvilepuls fra Garmin når du vil følge utvikling over tid.</p>
           <div class="inline-form">
@@ -545,7 +604,11 @@
           </div>
           <div id="wellnessList" class="settings-list"></div>
         </div>
+        </div>
+
+        <div id="setupData" class="setup-section hidden">
         <div class="card">
+          <button class="btn-soft setup-back" onclick="openSetupSection('overview')">Tilbake til Setup</button>
           <h2 class="section-title">Backup</h2>
           <p class="small-note">Data lagres i Firestore og synkroniseres automatisk mellom alle enheter. Du kan også eksportere en lokal JSON-kopi som ekstra sikkerhetskopi.</p>
           <div class="button-row">
@@ -560,7 +623,11 @@
           <p class="small-note">Legg inn eksempeldata hvis du vil teste appen med ferdige økter.</p>
           <button class="btn-purple btn-full" onclick="seedDemoData()">Legg inn demo</button>
         </div>
+        </div>
+
+        <div id="setupDanger" class="setup-section hidden">
         <div class="card" style="border:2px solid var(--red);">
+          <button class="btn-soft setup-back" onclick="openSetupSection('overview')">Tilbake til Setup</button>
           <h2 class="section-title" style="color:var(--red);">Faresone</h2>
           <p class="small-note">Dette sletter alle øktmaler, planlagte økter, historikk og formmålinger. Setup-valgene dine beholdes.</p>
           <button class="btn-danger btn-full" onclick="confirmResetData()">Slett alt</button>
@@ -571,6 +638,7 @@
           <div class="button-row">
             <button class="btn-soft" id="signOutBtn2">Logg ut</button>
           </div>
+        </div>
         </div>
       </section>
     </main>
