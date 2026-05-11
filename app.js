@@ -4,7 +4,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     import { getFirestore, doc, collection, getDoc, getDocs, setDoc, deleteDoc, writeBatch }
       from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
-    const APP_VERSION = 'v48';
+    const APP_VERSION = 'v49';
 
     const firebaseConfig = {
       apiKey: "AIzaSyAMPfQ9gX9rbuvcPsVjYVtq5IT_orjDBPs",
@@ -2550,7 +2550,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     }
 
     function intensityProfileText(profile) {
-      return `Tolkes mot: ${profileLabel(profile.primaryFocus)} · ${profileLabel(profile.philosophy)} · ${profileLabel(profile.priority)} · ${profileLabel(profile.trainingFocus)}`;
+      return `Basert på Garmin Primær treningseffekt. Tolkes mot ${profileLabel(profile.primaryFocus)} · ${profileLabel(profile.philosophy)}.`;
     }
 
     function weightedLoadScore(summary, profile) {
@@ -2620,7 +2620,51 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       return 'Balansen ser kontrollert ut ut fra registrerte Garmin-valg.';
     }
 
-    function intensityBalanceCard(title, items, profile) {
+    function intensityConclusion(summary, profile) {
+      const lowShare = categoryShare(summary, 'low_aerobic');
+      const highShare = categoryShare(summary, 'high_aerobic');
+      const anaerobicShare = categoryShare(summary, 'anaerobic');
+      const runningBakkenFocus = profile.primaryFocus === 'running' && profile.philosophy === 'bakken_threshold';
+
+      if (!summary.total && summary.missing) return 'Mangler Garmin-valg';
+      if (!summary.total) return 'Ingen data ennå';
+      if (anaerobicShare >= 0.2 || summary.categories.anaerobic.count >= 2) return 'Nok hardt nå';
+      if (runningBakkenFocus && lowShare < 0.4 && summary.total >= 3) return 'Litt lite rolig';
+      if (highShare >= 0.45 && lowShare < 0.45) return 'Mye kvalitet';
+      if (lowShare >= 0.65 && anaerobicShare === 0) return 'Kontrollert uke';
+      if (lowShare >= 0.5 && highShare > 0) return 'Fin balanse';
+      return 'Kontrollert';
+    }
+
+    function intensityCategoryRows(summary) {
+      const categories = Object.values(summary.categories);
+      const basis = summary.seconds > 0 ? 'seconds' : 'count';
+      const totalBasis = basis === 'seconds' ? summary.seconds : summary.total;
+      return categories.map(category => {
+        const value = category[basis];
+        const percent = totalBasis ? Math.round((value / totalBasis) * 100) : 0;
+        const detail = basis === 'seconds'
+          ? `${category.count} økt${category.count === 1 ? '' : 'er'} · ${formatClockDuration(category.seconds)}`
+          : `${category.count} økt${category.count === 1 ? '' : 'er'}`;
+        return `
+          <div class="intensity-quick-row">
+            <span class="intensity-dot ${category.className}"></span>
+            <strong>${escapeHtml(category.shortLabel)} ${percent}%</strong>
+            <span>${escapeHtml(detail)}</span>
+          </div>`;
+      }).join('');
+    }
+
+    function intensityCompactContext(summary) {
+      const low = Math.round(categoryShare(summary, 'low_aerobic') * 100);
+      const high = Math.round(categoryShare(summary, 'high_aerobic') * 100);
+      const anaerobic = Math.round(categoryShare(summary, 'anaerobic') * 100);
+      if (!summary.total && summary.missing) return `${summary.missing} økt${summary.missing === 1 ? '' : 'er'} mangler Garmin-valg siste 4 uker.`;
+      if (!summary.total) return '4 uker: Ingen Garmin-klassifiserte økter ennå.';
+      return `4 uker: ${low}% rolig · ${high}% moderat · ${anaerobic}% hard`;
+    }
+
+    function intensityBalanceCard(items, profile, contextSummary) {
       const summary = summarizeTrainingEffects(items);
       const categories = Object.values(summary.categories);
       const basis = summary.seconds > 0 ? 'seconds' : 'count';
@@ -2633,33 +2677,24 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         }).join('')
         : '';
 
-      const legend = categories.map(category => {
-        const value = category[basis];
-        const percent = totalBasis ? Math.round((value / totalBasis) * 100) : 0;
-        const detail = basis === 'seconds'
-          ? `${formatClockDuration(category.seconds)} · ${category.count} økt${category.count === 1 ? '' : 'er'}`
-          : `${category.count} økt${category.count === 1 ? '' : 'er'}`;
-        return `
-          <div class="intensity-legend-row">
-            <span class="intensity-dot ${category.className}"></span>
-            <span>${escapeHtml(category.shortLabel)} (${escapeHtml(category.label)})</span>
-            <span>${percent}% · ${escapeHtml(detail)}</span>
-          </div>`;
-      }).join('');
-
       const missingText = summary.missing
         ? `<p class="small-note">${summary.missing} økt${summary.missing === 1 ? '' : 'er'} mangler Garmin-valg.</p>`
         : '';
+      const registered = summary.total
+        ? `${summary.total} registrert${summary.total === 1 ? '' : 'e'} med Garmin-valg`
+        : summary.missing ? `${summary.missing} mangler Garmin-valg` : 'Ingen Garmin-valg ennå';
 
       return `
         <div class="intensity-card">
           <div class="intensity-header">
-            <strong>${escapeHtml(title)}</strong>
-            <span>${summary.total} registrert${summary.total === 1 ? '' : 'e'} med Garmin-valg</span>
+            <span>Siste 7 dager</span>
+            <span>${escapeHtml(registered)}</span>
           </div>
+          <strong class="intensity-verdict">${escapeHtml(intensityConclusion(summary, profile))}</strong>
           <p class="intensity-coach-line">${escapeHtml(intensityCoachLine(summary, profile))}</p>
           <div class="intensity-stack">${stack}</div>
-          <div class="intensity-legend">${legend}</div>
+          <div class="intensity-quick-grid">${intensityCategoryRows(summary)}</div>
+          <p class="intensity-context-line">${escapeHtml(intensityCompactContext(contextSummary))}</p>
           ${missingText}
         </div>`;
     }
@@ -2727,12 +2762,10 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       const last28Start = addDays(today, -27);
       const last7Items = state.completed.filter(c => c.date >= last7Start && c.date <= today);
       const last28Items = state.completed.filter(c => c.date >= last28Start && c.date <= today);
+      const last28Summary = summarizeTrainingEffects(last28Items);
       document.getElementById('insightIntensityProfile').textContent = intensityProfileText(profile);
-      document.getElementById('insightIntensityBalance').innerHTML = [
-        intensityBalanceCard('Siste 7 dager', last7Items, profile),
-        intensityBalanceCard('Siste 4 uker', last28Items, profile)
-      ].join('');
-      document.getElementById('insightIntensityNote').textContent = buildIntensityNote(last7Items, last28Items, profile);
+      document.getElementById('insightIntensityBalance').innerHTML = intensityBalanceCard(last7Items, profile, last28Summary);
+      document.getElementById('insightIntensityNote').textContent = '';
     }
 
     function buildCoachNote(weekSummary, goals, last14Days, profile) {

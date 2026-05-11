@@ -744,7 +744,7 @@
     .intensity-card {
       border: 1px solid var(--warm-gray-2);
       border-radius: 16px;
-      padding: 12px;
+      padding: 14px;
       background: #fff;
     }
 
@@ -753,31 +753,42 @@
       justify-content: space-between;
       gap: 10px;
       align-items: baseline;
-      margin-bottom: 10px;
-    }
-
-    .intensity-header strong {
-      font-size: 0.95rem;
-      letter-spacing: -0.02em;
+      margin-bottom: 8px;
     }
 
     .intensity-header span {
       color: var(--warm-gray-3);
-      font-size: 0.75rem;
+      font-size: 0.72rem;
+      font-weight: 900;
+      text-transform: uppercase;
+      line-height: 1.2;
+    }
+
+    .intensity-header span:last-child {
+      text-align: right;
+      text-transform: none;
       font-weight: 800;
     }
 
-    .intensity-coach-line {
-      margin: 0 0 10px;
+    .intensity-verdict {
+      display: block;
       color: var(--black);
-      font-size: 0.92rem;
-      font-weight: 800;
+      font-size: 1.2rem;
+      line-height: 1.1;
+      margin-bottom: 6px;
+    }
+
+    .intensity-coach-line {
+      margin: 0 0 12px;
+      color: var(--black);
+      font-size: 0.9rem;
+      font-weight: 700;
       line-height: 1.35;
     }
 
     .intensity-stack {
       display: flex;
-      height: 13px;
+      height: 14px;
       border-radius: 999px;
       overflow: hidden;
       background: var(--warm-gray-1);
@@ -812,6 +823,56 @@
     .intensity-dot.low { background: var(--success); }
     .intensity-dot.high { background: var(--warning); }
     .intensity-dot.anaerobic { background: var(--purple); }
+
+    .intensity-quick-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .intensity-quick-row {
+      display: grid;
+      grid-template-columns: 10px 1fr;
+      align-items: center;
+      gap: 6px;
+      min-width: 0;
+      border: 1px solid rgba(17,17,17,0.06);
+      border-radius: 12px;
+      background: rgba(255,255,255,0.74);
+      padding: 8px;
+    }
+
+    .intensity-quick-row strong {
+      display: block;
+      min-width: 0;
+      color: var(--black);
+      font-size: 0.78rem;
+      line-height: 1.15;
+    }
+
+    .intensity-quick-row > span:last-child {
+      grid-column: 2;
+      color: var(--warm-gray-3);
+      font-size: 0.66rem;
+      font-weight: 800;
+      line-height: 1.2;
+    }
+
+    .intensity-context-line {
+      margin: 12px 0 0;
+      border-radius: 12px;
+      background: var(--warm-gray-1);
+      color: var(--warm-gray-3);
+      padding: 10px;
+      font-size: 0.82rem;
+      font-weight: 800;
+      line-height: 1.3;
+    }
+
+    .intensity-source-note {
+      margin-top: 10px;
+    }
 
     .trend-grid {
       display: grid;
