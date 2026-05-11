@@ -4,7 +4,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     import { getFirestore, doc, collection, getDoc, getDocs, setDoc, deleteDoc, writeBatch, enableIndexedDbPersistence }
       from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
-    const APP_VERSION = 'v63';
+    const APP_VERSION = 'v64';
 
     const firebaseConfig = {
       apiKey: "AIzaSyAMPfQ9gX9rbuvcPsVjYVtq5IT_orjDBPs",
@@ -54,6 +54,8 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       }
     };
     let state = { templates: [], planned: [], completed: [], wellness: [], settings: JSON.parse(JSON.stringify(defaultSettings)) };
+    let volumeTrendPeriod = 'week';
+    let volumeTrendActivity = 'all';
 
     // ── Utilities ─────────────────────────────────────────────────────────────
     function uid(prefix) {
@@ -3049,27 +3051,136 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       return weeks;
     }
 
-    function renderVolumeTrends(weeks) {
-      const shortWeekLabel = week => week.start === startOfWeek(todayISO()) ? 'Nå' : formatShortDate(week.start).replace('.', '');
-      const sessionPoints = weeks.map(week => ({
-        label: shortWeekLabel(week),
-        value: week.summary.sessions
-      }));
-      const hourPoints = weeks.map(week => ({
-        label: shortWeekLabel(week),
-        value: week.summary.seconds / 3600
-      }));
-      const kmPoints = weeks.map(week => ({
-        label: shortWeekLabel(week),
-        value: week.summary.km
-      }));
+    function addMonths(dateIso, months) {
+      const d = new Date(`${dateIso}T12:00:00`);
+      d.setDate(1);
+      d.setMonth(d.getMonth() + months);
+      return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-01`;
+    }
+
+    function startOfMonth(dateIso) {
+      return `${dateIso.slice(0, 7)}-01`;
+    }
+
+    function startOfYear(dateIso) {
+      return `${dateIso.slice(0, 4)}-01-01`;
+    }
+
+    function addYears(dateIso, years) {
+      const year = Number(dateIso.slice(0, 4)) + years;
+      return `${year}-01-01`;
+    }
+
+    function completedActivityType(item) {
+      if (item.templateSnapshot?.type) return item.templateSnapshot.type;
+      if (item.type) return item.type;
+      return templateForCompleted(item).type || 'Annet';
+    }
+
+    function volumeActivityOptions() {
+      const configured = asArray(state.settings.activityTypes);
+      const used = state.completed.map(completedActivityType).filter(Boolean);
+      return [...new Set([...configured, ...used])].sort((a, b) => a.localeCompare(b, 'no'));
+    }
+
+    function filteredVolumeItems(start, end) {
+      return state.completed.filter(item => {
+        const inRange = item.date >= start && item.date <= end;
+        const activityMatch = volumeTrendActivity === 'all' || completedActivityType(item) === volumeTrendActivity;
+        return inRange && activityMatch;
+      });
+    }
+
+    function periodLabel(period, start, end, isCurrent) {
+      if (isCurrent) return 'Nå';
+      if (period === 'week') return formatShortDate(start).replace('.', '');
+      if (period === 'month') {
+        return new Date(`${start}T12:00:00`).toLocaleDateString('no-NO', { month: 'short' }).replace('.', '');
+      }
+      return start.slice(0, 4);
+    }
+
+    function volumePeriods() {
+      const today = todayISO();
+      const config = {
+        week: { count: 6, start: startOfWeek(today), step: -7, end: start => addDays(start, 6), title: 'per uke', intro: 'Siste 6 uker' },
+        month: { count: 6, start: startOfMonth(today), step: -1, end: start => addDays(addMonths(start, 1), -1), title: 'per måned', intro: 'Siste 6 måneder' },
+        year: { count: 5, start: startOfYear(today), step: -1, end: start => addDays(addYears(start, 1), -1), title: 'per år', intro: 'Siste 5 år' }
+      }[volumeTrendPeriod] || {};
+      const periods = [];
+      for (let i = config.count - 1; i >= 0; i--) {
+        const start = volumeTrendPeriod === 'week'
+          ? addDays(config.start, i * config.step)
+          : volumeTrendPeriod === 'month'
+            ? addMonths(config.start, i * config.step)
+            : addYears(config.start, i * config.step);
+        const end = config.end(start);
+        const isCurrent = start === config.start;
+        const items = filteredVolumeItems(start, end);
+        periods.push({ start, end, label: periodLabel(volumeTrendPeriod, start, end, isCurrent), summary: summarizeCompleted(items) });
+      }
+      return { ...config, periods };
+    }
+
+    function renderVolumeActivityFilter() {
+      const select = document.getElementById('volumeActivityFilter');
+      if (!select) return;
+      const options = volumeActivityOptions();
+      if (volumeTrendActivity !== 'all' && !options.includes(volumeTrendActivity)) volumeTrendActivity = 'all';
+      select.innerHTML = [
+        '<option value="all">Alle aktiviteter</option>',
+        ...options.map(type => `<option value="${escapeHtml(type)}">${escapeHtml(type)}</option>`)
+      ].join('');
+      select.value = volumeTrendActivity;
+    }
+
+    function formatSessionCount(value) {
+      const sessions = Math.round(Number(value) || 0);
+      return `${sessions} økt${sessions === 1 ? '' : 'er'}`;
+    }
+
+    function renderVolumeTrends() {
+      const controls = {
+        week: document.getElementById('volumePeriodWeek'),
+        month: document.getElementById('volumePeriodMonth'),
+        year: document.getElementById('volumePeriodYear')
+      };
+      Object.entries(controls).forEach(([period, button]) => {
+        if (button) button.classList.toggle('active', volumeTrendPeriod === period);
+      });
+      renderVolumeActivityFilter();
+
+      const { periods, title, intro } = volumePeriods();
+      const activityLabel = volumeTrendActivity === 'all' ? 'alle aktiviteter' : volumeTrendActivity;
+      const visibleSummary = summarizeCompleted(periods.flatMap(period => filteredVolumeItems(period.start, period.end)));
+      document.getElementById('insightVolumeIntro').textContent =
+        `${intro} for ${activityLabel}. Bytt mellom uke, måned og år for å se rytme, totalmengde og utvikling.`;
+      document.getElementById('insightVolumeSummary').innerHTML = `
+        <div class="insight-stat"><strong>${escapeHtml(formatSessionCount(visibleSummary.sessions))}</strong><span>Totalt</span></div>
+        <div class="insight-stat"><strong>${escapeHtml(formatClockDuration(visibleSummary.seconds))}</strong><span>Tid</span></div>
+        <div class="insight-stat"><strong>${escapeHtml(formatKm(visibleSummary.km))}</strong><span>Kilometer</span></div>`;
+
+      const sessionPoints = periods.map(period => ({ label: period.label, value: period.summary.sessions }));
+      const timePoints = periods.map(period => ({ label: period.label, value: period.summary.seconds }));
+      const kmPoints = periods.map(period => ({ label: period.label, value: period.summary.km }));
 
       document.getElementById('insightVolumeTrends').innerHTML = [
-        trendCard('Økter per uke', sessionPoints, value => `${Math.round(Number(value) || 0)} økt${Math.round(Number(value) || 0) === 1 ? '' : 'er'}`, 'bar'),
-        trendCard('Timer per uke', hourPoints, value => `${(Number(value) || 0).toLocaleString('no-NO', { maximumFractionDigits: 1 })} t`, 'bar'),
-        trendCard('Kilometer per uke', kmPoints, value => formatKm(value), 'bar')
+        trendCard(`Økter ${title}`, sessionPoints, formatSessionCount, 'bar'),
+        trendCard(`Tid ${title}`, timePoints, value => formatClockDuration(value), 'bar'),
+        trendCard(`Kilometer ${title}`, kmPoints, value => formatKm(value), 'bar')
       ].join('');
     }
+
+    window.setVolumePeriod = function(period) {
+      if (!['week', 'month', 'year'].includes(period)) return;
+      volumeTrendPeriod = period;
+      renderVolumeTrends();
+    };
+
+    window.setVolumeActivityFilter = function(activityType) {
+      volumeTrendActivity = activityType || 'all';
+      renderVolumeTrends();
+    };
 
     function templateForCompleted(item) {
       return getTemplate(item.templateId);
@@ -3466,7 +3577,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       renderContinuity(weekSummary, goals, weekStart);
 
       const trendWeeks = recentWeekSummaries(weekStart, 6);
-      renderVolumeTrends(trendWeeks);
+      renderVolumeTrends();
 
       const weeks = trendWeeks.slice(-4);
       document.getElementById('insightFourWeeks').innerHTML = weeks.map((week, index) => {

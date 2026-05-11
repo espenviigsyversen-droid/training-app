@@ -988,6 +988,62 @@
       margin-top: 12px;
     }
 
+    .volume-controls {
+      display: grid;
+      gap: 12px;
+      margin-top: 12px;
+    }
+
+    .volume-period-control {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 6px;
+      padding: 5px;
+      border-radius: 16px;
+      background: var(--warm-gray-1);
+    }
+
+    .volume-period-control button {
+      min-height: 42px;
+      border-radius: 12px;
+      background: transparent;
+      color: var(--warm-gray-3);
+      font-size: 0.82rem;
+      font-weight: 900;
+      box-shadow: none;
+    }
+
+    .volume-period-control button.active {
+      background: var(--black);
+      color: #fff;
+    }
+
+    .volume-filter label {
+      display: block;
+      margin-bottom: 6px;
+      color: var(--warm-gray-3);
+      font-size: 0.72rem;
+      font-weight: 900;
+      letter-spacing: 0;
+      text-transform: uppercase;
+    }
+
+    .volume-summary {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .volume-summary .insight-stat {
+      padding: 10px;
+      border-radius: 14px;
+    }
+
+    .volume-summary .insight-stat strong {
+      font-size: 1rem;
+    }
+
     .trend-card {
       border: 1px solid var(--warm-gray-2);
       border-radius: 16px;

@@ -380,7 +380,21 @@
         </div>
         <div class="card">
           <h2 class="section-title">Treningsmengde</h2>
-          <p class="small-note">Ukentlig volum siste 6 uker. Brukes for å se progresjon uten å stirre på enkeltøkter.</p>
+          <p id="insightVolumeIntro" class="small-note">Volum over tid. Brukes for å se progresjon uten å stirre på enkeltøkter.</p>
+          <div class="volume-controls">
+            <div class="volume-period-control" aria-label="Velg periode">
+              <button type="button" id="volumePeriodWeek" class="active" onclick="setVolumePeriod('week')">Uke</button>
+              <button type="button" id="volumePeriodMonth" onclick="setVolumePeriod('month')">Måned</button>
+              <button type="button" id="volumePeriodYear" onclick="setVolumePeriod('year')">År</button>
+            </div>
+            <div class="volume-filter">
+              <label for="volumeActivityFilter">Aktivitet</label>
+              <select id="volumeActivityFilter" onchange="setVolumeActivityFilter(this.value)">
+                <option value="all">Alle aktiviteter</option>
+              </select>
+            </div>
+          </div>
+          <div id="insightVolumeSummary" class="volume-summary"></div>
           <div id="insightVolumeTrends" class="trend-grid"></div>
         </div>
         <div class="card">
