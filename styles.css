@@ -1286,6 +1286,12 @@
       margin-top: 10px;
     }
 
+    .week-plan-divider {
+      height: 1px;
+      margin: 16px 0;
+      background: rgba(17,17,17,0.08);
+    }
+
     .week-plan-item {
       display: grid;
       grid-template-columns: minmax(0, 1fr) auto;
