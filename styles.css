@@ -1178,6 +1178,92 @@
       line-height: 1.25;
     }
 
+    .week-plan-card {
+      border: 1px solid rgba(255,79,46,0.18);
+      border-radius: 16px;
+      padding: 14px;
+      background: linear-gradient(160deg, #fff 0%, #fff7f3 100%);
+    }
+
+    .week-plan-card.good { background: linear-gradient(160deg, #fff 0%, rgba(31,157,85,0.08) 100%); border-color: rgba(31,157,85,0.18); }
+    .week-plan-card.caution { background: linear-gradient(160deg, #fff 0%, rgba(225,29,72,0.07) 100%); border-color: rgba(225,29,72,0.18); }
+
+    .week-plan-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 8px;
+      color: var(--warm-gray-3);
+      font-size: 0.8rem;
+    }
+
+    .week-plan-top strong {
+      text-align: right;
+      line-height: 1.2;
+    }
+
+    .week-plan-card p {
+      margin: 0 0 10px;
+      color: var(--black);
+      font-size: 0.9rem;
+      line-height: 1.4;
+    }
+
+    .week-plan-list {
+      display: grid;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .week-plan-item {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 10px;
+      border: 1px solid rgba(17,17,17,0.06);
+      background: rgba(255,255,255,0.78);
+      border-radius: 12px;
+      padding: 10px;
+    }
+
+    .week-plan-item.planned {
+      background: #fff;
+    }
+
+    .week-plan-item strong,
+    .week-plan-item span {
+      display: block;
+      min-width: 0;
+    }
+
+    .week-plan-item strong {
+      font-size: 0.78rem;
+      color: var(--burgundy);
+      margin-bottom: 3px;
+    }
+
+    .week-plan-item span {
+      font-size: 0.84rem;
+      color: var(--black);
+      font-weight: 750;
+      line-height: 1.25;
+      overflow-wrap: anywhere;
+    }
+
+    .week-plan-item button {
+      min-width: 86px;
+      padding: 10px 12px;
+      font-size: 0.82rem;
+    }
+
+    .week-plan-card .week-plan-note {
+      color: var(--warm-gray-3);
+      font-size: 0.82rem;
+      font-weight: 700;
+      margin-top: 10px;
+    }
+
     .continuity-weeks {
       display: grid;
       grid-template-columns: repeat(4, minmax(0, 1fr));

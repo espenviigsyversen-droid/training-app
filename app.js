@@ -4,7 +4,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     import { getFirestore, doc, collection, getDoc, getDocs, setDoc, deleteDoc, writeBatch, enableIndexedDbPersistence }
       from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
-    const APP_VERSION = 'v56';
+    const APP_VERSION = 'v57';
 
     const firebaseConfig = {
       apiKey: "AIzaSyAMPfQ9gX9rbuvcPsVjYVtq5IT_orjDBPs",
@@ -2462,14 +2462,119 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         </div>`;
     }
 
-    window.planSuggestedWorkout = function(templateId, dateIso) {
+    function gentleBaseSuggestion(note = 'Foreslått som rolig støtte rundt resten av ukeplanen.') {
+      return {
+        title: 'Rolig støtteøkt',
+        detail: 'Hold økten lett nok til at du bygger kontinuitet uten å bruke opp beina.',
+        note,
+        types: ['Løping', 'Gåtur', 'Sykling', 'Ski', 'Mobilitet'],
+        intensities: ['Rolig', 'Restitusjon'],
+        purposes: ['base', 'recovery', 'mobility'],
+        loads: ['low'],
+        recommendedWhen: ['normal', 'tired', 'after_hard', 'bonus', 'pain_adaptation'],
+        avoidTemplateWhen: [],
+        keywords: ['rolig', 'lett', 'kort', 'restitusjon', 'base', 'gå']
+      };
+    }
+
+    function weekPlanDates(today, weekEnd, plannedThisWeek, count) {
+      const busyDates = new Set(plannedThisWeek.map(item => item.date));
+      const dates = [];
+      const preferredOffsets = [1, 2, 3, 4, 5, 6, 0];
+      preferredOffsets.forEach(offset => {
+        const date = addDays(today, offset);
+        if (date >= today && date <= weekEnd && !busyDates.has(date) && !dates.includes(date)) dates.push(date);
+      });
+      return dates.slice(0, count);
+    }
+
+    function plannedWeekItem(item) {
+      const template = getTemplate(item.templateId);
+      return `
+        <div class="week-plan-item planned">
+          <div>
+            <strong>${escapeHtml(formatDate(item.date))}</strong>
+            <span>${escapeHtml(template.name)} · ${escapeHtml(template.intensity || template.type || '')}</span>
+          </div>
+          <button class="btn-soft" onclick="openPlan('${item.date}')">Endre</button>
+        </div>`;
+    }
+
+    function suggestedWeekPlanItem(suggestion, template, dateIso, index) {
+      const meta = template
+        ? [template.type, template.intensity, templateLoadLabel(template.load)].filter(Boolean).join(' · ')
+        : suggestion.detail;
+      return `
+        <div class="week-plan-item">
+          <div>
+            <strong>${escapeHtml(formatDate(dateIso))}</strong>
+            <span>${escapeHtml(template ? template.name : suggestion.title)} · ${escapeHtml(meta)}</span>
+          </div>
+          ${template
+            ? `<button class="btn-primary" onclick="planSuggestedWorkout('${template.id}', '${dateIso}', 'Ukeplan forslag ${index + 1}. Juster etter dagsform.')">Planlegg</button>`
+            : `<button class="btn-soft" onclick="openPlan('${dateIso}')">Velg</button>`}
+        </div>`;
+    }
+
+    function renderWeekPlan(today, weekSummary, weekItems, last14Days, profile, goals, plannedActive) {
+      const container = document.getElementById('homeWeekPlan');
+      if (!container) return;
+      const weekStart = startOfWeek(today);
+      const weekEnd = addDays(weekStart, 6);
+      const plannedThisWeek = plannedActive
+        .filter(item => item.date >= today && item.date <= weekEnd)
+        .sort((a, b) => a.date.localeCompare(b.date));
+      const completedCount = weekSummary.sessions;
+      const plannedCount = plannedThisWeek.length;
+      const remainingAfterPlanned = Math.max(0, goals.weeklySessionsTarget - completedCount - plannedCount);
+      const status = weeklyTrainingStatus(weekItems, weekSummary, goals, profile);
+      const mainSuggestion = buildWorkoutSuggestion(today, weekSummary, weekItems, last14Days, profile);
+      const mainTemplate = findSuggestedTemplate(mainSuggestion);
+      const shouldAddSupport = remainingAfterPlanned > 1 || (mainSuggestion.loads || []).includes('moderate') || (mainSuggestion.purposes || []).includes('threshold');
+      const supportSuggestion = shouldAddSupport
+        ? gentleBaseSuggestion('Foreslått for å balansere uka med rolig støtte rundt kvalitet og totalbelastning.')
+        : null;
+      const suggestionDates = weekPlanDates(today, weekEnd, plannedThisWeek, supportSuggestion ? 2 : 1);
+      const suggestedItems = [];
+      if (remainingAfterPlanned > 0 && suggestionDates[0]) {
+        suggestedItems.push({ suggestion: mainSuggestion, template: mainTemplate, date: suggestionDates[0] });
+      }
+      if (remainingAfterPlanned > 1 && supportSuggestion && suggestionDates[1]) {
+        suggestedItems.push({ suggestion: supportSuggestion, template: findSuggestedTemplate(supportSuggestion), date: suggestionDates[1] });
+      }
+      const planSummary = completedCount >= goals.weeklySessionsTarget
+        ? 'Ukesmålet er nådd. Eventuelle ekstraøkter bør være bonus og styres av overskudd.'
+        : plannedCount
+          ? `${completedCount}/${goals.weeklySessionsTarget} utført og ${plannedCount} planlagt. ${remainingAfterPlanned} åpne økt${remainingAfterPlanned === 1 ? '' : 'er'} igjen.`
+          : `${completedCount}/${goals.weeklySessionsTarget} utført. Appen foreslår neste steg for å gjøre uka gjennomførbar.`;
+
+      container.innerHTML = `
+        <div class="week-plan-card ${status.level}">
+          <div class="week-plan-top">
+            <span class="tag weekly-${status.level}">${escapeHtml(status.label)}</span>
+            <strong>${escapeHtml(completedCount)} utført · ${escapeHtml(plannedCount)} planlagt</strong>
+          </div>
+          <p>${escapeHtml(planSummary)}</p>
+          <div class="week-plan-list">
+            ${plannedThisWeek.slice(0, 3).map(plannedWeekItem).join('')}
+            ${suggestedItems.map((item, index) => suggestedWeekPlanItem(item.suggestion, item.template, item.date, index)).join('')}
+          </div>
+          ${suggestedItems.length ? `<p class="week-plan-note">${escapeHtml(mainSuggestion.note)}</p>` : ''}
+          <div class="button-row">
+            <button class="btn-soft" onclick="openPlan('${suggestionDates[0] || addDays(today, 1)}')">Planlegg selv</button>
+            <button class="btn-soft" onclick="showTab('calendar')">Se kalender</button>
+          </div>
+        </div>`;
+    }
+
+    window.planSuggestedWorkout = function(templateId, dateIso, note = 'Foreslått av coach-assistenten. Juster etter dagsform.') {
       openPlan(dateIso || addDays(todayISO(), 1));
       document.getElementById('planTemplate').value = templateId;
-      document.getElementById('planNotes').value = 'Foreslått av coach-assistenten. Juster etter dagsform.';
+      document.getElementById('planNotes').value = note;
       showToast('Forslag lagt klart i planlegging');
     };
 
-    function renderDashboardSummary(today, todayItems, upcomingItems) {
+    function renderDashboardSummary(today, todayItems, upcomingItems, plannedActive = []) {
       const goals = normalizeGoals(state.settings.goals);
       const profile = normalizeTrainingProfile(state.settings.trainingProfile);
       const weekStart = startOfWeek(today);
@@ -2492,6 +2597,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         ? 'Ukesmålet er nådd. Videre trening bør styres av overskudd og dagsform.'
         : `${Math.max(0, goals.weeklySessionsTarget - weekSummary.sessions)} økt${Math.max(0, goals.weeklySessionsTarget - weekSummary.sessions) === 1 ? '' : 'er'} igjen til ukesmålet.`;
       document.getElementById('homeCoachNote').textContent = buildCoachNote(weekSummary, goals, last14Days, profile);
+      renderWeekPlan(today, weekSummary, weekItems, last14Days, profile, goals, plannedActive);
       renderWorkoutSuggestion(today, weekSummary, weekItems, last14Days, profile);
     }
 
@@ -3214,7 +3320,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       const upcomingItems = plannedActive.filter(p => p.date > today)
         .sort((a,b) => a.date.localeCompare(b.date));
 
-      renderDashboardSummary(today, todayItems, upcomingItems);
+      renderDashboardSummary(today, todayItems, upcomingItems, plannedActive);
       document.getElementById('upcomingList').innerHTML = upcomingItems.length
         ? upcomingItems.slice(0, 3).map(p => workoutCard(p)).join('')
         : `<div class="empty">Ingen kommende økter.</div>`;
