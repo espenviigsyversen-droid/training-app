@@ -1342,6 +1342,7 @@
     .sync-status { font-size: 0.72rem; color: var(--warm-gray-3); display: flex; align-items: center; gap: 4px; margin-top: 3px; }
     .sync-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--success); }
     .sync-dot.syncing { background: var(--warning); animation: pulse 1s infinite; }
+    .sync-dot.offline { background: var(--warning); }
     .sync-dot.error { background: var(--red); }
 
     @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }

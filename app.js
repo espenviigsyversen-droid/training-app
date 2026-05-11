@@ -1,10 +1,10 @@
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
     import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut as fbSignOut }
       from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
-    import { getFirestore, doc, collection, getDoc, getDocs, setDoc, deleteDoc, writeBatch }
+    import { getFirestore, doc, collection, getDoc, getDocs, setDoc, deleteDoc, writeBatch, enableIndexedDbPersistence }
       from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
-    const APP_VERSION = 'v50';
+    const APP_VERSION = 'v51';
 
     const firebaseConfig = {
       apiKey: "AIzaSyAMPfQ9gX9rbuvcPsVjYVtq5IT_orjDBPs",
@@ -18,8 +18,12 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
     const db = getFirestore(app);
+    enableIndexedDbPersistence(db).catch((err) => {
+      console.warn('Firestore offline persistence unavailable:', err);
+    });
 
     let currentUser = null;
+    let hasPendingLocalWrites = false;
     const defaultSettings = {
       activityTypes: ['Løping', 'Styrke', 'Mobilitet', 'Ski', 'Sykling', 'Annet'],
       intensities: ['Rolig', 'Tempo', 'Terskel', 'Intervall', 'Anaerob', 'Styrke', 'Restitusjon'],
@@ -100,8 +104,28 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     function setSyncStatus(status) {
       const dot = document.getElementById('syncDot');
       const label = document.getElementById('syncLabel');
-      dot.className = 'sync-dot' + (status === 'syncing' ? ' syncing' : status === 'error' ? ' error' : '');
-      label.textContent = status === 'syncing' ? 'Synkroniserer...' : status === 'error' ? 'Feil ved synk' : 'Synkronisert';
+      if (!dot || !label) return;
+      dot.className = 'sync-dot' + (
+        status === 'syncing' ? ' syncing' :
+        status === 'error' ? ' error' :
+        status === 'offline' || status === 'pending' ? ' offline' : ''
+      );
+      const labels = {
+        syncing: 'Synkroniserer...',
+        error: 'Feil ved synk',
+        offline: 'Offline',
+        pending: 'Venter på synk',
+        ok: 'Synkronisert'
+      };
+      label.textContent = labels[status] || labels.ok;
+    }
+
+    function refreshNetworkStatus() {
+      if (!navigator.onLine) {
+        setSyncStatus(hasPendingLocalWrites ? 'pending' : 'offline');
+        return;
+      }
+      setSyncStatus(hasPendingLocalWrites ? 'syncing' : 'ok');
     }
 
     function showToast(message, type = 'success') {
@@ -200,7 +224,8 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     function userDoc(colName, id) { return doc(db, 'users', currentUser.uid, colName, id); }
 
     async function loadFromFirestore() {
-      setSyncStatus('syncing');
+      if (!navigator.onLine) setSyncStatus(hasPendingLocalWrites ? 'pending' : 'offline');
+      else setSyncStatus('syncing');
       try {
         const [tSnap, pSnap, cSnap, wSnap, settingsSnap] = await Promise.all([
           getDocs(userCol('templates')),
@@ -215,7 +240,12 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         state.wellness = wSnap.docs.map(d => ({ id: d.id, ...d.data() }));
         state.settings = settingsSnap.exists() ? normalizeSettings(settingsSnap.data()) : freshDefaultSettings();
         if (!settingsSnap.exists()) await fsSet('settings', 'preferences', state.settings);
-        setSyncStatus('ok');
+        if (navigator.onLine) {
+          hasPendingLocalWrites = false;
+          setSyncStatus('ok');
+        } else {
+          setSyncStatus(hasPendingLocalWrites ? 'pending' : 'offline');
+        }
         render();
       } catch (err) {
         console.error('Firestore load error:', err);
@@ -224,11 +254,22 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     }
 
     async function fsSet(colName, id, data) {
-      setSyncStatus('syncing');
+      const wasOffline = !navigator.onLine;
+      if (wasOffline) {
+        hasPendingLocalWrites = true;
+        setSyncStatus('pending');
+      } else {
+        setSyncStatus('syncing');
+      }
       try {
         const { id: _id, ...rest } = data;
         await setDoc(userDoc(colName, id), rest);
-        setSyncStatus('ok');
+        if (wasOffline || !navigator.onLine) {
+          hasPendingLocalWrites = true;
+          setSyncStatus('pending');
+        } else {
+          setSyncStatus('ok');
+        }
       } catch (err) {
         console.error('Firestore write error:', err);
         setSyncStatus('error');
@@ -237,10 +278,21 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     }
 
     async function fsDelete(colName, id) {
-      setSyncStatus('syncing');
+      const wasOffline = !navigator.onLine;
+      if (wasOffline) {
+        hasPendingLocalWrites = true;
+        setSyncStatus('pending');
+      } else {
+        setSyncStatus('syncing');
+      }
       try {
         await deleteDoc(userDoc(colName, id));
-        setSyncStatus('ok');
+        if (wasOffline || !navigator.onLine) {
+          hasPendingLocalWrites = true;
+          setSyncStatus('pending');
+        } else {
+          setSyncStatus('ok');
+        }
       } catch (err) {
         console.error('Firestore delete error:', err);
         setSyncStatus('error');
@@ -250,7 +302,13 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
 
     async function fsBatchSet(colName, items) {
       if (!items.length) return;
-      setSyncStatus('syncing');
+      const wasOffline = !navigator.onLine;
+      if (wasOffline) {
+        hasPendingLocalWrites = true;
+        setSyncStatus('pending');
+      } else {
+        setSyncStatus('syncing');
+      }
       try {
         const batch = writeBatch(db);
         items.forEach(item => {
@@ -258,7 +316,12 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
           batch.set(userDoc(colName, id), rest);
         });
         await batch.commit();
-        setSyncStatus('ok');
+        if (wasOffline || !navigator.onLine) {
+          hasPendingLocalWrites = true;
+          setSyncStatus('pending');
+        } else {
+          setSyncStatus('ok');
+        }
       } catch (err) {
         console.error('Firestore batch error:', err);
         setSyncStatus('error');
@@ -282,6 +345,26 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
 
     document.getElementById('signOutBtn').addEventListener('click', doSignOut);
     document.getElementById('signOutBtn2').addEventListener('click', doSignOut);
+
+    window.addEventListener('offline', () => {
+      setSyncStatus(hasPendingLocalWrites ? 'pending' : 'offline');
+    });
+
+    window.addEventListener('online', async () => {
+      if (!currentUser) {
+        setSyncStatus('ok');
+        return;
+      }
+      setSyncStatus('syncing');
+      try {
+        await loadFromFirestore();
+        hasPendingLocalWrites = false;
+        setSyncStatus('ok');
+      } catch (err) {
+        console.error('Online refresh error:', err);
+        setSyncStatus('error');
+      }
+    });
 
     onAuthStateChanged(auth, async (user) => {
       const loading = document.getElementById('loadingOverlay');
