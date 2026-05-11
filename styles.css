@@ -1210,6 +1210,20 @@
       line-height: 1.4;
     }
 
+    .week-plan-action-line {
+      display: inline-flex;
+      align-items: center;
+      width: fit-content;
+      max-width: 100%;
+      margin: 10px 0;
+      padding: 7px 10px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.8);
+      color: var(--burgundy);
+      font-size: 0.78rem;
+      font-weight: 900;
+    }
+
     .week-plan-list {
       display: grid;
       gap: 8px;
@@ -1229,6 +1243,11 @@
 
     .week-plan-item.planned {
       background: #fff;
+    }
+
+    .week-plan-item.suggested {
+      border-color: rgba(255,79,46,0.18);
+      background: rgba(255,255,255,0.86);
     }
 
     .week-plan-item strong,
