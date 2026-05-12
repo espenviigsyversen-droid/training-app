@@ -174,6 +174,21 @@
             </div>
             <div class="grid-2">
               <div>
+                <label>Øktrolle</label>
+                <select id="templateRole">
+                  <option value="">Ikke satt</option>
+                  <option value="main_threshold">Hovedterskel</option>
+                  <option value="support_threshold">Støtteterskel</option>
+                  <option value="long_easy">Rolig langtur</option>
+                  <option value="recovery">Restitusjon</option>
+                  <option value="x_workout">X-økt</option>
+                  <option value="strength">Styrke</option>
+                  <option value="mobility">Mobilitet</option>
+                  <option value="technique">Teknikk</option>
+                  <option value="other">Annet</option>
+                </select>
+              </div>
+              <div>
                 <label>Coach-formål</label>
                 <select id="templatePurpose">
                   <option value="">Ikke satt</option>
@@ -561,6 +576,74 @@
                 <option value="maintenance">Vedlikehold</option>
                 <option value="mixed_focus">Blandet fokus</option>
               </select>
+            </div>
+            <div>
+              <label>Normal treningsuke</label>
+              <select id="profileWeekPlanPreset" onchange="applyWeekPlanPreset(this.value)">
+                <option value="bakken_3">Bakken-inspirert 3 økter</option>
+                <option value="bakken_4">Bakken-inspirert 4 økter</option>
+                <option value="easy_build">Rolig oppbygging</option>
+                <option value="custom">Egendefinert</option>
+              </select>
+              <p class="small-note">Brukes av Ukeplan og forslag til neste uke. Juster rollene slik du faktisk ønsker at en normal uke skal bygges.</p>
+            </div>
+            <div class="week-recipe-grid">
+              <div>
+                <label>Økt 1</label>
+                <select id="profileWeekRole1" onchange="markWeekPlanCustom()">
+                  <option value="">Ikke satt</option>
+                  <option value="main_threshold">Hovedterskel</option>
+                  <option value="support_threshold">Støtteterskel</option>
+                  <option value="long_easy">Rolig langtur</option>
+                  <option value="recovery">Restitusjon</option>
+                  <option value="x_workout">X-økt</option>
+                  <option value="strength">Styrke</option>
+                  <option value="mobility">Mobilitet</option>
+                  <option value="technique">Teknikk</option>
+                </select>
+              </div>
+              <div>
+                <label>Økt 2</label>
+                <select id="profileWeekRole2" onchange="markWeekPlanCustom()">
+                  <option value="">Ikke satt</option>
+                  <option value="main_threshold">Hovedterskel</option>
+                  <option value="support_threshold">Støtteterskel</option>
+                  <option value="long_easy">Rolig langtur</option>
+                  <option value="recovery">Restitusjon</option>
+                  <option value="x_workout">X-økt</option>
+                  <option value="strength">Styrke</option>
+                  <option value="mobility">Mobilitet</option>
+                  <option value="technique">Teknikk</option>
+                </select>
+              </div>
+              <div>
+                <label>Økt 3</label>
+                <select id="profileWeekRole3" onchange="markWeekPlanCustom()">
+                  <option value="">Ikke satt</option>
+                  <option value="main_threshold">Hovedterskel</option>
+                  <option value="support_threshold">Støtteterskel</option>
+                  <option value="long_easy">Rolig langtur</option>
+                  <option value="recovery">Restitusjon</option>
+                  <option value="x_workout">X-økt</option>
+                  <option value="strength">Styrke</option>
+                  <option value="mobility">Mobilitet</option>
+                  <option value="technique">Teknikk</option>
+                </select>
+              </div>
+              <div>
+                <label>Økt 4</label>
+                <select id="profileWeekRole4" onchange="markWeekPlanCustom()">
+                  <option value="">Ikke satt</option>
+                  <option value="main_threshold">Hovedterskel</option>
+                  <option value="support_threshold">Støtteterskel</option>
+                  <option value="long_easy">Rolig langtur</option>
+                  <option value="recovery">Restitusjon</option>
+                  <option value="x_workout">X-økt</option>
+                  <option value="strength">Styrke</option>
+                  <option value="mobility">Mobilitet</option>
+                  <option value="technique">Teknikk</option>
+                </select>
+              </div>
             </div>
             <button class="btn-primary btn-full" onclick="saveTrainingProfile()">Lagre treningsprofil</button>
           </div>

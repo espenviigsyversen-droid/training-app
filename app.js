@@ -4,7 +4,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     import { getFirestore, doc, collection, getDoc, getDocs, setDoc, deleteDoc, writeBatch, enableIndexedDbPersistence }
       from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
-    const APP_VERSION = 'v66';
+    const APP_VERSION = 'v67';
 
     const firebaseConfig = {
       apiKey: "AIzaSyAMPfQ9gX9rbuvcPsVjYVtq5IT_orjDBPs",
@@ -41,7 +41,9 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         level: 'building_beginner',
         philosophy: 'bakken_threshold',
         priority: 'injury_free_progression',
-        trainingFocus: 'base_threshold'
+        trainingFocus: 'base_threshold',
+        weekPlanPreset: 'bakken_3',
+        weekPlanRoles: ['main_threshold', 'support_threshold', 'long_easy', 'x_workout']
       },
       personProfile: {
         name: '',
@@ -287,6 +289,34 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       };
     }
 
+    const WORKOUT_ROLE_LABELS = {
+      main_threshold: 'Hovedterskel',
+      support_threshold: 'Støtteterskel',
+      long_easy: 'Rolig langtur',
+      recovery: 'Restitusjon',
+      x_workout: 'X-økt',
+      strength: 'Styrke',
+      mobility: 'Mobilitet',
+      technique: 'Teknikk',
+      other: 'Annet'
+    };
+
+    const WEEK_PLAN_PRESETS = {
+      bakken_3: ['main_threshold', 'support_threshold', 'long_easy', 'x_workout'],
+      bakken_4: ['main_threshold', 'support_threshold', 'long_easy', 'x_workout'],
+      easy_build: ['long_easy', 'recovery', 'long_easy', 'mobility']
+    };
+
+    function normalizeWeekPlanRoles(roles = []) {
+      const validRoles = new Set(Object.keys(WORKOUT_ROLE_LABELS));
+      const defaults = defaultSettings.trainingProfile.weekPlanRoles;
+      const source = Array.isArray(roles) && roles.length ? roles : defaults;
+      return [0, 1, 2, 3].map(index => {
+        const role = source[index] || '';
+        return !role || validRoles.has(role) ? role : defaults[index] || '';
+      });
+    }
+
     function normalizeTrainingProfile(profile = {}) {
       const defaults = defaultSettings.trainingProfile;
       const legacyFocusMap = {
@@ -299,7 +329,9 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         level: profile.level || defaults.level,
         philosophy: profile.philosophy || defaults.philosophy,
         priority: profile.priority || defaults.priority,
-        trainingFocus: legacyFocusMap[rawTrainingFocus] || rawTrainingFocus
+        trainingFocus: legacyFocusMap[rawTrainingFocus] || rawTrainingFocus,
+        weekPlanPreset: profile.weekPlanPreset || defaults.weekPlanPreset,
+        weekPlanRoles: normalizeWeekPlanRoles(profile.weekPlanRoles)
       };
     }
 
@@ -644,10 +676,26 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         level: document.getElementById('profileLevel').value,
         philosophy: document.getElementById('profilePhilosophy').value,
         priority: document.getElementById('profilePriority').value,
-        trainingFocus: document.getElementById('profileRunningPhase').value
+        trainingFocus: document.getElementById('profileRunningPhase').value,
+        weekPlanPreset: document.getElementById('profileWeekPlanPreset').value,
+        weekPlanRoles: [1, 2, 3, 4].map(index => document.getElementById(`profileWeekRole${index}`).value)
       });
       await saveSettings();
       showToast('Treningsprofil lagret');
+    };
+
+    window.applyWeekPlanPreset = function(preset) {
+      const roles = WEEK_PLAN_PRESETS[preset];
+      if (!roles) return;
+      roles.forEach((role, index) => {
+        const select = document.getElementById(`profileWeekRole${index + 1}`);
+        if (select) select.value = role;
+      });
+    };
+
+    window.markWeekPlanCustom = function() {
+      const preset = document.getElementById('profileWeekPlanPreset');
+      if (preset) preset.value = 'custom';
     };
 
     window.savePersonProfile = async function() {
@@ -790,6 +838,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         name,
         type: document.getElementById('templateType').value,
         intensity: document.getElementById('templateIntensity').value,
+        role: document.getElementById('templateRole').value,
         purpose: document.getElementById('templatePurpose').value,
         load: document.getElementById('templateLoad').value,
         recommendedWhen: getCheckedValues('templateRecommendedWhen'),
@@ -820,6 +869,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       setSelectOptions('templateIntensity', state.settings.intensities, t.intensity);
       document.getElementById('templateType').value = t.type;
       document.getElementById('templateIntensity').value = t.intensity;
+      document.getElementById('templateRole').value = t.role || '';
       document.getElementById('templatePurpose').value = t.purpose || '';
       document.getElementById('templateLoad').value = t.load || '';
       setCheckedValues('templateRecommendedWhen', t.recommendedWhen);
@@ -835,6 +885,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     function clearTemplateForm() {
       document.getElementById('editingTemplateId').value = '';
       document.getElementById('templateName').value = '';
+      document.getElementById('templateRole').value = '';
       document.getElementById('templatePurpose').value = '';
       document.getElementById('templateLoad').value = '';
       setCheckedValues('templateRecommendedWhen', []);
@@ -1793,7 +1844,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
 
     // ── Render helpers ────────────────────────────────────────────────────────
     function getTemplate(id) {
-      return state.templates.find(t => t.id === id) || { name: 'Slettet øktmal', type: 'Annet', intensity: '', purpose: '', load: '', recommendedWhen: '', avoidWhen: '', structure: '' };
+      return state.templates.find(t => t.id === id) || { name: 'Slettet øktmal', type: 'Annet', intensity: '', role: '', purpose: '', load: '', recommendedWhen: '', avoidWhen: '', structure: '' };
     }
 
     function completedTemplateSnapshot(templateId, manualName) {
@@ -1802,6 +1853,9 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         name: manualName || template?.name || 'Historisk økt',
         type: template?.type || 'Annet',
         intensity: template?.intensity || '',
+        role: template?.role || '',
+        purpose: template?.purpose || '',
+        load: template?.load || '',
         structure: template?.structure || ''
       };
     }
@@ -1813,6 +1867,9 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         name: completed.manualName || completed.templateSnapshot?.name || 'Historisk økt',
         type: completed.templateSnapshot?.type || 'Annet',
         intensity: completed.templateSnapshot?.intensity || '',
+        role: completed.templateSnapshot?.role || '',
+        purpose: completed.templateSnapshot?.purpose || '',
+        load: completed.templateSnapshot?.load || '',
         structure: completed.templateSnapshot?.structure || ''
       };
     }
@@ -1945,6 +2002,10 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       });
     }
 
+    function templateRoleLabel(value) {
+      return labelFromMap(value, WORKOUT_ROLE_LABELS);
+    }
+
     function templateLoadLabel(value) {
       return labelFromMap(value, {
         low: 'Lav belastning',
@@ -1980,6 +2041,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         t.type,
         t.intensity,
         t.structure,
+        templateRoleLabel(t.role),
         templatePurposeLabel(t.purpose),
         templateLoadLabel(t.load),
         templateRecommendedWhenLabel(t.recommendedWhen),
@@ -2054,6 +2116,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
 
     function templateCard(t) {
       const coachTags = [
+        templateRoleLabel(t.role),
         templatePurposeLabel(t.purpose),
         templateLoadLabel(t.load),
         templateRecommendedWhenLabel(t.recommendedWhen),
@@ -2249,6 +2312,11 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       document.getElementById('profilePhilosophy').value = profile.philosophy;
       document.getElementById('profilePriority').value = profile.priority;
       document.getElementById('profileRunningPhase').value = profile.trainingFocus;
+      document.getElementById('profileWeekPlanPreset').value = profile.weekPlanPreset;
+      profile.weekPlanRoles.forEach((role, index) => {
+        const select = document.getElementById(`profileWeekRole${index + 1}`);
+        if (select) select.value = role;
+      });
     }
 
     function renderPersonProfile() {
@@ -2439,12 +2507,13 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     }
 
     function templateMatches(template, keywords = []) {
-      const haystack = `${template.name} ${template.type} ${template.intensity} ${template.purpose || ''} ${template.load || ''} ${asArray(template.recommendedWhen).join(' ')} ${template.avoidWhen || ''} ${template.structure}`.toLowerCase();
+      const haystack = `${template.name} ${template.type} ${template.intensity} ${template.role || ''} ${templateRoleLabel(template.role)} ${template.purpose || ''} ${template.load || ''} ${asArray(template.recommendedWhen).join(' ')} ${template.avoidWhen || ''} ${template.structure}`.toLowerCase();
       return keywords.some(keyword => haystack.includes(keyword.toLowerCase()));
     }
 
     function templateSuggestionScore(template, suggestion) {
       let score = 0;
+      if (suggestion.roles?.includes(template.role)) score += 16;
       if (suggestion.types?.includes(template.type)) score += 4;
       if (suggestion.purposes?.includes(template.purpose)) score += 7;
       if (suggestion.loads?.includes(template.load)) score += 5;
@@ -2488,6 +2557,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         note: 'Foreslått fordi rolig volum gir best grunnlag for neste kvalitetsøkt.',
         types: ['Løping', 'Sykling', 'Ski'],
         intensities: ['Rolig', 'Restitusjon'],
+        roles: ['long_easy', 'recovery'],
         purposes: ['base', 'recovery'],
         loads: ['low'],
         recommendedWhen: ['normal', 'tired', 'after_hard', 'bonus'],
@@ -2507,6 +2577,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
             : 'Passer fordi kroppssignalet bør bekreftes med en kontrollert økt før du øker.',
           types: ['Mobilitet', 'Sykling', 'Løping', 'Ski'],
           intensities: ['Rolig', 'Restitusjon'],
+          roles: ['recovery', 'mobility'],
           purposes: ['recovery', 'mobility', 'base'],
           loads: ['low'],
           recommendedWhen: ['pain_adaptation', 'tired', 'after_hard'],
@@ -2533,6 +2604,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
           note: 'Foreslått fordi treningsprofilen din står på muskelvekst/bulking.',
           types: ['Styrke'],
           intensities: ['Styrke'],
+          roles: ['strength'],
           purposes: ['muscle_growth', 'strength'],
           loads: ['moderate', 'high'],
           recommendedWhen: ['fresh_legs', 'normal'],
@@ -2548,6 +2620,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
           note: 'Foreslått fordi treningsprofilen prioriterer teknikk/ferdighet.',
           types: ['Ski'],
           intensities: ['Rolig', 'Tempo'],
+          roles: ['technique'],
           purposes: ['technique', 'base'],
           loads: ['low', 'moderate'],
           recommendedWhen: ['normal', 'fresh_legs'],
@@ -2570,6 +2643,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
             note: 'Foreslått fordi profilen din er Bakken-inspirert løping og uken tåler én kontrollert kvalitetsøkt.',
             types: ['Løping'],
             intensities: ['Terskel', 'Tempo'],
+            roles: ['main_threshold', 'support_threshold'],
             purposes: ['threshold'],
             loads: ['moderate'],
             recommendedWhen: ['fresh_legs', 'normal'],
@@ -2595,6 +2669,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         note: 'Foreslått for å bygge kontinuitet uten å gjøre planleggingen for komplisert.',
         types: ['Løping', 'Styrke', 'Mobilitet', 'Sykling', 'Ski'],
         intensities: ['Rolig', 'Styrke', 'Mobilitet'],
+        roles: ['long_easy', 'strength', 'mobility', 'technique'],
         purposes: ['base', 'strength', 'mobility', 'technique'],
         loads: ['low', 'moderate'],
         recommendedWhen: ['normal', 'fresh_legs', 'tired'],
@@ -2634,6 +2709,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         note,
         types: ['Løping', 'Gåtur', 'Sykling', 'Ski', 'Mobilitet'],
         intensities: ['Rolig', 'Restitusjon'],
+        roles: ['long_easy', 'recovery', 'mobility'],
         purposes: ['base', 'recovery', 'mobility'],
         loads: ['low'],
         recommendedWhen: ['normal', 'tired', 'after_hard', 'bonus', 'pain_adaptation'],
@@ -2649,6 +2725,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         note,
         types: ['Gåtur', 'Mobilitet', 'Sykling', 'Løping'],
         intensities: ['Restitusjon', 'Rolig'],
+        roles: ['recovery', 'mobility'],
         purposes: ['recovery', 'mobility', 'base'],
         loads: ['low'],
         recommendedWhen: ['pain_adaptation', 'tired', 'after_hard'],
@@ -2664,6 +2741,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         note,
         types: ['Løping'],
         intensities: ['Terskel', 'Intervall', 'Tempo'],
+        roles: ['main_threshold'],
         purposes: ['threshold'],
         loads: ['moderate'],
         recommendedWhen: ['fresh_legs', 'normal'],
@@ -2679,6 +2757,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         note,
         types: ['Løping'],
         intensities: ['Terskel', 'Tempo', 'Intervall'],
+        roles: ['support_threshold'],
         purposes: ['threshold'],
         loads: ['moderate'],
         recommendedWhen: ['normal', 'fresh_legs'],
@@ -2694,6 +2773,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         note,
         types: ['Løping', 'Ski', 'Sykling'],
         intensities: ['Rolig'],
+        roles: ['long_easy'],
         purposes: ['base'],
         loads: ['low'],
         recommendedWhen: ['normal', 'fresh_legs'],
@@ -2709,6 +2789,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         note,
         types: ['Løping', 'Styrke', 'Mobilitet', 'Ski', 'Sykling'],
         intensities: ['Rolig', 'Tempo', 'Terskel', 'Styrke'],
+        roles: ['x_workout', 'strength', 'mobility', 'technique'],
         purposes: ['base', 'threshold', 'strength', 'mobility', 'technique'],
         loads: ['low', 'moderate'],
         recommendedWhen: ['fresh_legs', 'normal', 'bonus'],
@@ -2717,7 +2798,67 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       };
     }
 
-    function bakkenWeekRecipe(count, bodyState, weekSummary, weekItems) {
+    function suggestionForWorkoutRole(role) {
+      const map = {
+        main_threshold: () => mainThresholdSuggestion(),
+        support_threshold: () => supportThresholdSuggestion(),
+        long_easy: () => longEasySuggestion(),
+        recovery: () => recoverySuggestion(),
+        x_workout: () => xWorkoutSuggestion(),
+        strength: () => ({
+          title: 'Styrkeøkt',
+          detail: 'Hold kvalitet på teknikk og belastning. Juster volum etter hvordan beina skal brukes videre i uka.',
+          note: 'Foreslått fordi dette er en del av normaluka i treningsprofilen.',
+          types: ['Styrke'],
+          intensities: ['Styrke'],
+          roles: ['strength'],
+          purposes: ['strength', 'muscle_growth'],
+          loads: ['moderate'],
+          recommendedWhen: ['normal', 'fresh_legs'],
+          avoidTemplateWhen: ['pain'],
+          keywords: ['styrke', 'helkropp', 'basis', 'bein', 'overkropp']
+        }),
+        mobility: () => ({
+          title: 'Mobilitet',
+          detail: 'Bruk økten til bevegelighet, kontroll og lett restitusjon.',
+          note: 'Foreslått fordi mobilitet er lagt inn i normaluka.',
+          types: ['Mobilitet'],
+          intensities: ['Rolig', 'Restitusjon'],
+          roles: ['mobility'],
+          purposes: ['mobility', 'recovery'],
+          loads: ['low'],
+          recommendedWhen: ['normal', 'tired', 'after_hard', 'pain_adaptation'],
+          avoidTemplateWhen: [],
+          keywords: ['mobilitet', 'yoga', 'stretch', 'bevegelighet']
+        }),
+        technique: () => ({
+          title: 'Teknikkøkt',
+          detail: 'Hold intensiteten kontrollert og bruk økten til rytme, teknikk og bevegelseskvalitet.',
+          note: 'Foreslått fordi teknikk er lagt inn i normaluka.',
+          types: ['Ski', 'Løping', 'Sykling'],
+          intensities: ['Rolig', 'Tempo'],
+          roles: ['technique'],
+          purposes: ['technique', 'base'],
+          loads: ['low', 'moderate'],
+          recommendedWhen: ['normal', 'fresh_legs'],
+          avoidTemplateWhen: ['pain'],
+          keywords: ['teknikk', 'staking', 'drill', 'kontroll']
+        })
+      };
+      return (map[role] || (() => gentleBaseSuggestion()))();
+    }
+
+    function normalWeekRoleSuggestions(profile, count) {
+      const fallback = normalizeWeekPlanRoles(defaultSettings.trainingProfile.weekPlanRoles);
+      const roles = normalizeWeekPlanRoles(profile.weekPlanRoles).filter(Boolean);
+      const selected = [...roles];
+      fallback.forEach(role => {
+        if (selected.length < count && role && !selected.includes(role)) selected.push(role);
+      });
+      return selected.slice(0, count).map(suggestionForWorkoutRole);
+    }
+
+    function bakkenWeekRecipe(count, bodyState, weekSummary, weekItems, profile = normalizeTrainingProfile(state.settings.trainingProfile)) {
       const target = Math.max(1, Math.min(4, Number(count) || 3));
       const hardThisWeek = weekItems.filter(item => completedLoadAssessment(item).level === 'high').length;
       const moderateOrHardThisWeek = weekItems.filter(item => {
@@ -2752,17 +2893,14 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         ].slice(0, target);
       }
 
-      if (target === 1) return [mainThresholdSuggestion()];
-      if (target === 2) return [mainThresholdSuggestion(), longEasySuggestion()];
-      if (target === 3) return [mainThresholdSuggestion(), supportThresholdSuggestion(), longEasySuggestion()];
-      return [mainThresholdSuggestion(), supportThresholdSuggestion(), longEasySuggestion(), xWorkoutSuggestion()];
+      return normalWeekRoleSuggestions(profile, target);
     }
 
     function weekPlanSuggestionMix(mainSuggestion, remainingCount, profile) {
       if (remainingCount <= 0) return [];
       const runningBakkenFocus = profile.primaryFocus === 'running' && profile.philosophy === 'bakken_threshold';
       if (runningBakkenFocus) {
-        return bakkenWeekRecipe(remainingCount, { level: 'none' }, { sessions: 0 }, []).slice(0, Math.min(remainingCount, 4));
+        return bakkenWeekRecipe(remainingCount, { level: 'none' }, { sessions: 0 }, [], profile).slice(0, Math.min(remainingCount, 4));
       }
       const suggestions = [mainSuggestion];
       const needsSupport = (mainSuggestion.loads || []).includes('moderate') || (mainSuggestion.purposes || []).includes('threshold');
@@ -2836,7 +2974,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       const bodyState = bodySignalState(last14Days);
       const runningBakkenFocus = profile.primaryFocus === 'running' && profile.philosophy === 'bakken_threshold';
       const suggestionMix = runningBakkenFocus
-        ? bakkenWeekRecipe(remainingAfterPlanned, bodyState, weekSummary, weekItems)
+        ? bakkenWeekRecipe(remainingAfterPlanned, bodyState, weekSummary, weekItems, profile)
         : weekPlanSuggestionMix(mainSuggestion, remainingAfterPlanned, profile);
       const suggestionDates = weekPlanDates(today, weekEnd, plannedThisWeek, suggestionMix.length);
       const usedTemplateIds = [];
@@ -2855,7 +2993,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       const bodyState = bodySignalState(last14Days);
       const runningBakkenFocus = profile.primaryFocus === 'running' && profile.philosophy === 'bakken_threshold';
       const suggestionMix = runningBakkenFocus
-        ? bakkenWeekRecipe(remaining, bodyState, weekSummary, weekItems)
+        ? bakkenWeekRecipe(remaining, bodyState, weekSummary, weekItems, profile)
         : weekPlanSuggestionMix(mainSuggestion, remaining, profile);
       const suggestionDates = weekPlanDatesInRange(nextWeekStart, nextWeekEnd, plannedNextWeek, suggestionMix.length);
       const usedTemplateIds = [];
