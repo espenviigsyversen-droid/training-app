@@ -4,7 +4,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     import { getFirestore, doc, collection, getDoc, getDocs, setDoc, deleteDoc, writeBatch, enableIndexedDbPersistence }
       from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
-    const APP_VERSION = 'v65';
+    const APP_VERSION = 'v66';
 
     const firebaseConfig = {
       apiKey: "AIzaSyAMPfQ9gX9rbuvcPsVjYVtq5IT_orjDBPs",
@@ -2642,13 +2642,132 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       };
     }
 
+    function recoverySuggestion(note = 'Foreslått fordi kroppen bør få en lavterskel økt før ny kvalitet.') {
+      return {
+        title: 'Restitusjon eller alternativ økt',
+        detail: 'Velg kort, lett og kontrollert. Målet er bevegelse og trygg progresjon, ikke treningspress.',
+        note,
+        types: ['Gåtur', 'Mobilitet', 'Sykling', 'Løping'],
+        intensities: ['Restitusjon', 'Rolig'],
+        purposes: ['recovery', 'mobility', 'base'],
+        loads: ['low'],
+        recommendedWhen: ['pain_adaptation', 'tired', 'after_hard'],
+        avoidTemplateWhen: [],
+        keywords: ['restitusjon', 'rolig kort', 'gå', 'mobilitet', 'retur', 'lett']
+      };
+    }
+
+    function mainThresholdSuggestion(note = 'Hovedøkten i en Bakken-inspirert uke: kontrollert terskel, helst litt under maks terskelpress.') {
+      return {
+        title: 'Hovedterskel',
+        detail: 'Ukens viktigste kvalitetsøkt. Hold den kontrollert nok til at du kan trene videre med friske bein.',
+        note,
+        types: ['Løping'],
+        intensities: ['Terskel', 'Intervall', 'Tempo'],
+        purposes: ['threshold'],
+        loads: ['moderate'],
+        recommendedWhen: ['fresh_legs', 'normal'],
+        avoidTemplateWhen: ['pain', 'heavy_legs', 'many_hard', 'low_hrv'],
+        keywords: ['terskel', 'intervall', '6x', '6 x', '10x', '10 x', 'drag']
+      };
+    }
+
+    function supportThresholdSuggestion(note = 'Støtteøkt med kvalitet, men ikke en økt som skal tømme deg.') {
+      return {
+        title: 'Støtteterskel / kontrollert hard',
+        detail: 'En lettere kvalitetsøkt enn hovedøkten. Den skal bygge kapasitet uten å bli en konkurranseøkt.',
+        note,
+        types: ['Løping'],
+        intensities: ['Terskel', 'Tempo', 'Intervall'],
+        purposes: ['threshold'],
+        loads: ['moderate'],
+        recommendedWhen: ['normal', 'fresh_legs'],
+        avoidTemplateWhen: ['pain', 'heavy_legs', 'many_hard', 'low_hrv'],
+        keywords: ['45/15', 'terskel', 'tempo', 'kort', 'kontrollert', 'intervall']
+      };
+    }
+
+    function longEasySuggestion(note = 'Rolig lengre økt under ca. 70% av makspuls. Dette er byggende rolig volum, ikke restitusjon.') {
+      return {
+        title: 'Rolig lengre økt',
+        detail: 'Bygg aerob base med lav puls og god kontroll. Avslutt heller med overskudd enn å presse lengden.',
+        note,
+        types: ['Løping', 'Ski', 'Sykling'],
+        intensities: ['Rolig'],
+        purposes: ['base'],
+        loads: ['low'],
+        recommendedWhen: ['normal', 'fresh_legs'],
+        avoidTemplateWhen: ['pain'],
+        keywords: ['langtur', 'rolig lang', 'lang', 'base', 'sone 1', 'sone 2']
+      };
+    }
+
+    function xWorkoutSuggestion(note = 'Valgfri X-økt hvis du har overskudd: bakke, korte drag, styrke, mobilitet eller ekstra rolig volum.') {
+      return {
+        title: 'X-økt etter overskudd',
+        detail: 'Velg fokus etter behov: teknikk, bakkeløp, korte kontrollerte drag, styrke/mobilitet eller ekstra rolig volum.',
+        note,
+        types: ['Løping', 'Styrke', 'Mobilitet', 'Ski', 'Sykling'],
+        intensities: ['Rolig', 'Tempo', 'Terskel', 'Styrke'],
+        purposes: ['base', 'threshold', 'strength', 'mobility', 'technique'],
+        loads: ['low', 'moderate'],
+        recommendedWhen: ['fresh_legs', 'normal', 'bonus'],
+        avoidTemplateWhen: ['pain', 'many_hard', 'low_hrv'],
+        keywords: ['bakke', 'kort', 'styrke', 'mobilitet', 'teknikk', 'rolig', 'langtur']
+      };
+    }
+
+    function bakkenWeekRecipe(count, bodyState, weekSummary, weekItems) {
+      const target = Math.max(1, Math.min(4, Number(count) || 3));
+      const hardThisWeek = weekItems.filter(item => completedLoadAssessment(item).level === 'high').length;
+      const moderateOrHardThisWeek = weekItems.filter(item => {
+        const level = completedLoadAssessment(item).level;
+        return level === 'moderate' || level === 'high';
+      }).length;
+
+      if (bodyState.level === 'active' || bodyState.level === 'caution') {
+        return [
+          recoverySuggestion('Kroppssignal er fortsatt relevant, så ukeplanen starter med lav risiko.'),
+          gentleBaseSuggestion('Rolig støtte før du vurderer ny terskel.'),
+          recoverySuggestion('Hold alternativet lett hvis samme område fortsatt kjennes.'),
+          gentleBaseSuggestion('Bonus bare hvis kroppen svarer fint.')
+        ].slice(0, target);
+      }
+
+      if (bodyState.level === 'cooling') {
+        return [
+          longEasySuggestion('Siste signal virker på vei ned. Start uka med rolig base og se at kroppen svarer fint.'),
+          mainThresholdSuggestion('Legg terskel først når kroppen fortsatt kjennes bra etter rolig start.'),
+          gentleBaseSuggestion('Rolig støtte rundt terskeløkten.'),
+          xWorkoutSuggestion('X-økt kun hvis beina er friske.')
+        ].slice(0, target);
+      }
+
+      if (hardThisWeek >= 2 || moderateOrHardThisWeek >= 3) {
+        return [
+          longEasySuggestion('Denne uka har allerede hatt mye kvalitet. Neste uke starter mer kontrollert.'),
+          mainThresholdSuggestion('Én kontrollert terskeløkt holder som kvalitet.'),
+          gentleBaseSuggestion('Rolig støtte for kontinuitet.'),
+          recoverySuggestion('Bonus bør være lett hvis totalbelastningen kjennes høy.')
+        ].slice(0, target);
+      }
+
+      if (target === 1) return [mainThresholdSuggestion()];
+      if (target === 2) return [mainThresholdSuggestion(), longEasySuggestion()];
+      if (target === 3) return [mainThresholdSuggestion(), supportThresholdSuggestion(), longEasySuggestion()];
+      return [mainThresholdSuggestion(), supportThresholdSuggestion(), longEasySuggestion(), xWorkoutSuggestion()];
+    }
+
     function weekPlanSuggestionMix(mainSuggestion, remainingCount, profile) {
       if (remainingCount <= 0) return [];
+      const runningBakkenFocus = profile.primaryFocus === 'running' && profile.philosophy === 'bakken_threshold';
+      if (runningBakkenFocus) {
+        return bakkenWeekRecipe(remainingCount, { level: 'none' }, { sessions: 0 }, []).slice(0, Math.min(remainingCount, 4));
+      }
       const suggestions = [mainSuggestion];
       const needsSupport = (mainSuggestion.loads || []).includes('moderate') || (mainSuggestion.purposes || []).includes('threshold');
-      const runningBakkenFocus = profile.primaryFocus === 'running' && profile.philosophy === 'bakken_threshold';
       while (suggestions.length < Math.min(remainingCount, 3)) {
-        if (needsSupport || runningBakkenFocus || suggestions.length > 0) {
+        if (needsSupport || suggestions.length > 0) {
           suggestions.push(gentleBaseSuggestion(
             needsSupport
               ? 'Foreslått som rolig støtte rundt kvalitetsøkten, slik at uka blir gjennomførbar.'
@@ -2714,7 +2833,11 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     function buildWeekPlanSuggestions(today, weekEnd, plannedThisWeek, weekSummary, weekItems, last14Days, profile, remainingAfterPlanned) {
       if (remainingAfterPlanned <= 0) return [];
       const mainSuggestion = buildWorkoutSuggestion(today, weekSummary, weekItems, last14Days, profile);
-      const suggestionMix = weekPlanSuggestionMix(mainSuggestion, remainingAfterPlanned, profile);
+      const bodyState = bodySignalState(last14Days);
+      const runningBakkenFocus = profile.primaryFocus === 'running' && profile.philosophy === 'bakken_threshold';
+      const suggestionMix = runningBakkenFocus
+        ? bakkenWeekRecipe(remainingAfterPlanned, bodyState, weekSummary, weekItems)
+        : weekPlanSuggestionMix(mainSuggestion, remainingAfterPlanned, profile);
       const suggestionDates = weekPlanDates(today, weekEnd, plannedThisWeek, suggestionMix.length);
       const usedTemplateIds = [];
       return suggestionMix.map((suggestion, index) => {
@@ -2729,7 +2852,11 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       const remaining = Math.max(0, target - plannedNextWeek.length);
       if (remaining <= 0) return [];
       const mainSuggestion = buildWorkoutSuggestion(todayISO(), weekSummary, weekItems, last14Days, profile);
-      const suggestionMix = weekPlanSuggestionMix(mainSuggestion, remaining, profile);
+      const bodyState = bodySignalState(last14Days);
+      const runningBakkenFocus = profile.primaryFocus === 'running' && profile.philosophy === 'bakken_threshold';
+      const suggestionMix = runningBakkenFocus
+        ? bakkenWeekRecipe(remaining, bodyState, weekSummary, weekItems)
+        : weekPlanSuggestionMix(mainSuggestion, remaining, profile);
       const suggestionDates = weekPlanDatesInRange(nextWeekStart, nextWeekEnd, plannedNextWeek, suggestionMix.length);
       const usedTemplateIds = [];
       return suggestionMix.map((suggestion, index) => {
@@ -2739,13 +2866,19 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       }).filter(item => item.date);
     }
 
-    function nextWeekPlanSummary(plannedNextWeek, suggestedNextWeek, goals, status) {
+    function nextWeekPlanSummary(plannedNextWeek, suggestedNextWeek, goals, status, bodyState) {
       const target = Math.max(1, Number(goals.weeklySessionsTarget) || 3);
       if (plannedNextWeek.length >= target) return `Neste uke er allerede dekket med ${plannedNextWeek.length} planlagte økter.`;
+      if (bodyState.level === 'active' || bodyState.level === 'caution') {
+        return `Neste uke starter med lavere risiko fordi et kroppssignal fortsatt kan være relevant. Øk først når samme område kjennes bra.`;
+      }
+      if (bodyState.level === 'cooling') {
+        return `Neste uke starter rolig og bygger mot terskel hvis kroppen fortsatt svarer fint.`;
+      }
       if (status.level === 'caution') {
         return `Neste uke bør starte kontrollert. Appen foreslår ${suggestedNextWeek.length} økt${suggestedNextWeek.length === 1 ? '' : 'er'} med lavere risiko først.`;
       }
-      return `Forslag til neste uke: ${suggestedNextWeek.length} økt${suggestedNextWeek.length === 1 ? '' : 'er'} mot ukesmålet på ${target}. Juster etter kalender og dagsform.`;
+      return `Forslag til neste uke: ${suggestedNextWeek.length} økt${suggestedNextWeek.length === 1 ? '' : 'er'} mot ukesmålet på ${target}, med kvalitet, rolig base og justering etter dagsform.`;
     }
 
     function renderWeekPlan(today, weekSummary, weekItems, last14Days, profile, goals, plannedActive) {
@@ -2765,6 +2898,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       const plannedCount = plannedThisWeek.length;
       const remainingAfterPlanned = Math.max(0, goals.weeklySessionsTarget - completedCount - plannedCount);
       const status = weeklyTrainingStatus(weekItems, weekSummary, goals, profile);
+      const bodyState = bodySignalState(last14Days);
       const suggestedItems = buildWeekPlanSuggestions(today, weekEnd, plannedThisWeek, weekSummary, weekItems, last14Days, profile, remainingAfterPlanned);
       const suggestedNextWeek = buildNextWeekPlanSuggestions(nextWeekStart, nextWeekEnd, plannedNextWeek, weekSummary, weekItems, last14Days, profile, goals);
       const suggestionDates = suggestedItems.map(item => item.date);
@@ -2776,7 +2910,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         : plannedCount
           ? `${completedCount}/${goals.weeklySessionsTarget} utført og ${plannedCount} planlagt. ${remainingAfterPlanned} åpne økt${remainingAfterPlanned === 1 ? '' : 'er'} igjen.`
           : `${completedCount}/${goals.weeklySessionsTarget} utført. Appen foreslår neste steg for å gjøre uka gjennomførbar.`;
-      const nextSummary = nextWeekPlanSummary(plannedNextWeek, suggestedNextWeek, goals, status);
+      const nextSummary = nextWeekPlanSummary(plannedNextWeek, suggestedNextWeek, goals, status, bodyState);
       const actionLine = suggestedItems.length
         ? `${suggestedItems.length} forslag for resten av uka`
         : remainingAfterPlanned <= 0
