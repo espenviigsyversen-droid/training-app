@@ -75,6 +75,10 @@
           </div>
           <p id="homeWeekNote" class="small-note"></p>
         </div>
+        <div id="homeChallengeCard" class="card" style="display:none;">
+          <h2 class="section-title">Aktiv challenge</h2>
+          <div id="homeChallenge"></div>
+        </div>
         <div class="card">
           <h2 class="section-title">Ukeplan</h2>
           <div id="homeWeekPlan"></div>
@@ -372,6 +376,57 @@
             <div class="insight-stat"><strong id="insightWeekSignals">0</strong><span>Signal</span></div>
           </div>
           <div id="insightWeekProgress" class="progress-block"></div>
+        </div>
+        <div class="card">
+          <h2 class="section-title">Challenges</h2>
+          <p class="small-note">Kortsiktige mål for ekstra motivasjon, for eksempel kilometer, timer eller antall økter i en periode.</p>
+          <div class="challenge-form">
+            <div>
+              <label>Navn</label>
+              <input id="challengeName" placeholder="F.eks. 80 km i mai" />
+            </div>
+            <div class="grid-2">
+              <div>
+                <label>Mål</label>
+                <input id="challengeTarget" type="number" min="0" step="0.1" placeholder="80" />
+              </div>
+              <div>
+                <label>Type</label>
+                <select id="challengeMetric">
+                  <option value="km">Kilometer</option>
+                  <option value="hours">Timer</option>
+                  <option value="sessions">Økter</option>
+                </select>
+              </div>
+            </div>
+            <div class="grid-2">
+              <div>
+                <label>Aktivitet</label>
+                <select id="challengeActivity"></select>
+              </div>
+              <div>
+                <label>Startdato</label>
+                <input id="challengeStartDate" type="date" />
+              </div>
+            </div>
+            <div class="grid-2">
+              <div>
+                <label>Sluttdato</label>
+                <input id="challengeEndDate" type="date" />
+              </div>
+              <div>
+                <label>Status</label>
+                <select id="challengeStatus">
+                  <option value="active">Aktiv</option>
+                  <option value="paused">Pause</option>
+                </select>
+              </div>
+            </div>
+            <input type="hidden" id="challengeEditingId" />
+            <button id="challengeSubmitBtn" class="btn-primary btn-full" onclick="saveChallenge()">Lagre challenge</button>
+            <button id="challengeCancelBtn" class="btn-soft btn-full hidden" onclick="clearChallengeForm()">Avbryt redigering</button>
+          </div>
+          <div id="challengeList" class="challenge-list"></div>
         </div>
         <div class="card">
           <h2 class="section-title">Ukestatus</h2>

@@ -4,7 +4,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     import { getFirestore, doc, collection, getDoc, getDocs, setDoc, deleteDoc, writeBatch, enableIndexedDbPersistence }
       from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
-    const APP_VERSION = 'v71';
+    const APP_VERSION = 'v72';
 
     const firebaseConfig = {
       apiKey: "AIzaSyAMPfQ9gX9rbuvcPsVjYVtq5IT_orjDBPs",
@@ -55,7 +55,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         thresholdHeartRate: ''
       }
     };
-    let state = { templates: [], planned: [], completed: [], wellness: [], settings: JSON.parse(JSON.stringify(defaultSettings)) };
+    let state = { templates: [], planned: [], completed: [], wellness: [], challenges: [], settings: JSON.parse(JSON.stringify(defaultSettings)) };
     let volumeTrendPeriod = 'week';
     let volumeTrendActivity = 'all';
     let templateCoachFilter = 'all';
@@ -188,6 +188,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
           planned: Array.isArray(snapshot.state.planned) ? snapshot.state.planned : [],
           completed: Array.isArray(snapshot.state.completed) ? snapshot.state.completed : [],
           wellness: Array.isArray(snapshot.state.wellness) ? snapshot.state.wellness : [],
+          challenges: Array.isArray(snapshot.state.challenges) ? snapshot.state.challenges : [],
           settings: normalizeSettings(snapshot.state.settings)
         };
         return snapshot.savedAt || null;
@@ -573,17 +574,19 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       if (!navigator.onLine) setSyncStatus(hasPendingLocalWrites ? 'pending' : 'offline');
       else setSyncStatus('syncing');
       try {
-        const [tSnap, pSnap, cSnap, wSnap, settingsSnap] = await Promise.all([
+        const [tSnap, pSnap, cSnap, wSnap, challengeSnap, settingsSnap] = await Promise.all([
           getDocs(userCol('templates')),
           getDocs(userCol('planned')),
           getDocs(userCol('completed')),
           getDocs(userCol('wellness')),
+          getDocs(userCol('challenges')),
           getDoc(userDoc('settings', 'preferences'))
         ]);
         state.templates = tSnap.docs.map(d => ({ id: d.id, ...d.data() }));
         state.planned   = pSnap.docs.map(d => ({ id: d.id, ...d.data() }));
         state.completed = cSnap.docs.map(d => ({ id: d.id, ...d.data() }));
         state.wellness = wSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+        state.challenges = challengeSnap.docs.map(d => ({ id: d.id, ...d.data() }));
         state.settings = settingsSnap.exists() ? normalizeSettings(settingsSnap.data()) : freshDefaultSettings();
         if (!settingsSnap.exists()) await fsSet('settings', 'preferences', state.settings);
         offlineSnapshotMode = false;
@@ -752,7 +755,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         }
         currentUser = null;
         offlineSnapshotMode = false;
-        state = { templates: [], planned: [], completed: [], wellness: [], settings: normalizeSettings(state.settings) };
+        state = { templates: [], planned: [], completed: [], wellness: [], challenges: [], settings: normalizeSettings(state.settings) };
         loading.classList.add('hidden');
         authScreen.classList.remove('hidden');
         mainApp.classList.add('hidden');
@@ -3789,6 +3792,201 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         </div>`;
     }
 
+    function challengeMetricLabel(metric) {
+      return { km: 'Kilometer', hours: 'Timer', sessions: 'Økter' }[metric] || 'Mål';
+    }
+
+    function challengeValueLabel(value, metric) {
+      const number = Number(value) || 0;
+      if (metric === 'hours') return `${number.toLocaleString('no-NO', { maximumFractionDigits: number < 10 ? 1 : 0 })} t`;
+      if (metric === 'km') return formatKm(number);
+      return `${Math.round(number)} økt${Math.round(number) === 1 ? '' : 'er'}`;
+    }
+
+    function challengeItems(challenge) {
+      return state.completed.filter(completed => {
+        if (!completed.date || completed.date < challenge.startDate || completed.date > challenge.endDate) return false;
+        if (!challenge.activity || challenge.activity === 'all') return true;
+        return (completedTemplate(completed).type || 'Annet') === challenge.activity;
+      });
+    }
+
+    function challengeProgress(challenge) {
+      const items = challengeItems(challenge);
+      const target = Number(challenge.target) || 0;
+      let current = 0;
+      if (challenge.metric === 'hours') current = items.reduce((sum, item) => sum + completedDurationSeconds(item), 0) / 3600;
+      else if (challenge.metric === 'sessions') current = items.length;
+      else current = items.reduce((sum, item) => sum + (Number(item.distanceKm) || 0), 0);
+      const percent = target ? Math.max(0, Math.min(100, (current / target) * 100)) : 0;
+      const today = todayISO();
+      const done = target > 0 && current >= target;
+      const expired = today > challenge.endDate && !done;
+      const daysLeft = Math.max(0, Math.ceil((new Date(`${challenge.endDate}T12:00:00`) - new Date(`${today}T12:00:00`)) / 86400000));
+      return { current, target, percent, done, expired, daysLeft, count: items.length };
+    }
+
+    function challengeStatusLabel(challenge, progress) {
+      if (progress.done) return 'Fullført';
+      if (challenge.status === 'paused') return 'Pause';
+      if (progress.expired) return 'Utløpt';
+      return 'Aktiv';
+    }
+
+    function challengeCard(challenge, compact = false) {
+      const progress = challengeProgress(challenge);
+      const activity = challenge.activity === 'all' ? 'Alle aktiviteter' : challenge.activity;
+      const status = challengeStatusLabel(challenge, progress);
+      const statusClass = progress.done ? 'done' : progress.expired ? 'expired' : challenge.status === 'paused' ? 'paused' : 'active';
+      return `
+        <div class="challenge-card ${statusClass}">
+          <div class="challenge-top">
+            <div>
+              <h3>${escapeHtml(challenge.name)}</h3>
+              <span>${escapeHtml(challengeMetricLabel(challenge.metric))} · ${escapeHtml(activity)} · ${escapeHtml(formatShortDate(challenge.startDate))}-${escapeHtml(formatShortDate(challenge.endDate))}</span>
+            </div>
+            <strong>${Math.round(progress.percent)}%</strong>
+          </div>
+          <div class="progress-track"><div class="progress-fill ${progress.done ? 'done' : progress.current > 0 ? 'partial' : 'empty'}" style="width:${progress.percent}%;"></div></div>
+          <div class="challenge-meta">
+            <span>${escapeHtml(challengeValueLabel(progress.current, challenge.metric))} / ${escapeHtml(challengeValueLabel(progress.target, challenge.metric))}</span>
+            <span>${escapeHtml(status)}${status === 'Aktiv' ? ` · ${progress.daysLeft} dager igjen` : ''}</span>
+          </div>
+          ${compact ? '' : `
+            <div class="button-row">
+              <button class="btn-soft" onclick="editChallenge('${challenge.id}')">Rediger</button>
+              <button class="btn-soft" onclick="deleteChallenge('${challenge.id}')">Slett</button>
+            </div>`}
+        </div>`;
+    }
+
+    function sortedChallenges() {
+      return [...(state.challenges || [])].sort((a, b) => {
+        const aProgress = challengeProgress(a);
+        const bProgress = challengeProgress(b);
+        const aRank = aProgress.done ? 2 : aProgress.expired ? 3 : a.status === 'paused' ? 1 : 0;
+        const bRank = bProgress.done ? 2 : bProgress.expired ? 3 : b.status === 'paused' ? 1 : 0;
+        return aRank - bRank || String(a.endDate || '').localeCompare(String(b.endDate || ''));
+      });
+    }
+
+    function renderChallengeActivityOptions() {
+      const select = document.getElementById('challengeActivity');
+      if (!select) return;
+      const selected = select.value || 'all';
+      const values = ['all', ...uniqueValues([...(state.settings.activityTypes || []), ...state.templates.map(t => t.type || 'Annet')])];
+      select.innerHTML = values.map(value => `<option value="${escapeHtml(value)}">${escapeHtml(value === 'all' ? 'Alle aktiviteter' : value)}</option>`).join('');
+      select.value = values.includes(selected) ? selected : 'all';
+    }
+
+    function renderChallenges() {
+      const list = document.getElementById('challengeList');
+      const homeCard = document.getElementById('homeChallengeCard');
+      const home = document.getElementById('homeChallenge');
+      if (!list || !homeCard || !home) return;
+      const challenges = sortedChallenges();
+      const active = challenges.filter(challenge => {
+        const progress = challengeProgress(challenge);
+        return challenge.status !== 'paused' && !progress.done && !progress.expired;
+      });
+      if (active.length) {
+        homeCard.style.display = '';
+        home.innerHTML = challengeCard(active[0], true);
+      } else {
+        homeCard.style.display = 'none';
+        home.innerHTML = '';
+      }
+      list.innerHTML = challenges.length
+        ? challenges.map(challenge => challengeCard(challenge)).join('')
+        : `<div class="empty">Ingen challenges enda. Lag et kortsiktig mål for ekstra motivasjon.</div>`;
+    }
+
+    function defaultChallengeDates() {
+      const today = todayISO();
+      const start = `${today.slice(0, 8)}01`;
+      const endDate = new Date(`${start}T12:00:00`);
+      endDate.setMonth(endDate.getMonth() + 1);
+      endDate.setDate(0);
+      return { start, end: dateToISO(endDate) };
+    }
+
+    window.clearChallengeForm = function() {
+      const dates = defaultChallengeDates();
+      document.getElementById('challengeEditingId').value = '';
+      document.getElementById('challengeName').value = '';
+      document.getElementById('challengeTarget').value = '';
+      document.getElementById('challengeMetric').value = 'km';
+      document.getElementById('challengeActivity').value = 'all';
+      document.getElementById('challengeStartDate').value = dates.start;
+      document.getElementById('challengeEndDate').value = dates.end;
+      document.getElementById('challengeStatus').value = 'active';
+      document.getElementById('challengeSubmitBtn').textContent = 'Lagre challenge';
+      document.getElementById('challengeCancelBtn').classList.add('hidden');
+    };
+
+    window.saveChallenge = async function() {
+      const editingId = document.getElementById('challengeEditingId').value;
+      const name = document.getElementById('challengeName').value.trim();
+      const target = Number(document.getElementById('challengeTarget').value);
+      const metric = document.getElementById('challengeMetric').value;
+      const activity = document.getElementById('challengeActivity').value;
+      const startDate = document.getElementById('challengeStartDate').value;
+      const endDate = document.getElementById('challengeEndDate').value;
+      const status = document.getElementById('challengeStatus').value;
+      if (!name) return alert('Gi challengen et navn først.');
+      if (!Number.isFinite(target) || target <= 0) return alert('Legg inn et mål større enn 0.');
+      if (!startDate || !endDate || endDate < startDate) return alert('Velg en gyldig periode.');
+      const challenge = {
+        id: editingId || uid('challenge'),
+        name,
+        target,
+        metric,
+        activity,
+        startDate,
+        endDate,
+        status,
+        createdAt: editingId ? state.challenges.find(item => item.id === editingId)?.createdAt || todayISO() : todayISO(),
+        updatedAt: new Date().toISOString()
+      };
+      if (editingId) {
+        const index = state.challenges.findIndex(item => item.id === editingId);
+        if (index >= 0) state.challenges[index] = challenge;
+      } else {
+        state.challenges.push(challenge);
+      }
+      clearChallengeForm();
+      render();
+      await fsSet('challenges', challenge.id, challenge);
+      showToast(editingId ? 'Challenge oppdatert' : 'Challenge lagret');
+    };
+
+    window.editChallenge = function(id) {
+      const challenge = state.challenges.find(item => item.id === id);
+      if (!challenge) return;
+      document.getElementById('challengeEditingId').value = challenge.id;
+      document.getElementById('challengeName').value = challenge.name || '';
+      document.getElementById('challengeTarget').value = challenge.target || '';
+      document.getElementById('challengeMetric').value = challenge.metric || 'km';
+      document.getElementById('challengeActivity').value = challenge.activity || 'all';
+      document.getElementById('challengeStartDate').value = challenge.startDate || todayISO();
+      document.getElementById('challengeEndDate').value = challenge.endDate || todayISO();
+      document.getElementById('challengeStatus').value = challenge.status || 'active';
+      document.getElementById('challengeSubmitBtn').textContent = 'Lagre endringer';
+      document.getElementById('challengeCancelBtn').classList.remove('hidden');
+      showTab('insights');
+      document.getElementById('challengeName').scrollIntoView({ block: 'center', behavior: 'smooth' });
+    };
+
+    window.deleteChallenge = async function(id) {
+      const challenge = state.challenges.find(item => item.id === id);
+      if (!challenge) return;
+      if (!confirm(`Slette challengen "${challenge.name}"?`)) return;
+      state.challenges = state.challenges.filter(item => item.id !== id);
+      render();
+      await fsDelete('challenges', id);
+      showToast('Challenge slettet');
+    };
+
     function weekSummaryForStart(startIso) {
       const endIso = addDays(startIso, 6);
       const items = state.completed.filter(c => c.date >= startIso && c.date <= endIso);
@@ -4434,6 +4632,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       document.getElementById('todayPill').textContent = formatDate(today);
       document.getElementById('planDate').value ||= today;
       state.settings = normalizeSettings(state.settings);
+      state.challenges = Array.isArray(state.challenges) ? state.challenges : [];
 
       const editingTemplateId = document.getElementById('editingTemplateId').value;
       const selectedType = document.getElementById('templateType').value;
@@ -4449,8 +4648,11 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       renderPersonProfile();
       renderWellnessList();
       renderDashboardWellness();
+      renderChallengeActivityOptions();
+      if (!document.getElementById('challengeStartDate').value || !document.getElementById('challengeEndDate').value) clearChallengeForm();
       renderHistoryFilterOptions();
       renderInsights();
+      renderChallenges();
 
       const plannedActive = state.planned.filter(p => p.status !== 'done');
       // BUGFIX punkt 3: trygg sortering selv om createdAt mangler
@@ -4520,13 +4722,14 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
           const imported = JSON.parse(reader.result);
           if (!imported.templates || !imported.planned || !imported.completed) throw new Error('Invalid format');
           if (!confirm('Import vil overskrive data som ligger i appen nå. Fortsette?')) return;
-          state = { ...imported, wellness: imported.wellness || [], settings: normalizeSettings(imported.settings) };
+          state = { ...imported, wellness: imported.wellness || [], challenges: imported.challenges || [], settings: normalizeSettings(imported.settings) };
           render();
           await Promise.all([
             fsBatchSet('templates', state.templates),
             fsBatchSet('planned', state.planned),
             fsBatchSet('completed', state.completed),
             fsBatchSet('wellness', state.wellness),
+            fsBatchSet('challenges', state.challenges),
             fsSet('settings', 'preferences', state.settings)
           ]);
         } catch (err) {
@@ -4563,16 +4766,17 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       if (!confirm('SISTE ADVARSEL: Dette sletter alle økter, planer, historikk og formmålinger. Dette kan ikke angres. Fortsette?')) return;
       setSyncStatus('syncing');
       try {
-        const [tSnap, pSnap, cSnap, wSnap] = await Promise.all([
+        const [tSnap, pSnap, cSnap, wSnap, challengeSnap] = await Promise.all([
           getDocs(userCol('templates')),
           getDocs(userCol('planned')),
           getDocs(userCol('completed')),
-          getDocs(userCol('wellness'))
+          getDocs(userCol('wellness')),
+          getDocs(userCol('challenges'))
         ]);
         const batch = writeBatch(db);
-        [...tSnap.docs, ...pSnap.docs, ...cSnap.docs, ...wSnap.docs].forEach(d => batch.delete(d.ref));
+        [...tSnap.docs, ...pSnap.docs, ...cSnap.docs, ...wSnap.docs, ...challengeSnap.docs].forEach(d => batch.delete(d.ref));
         await batch.commit();
-        state = { templates: [], planned: [], completed: [], wellness: [], settings: normalizeSettings(state.settings) };
+        state = { templates: [], planned: [], completed: [], wellness: [], challenges: [], settings: normalizeSettings(state.settings) };
         setSyncStatus('ok');
         render();
       } catch (err) {
