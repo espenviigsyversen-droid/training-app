@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "source": "../Treningsfilosofi/coach-rammeverk.md",
+  "framework": "Bakken-inspirert kontrollert terskel og skadefri progresjon",
+  "principles": {
+    "controlled_threshold": "Terskel skal være kontrollert og repeterbar, ikke maksimal.",
+    "golden_zone": "Den gylne sonen prioriterer litt lavere intensitet for bedre kontinuitet.",
+    "easy_support": "Rolig volum støtter kvalitet og kontinuitet.",
+    "fresh_legs": "Kvalitet bør komme med friske bein.",
+    "body_signals_first": "Kroppssignaler trumfer planen.",
+    "recovery_is_training": "Restitusjon er aktiv belastningsstyring.",
+    "repeatable_week": "Normaluken skal være enkel, repeterbar og justerbar."
+  },
+  "decisionPriority": [
+    "body_signals_first",
+    "recent_load",
+    "repeatable_week",
+    "template_roles",
+    "consistency"
+  ],
+  "bakkenRunningWeek": [
+    "main_threshold",
+    "support_threshold",
+    "long_easy",
+    "x_workout"
+  ]
+}
