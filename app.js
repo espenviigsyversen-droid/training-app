@@ -4,7 +4,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     import { getFirestore, doc, collection, getDoc, getDocs, setDoc, deleteDoc, writeBatch, enableIndexedDbPersistence }
       from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
-    const APP_VERSION = 'v67';
+    const APP_VERSION = 'v68';
 
     const firebaseConfig = {
       apiKey: "AIzaSyAMPfQ9gX9rbuvcPsVjYVtq5IT_orjDBPs",
@@ -58,6 +58,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     let state = { templates: [], planned: [], completed: [], wellness: [], settings: JSON.parse(JSON.stringify(defaultSettings)) };
     let volumeTrendPeriod = 'week';
     let volumeTrendActivity = 'all';
+    let templateCoachFilter = 'all';
 
     // ── Utilities ─────────────────────────────────────────────────────────────
     function uid(prefix) {
@@ -2049,14 +2050,74 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       ].filter(Boolean).join(' ').toLowerCase();
     }
 
+    function templateCoachReadiness(t) {
+      const missing = [];
+      if (!t.role) missing.push('Øktrolle');
+      if (!t.purpose) missing.push('Coach-formål');
+      if (!t.load) missing.push('Belastning');
+      if (!asArray(t.recommendedWhen).length) missing.push('Passer best når');
+      return {
+        ready: missing.length === 0,
+        missing,
+        score: 4 - missing.length
+      };
+    }
+
+    window.setTemplateCoachFilter = function(filter) {
+      templateCoachFilter = filter;
+      renderTemplateLibrary();
+    };
+
     function filteredTemplatesForLibrary() {
       const query = (document.getElementById('templateSearch')?.value || '').trim().toLowerCase();
       const typeFilter = document.getElementById('templateFilterType')?.value || 'Alle';
       return sortedTemplatesForSelect().filter(t => {
         const matchesType = typeFilter === 'Alle' || (t.type || 'Annet') === typeFilter;
         const matchesQuery = !query || templateSearchText(t).includes(query);
-        return matchesType && matchesQuery;
+        const matchesCoachFilter = templateCoachFilter !== 'missing' || !templateCoachReadiness(t).ready;
+        return matchesType && matchesQuery && matchesCoachFilter;
       });
+    }
+
+    function renderTemplateCoachReadiness() {
+      const wrapper = document.getElementById('templateCoachReadiness');
+      if (!wrapper) return;
+      if (!state.templates.length) {
+        wrapper.innerHTML = '';
+        return;
+      }
+      const statuses = state.templates.map(template => ({ template, status: templateCoachReadiness(template) }));
+      const readyCount = statuses.filter(item => item.status.ready).length;
+      const missingItems = statuses
+        .filter(item => !item.status.ready)
+        .sort((a, b) => a.status.score - b.status.score || a.template.name.localeCompare(b.template.name, 'no'))
+        .slice(0, 4);
+      const percent = Math.round((readyCount / statuses.length) * 100);
+      wrapper.innerHTML = `
+        <div class="coach-readiness-card">
+          <div class="coach-readiness-top">
+            <div>
+              <span class="coach-readiness-kicker">Coach-oppsett</span>
+              <strong>${readyCount}/${statuses.length} maler coach-klare</strong>
+            </div>
+            <span class="coach-readiness-score">${percent}%</span>
+          </div>
+          <div class="coach-readiness-bar"><span style="width:${percent}%"></span></div>
+          ${missingItems.length
+            ? `<div class="coach-readiness-list">
+                ${missingItems.map(item => `
+                  <button type="button" onclick="editTemplate('${item.template.id}')">
+                    <span>${escapeHtml(item.template.name)}</span>
+                    <small>Mangler ${escapeHtml(item.status.missing.join(', '))}</small>
+                  </button>
+                `).join('')}
+              </div>`
+            : `<p class="small-note">Alle malene har nok metadata til at rådgiveren kan bruke dem presist.</p>`}
+          <div class="coach-readiness-actions">
+            <button class="${templateCoachFilter === 'all' ? 'btn-dark' : 'btn-soft'}" onclick="setTemplateCoachFilter('all')">Alle</button>
+            <button class="${templateCoachFilter === 'missing' ? 'btn-dark' : 'btn-soft'}" onclick="setTemplateCoachFilter('missing')">Vis mangler</button>
+          </div>
+        </div>`;
     }
 
     function renderTemplateTypeFilter() {
@@ -2070,6 +2131,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
 
     window.renderTemplateLibrary = function() {
       renderTemplateTypeFilter();
+      renderTemplateCoachReadiness();
       const list = document.getElementById('templateList');
       const summary = document.getElementById('templateLibrarySummary');
       if (!list) return;
@@ -2115,6 +2177,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     };
 
     function templateCard(t) {
+      const readiness = templateCoachReadiness(t);
       const coachTags = [
         templateRoleLabel(t.role),
         templatePurposeLabel(t.purpose),
@@ -2129,9 +2192,10 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
               <h3 class="workout-title">${escapeHtml(t.name)}</h3>
               <div class="meta">${escapeHtml(t.intensity || 'Uten intensitet')}</div>
             </div>
-            <span class="tag">${escapeHtml(templateLoadLabel(t.load) || 'Mal')}</span>
+            <span class="tag ${readiness.ready ? 'tag-ready' : 'tag-warning'}">${readiness.ready ? 'Coach-klar' : `Mangler ${readiness.missing.length}`}</span>
           </div>
           ${coachTags.length ? `<div class="template-tags">${coachTags.map(tag => `<span class="tag template-tag">${escapeHtml(tag)}</span>`).join('')}</div>` : ''}
+          ${readiness.ready ? '' : `<div class="template-missing">${readiness.missing.map(item => `<span>${escapeHtml(item)}</span>`).join('')}</div>`}
           ${t.structure ? `<p class="template-structure">${escapeHtml(t.structure)}</p>` : ''}
           <div class="button-row">
             <button class="btn-primary" onclick="editTemplate('${t.id}')">Rediger</button>

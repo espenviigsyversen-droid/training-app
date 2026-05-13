@@ -323,6 +323,32 @@
       font-size: 0.68rem;
     }
 
+    .tag-ready {
+      background: rgba(22, 163, 74, 0.12);
+      color: var(--success);
+    }
+
+    .tag-warning {
+      background: rgba(255, 72, 45, 0.12);
+      color: var(--red);
+    }
+
+    .template-missing {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 10px;
+    }
+
+    .template-missing span {
+      padding: 6px 9px;
+      border-radius: 999px;
+      background: rgba(255, 72, 45, 0.1);
+      color: var(--red);
+      font-size: 0.68rem;
+      font-weight: 800;
+    }
+
     .template-structure {
       margin: 10px 0 0;
       color: var(--warm-gray-3);
@@ -333,6 +359,95 @@
       -webkit-line-clamp: 4;
       -webkit-box-orient: vertical;
       overflow: hidden;
+    }
+
+    .coach-readiness-card {
+      border: 1px solid rgba(17,17,17,0.08);
+      border-radius: 16px;
+      padding: 12px;
+      margin-bottom: 12px;
+      background: linear-gradient(180deg, #fff 0%, rgba(244, 240, 235, 0.7) 100%);
+    }
+
+    .coach-readiness-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+
+    .coach-readiness-top strong {
+      display: block;
+      font-size: 1rem;
+      line-height: 1.15;
+    }
+
+    .coach-readiness-kicker {
+      display: block;
+      color: var(--warm-gray-3);
+      font-size: 0.7rem;
+      font-weight: 900;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      margin-bottom: 3px;
+    }
+
+    .coach-readiness-score {
+      font-size: 0.9rem;
+      font-weight: 900;
+      color: var(--burgundy);
+    }
+
+    .coach-readiness-bar {
+      height: 9px;
+      border-radius: 999px;
+      background: var(--warm-gray-1);
+      overflow: hidden;
+      margin-bottom: 10px;
+    }
+
+    .coach-readiness-bar span {
+      display: block;
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, var(--primary), var(--warning));
+    }
+
+    .coach-readiness-list {
+      display: grid;
+      gap: 7px;
+      margin-bottom: 10px;
+    }
+
+    .coach-readiness-list button {
+      display: grid;
+      gap: 3px;
+      width: 100%;
+      padding: 10px 12px;
+      border-radius: 14px;
+      background: #fff;
+      border: 1px solid rgba(17,17,17,0.08);
+      color: var(--black);
+      text-align: left;
+      box-shadow: none;
+    }
+
+    .coach-readiness-list button span {
+      font-size: 0.88rem;
+      font-weight: 900;
+    }
+
+    .coach-readiness-list button small {
+      color: var(--warm-gray-3);
+      font-size: 0.74rem;
+      line-height: 1.25;
+    }
+
+    .coach-readiness-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
     }
 
     @media (max-width: 420px) {
