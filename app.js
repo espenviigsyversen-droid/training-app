@@ -4,7 +4,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     import { getFirestore, doc, collection, getDoc, getDocs, setDoc, deleteDoc, writeBatch, enableIndexedDbPersistence }
       from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
-    const APP_VERSION = 'v73';
+    const APP_VERSION = 'v74';
 
     const firebaseConfig = {
       apiKey: "AIzaSyAMPfQ9gX9rbuvcPsVjYVtq5IT_orjDBPs",
@@ -1004,6 +1004,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
 
     function sortedTemplatesForSelect() {
       const activityOrder = state.settings.activityTypes || [];
+      const roleOrder = ['main_threshold', 'support_threshold', 'long_easy', 'recovery', 'x_workout', 'strength', 'mobility', 'technique', 'other'];
       return [...state.templates].sort((a, b) => {
         const aIndex = activityOrder.indexOf(a.type);
         const bIndex = activityOrder.indexOf(b.type);
@@ -1012,6 +1013,11 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         if (aRank !== bRank) return aRank - bRank;
         const typeCompare = compareText(a.type, b.type);
         if (typeCompare !== 0) return typeCompare;
+        const aRoleRank = roleOrder.indexOf(a.role || 'other');
+        const bRoleRank = roleOrder.indexOf(b.role || 'other');
+        const safeARoleRank = aRoleRank === -1 ? 999 : aRoleRank;
+        const safeBRoleRank = bRoleRank === -1 ? 999 : bRoleRank;
+        if (safeARoleRank !== safeBRoleRank) return safeARoleRank - safeBRoleRank;
         return compareText(a.name, b.name);
       });
     }
@@ -1030,17 +1036,19 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         return options.join('');
       }
 
-      let currentType = null;
+      let currentGroup = null;
       sortedTemplatesForSelect().forEach(template => {
         const type = template.type || 'Annet';
-        if (type !== currentType) {
-          if (currentType !== null) options.push('</optgroup>');
-          options.push(`<optgroup label="${escapeHtml(type)}">`);
-          currentType = type;
+        const role = templateRoleLabel(template.role);
+        const group = role ? `${type} · ${role}` : type;
+        if (group !== currentGroup) {
+          if (currentGroup !== null) options.push('</optgroup>');
+          options.push(`<optgroup label="${escapeHtml(group)}">`);
+          currentGroup = group;
         }
         options.push(`<option value="${template.id}">${escapeHtml(templateSelectLabel(template))}</option>`);
       });
-      if (currentType !== null) options.push('</optgroup>');
+      if (currentGroup !== null) options.push('</optgroup>');
       return options.join('');
     }
 
