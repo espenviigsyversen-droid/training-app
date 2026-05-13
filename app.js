@@ -4,7 +4,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     import { getFirestore, doc, collection, getDoc, getDocs, setDoc, deleteDoc, writeBatch, enableIndexedDbPersistence }
       from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
-    const APP_VERSION = 'v72';
+    const APP_VERSION = 'v73';
 
     const firebaseConfig = {
       apiKey: "AIzaSyAMPfQ9gX9rbuvcPsVjYVtq5IT_orjDBPs",
@@ -794,6 +794,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       const sections = {
         activityTypes: document.getElementById('setupActivityTypes'),
         intensities: document.getElementById('setupIntensities'),
+        challenges: document.getElementById('setupChallenges'),
         goals: document.getElementById('setupGoals'),
         trainingProfile: document.getElementById('setupTrainingProfile'),
         personProfile: document.getElementById('setupPersonProfile'),
@@ -3973,7 +3974,8 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       document.getElementById('challengeStatus').value = challenge.status || 'active';
       document.getElementById('challengeSubmitBtn').textContent = 'Lagre endringer';
       document.getElementById('challengeCancelBtn').classList.remove('hidden');
-      showTab('insights');
+      showTab('settings');
+      openSetupSection('challenges');
       document.getElementById('challengeName').scrollIntoView({ block: 'center', behavior: 'smooth' });
     };
 
