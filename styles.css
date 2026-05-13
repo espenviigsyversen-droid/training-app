@@ -1321,6 +1321,16 @@
       font-weight: 750;
     }
 
+    .suggestion-card .suggestion-principle {
+      padding: 9px 10px;
+      border-radius: 12px;
+      background: rgba(21, 153, 71, 0.1);
+      color: #126b35;
+      font-size: 0.78rem;
+      font-weight: 750;
+      line-height: 1.35;
+    }
+
     .suggestion-template {
       display: grid;
       gap: 2px;

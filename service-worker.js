@@ -1,4 +1,4 @@
-const CACHE_NAME = "treningsapp-v68";
+const CACHE_NAME = "treningsapp-v69";
 const FIREBASE_MODULES = [
   "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js",
   "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js",
@@ -10,6 +10,8 @@ const APP_SHELL = [
   "./styles.css",
   "./app.js",
   "./manifest.json",
+  "./Treningsfilosofi/coach-rammeverk.md",
+  "./data/coach-rules.json",
   "./Icon1.png",
   "./icons/icon-192.png",
   "./icons/icon-512.png",

@@ -4,7 +4,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     import { getFirestore, doc, collection, getDoc, getDocs, setDoc, deleteDoc, writeBatch, enableIndexedDbPersistence }
       from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
-    const APP_VERSION = 'v68';
+    const APP_VERSION = 'v69';
 
     const firebaseConfig = {
       apiKey: "AIzaSyAMPfQ9gX9rbuvcPsVjYVtq5IT_orjDBPs",
@@ -60,6 +60,20 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     let volumeTrendActivity = 'all';
     let templateCoachFilter = 'all';
 
+    const COACH_FRAMEWORK = {
+      name: 'Bakken-inspirert kontrollert terskel',
+      source: 'Treningsfilosofi/coach-rammeverk.md',
+      principles: {
+        controlled_threshold: 'Terskel skal være kontrollert, ikke maksimal.',
+        golden_zone: 'Den gylne sonen prioriterer litt lavere intensitet for bedre kontinuitet.',
+        easy_support: 'Rolig volum støtter kvalitet og kontinuitet.',
+        fresh_legs: 'Kvalitet bør komme med friske bein.',
+        body_signals_first: 'Kroppssignaler trumfer planen.',
+        recovery_is_training: 'Restitusjon er aktiv belastningsstyring.',
+        repeatable_week: 'Normaluken skal være enkel og repeterbar.'
+      }
+    };
+
     // ── Utilities ─────────────────────────────────────────────────────────────
     function uid(prefix) {
       return `${prefix}_${Date.now()}_${Math.random().toString(16).slice(2)}`;
@@ -68,6 +82,22 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     function asArray(value) {
       if (Array.isArray(value)) return value.filter(Boolean);
       return value ? [value] : [];
+    }
+
+    function coachPrincipleText(ids = []) {
+      return asArray(ids)
+        .map(id => COACH_FRAMEWORK.principles[id])
+        .filter(Boolean)
+        .join(' ');
+    }
+
+    function coachPrincipleLine(ids = []) {
+      const text = coachPrincipleText(ids);
+      return text ? `Prinsipp: ${text}` : '';
+    }
+
+    function withCoachPrinciples(suggestion, ids = []) {
+      return { ...suggestion, principleIds: [...asArray(suggestion.principleIds), ...asArray(ids)] };
     }
 
     function getCheckedValues(containerId) {
@@ -1484,21 +1514,21 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       const intro = `Siste økt (${template.name}) vurderes som ${assessment.label.toLowerCase()}.`;
 
       if (painAfter >= 4 || painAfter > painBefore + 1) {
-        return `${intro} Siden smerte ble registrert eller økte, bør neste økt være rolig, alternativ eller hvile hvis samme område fortsatt kjennes.`;
+        return `${intro} Siden smerte ble registrert eller økte, bør neste økt være rolig, alternativ eller hvile hvis samme område fortsatt kjennes. ${coachPrincipleLine(['body_signals_first', 'recovery_is_training'])}`;
       }
       if (assessment.level === 'high') {
         return runningBakkenFocus
-          ? `${intro} Med Bakken-inspirert løpsfokus bør neste økt gi overskudd tilbake: rolig volum, mobilitet eller hvile før mer kvalitet.`
+          ? `${intro} Med Bakken-inspirert løpsfokus bør neste økt gi overskudd tilbake: rolig volum, mobilitet eller hvile før mer kvalitet. ${coachPrincipleLine(['golden_zone', 'fresh_legs'])}`
           : `${intro} Neste økt bør trolig være rolig eller kontrollert, spesielt hvis beina kjennes tunge.`;
       }
       if (adaptation && adaptation !== 'none') {
-        return `${intro} Økten ble tilpasset (${adaptationLabel(adaptation).toLowerCase()}). Bruk neste økt til å bekrefte at kroppen responderer fint før du øker belastningen.`;
+        return `${intro} Økten ble tilpasset (${adaptationLabel(adaptation).toLowerCase()}). Bruk neste økt til å bekrefte at kroppen responderer fint før du øker belastningen. ${coachPrincipleLine(['body_signals_first'])}`;
       }
       if (hillContext && assessment.level === 'moderate') {
         return `${intro} Bakke eller møllestigning forklarer noe av innsatsen, så vurder neste økt etter bein og pulsrespons, ikke bare tempo.`;
       }
       if (assessment.level === 'moderate') {
-        return `${intro} Dette er en fin treningsbelastning, men neste kvalitetsøkt bør helst komme med friske bein.`;
+        return `${intro} Dette er en fin treningsbelastning, men neste kvalitetsøkt bør helst komme med friske bein. ${coachPrincipleLine(['fresh_legs'])}`;
       }
       return `${intro} Kroppen ser ut til å tåle normal plan videre, så lenge dagsformen fortsatt er grei.`;
     }
@@ -2619,6 +2649,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         title: 'Rolig aerob økt',
         detail: 'Hold det lett og kontrollert. Målet er å bygge kontinuitet og komme ut med overskudd.',
         note: 'Foreslått fordi rolig volum gir best grunnlag for neste kvalitetsøkt.',
+        principleIds: ['easy_support'],
         types: ['Løping', 'Sykling', 'Ski'],
         intensities: ['Rolig', 'Restitusjon'],
         roles: ['long_easy', 'recovery'],
@@ -2630,7 +2661,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       };
 
       if (bodyState.level === 'active' || bodyState.level === 'caution') {
-        return {
+        return withCoachPrinciples({
           ...baseSuggestion,
           title: 'Skånsom rolig økt',
           detail: bodyState.repeatedSameArea
@@ -2647,18 +2678,18 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
           recommendedWhen: ['pain_adaptation', 'tired', 'after_hard'],
           avoidTemplateWhen: ['pain', 'heavy_legs', 'many_hard'],
           keywords: ['mobilitet', 'rolig', 'restitusjon', 'lett', 'sykkel']
-        };
+        }, ['body_signals_first', 'recovery_is_training']);
       }
 
       if (bodyState.level === 'cooling') {
-        return {
+        return withCoachPrinciples({
           ...baseSuggestion,
           title: 'Kontrollert rolig økt',
           detail: 'Siste økt etter kroppssignalet var uten nye signaler. Bygg videre rolig og se at kroppen svarer fint.',
           note: 'Passer fordi signalet virker på vei ned, men progresjonen bør fortsatt være kontrollert.',
           recommendedWhen: ['normal', 'tired', 'pain_adaptation'],
           keywords: ['rolig', 'base', 'lett', 'restitusjon']
-        };
+        }, ['body_signals_first', 'easy_support']);
       }
 
       if (profile.primaryFocus === 'strength' && profile.trainingFocus === 'muscle_growth') {
@@ -2695,16 +2726,17 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
 
       if (runningBakkenFocus) {
         if (anaerobic || high >= 2 || (high >= 1 && low === 0)) {
-          return {
+          return withCoachPrinciples({
             ...baseSuggestion,
             note: 'Foreslått fordi du allerede har nok høy belastning eller mangler rolig støtte rundt kvaliteten.'
-          };
+          }, ['easy_support', 'fresh_legs']);
         }
         if (weekSummary.sessions === 0 || (low >= 1 && high === 0 && weekSummary.sessions < 2)) {
-          return {
+          return withCoachPrinciples({
             title: 'Kontrollert terskeløkt',
             detail: 'Hold deg kontrollert under maks press. Målet er kvalitet med friske bein, ikke å vinne økten.',
             note: 'Foreslått fordi profilen din er Bakken-inspirert løping og uken tåler én kontrollert kvalitetsøkt.',
+            principleIds: ['controlled_threshold', 'golden_zone'],
             types: ['Løping'],
             intensities: ['Terskel', 'Tempo'],
             roles: ['main_threshold', 'support_threshold'],
@@ -2713,7 +2745,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
             recommendedWhen: ['fresh_legs', 'normal'],
             avoidTemplateWhen: ['pain', 'heavy_legs', 'many_hard', 'low_hrv'],
             keywords: ['terskel', 'tempo', '6 x', '10x', 'intervall', 'drag']
-          };
+          }, ['fresh_legs']);
         }
         return baseSuggestion;
       }
@@ -2752,12 +2784,14 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       const templateMeta = template
         ? `<div class="suggestion-template"><span>Passende mal</span><strong>${escapeHtml(template.name)}</strong><small>${escapeHtml([template.type, template.intensity, templateCoachMeta].filter(Boolean).join(' · '))}</small></div>`
         : '<div class="suggestion-template"><span>Passende mal</span><strong>Ingen tydelig match</strong><small>Lag gjerne en mal som matcher forslaget.</small></div>';
+      const principleLine = coachPrincipleText(suggestion.principleIds);
       document.getElementById('homeWorkoutSuggestion').innerHTML = `
         <div class="suggestion-card">
           <div class="suggestion-kicker">Neste smarte valg</div>
           <h3>${escapeHtml(suggestion.title)}</h3>
           <p class="suggestion-main">${escapeHtml(suggestion.detail)}</p>
           <p class="suggestion-reason">${escapeHtml(suggestion.note)}</p>
+          ${principleLine ? `<p class="suggestion-principle">${escapeHtml(principleLine)}</p>` : ''}
           ${templateMeta}
           <div class="button-row">
             ${template ? `<button class="btn-primary" onclick="planSuggestedWorkout('${template.id}', '${tomorrow}')">Planlegg</button>` : ''}
@@ -2771,6 +2805,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         title: 'Rolig støtteøkt',
         detail: 'Hold økten lett nok til at du bygger kontinuitet uten å bruke opp beina.',
         note,
+        principleIds: ['easy_support'],
         types: ['Løping', 'Gåtur', 'Sykling', 'Ski', 'Mobilitet'],
         intensities: ['Rolig', 'Restitusjon'],
         roles: ['long_easy', 'recovery', 'mobility'],
@@ -2787,6 +2822,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         title: 'Restitusjon eller alternativ økt',
         detail: 'Velg kort, lett og kontrollert. Målet er bevegelse og trygg progresjon, ikke treningspress.',
         note,
+        principleIds: ['recovery_is_training', 'body_signals_first'],
         types: ['Gåtur', 'Mobilitet', 'Sykling', 'Løping'],
         intensities: ['Restitusjon', 'Rolig'],
         roles: ['recovery', 'mobility'],
@@ -2803,6 +2839,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         title: 'Hovedterskel',
         detail: 'Ukens viktigste kvalitetsøkt. Hold den kontrollert nok til at du kan trene videre med friske bein.',
         note,
+        principleIds: ['controlled_threshold', 'golden_zone', 'fresh_legs'],
         types: ['Løping'],
         intensities: ['Terskel', 'Intervall', 'Tempo'],
         roles: ['main_threshold'],
@@ -2819,6 +2856,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         title: 'Støtteterskel / kontrollert hard',
         detail: 'En lettere kvalitetsøkt enn hovedøkten. Den skal bygge kapasitet uten å bli en konkurranseøkt.',
         note,
+        principleIds: ['controlled_threshold', 'golden_zone'],
         types: ['Løping'],
         intensities: ['Terskel', 'Tempo', 'Intervall'],
         roles: ['support_threshold'],
@@ -2835,6 +2873,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         title: 'Rolig lengre økt',
         detail: 'Bygg aerob base med lav puls og god kontroll. Avslutt heller med overskudd enn å presse lengden.',
         note,
+        principleIds: ['easy_support'],
         types: ['Løping', 'Ski', 'Sykling'],
         intensities: ['Rolig'],
         roles: ['long_easy'],
@@ -2851,6 +2890,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         title: 'X-økt etter overskudd',
         detail: 'Velg fokus etter behov: teknikk, bakkeløp, korte kontrollerte drag, styrke/mobilitet eller ekstra rolig volum.',
         note,
+        principleIds: ['repeatable_week', 'fresh_legs'],
         types: ['Løping', 'Styrke', 'Mobilitet', 'Ski', 'Sykling'],
         intensities: ['Rolig', 'Tempo', 'Terskel', 'Styrke'],
         roles: ['x_workout', 'strength', 'mobility', 'technique'],
@@ -3682,7 +3722,8 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     }
 
     function intensityProfileText(profile) {
-      return `Basert på Garmin Primær treningseffekt. Tolkes mot ${profileLabel(profile.primaryFocus)} · ${profileLabel(profile.philosophy)}.`;
+      const framework = profile.philosophy === 'bakken_threshold' ? ` · ${COACH_FRAMEWORK.name}` : '';
+      return `Basert på Garmin Primær treningseffekt. Tolkes mot ${profileLabel(profile.primaryFocus)} · ${profileLabel(profile.philosophy)}${framework}.`;
     }
 
     function weightedLoadScore(summary, profile) {
