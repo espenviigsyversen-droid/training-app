@@ -209,6 +209,33 @@
     .button-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
     .button-row button { flex: 1; min-width: 120px; }
 
+    .setup-action-card {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 12px;
+      align-items: center;
+      border: 1px solid rgba(255,79,46,0.18);
+      background: rgba(255,79,46,0.05);
+      border-radius: 16px;
+      padding: 12px;
+      margin-bottom: 12px;
+    }
+
+    .setup-action-card h3 {
+      margin: 0 0 4px;
+      font-size: 1rem;
+      line-height: 1.15;
+    }
+
+    .setup-action-card .small-note {
+      margin: 0;
+    }
+
+    .setup-action-card button {
+      white-space: normal;
+      max-width: 190px;
+    }
+
     .workout-card {
       border: 1px solid var(--warm-gray-2);
       background: #fff;
@@ -452,6 +479,8 @@
 
     @media (max-width: 420px) {
       .library-tools { grid-template-columns: 1fr; }
+      .setup-action-card { grid-template-columns: 1fr; }
+      .setup-action-card button { width: 100%; max-width: none; }
     }
 
     .history-filters {

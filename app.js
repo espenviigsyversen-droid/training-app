@@ -4,7 +4,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     import { getFirestore, doc, collection, getDoc, getDocs, setDoc, deleteDoc, writeBatch, enableIndexedDbPersistence }
       from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
-    const APP_VERSION = 'v69';
+    const APP_VERSION = 'v70';
 
     const firebaseConfig = {
       apiKey: "AIzaSyAMPfQ9gX9rbuvcPsVjYVtq5IT_orjDBPs",
@@ -337,6 +337,185 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       bakken_4: ['main_threshold', 'support_threshold', 'long_easy', 'x_workout'],
       easy_build: ['long_easy', 'recovery', 'long_easy', 'mobility']
     };
+
+    const BAKKEN_STANDARD_TEMPLATES = [
+      {
+        name: 'Rolig Kort Tur',
+        type: 'Løping',
+        intensity: 'Restitusjon',
+        role: 'recovery',
+        purpose: 'recovery',
+        load: 'low',
+        recommendedWhen: ['normal', 'tired', 'pain_adaptation'],
+        avoidWhen: '',
+        structure: '25-40 min veldig rolig løp\nHold hele økten under ca. 70 % av makspuls\nSkal føles lett og gi bedre bein etterpå'
+      },
+      {
+        name: 'Rolig Langtur Base',
+        type: 'Løping',
+        intensity: 'Rolig',
+        role: 'long_easy',
+        purpose: 'base',
+        load: 'low',
+        recommendedWhen: ['normal', 'fresh_legs'],
+        avoidWhen: 'pain',
+        structure: '60-75 min rolig løp\nHold igjen, gjerne under ca. 70 % av makspuls\nMålet er aerob base og lave skuldre'
+      },
+      {
+        name: 'Gåtur Restitusjon',
+        type: 'Gåtur',
+        intensity: 'Restitusjon',
+        role: 'recovery',
+        purpose: 'recovery',
+        load: 'low',
+        recommendedWhen: ['tired', 'after_hard', 'pain_adaptation'],
+        avoidWhen: '',
+        structure: '30-60 min rolig gåtur\nBrukes for sirkulasjon, kontinuitet og lav belastning\nIkke ment som full løpsspesifikk stimulus alene'
+      },
+      {
+        name: 'Hovedterskel 6x6',
+        type: 'Løping',
+        intensity: 'Terskel',
+        role: 'main_threshold',
+        purpose: 'threshold',
+        load: 'moderate',
+        recommendedWhen: ['fresh_legs', 'normal'],
+        avoidWhen: 'pain',
+        structure: '10-15 min oppvarming\n6 x 6 min kontrollert terskel\n1 min rolig jogg/gange pause\n5-10 min nedjogg\nStart litt forsiktig og hold igjen'
+      },
+      {
+        name: 'Hovedterskel 4x10',
+        type: 'Løping',
+        intensity: 'Terskel',
+        role: 'main_threshold',
+        purpose: 'threshold',
+        load: 'moderate',
+        recommendedWhen: ['fresh_legs'],
+        avoidWhen: 'heavy_legs',
+        structure: '10-15 min oppvarming\n4 x 10 min kontrollert terskel\n90 sek rolig pause\n5-10 min nedjogg\nBrukes når kroppen tåler litt lengre drag'
+      },
+      {
+        name: 'Terskel 5x5 Progressiv',
+        type: 'Løping',
+        intensity: 'Terskel',
+        role: 'main_threshold',
+        purpose: 'threshold',
+        load: 'moderate',
+        recommendedWhen: ['normal', 'fresh_legs'],
+        avoidWhen: 'many_hard',
+        structure: '10-15 min oppvarming\n5 x 5 min terskel\n90 sek pause\nProgressivt fra litt under terskel til kontrollert terskel\n5-10 min nedjogg'
+      },
+      {
+        name: 'Støtteterskel 10x3',
+        type: 'Løping',
+        intensity: 'Terskel',
+        role: 'support_threshold',
+        purpose: 'threshold',
+        load: 'moderate',
+        recommendedWhen: ['normal', 'fresh_legs'],
+        avoidWhen: 'pain',
+        structure: '10-15 min oppvarming\n10 x 3 min kontrollert terskel\n1 min rolig pause\n5-10 min nedjogg\nKortere drag med god kontroll'
+      },
+      {
+        name: 'Støtteterskel 12x2',
+        type: 'Løping',
+        intensity: 'Terskel',
+        role: 'support_threshold',
+        purpose: 'threshold',
+        load: 'moderate',
+        recommendedWhen: ['normal', 'fresh_legs'],
+        avoidWhen: 'heavy_legs',
+        structure: '10-15 min oppvarming\n12 x 2 min kontrollert terskel\n45-60 sek pause\n5-10 min nedjogg\nFin når du vil ha kvalitet uten for lange drag'
+      },
+      {
+        name: '45/15 Terskel Kontrollert',
+        type: 'Løping',
+        intensity: 'Terskel',
+        role: 'support_threshold',
+        purpose: 'threshold',
+        load: 'moderate',
+        recommendedWhen: ['normal', 'fresh_legs'],
+        avoidWhen: 'many_hard',
+        structure: '10-15 min oppvarming\n15-25 x 45 sek kontrollert terskel / 15 sek rolig\n5-10 min nedjogg\nSkal være rytmisk, ikke sprint'
+      },
+      {
+        name: '30x1 Terskel',
+        type: 'Løping',
+        intensity: 'Terskel',
+        role: 'support_threshold',
+        purpose: 'threshold',
+        load: 'moderate',
+        recommendedWhen: ['normal'],
+        avoidWhen: 'pain',
+        structure: '10-15 min oppvarming\n30 x 1 min terskel\n30-45 sek rolig pause\n5-10 min nedjogg\nMye kontrollert terskeltid med korte drag'
+      },
+      {
+        name: 'Pyramide Terskel 3-6-9-6-3',
+        type: 'Løping',
+        intensity: 'Terskel',
+        role: 'x_workout',
+        purpose: 'threshold',
+        load: 'moderate',
+        recommendedWhen: ['fresh_legs', 'bonus'],
+        avoidWhen: 'many_hard',
+        structure: '10-15 min oppvarming\n3-6-9-6-3 min kontrollert terskel\n90 sek rolig pause\nValgfritt 5 x 20/20 lett og kontrollert til slutt\n5-10 min nedjogg'
+      },
+      {
+        name: 'Nedtrapping Terskel 10-8-6-4-2-1',
+        type: 'Løping',
+        intensity: 'Terskel',
+        role: 'x_workout',
+        purpose: 'threshold',
+        load: 'moderate',
+        recommendedWhen: ['fresh_legs', 'bonus'],
+        avoidWhen: 'heavy_legs',
+        structure: '10-15 min oppvarming\n10-8-6-4-2-1 min kontrollert terskel\n1-2 min rolig pause\nLitt raskere på kortere drag, men fortsatt kontroll\n5-10 min nedjogg'
+      },
+      {
+        name: 'Lett Fartslek Kontrollert',
+        type: 'Løping',
+        intensity: 'Tempo',
+        role: 'x_workout',
+        purpose: 'threshold',
+        load: 'moderate',
+        recommendedWhen: ['normal', 'bonus'],
+        avoidWhen: 'pain',
+        structure: '10-15 min rolig\n8-12 x 1 min kontrollert fart / 1 min rolig\n10 min rolig\nFokus på flyt, ikke maksimal fart'
+      },
+      {
+        name: 'Motbakke Kontrollert',
+        type: 'Løping',
+        intensity: 'Tempo',
+        role: 'x_workout',
+        purpose: 'technique',
+        load: 'moderate',
+        recommendedWhen: ['fresh_legs', 'bonus'],
+        avoidWhen: 'pain',
+        structure: '10-15 min oppvarming\n8-10 x 45-60 sek kontrollert motbakke\nGå/jogg rolig ned som pause\n5-10 min nedjogg\nKun når legg/fot kjennes bra'
+      },
+      {
+        name: 'Styrke Vedlikehold',
+        type: 'Styrke',
+        intensity: 'Styrke',
+        role: 'strength',
+        purpose: 'strength',
+        load: 'low',
+        recommendedWhen: ['normal', 'bonus'],
+        avoidWhen: 'heavy_legs',
+        structure: '30-45 min styrke\nHold igjen på bein hvis løpskvalitet kommer snart\nFokus på stabilitet, kontroll og skadeforebygging'
+      },
+      {
+        name: 'Mobilitet / Yoga Restitusjon',
+        type: 'Mobilitet',
+        intensity: 'Restitusjon',
+        role: 'mobility',
+        purpose: 'mobility',
+        load: 'low',
+        recommendedWhen: ['tired', 'after_hard', 'pain_adaptation'],
+        avoidWhen: '',
+        structure: '20-40 min rolig mobilitet eller yoga\nFokus på hofter, legger, bakside lår og pust\nSkal kjennes bedre etterpå enn før'
+      }
+    ];
 
     function normalizeWeekPlanRoles(roles = []) {
       const validRoles = new Set(Object.keys(WORKOUT_ROLE_LABELS));
@@ -931,6 +1110,47 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       state.templates = state.templates.filter(t => t.id !== id);
       await fsDelete('templates', id);
       render();
+    };
+
+    window.addBakkenStandardTemplates = async function() {
+      if (blockOfflineSnapshotWrite()) {
+        alert('Standardmaler kan ikke legges inn mens appen kun viser lagret offline-kopi. Åpne appen med nett først.');
+        return;
+      }
+      const existingKeys = new Set(state.templates.map(t => `${String(t.name || '').trim().toLowerCase()}|${String(t.type || '').trim().toLowerCase()}`));
+      const now = new Date().toISOString();
+      const templatesToAdd = BAKKEN_STANDARD_TEMPLATES
+        .filter(template => !existingKeys.has(`${template.name.toLowerCase()}|${template.type.toLowerCase()}`))
+        .map(template => ({
+          id: uid('template'),
+          ...template,
+          standardSource: 'bakken_v1',
+          createdAt: todayISO(),
+          updatedAt: now
+        }));
+
+      if (!templatesToAdd.length) {
+        showToast('Alle standardmalene finnes allerede');
+        return;
+      }
+
+      if (!confirm(`Legge inn ${templatesToAdd.length} Bakken-inspirerte standardmaler i øktbiblioteket? Eksisterende maler beholdes.`)) return;
+
+      const newTypes = uniqueValues(templatesToAdd.map(t => t.type).filter(type => !state.settings.activityTypes.includes(type)));
+      const newIntensities = uniqueValues(templatesToAdd.map(t => t.intensity).filter(intensity => !state.settings.intensities.includes(intensity)));
+      if (newTypes.length || newIntensities.length) {
+        state.settings = {
+          ...state.settings,
+          activityTypes: uniqueValues([...state.settings.activityTypes, ...newTypes]),
+          intensities: uniqueValues([...state.settings.intensities, ...newIntensities])
+        };
+        await fsSet('settings', 'preferences', state.settings);
+      }
+
+      state.templates.push(...templatesToAdd);
+      render();
+      await Promise.all(templatesToAdd.map(template => fsSet('templates', template.id, template)));
+      showToast(`${templatesToAdd.length} standardmaler lagt inn`);
     };
 
     // ── Plan ──────────────────────────────────────────────────────────────────
