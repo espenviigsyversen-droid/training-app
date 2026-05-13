@@ -4,7 +4,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     import { getFirestore, doc, collection, getDoc, getDocs, setDoc, deleteDoc, writeBatch, enableIndexedDbPersistence }
       from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
-    const APP_VERSION = 'v70';
+    const APP_VERSION = 'v71';
 
     const firebaseConfig = {
       apiKey: "AIzaSyAMPfQ9gX9rbuvcPsVjYVtq5IT_orjDBPs",
@@ -3172,6 +3172,105 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       return (map[role] || (() => gentleBaseSuggestion()))();
     }
 
+    function inferredWorkoutRole(template = {}) {
+      if (template.role) return template.role;
+      const name = String(template.name || '').toLowerCase();
+      const type = String(template.type || '').toLowerCase();
+      const intensity = String(template.intensity || '').toLowerCase();
+      if (type.includes('mobilitet') || name.includes('yoga') || name.includes('mobilitet')) return 'mobility';
+      if (type.includes('styrke') || intensity.includes('styrke')) return 'strength';
+      if (intensity.includes('restitusjon') || name.includes('restitusjon') || name.includes('gåtur')) return 'recovery';
+      if (name.includes('langtur') || name.includes('rolig lang')) return 'long_easy';
+      if (name.includes('45/15') || name.includes('10x3') || name.includes('10 x 3') || name.includes('12x2') || name.includes('12 x 2') || name.includes('30x1') || name.includes('30 x 1')) return 'support_threshold';
+      if (name.includes('6x6') || name.includes('6 x 6') || name.includes('4x10') || name.includes('4 x 10') || name.includes('5x5') || name.includes('5 x 5')) return 'main_threshold';
+      if (intensity.includes('terskel')) return 'support_threshold';
+      if (intensity.includes('rolig')) return 'long_easy';
+      return 'other';
+    }
+
+    function itemWorkoutRole(item) {
+      return inferredWorkoutRole(getTemplate(item.templateId));
+    }
+
+    function normalWeekRoles(profile, goals = normalizeGoals(state.settings.goals)) {
+      const roles = normalizeWeekPlanRoles(profile.weekPlanRoles).filter(Boolean);
+      const fallback = normalizeWeekPlanRoles(defaultSettings.trainingProfile.weekPlanRoles).filter(Boolean);
+      fallback.forEach(role => {
+        if (roles.length < 4 && role && !roles.includes(role)) roles.push(role);
+      });
+      const target = Math.max(1, Math.min(4, Number(goals.weeklySessionsTarget) || 3));
+      return roles.slice(0, 4).map((role, index) => ({
+        role,
+        required: index < target,
+        order: index + 1
+      }));
+    }
+
+    function roleCoverage(rolePlan, completedItems = [], plannedItems = []) {
+      return rolePlan.map(plan => {
+        const completed = completedItems.find(item => itemWorkoutRole(item) === plan.role);
+        const planned = plannedItems.find(item => itemWorkoutRole(item) === plan.role);
+        const status = completed ? 'completed' : planned ? 'planned' : plan.required ? 'missing' : 'optional';
+        return { ...plan, status, completed, planned };
+      });
+    }
+
+    function missingRoleOrder(profile, goals, completedItems = [], plannedItems = []) {
+      return roleCoverage(normalWeekRoles(profile, goals), completedItems, plannedItems)
+        .filter(item => item.status === 'missing' || item.status === 'optional')
+        .map(item => item.role);
+    }
+
+    function roleAwareSuggestions(count, bodyState, weekSummary, weekItems, profile, goals, completedItems = [], plannedItems = []) {
+      const target = Math.max(0, Number(count) || 0);
+      if (target <= 0) return [];
+      if (bodyState.level === 'active' || bodyState.level === 'caution') {
+        return [
+          recoverySuggestion('Kroppssignal er fortsatt relevant, så planen starter med lav risiko.'),
+          gentleBaseSuggestion('Rolig støtte før du vurderer ny terskel.'),
+          recoverySuggestion('Hold alternativet lett hvis samme område fortsatt kjennes.'),
+          gentleBaseSuggestion('Bonus bare hvis kroppen svarer fint.')
+        ].slice(0, target);
+      }
+
+      const hardThisWeek = weekItems.filter(item => completedLoadAssessment(item).level === 'high').length;
+      const moderateOrHardThisWeek = weekItems.filter(item => {
+        const level = completedLoadAssessment(item).level;
+        return level === 'moderate' || level === 'high';
+      }).length;
+      const missingRoles = missingRoleOrder(profile, goals, completedItems, plannedItems);
+
+      if (bodyState.level === 'cooling') {
+        const afterEasy = missingRoles.filter(role => role !== 'long_easy').map(role => suggestionForWorkoutRole(role));
+        return [
+          longEasySuggestion('Siste signal virker på vei ned. Start med rolig base og se at kroppen svarer fint.'),
+          ...afterEasy,
+          gentleBaseSuggestion('Rolig støtte rundt kvaliteten.')
+        ].slice(0, target);
+      }
+
+      if (hardThisWeek >= 2 || moderateOrHardThisWeek >= 3) {
+        const controlledRoles = missingRoles.filter(role => role === 'long_easy' || role === 'recovery' || role === 'mobility');
+        const roleSuggestions = controlledRoles.map(role => suggestionForWorkoutRole(role));
+        return [
+          ...roleSuggestions,
+          longEasySuggestion('Perioden har allerede hatt mye kvalitet. Start kontrollert før ny belastning.'),
+          gentleBaseSuggestion('Rolig støtte for kontinuitet.'),
+          recoverySuggestion('Bonus bør være lett hvis totalbelastningen kjennes høy.')
+        ].slice(0, target);
+      }
+
+      const suggestions = missingRoles.map(role => suggestionForWorkoutRole(role));
+      const usedRoles = new Set(missingRoles);
+      const fallback = normalWeekRoleSuggestions(profile, 4).filter(suggestion => {
+        const role = asArray(suggestion.roles)[0] || '';
+        if (!role || usedRoles.has(role)) return false;
+        usedRoles.add(role);
+        return true;
+      });
+      return [...suggestions, ...fallback].slice(0, target);
+    }
+
     function normalWeekRoleSuggestions(profile, count) {
       const fallback = normalizeWeekPlanRoles(defaultSettings.trainingProfile.weekPlanRoles);
       const roles = normalizeWeekPlanRoles(profile.weekPlanRoles).filter(Boolean);
@@ -3264,6 +3363,43 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       return dates.slice(0, count);
     }
 
+    function roleStatusLabel(status) {
+      return {
+        completed: 'Utført',
+        planned: 'Planlagt',
+        missing: 'Mangler',
+        optional: 'Valgfri'
+      }[status] || 'Mangler';
+    }
+
+    function roleStatusMeta(item) {
+      if (item.completed) return formatDate(item.completed.date);
+      if (item.planned) return formatDate(item.planned.date);
+      return item.required ? 'Bør dekkes' : 'Bonus';
+    }
+
+    function weekRoleStatusHtml(coverage) {
+      return `
+        <div class="week-role-grid">
+          ${coverage.map(item => `
+            <div class="week-role-chip ${item.status}">
+              <span>${escapeHtml(WORKOUT_ROLE_LABELS[item.role] || 'Økt')}</span>
+              <strong>${escapeHtml(roleStatusLabel(item.status))}</strong>
+              <small>${escapeHtml(roleStatusMeta(item))}</small>
+            </div>
+          `).join('')}
+        </div>`;
+    }
+
+    function suggestionRoleReason(suggestion, template) {
+      const role = template?.role || asArray(suggestion.roles)[0] || '';
+      const roleLabel = WORKOUT_ROLE_LABELS[role] || '';
+      if (!roleLabel) return suggestion.note || '';
+      if (role === 'recovery' || role === 'mobility') return `${roleLabel}: valgt for lav risiko og bedre totalbelastning.`;
+      if (role === 'x_workout') return `${roleLabel}: valgfri variasjon hvis kroppen har overskudd.`;
+      return `${roleLabel}: dekker en rolle i normaluka.`;
+    }
+
     function plannedWeekItem(item) {
       const template = getTemplate(item.templateId);
       return `
@@ -3280,11 +3416,13 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       const meta = template
         ? [template.type, template.intensity, templateLoadLabel(template.load)].filter(Boolean).join(' · ')
         : suggestion.detail;
+      const reason = suggestionRoleReason(suggestion, template);
       return `
         <div class="week-plan-item suggested">
           <div>
             <strong>${escapeHtml(formatDate(dateIso))}</strong>
             <span>${escapeHtml(template ? template.name : suggestion.title)} · ${escapeHtml(meta)}</span>
+            ${reason ? `<small class="week-plan-reason">${escapeHtml(reason)}</small>` : ''}
           </div>
           ${template
             ? `<button class="btn-primary" onclick="planSuggestedWorkout('${template.id}', '${dateIso}', 'Ukeplan forslag ${index + 1}. Juster etter dagsform.')">Planlegg</button>`
@@ -3298,7 +3436,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       const bodyState = bodySignalState(last14Days);
       const runningBakkenFocus = profile.primaryFocus === 'running' && profile.philosophy === 'bakken_threshold';
       const suggestionMix = runningBakkenFocus
-        ? bakkenWeekRecipe(remainingAfterPlanned, bodyState, weekSummary, weekItems, profile)
+        ? roleAwareSuggestions(remainingAfterPlanned, bodyState, weekSummary, weekItems, profile, normalizeGoals(state.settings.goals), weekItems, plannedThisWeek)
         : weekPlanSuggestionMix(mainSuggestion, remainingAfterPlanned, profile);
       const suggestionDates = weekPlanDates(today, weekEnd, plannedThisWeek, suggestionMix.length);
       const usedTemplateIds = [];
@@ -3317,7 +3455,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       const bodyState = bodySignalState(last14Days);
       const runningBakkenFocus = profile.primaryFocus === 'running' && profile.philosophy === 'bakken_threshold';
       const suggestionMix = runningBakkenFocus
-        ? bakkenWeekRecipe(remaining, bodyState, weekSummary, weekItems, profile)
+        ? roleAwareSuggestions(remaining, bodyState, weekSummary, weekItems, profile, goals, [], plannedNextWeek)
         : weekPlanSuggestionMix(mainSuggestion, remaining, profile);
       const suggestionDates = weekPlanDatesInRange(nextWeekStart, nextWeekEnd, plannedNextWeek, suggestionMix.length);
       const usedTemplateIds = [];
@@ -3363,16 +3501,27 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       const bodyState = bodySignalState(last14Days);
       const suggestedItems = buildWeekPlanSuggestions(today, weekEnd, plannedThisWeek, weekSummary, weekItems, last14Days, profile, remainingAfterPlanned);
       const suggestedNextWeek = buildNextWeekPlanSuggestions(nextWeekStart, nextWeekEnd, plannedNextWeek, weekSummary, weekItems, last14Days, profile, goals);
+      const rolePlan = normalWeekRoles(profile, goals);
+      const currentRoleCoverage = roleCoverage(rolePlan, weekItems, plannedThisWeek);
+      const nextRoleCoverage = roleCoverage(rolePlan, [], plannedNextWeek);
       const suggestionDates = suggestedItems.map(item => item.date);
       const nextWeekDates = suggestedNextWeek.map(item => item.date);
       const mainSuggestion = suggestedItems[0]?.suggestion || buildWorkoutSuggestion(today, weekSummary, weekItems, last14Days, profile);
       const nextMainSuggestion = suggestedNextWeek[0]?.suggestion || mainSuggestion;
+      const missingCurrentRoles = currentRoleCoverage.filter(item => item.status === 'missing').map(item => WORKOUT_ROLE_LABELS[item.role]).filter(Boolean);
+      const missingNextRoles = nextRoleCoverage.filter(item => item.status === 'missing').map(item => WORKOUT_ROLE_LABELS[item.role]).filter(Boolean);
       const planSummary = completedCount >= goals.weeklySessionsTarget
         ? 'Ukesmålet er nådd. Eventuelle ekstraøkter bør være bonus og styres av overskudd.'
         : plannedCount
           ? `${completedCount}/${goals.weeklySessionsTarget} utført og ${plannedCount} planlagt. ${remainingAfterPlanned} åpne økt${remainingAfterPlanned === 1 ? '' : 'er'} igjen.`
           : `${completedCount}/${goals.weeklySessionsTarget} utført. Appen foreslår neste steg for å gjøre uka gjennomførbar.`;
+      const roleSummary = missingCurrentRoles.length
+        ? `Mangler i normaluka: ${missingCurrentRoles.join(', ')}.`
+        : 'Normaluka er dekket med utførte eller planlagte økter.';
       const nextSummary = nextWeekPlanSummary(plannedNextWeek, suggestedNextWeek, goals, status, bodyState);
+      const nextRoleSummary = missingNextRoles.length
+        ? `Neste uke mangler foreløpig: ${missingNextRoles.join(', ')}.`
+        : 'Neste uke dekker rollene i normaluka.';
       const actionLine = suggestedItems.length
         ? `${suggestedItems.length} forslag for resten av uka`
         : remainingAfterPlanned <= 0
@@ -3392,6 +3541,8 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
           </div>
           <div class="week-plan-action-line">${escapeHtml(actionLine)}</div>
           <p>${escapeHtml(planSummary)}</p>
+          <p class="week-plan-role-summary">${escapeHtml(roleSummary)}</p>
+          ${weekRoleStatusHtml(currentRoleCoverage)}
           <div class="week-plan-list">
             ${plannedThisWeek.slice(0, 3).map(plannedWeekItem).join('')}
             ${suggestedItems.map((item, index) => suggestedWeekPlanItem(item.suggestion, item.template, item.date, index)).join('')}
@@ -3409,6 +3560,8 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
           </div>
           <div class="week-plan-action-line">${escapeHtml(nextActionLine)}</div>
           <p>${escapeHtml(nextSummary)}</p>
+          <p class="week-plan-role-summary">${escapeHtml(nextRoleSummary)}</p>
+          ${weekRoleStatusHtml(nextRoleCoverage)}
           <div class="week-plan-list">
             ${plannedNextWeek.slice(0, 3).map(plannedWeekItem).join('')}
             ${suggestedNextWeek.map((item, index) => suggestedWeekPlanItem(item.suggestion, item.template, item.date, index)).join('')}
