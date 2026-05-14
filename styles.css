@@ -1438,6 +1438,10 @@
       color: #fff;
       border-color: var(--black);
     }
+    .tl-btn.selected.red {
+      background: #c0392b;
+      border-color: #c0392b;
+    }
 
     .tl-scale-labels {
       display: flex;

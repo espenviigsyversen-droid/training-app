@@ -4,7 +4,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     import { getFirestore, doc, collection, getDoc, getDocs, setDoc, deleteDoc, writeBatch, enableIndexedDbPersistence }
       from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
-    const APP_VERSION = 'v79';
+    const APP_VERSION = 'v80';
 
     const firebaseConfig = {
       apiKey: "AIzaSyAMPfQ9gX9rbuvcPsVjYVtq5IT_orjDBPs",
@@ -59,7 +59,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     let volumeTrendPeriod = 'week';
     let volumeTrendActivity = 'all';
     let templateCoachFilter = 'all';
-    let tlSelections = { sleep: null, energy: null };
+    let tlSelections = { sleep: null, energy: null, stairsOk: null };
 
     const COACH_FRAMEWORK = {
       name: 'Bakken-inspirert kontrollert terskel',
@@ -216,7 +216,8 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       catch (e) { console.warn('Could not save daily readiness', e); }
     }
 
-    function assessTrafficLight(sleep, energy, restingHR) {
+    function assessTrafficLight(sleep, energy, restingHR, stairsOk) {
+      if (stairsOk === false) return 'red';
       const avg = (sleep + energy) / 2;
       const baseline = latestMetric('restingHeartRate7d')?.restingHeartRate7d;
       const hrDelta = (restingHR && baseline) ? Number(restingHR) - Number(baseline) : 0;
@@ -2839,6 +2840,18 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
 
     function renderTrafficLightForm() {
       const s = tlSelections;
+      const hasHrBaseline = !!latestMetric('restingHeartRate7d');
+      const hrBlock = hasHrBaseline
+        ? `<div class="tl-hr-row">
+            <label>Hvilepuls i dag</label>
+            <input id="tlRestingHr" type="number" min="30" max="120" step="1" placeholder="bpm" inputmode="numeric" aria-label="Hvilepuls i dag" />
+            <span class="small-note" style="margin:0;">(valgfritt)</span>
+          </div>`
+        : `<p class="small-note" style="margin:6px 0 10px;">Logg hvilepuls under Helse for å aktivere hvilepuls-indikatoren.</p>`;
+      const stairsBtns = [
+        `<button type="button" class="tl-btn${s.stairsOk === true ? ' selected' : ''}" onclick="setTlValue('stairsOk', true)">Ja</button>`,
+        `<button type="button" class="tl-btn${s.stairsOk === false ? ' selected red' : ''}" onclick="setTlValue('stairsOk', false)">Nei</button>`
+      ].join('');
       return `
         <div class="tl-row">
           <label>Søvn i natt</label>
@@ -2850,11 +2863,12 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
           <div class="tl-scale">${tlScaleButtons('energy', s.energy)}</div>
           <div class="tl-scale-labels"><span>Utmattet</span><span>Pigg</span></div>
         </div>
-        <div class="tl-hr-row">
-          <label>Hvilepuls i dag</label>
-          <input id="tlRestingHr" type="number" min="30" max="120" step="1" placeholder="bpm" inputmode="numeric" aria-label="Hvilepuls i dag" />
-          <span class="small-note" style="margin:0;">(valgfritt)</span>
+        <div class="tl-row" style="align-items:center;">
+          <label style="flex:1;">Trapp uten å bli andpusten?</label>
+          <div class="tl-scale" style="gap:6px;">${stairsBtns}</div>
+          <span class="small-note" style="margin:0;width:70px;text-align:right;">(valgfritt)</span>
         </div>
+        ${hrBlock}
         <button class="btn-primary btn-full" onclick="submitTrafficLight()" ${s.sleep && s.energy ? '' : 'disabled'}>Sjekk dagsform</button>`;
     }
 
@@ -2884,19 +2898,19 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     };
 
     window.submitTrafficLight = function() {
-      const { sleep, energy } = tlSelections;
+      const { sleep, energy, stairsOk } = tlSelections;
       if (!sleep || !energy) return;
       const restingHR = Number(document.getElementById('tlRestingHr')?.value) || null;
-      const level = assessTrafficLight(sleep, energy, restingHR);
-      saveDailyReadiness({ date: todayISO(), sleep, energy, restingHR, level });
-      tlSelections = { sleep: null, energy: null };
+      const level = assessTrafficLight(sleep, energy, restingHR, stairsOk);
+      saveDailyReadiness({ date: todayISO(), sleep, energy, restingHR, stairsOk, level });
+      tlSelections = { sleep: null, energy: null, stairsOk: null };
       renderTrafficLight();
       render();
     };
 
     window.resetTrafficLight = function() {
       localStorage.removeItem(dailyReadinessKey());
-      tlSelections = { sleep: null, energy: null };
+      tlSelections = { sleep: null, energy: null, stairsOk: null };
       renderTrafficLight();
       render();
     };
@@ -4886,7 +4900,8 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
 
       // 2. Rød dagsform (Bakken: trafikklymodell — recovery_is_training)
       if (dailyReadiness?.level === 'red') {
-        const reason = dailyReadiness.sleep <= 2 ? 'søvnen var dårlig'
+        const reason = dailyReadiness.stairsOk === false ? 'trappetest sviktet — kroppen er ikke klar'
+          : dailyReadiness.sleep <= 2 ? 'søvnen var dårlig'
           : dailyReadiness.energy <= 2 ? 'energinivået er lavt'
           : 'dagsformen er rød';
         return `Rødt lys i dag — ${reason}. Hvil eller velg en rolig alternativ økt. ${coachPrincipleLine(['recovery_is_training'])}`;
@@ -4953,7 +4968,9 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       const parts = [];
       if (dailyReadiness) {
         const cfg = TRAFFIC_LIGHT_CONFIG[dailyReadiness.level];
-        parts.push(`Dagsform: ${cfg.label} (søvn ${dailyReadiness.sleep}/5, energi ${dailyReadiness.energy}/5)`);
+        const stairsPart = dailyReadiness.stairsOk === true ? ', trapp ✓'
+          : dailyReadiness.stairsOk === false ? ', trapp ✗' : '';
+        parts.push(`Dagsform: ${cfg.label} (søvn ${dailyReadiness.sleep}/5, energi ${dailyReadiness.energy}/5${stairsPart})`);
       }
       const total14 = last14Days.length;
       if (total14 > 0) {
