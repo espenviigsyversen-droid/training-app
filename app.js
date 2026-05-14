@@ -4,7 +4,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     import { getFirestore, doc, collection, getDoc, getDocs, setDoc, deleteDoc, writeBatch, enableIndexedDbPersistence }
       from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
-    const APP_VERSION = 'v78';
+    const APP_VERSION = 'v79';
 
     const firebaseConfig = {
       apiKey: "AIzaSyAMPfQ9gX9rbuvcPsVjYVtq5IT_orjDBPs",
@@ -59,6 +59,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     let volumeTrendPeriod = 'week';
     let volumeTrendActivity = 'all';
     let templateCoachFilter = 'all';
+    let tlSelections = { sleep: null, energy: null };
 
     const COACH_FRAMEWORK = {
       name: 'Bakken-inspirert kontrollert terskel',
@@ -197,6 +198,38 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         return null;
       }
     }
+
+    // ── Trafikklymodell ───────────────────────────────────────────────────────
+    function dailyReadinessKey() {
+      return `treningsapp:readiness:${todayISO()}`;
+    }
+
+    function loadDailyReadiness() {
+      try {
+        const raw = localStorage.getItem(dailyReadinessKey());
+        return raw ? JSON.parse(raw) : null;
+      } catch { return null; }
+    }
+
+    function saveDailyReadiness(data) {
+      try { localStorage.setItem(dailyReadinessKey(), JSON.stringify(data)); }
+      catch (e) { console.warn('Could not save daily readiness', e); }
+    }
+
+    function assessTrafficLight(sleep, energy, restingHR) {
+      const avg = (sleep + energy) / 2;
+      const baseline = latestMetric('restingHeartRate7d')?.restingHeartRate7d;
+      const hrDelta = (restingHR && baseline) ? Number(restingHR) - Number(baseline) : 0;
+      if (avg <= 2 || hrDelta >= 10) return 'red';
+      if (avg <= 3.5 || hrDelta >= 5) return 'yellow';
+      return 'green';
+    }
+
+    const TRAFFIC_LIGHT_CONFIG = {
+      green:  { label: 'Grønt lys',  advice: 'Bra dagsform — gjennomfør planlagt økt som planlagt.' },
+      yellow: { label: 'Gult lys',   advice: 'Litt sliten. Gjennomfør om du vil, men senk intensiteten fra det planlagte.' },
+      red:    { label: 'Rødt lys',   advice: 'Dårlig dagsform. Hvil eller velg en rolig alternativ økt i dag.' }
+    };
 
     function blockOfflineSnapshotWrite() {
       if (!offlineSnapshotMode) return false;
@@ -2798,6 +2831,76 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       return { label: delta > 0 ? `Opp ${formatMetricValue(delta, 1)}` : `Ned ${formatMetricValue(Math.abs(delta), 1)}`, delta };
     }
 
+    function tlScaleButtons(field, selected) {
+      return [1, 2, 3, 4, 5].map(n =>
+        `<button type="button" class="tl-btn${selected === n ? ' selected' : ''}" onclick="setTlValue('${field}', ${n})" aria-label="${field} ${n}">${n}</button>`
+      ).join('');
+    }
+
+    function renderTrafficLightForm() {
+      const s = tlSelections;
+      return `
+        <div class="tl-row">
+          <label>Søvn i natt</label>
+          <div class="tl-scale">${tlScaleButtons('sleep', s.sleep)}</div>
+          <div class="tl-scale-labels"><span>Dårlig</span><span>Bra</span></div>
+        </div>
+        <div class="tl-row">
+          <label>Energinivå nå</label>
+          <div class="tl-scale">${tlScaleButtons('energy', s.energy)}</div>
+          <div class="tl-scale-labels"><span>Utmattet</span><span>Pigg</span></div>
+        </div>
+        <div class="tl-hr-row">
+          <label>Hvilepuls i dag</label>
+          <input id="tlRestingHr" type="number" min="30" max="120" step="1" placeholder="bpm" inputmode="numeric" aria-label="Hvilepuls i dag" />
+          <span class="small-note" style="margin:0;">(valgfritt)</span>
+        </div>
+        <button class="btn-primary btn-full" onclick="submitTrafficLight()" ${s.sleep && s.energy ? '' : 'disabled'}>Sjekk dagsform</button>`;
+    }
+
+    function renderTrafficLightResult(readiness) {
+      const cfg = TRAFFIC_LIGHT_CONFIG[readiness.level];
+      return `
+        <div class="traffic-light-display">
+          <span class="traffic-dot-lg ${readiness.level}"></span>
+          <div>
+            <strong>${escapeHtml(cfg.label)}</strong>
+            <p class="small-note" style="margin-top:4px;">${escapeHtml(cfg.advice)}</p>
+          </div>
+        </div>
+        <button class="btn-soft" style="margin-top:10px;font-size:0.82rem;padding:7px 12px;" onclick="resetTrafficLight()">Endre</button>`;
+    }
+
+    function renderTrafficLight() {
+      const container = document.getElementById('trafficLightContent');
+      if (!container) return;
+      const readiness = loadDailyReadiness();
+      container.innerHTML = readiness ? renderTrafficLightResult(readiness) : renderTrafficLightForm();
+    }
+
+    window.setTlValue = function(field, value) {
+      tlSelections[field] = value;
+      renderTrafficLight();
+    };
+
+    window.submitTrafficLight = function() {
+      const { sleep, energy } = tlSelections;
+      if (!sleep || !energy) return;
+      const restingHR = Number(document.getElementById('tlRestingHr')?.value) || null;
+      const level = assessTrafficLight(sleep, energy, restingHR);
+      saveDailyReadiness({ date: todayISO(), sleep, energy, restingHR, level });
+      tlSelections = { sleep: null, energy: null };
+      renderTrafficLight();
+      render();
+    };
+
+    window.resetTrafficLight = function() {
+      localStorage.removeItem(dailyReadinessKey());
+      tlSelections = { sleep: null, energy: null };
+      renderTrafficLight();
+      render();
+    };
+
     function renderDashboardWellness() {
       const latestVo2 = latestMetric('vo2Max');
       const latestHrv = latestMetric('hrv7d');
@@ -4728,6 +4831,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       const easyCount14 = load14.low || 0;
       const intensityRatio14 = last14Days.length >= 3 ? easyCount14 / last14Days.length : null;
       const gradedPain = gradedPainContext(completedToDate, today);
+      const dailyReadiness = loadDailyReadiness();
 
       return {
         today, goals, trainingProfile, personProfile, isRunningBakken,
@@ -4739,7 +4843,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         weekPlanRoles, completedRoles, missingRoles,
         activeChallenge, nextPlanned,
         hardCount7, hardCount14, easyCount14, intensityRatio14,
-        gradedPain
+        gradedPain, dailyReadiness
       };
     }
 
@@ -4748,7 +4852,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
               bodySignals14, consecutiveDays, daysSinceLast, lastWorkout,
               goldenZone, goldenZoneViolations,
               hardCount14, easyCount14, intensityRatio14, last14Days,
-              gradedPain } = ctx;
+              gradedPain, dailyReadiness } = ctx;
 
       // 1. Smerte — gradert respons etter alvorlighetsgrad (Bakken: body_signals_first)
       const { activePain, resolvedRecently, highestTier } = gradedPain;
@@ -4780,7 +4884,15 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         }
       }
 
-      // 2. Mange dager på rad uten rolig økt (Bakken: recovery_is_training)
+      // 2. Rød dagsform (Bakken: trafikklymodell — recovery_is_training)
+      if (dailyReadiness?.level === 'red') {
+        const reason = dailyReadiness.sleep <= 2 ? 'søvnen var dårlig'
+          : dailyReadiness.energy <= 2 ? 'energinivået er lavt'
+          : 'dagsformen er rød';
+        return `Rødt lys i dag — ${reason}. Hvil eller velg en rolig alternativ økt. ${coachPrincipleLine(['recovery_is_training'])}`;
+      }
+
+      // 3. Mange dager på rad uten rolig økt (Bakken: recovery_is_training)
       if (consecutiveDays >= 3 && load7.low === 0) {
         return `${consecutiveDays} treningsdager på rad uten rolig økt. En hviledag eller lett bevegelse gir kroppen tid til å adaptere. ${coachPrincipleLine(['recovery_is_training'])}`;
       }
@@ -4824,8 +4936,12 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     function buildCoachBasis(ctx) {
       const { last14Days, load14, bodySignals14, consecutiveDays, daysSinceLast,
               goldenZone, goldenZoneViolations, latestHrv, latestRestingHr,
-              gradedPain } = ctx;
+              gradedPain, dailyReadiness } = ctx;
       const parts = [];
+      if (dailyReadiness) {
+        const cfg = TRAFFIC_LIGHT_CONFIG[dailyReadiness.level];
+        parts.push(`Dagsform: ${cfg.label} (søvn ${dailyReadiness.sleep}/5, energi ${dailyReadiness.energy}/5)`);
+      }
       const total14 = last14Days.length;
       if (total14 > 0) {
         parts.push(`${total14} økt${total14 === 1 ? '' : 'er'} siste 14 dager (${load14.high || 0} hard, ${load14.low || 0} rolig)`);
@@ -4946,6 +5062,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       renderPersonProfile();
       renderWellnessList();
       renderDashboardWellness();
+      renderTrafficLight();
       renderChallengeActivityOptions();
       if (!document.getElementById('challengeStartDate').value || !document.getElementById('challengeEndDate').value) clearChallengeForm();
       renderHistoryFilterOptions();

@@ -1,5 +1,5 @@
 # Treningsapp — progress.md
-Oppdatert: 2026-05-14 (siste endringer: v75–v78)
+Oppdatert: 2026-05-14 (siste endringer: v75–v79)
 
 ---
 
@@ -27,7 +27,7 @@ Standard Bakken-uke: Hoved-terskel → Støtte-terskel → Lang rolig → Valgfr
 **Hosting:** GitHub Pages.  
 **Backend:** Firebase (prosjekt `home-tasks-app-18de3`) — Firestore + Google Auth.  
 **Frontend:** Vanilla JS + HTML + CSS, single-page app, tab-navigasjon.  
-**Versjon:** v78 (konstant i `app.js`).
+**Versjon:** v79 (konstant i `app.js`).
 
 ### Filer
 
@@ -62,6 +62,7 @@ Treningsapp/
 - **Gradert smertevurdering** (v76): `gradedPainContext()` skiller lav/moderat/høy smerte med ulik forfallstid (3/5/7 dager). Coach-noten gir tilpasset råd per nivå. Sjekk-inn-hint vises i fullføre-modal når det er relevant aktiv smerte.
 - **Strukturert smertelokasjon** (v77): Fritekstfeltet for område erstattet med dropdown (kroppsdel + side). Konstanter `PAIN_AREA_REGIONS`/`PAIN_AREA_SIDES` + `formatAreaLabel()`. Lagrer `areaRegion`, `areaSide` og beregnet `area`-streng i Firestore. Eksisterende data beholdes uendret (bakoverkompatibelt).
 - **Gylne sone i UI** (v78): `goldenZonePercentages(level)` kalibrerer sonen etter treningsnivå (beginner/building: 77–84 %, intermediate: 78–85 %, experienced: 80–87 %). Snittpuls i detaljvisning viser "gylne sone ✓ / over / under". Loggmodalen viser sonen som hint under pulsfeltene.
+- **Trafikklymodell** (v79): Daglig beredskaps-sjekk på Hjem-fanen. Tre spørsmål: søvn (1–5), energi (1–5), valgfri hvile-HF. Output: grønn / gul / rød med anbefalt tiltak. Lagres i localStorage per dato (`tl_readiness_YYYY-MM-DD`). Rød overstyrer coach-noten til hvile-råd. Grunnlaget viser dagsform-nivå i "?"-detaljer. `TRAFFIC_LIGHT_CONFIG`, `assessTrafficLight()`, `loadDailyReadiness()`, `saveDailyReadiness()`, `renderTrafficLight()` lagt til.
 
 ---
 
@@ -69,7 +70,7 @@ Treningsapp/
 
 | Gap | Beskrivelse | Status |
 |---|---|---|
-| **1. Trafikklymodell** | Ingen daglig beredskaps-sjekk før økt | Ikke bygget |
+| **1. Trafikklymodell** | Daglig beredskaps-sjekk (søvn/energi/hvile-HF) → grønn/gul/rød på Dashboard | Bygget (v79) |
 | **2. Den gylne sonen** | Nivåkalibrert, vist i loggmodal og detaljvisning | Bygget (v78) |
 | **3. Coach-note** | Kjører ekte logikk via `buildCoachContext` + `buildCoachNote` | Bygget (v75) |
 | **4. Innsikt = mønstre** | Siden viser statistikk, ikke Bakken-stil mønsterspørsmål | Delvis |
@@ -82,12 +83,7 @@ Treningsapp/
 
 ## Neste steg (prioritert)
 
-### 1. Trafikklymodell — pre-økt beredskaps-sjekk
-Modal eller inline før økt starter:
-- Tre spørsmål: søvn (1–5), energi (1–5), hvile-HF vs. personlig snitt
-- Output: grønn / gul / rød med konsekvens (planlagt økt / reduser intensitet / hvil)
-
-### 2. Innsikt: mønstre, ikke statistikk
+### 1. Innsikt: mønstre, ikke statistikk
 Legg til Bakken-stil mønsterspørsmål basert på siste 30 dager:
 - «Er rolige dager faktisk rolige? (snittpuls < 75 % av maks)»
 - «Er forholdet rolig:terskel ≥ 3:1?»
