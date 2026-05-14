@@ -4,7 +4,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     import { getFirestore, doc, collection, getDoc, getDocs, setDoc, deleteDoc, writeBatch, enableIndexedDbPersistence }
       from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
-    const APP_VERSION = 'v76';
+    const APP_VERSION = 'v77';
 
     const firebaseConfig = {
       apiKey: "AIzaSyAMPfQ9gX9rbuvcPsVjYVtq5IT_orjDBPs",
@@ -319,6 +319,29 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         maxHeartRate: normalizeGoalNumber(profile.maxHeartRate, defaults.maxHeartRate),
         thresholdHeartRate: normalizeGoalNumber(profile.thresholdHeartRate, defaults.thresholdHeartRate)
       };
+    }
+
+    const PAIN_AREA_REGIONS = {
+      fot_ankel: 'Fot/ankel',
+      kne: 'Kne',
+      legg_skinneben: 'Legg/skinneben',
+      lar_hofte: 'Lår/hofte',
+      rygg: 'Rygg',
+      skulder_nakke: 'Skulder/nakke',
+      annet: 'Annet'
+    };
+
+    const PAIN_AREA_SIDES = {
+      hoeyre: 'Høyre',
+      venstre: 'Venstre',
+      begge: 'Begge'
+    };
+
+    function formatAreaLabel(region, side) {
+      const regionLabel = PAIN_AREA_REGIONS[region] || '';
+      const sideLabel = PAIN_AREA_SIDES[side] || '';
+      if (!regionLabel) return sideLabel || '';
+      return sideLabel ? `${sideLabel} ${regionLabel.toLowerCase()}` : regionLabel;
     }
 
     const WORKOUT_ROLE_LABELS = {
@@ -1305,7 +1328,8 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         'completeStress',
         'completePainBefore',
         'completePainAfter',
-        'completePainArea',
+        'completePainAreaRegion',
+        'completePainAreaSide',
         'completeAdaptation',
         'completeBodyNotes',
         'completeNotes'
@@ -1353,7 +1377,12 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         bodyStatus: {
           painBefore: document.getElementById('completePainBefore').value || '',
           painAfter: document.getElementById('completePainAfter').value || '',
-          area: document.getElementById('completePainArea').value.trim(),
+          areaRegion: document.getElementById('completePainAreaRegion').value || '',
+          areaSide: document.getElementById('completePainAreaSide').value || '',
+          area: formatAreaLabel(
+            document.getElementById('completePainAreaRegion').value || '',
+            document.getElementById('completePainAreaSide').value || ''
+          ),
           adaptation: document.getElementById('completeAdaptation').value || 'none',
           notes: document.getElementById('completeBodyNotes').value.trim()
         },
@@ -2056,7 +2085,8 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       document.getElementById('completeStress').value = completed.readiness?.stress || '';
       document.getElementById('completePainBefore').value = completed.bodyStatus?.painBefore || '';
       document.getElementById('completePainAfter').value = completed.bodyStatus?.painAfter || '';
-      document.getElementById('completePainArea').value = completed.bodyStatus?.area || '';
+      document.getElementById('completePainAreaRegion').value = completed.bodyStatus?.areaRegion || '';
+      document.getElementById('completePainAreaSide').value = completed.bodyStatus?.areaSide || '';
       document.getElementById('completeAdaptation').value = completed.bodyStatus?.adaptation || 'none';
       document.getElementById('completeBodyNotes').value = completed.bodyStatus?.notes || '';
       document.getElementById('completeNotes').value = completed.notes || '';

@@ -1,5 +1,5 @@
 # Treningsapp — progress.md
-Oppdatert: 2026-05-14 (siste endringer: v75–v76)
+Oppdatert: 2026-05-14 (siste endringer: v75–v77)
 
 ---
 
@@ -27,7 +27,7 @@ Standard Bakken-uke: Hoved-terskel → Støtte-terskel → Lang rolig → Valgfr
 **Hosting:** GitHub Pages.  
 **Backend:** Firebase (prosjekt `home-tasks-app-18de3`) — Firestore + Google Auth.  
 **Frontend:** Vanilla JS + HTML + CSS, single-page app, tab-navigasjon.  
-**Versjon:** v76 (konstant i `app.js`).
+**Versjon:** v77 (konstant i `app.js`).
 
 ### Filer
 
@@ -60,6 +60,7 @@ Treningsapp/
 - Utfordringer/mål-modul
 - **Coach-kontekst v1** (v75): `buildCoachContext()` samler nå-bilde fra 7/14/28 dager, gylne sone, HRV, kroppssignaler, ukesroller, challenges. Coach-noten på Hjem og Innsikt kjører ekte logikk. "?"-knapp viser grunnlaget.
 - **Gradert smertevurdering** (v76): `gradedPainContext()` skiller lav/moderat/høy smerte med ulik forfallstid (3/5/7 dager). Coach-noten gir tilpasset råd per nivå. Sjekk-inn-hint vises i fullføre-modal når det er relevant aktiv smerte.
+- **Strukturert smertelokasjon** (v77): Fritekstfeltet for område erstattet med dropdown (kroppsdel + side). Konstanter `PAIN_AREA_REGIONS`/`PAIN_AREA_SIDES` + `formatAreaLabel()`. Lagrer `areaRegion`, `areaSide` og beregnet `area`-streng i Firestore. Eksisterende data beholdes uendret (bakoverkompatibelt).
 
 ---
 
@@ -74,6 +75,7 @@ Treningsapp/
 | **5. Interval-struktur** | Ingen støtte for 45/15-sett, arbeid/hvile-felter | Ikke bygget |
 | **6. AI-integrasjon** | Ingen faktisk Claude API-kall | Ikke bygget |
 | **7. Gradert smerte** | Smerte vurderes nå etter alvorlighetsgrad med forfallslogikk | Bygget (v76) |
+| **8. Strukturert lokasjon** | Fritekst erstattet med kroppsdel+side-dropdown, lagres strukturert | Bygget (v77) |
 
 ---
 
@@ -89,19 +91,13 @@ Gylne sone beregnes allerede internt (`buildCoachContext`). Neste steg:
 - Vis sonen (f.eks. 136–149 bpm) i fullføre-modal og i historikk-kort
 - Marker om gjennomsnittspuls på en økt lå innenfor / under / over sonen
 
-### 3. Strukturert lokasjon for smerte
-Bytt ut fritekstfeltet `completePainArea` med dropdown:
-- Alternativ: fot/ankel, kne, legg/skinneben, lår/hofte, rygg, skulder/nakke, annet
-- + høyre/venstre-valg
-- Gjør at `gradedPainContext` kan sammenligne eksakt sted på tvers av økter
-
-### 4. Innsikt: mønstre, ikke statistikk
+### 3. Innsikt: mønstre, ikke statistikk
 Legg til Bakken-stil mønsterspørsmål basert på siste 30 dager:
 - «Er rolige dager faktisk rolige? (snittpuls < 75 % av maks)»
 - «Er forholdet rolig:terskel ≥ 3:1?»
 - «Følger RPE og HRV hverandre? (indikerer god adaptasjon)»
 
-### 5. AI-integrasjon
+### 4. AI-integrasjon
 Lag en «Spør coachen»-funksjon:
 - Send siste 14 dager komprimert treningshistorikk + `coach-rammeverk.md` som system-prompt til Claude API
 - Vis svaret i Innsikt-fanen

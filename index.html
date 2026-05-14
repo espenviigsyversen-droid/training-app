@@ -1036,16 +1036,35 @@
             <div><label class="field-caption">Smerte etter</label><input id="completePainAfter" type="number" min="0" max="10" step="1" inputmode="numeric" placeholder="0-10" aria-label="Smerte etter økt" /></div>
           </div>
           <div class="grid-2" style="margin-top:10px;">
-            <div><input id="completePainArea" type="text" placeholder="Område, f.eks. venstre fot" aria-label="Område" /></div>
             <div>
-              <select id="completeAdaptation" aria-label="Tilpasning">
-                <option value="none">Ingen</option>
-                <option value="shorter">Kortere</option>
-                <option value="easier">Roligere</option>
-                <option value="alternative">Alternativ økt</option>
-                <option value="aborted">Avbrutt</option>
+              <select id="completePainAreaRegion" aria-label="Kroppsdel">
+                <option value="">Kroppsdel</option>
+                <option value="fot_ankel">Fot/ankel</option>
+                <option value="kne">Kne</option>
+                <option value="legg_skinneben">Legg/skinneben</option>
+                <option value="lar_hofte">Lår/hofte</option>
+                <option value="rygg">Rygg</option>
+                <option value="skulder_nakke">Skulder/nakke</option>
+                <option value="annet">Annet</option>
               </select>
             </div>
+            <div>
+              <select id="completePainAreaSide" aria-label="Side">
+                <option value="">Side</option>
+                <option value="hoeyre">Høyre</option>
+                <option value="venstre">Venstre</option>
+                <option value="begge">Begge</option>
+              </select>
+            </div>
+          </div>
+          <div style="margin-top:10px;">
+            <select id="completeAdaptation" aria-label="Tilpasning">
+              <option value="none">Ingen tilpasning</option>
+              <option value="shorter">Kortere</option>
+              <option value="easier">Roligere</option>
+              <option value="alternative">Alternativ økt</option>
+              <option value="aborted">Avbrutt</option>
+            </select>
           </div>
           <textarea id="completeBodyNotes" style="margin-top:10px;" placeholder="Årsak / notat, f.eks. vond fot i to dager, kuttet ned intensitet"></textarea>
         </div>
