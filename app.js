@@ -4,7 +4,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     import { getFirestore, doc, collection, getDoc, getDocs, setDoc, deleteDoc, writeBatch, enableIndexedDbPersistence }
       from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
-    const APP_VERSION = 'v77';
+    const APP_VERSION = 'v78';
 
     const firebaseConfig = {
       apiKey: "AIzaSyAMPfQ9gX9rbuvcPsVjYVtq5IT_orjDBPs",
@@ -319,6 +319,12 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         maxHeartRate: normalizeGoalNumber(profile.maxHeartRate, defaults.maxHeartRate),
         thresholdHeartRate: normalizeGoalNumber(profile.thresholdHeartRate, defaults.thresholdHeartRate)
       };
+    }
+
+    function goldenZonePercentages(level) {
+      if (level === 'experienced') return { lowPct: 0.80, highPct: 0.87 };
+      if (level === 'intermediate') return { lowPct: 0.78, highPct: 0.85 };
+      return { lowPct: 0.77, highPct: 0.84 }; // beginner + building_beginner
     }
 
     const PAIN_AREA_REGIONS = {
@@ -1339,6 +1345,20 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       updatePacePreview();
     }
 
+    function renderCompleteGoldenZoneHint() {
+      const hint = document.getElementById('completeGoldenZoneHint');
+      if (!hint) return;
+      const personProfile = normalizePersonProfile(state.settings.personProfile);
+      const trainingProfile = normalizeTrainingProfile(state.settings.trainingProfile);
+      const maxHR = numberOrZero(personProfile.maxHeartRate);
+      if (!maxHR) { hint.hidden = true; return; }
+      const { lowPct, highPct } = goldenZonePercentages(trainingProfile.level);
+      const low = Math.round(maxHR * lowPct);
+      const high = Math.round(maxHR * highPct);
+      hint.textContent = `Din gylne sone: ${low}–${high} bpm (${Math.round(lowPct * 100)}–${Math.round(highPct * 100)}% av maks)`;
+      hint.hidden = false;
+    }
+
     function setCompleteModalMode(mode) {
       const isEditing = mode === 'edit';
       const isHistorical = mode === 'historical';
@@ -1474,7 +1494,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       );
     }
 
-    function heartRateContextLabel(value, profile = normalizePersonProfile(state.settings.personProfile)) {
+    function heartRateContextLabel(value, profile = normalizePersonProfile(state.settings.personProfile), includeZone = false) {
       const hr = Number(value);
       if (!Number.isFinite(hr) || hr <= 0) return '';
       const parts = [];
@@ -1482,6 +1502,15 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       const thresholdHeartRate = Number(profile.thresholdHeartRate);
       if (Number.isFinite(maxHeartRate) && maxHeartRate > 0) {
         parts.push(`${Math.round((hr / maxHeartRate) * 100)}% maks`);
+        if (includeZone) {
+          const level = normalizeTrainingProfile(state.settings.trainingProfile).level;
+          const { lowPct, highPct } = goldenZonePercentages(level);
+          const lowBpm = Math.round(maxHeartRate * lowPct);
+          const highBpm = Math.round(maxHeartRate * highPct);
+          if (hr >= lowBpm && hr <= highBpm) parts.push('gylne sone ✓');
+          else if (hr > highBpm) parts.push('over gylne sone');
+          else parts.push('under gylne sone');
+        }
       }
       if (Number.isFinite(thresholdHeartRate) && thresholdHeartRate > 0) {
         parts.push(`${Math.round((hr / thresholdHeartRate) * 100)}% terskel`);
@@ -2028,6 +2057,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       clearCompleteForm();
       setCompleteModalMode('create');
       document.getElementById('completePlannedId').value = plannedId;
+      renderCompleteGoldenZoneHint();
       const hint = document.getElementById('completePainHint');
       if (hint) {
         const gp = gradedPainContext(state.completed.filter(c => c.date <= todayISO()), todayISO());
@@ -2049,6 +2079,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       setCompleteModalMode('historical');
       document.getElementById('completeDate').value = todayISO();
       document.getElementById('completeTemplate').value = state.templates[0]?.id || '';
+      renderCompleteGoldenZoneHint();
       document.getElementById('completeModal').classList.add('active');
     };
 
@@ -2090,6 +2121,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       document.getElementById('completeAdaptation').value = completed.bodyStatus?.adaptation || 'none';
       document.getElementById('completeBodyNotes').value = completed.bodyStatus?.notes || '';
       document.getElementById('completeNotes').value = completed.notes || '';
+      renderCompleteGoldenZoneHint();
       document.getElementById('completeModal').classList.add('active');
     };
 
@@ -2256,7 +2288,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       const assessment = completedLoadAssessment(c);
       const coachNote = lastWorkoutCoachNote(c, profile).replace(/^Siste økt/, 'Denne økten');
       const heartRateLines = [
-        detailLine('Snittpuls', c.avgHeartRate ? `${c.avgHeartRate} bpm${heartRateContextLabel(c.avgHeartRate, personProfile)}` : ''),
+        detailLine('Snittpuls', c.avgHeartRate ? `${c.avgHeartRate} bpm${heartRateContextLabel(c.avgHeartRate, personProfile, true)}` : ''),
         detailLine('Makspuls økt', c.maxHeartRate ? `${c.maxHeartRate} bpm${heartRateContextLabel(c.maxHeartRate, personProfile)}` : ''),
         detailLine('Din maks/terskel', personProfile.maxHeartRate || personProfile.thresholdHeartRate
           ? `${personProfile.maxHeartRate || '-'} / ${personProfile.thresholdHeartRate || '-'} bpm`
@@ -4670,7 +4702,8 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       const latestRestingHr = latestMetric('restingHeartRate7d');
 
       const maxHR = numberOrZero(personProfile.maxHeartRate);
-      const goldenZone = maxHR ? { low: Math.round(maxHR * 0.80), high: Math.round(maxHR * 0.87), maxHR } : null;
+      const { lowPct, highPct } = goldenZonePercentages(trainingProfile.level);
+      const goldenZone = maxHR ? { low: Math.round(maxHR * lowPct), high: Math.round(maxHR * highPct), maxHR, lowPct, highPct } : null;
       const goldenZoneViolations = goldenZone
         ? last7Days.filter(c => numberOrZero(c.avgHeartRate) > goldenZone.high).length
         : 0;
