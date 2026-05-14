@@ -4,7 +4,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     import { getFirestore, doc, collection, getDoc, getDocs, setDoc, deleteDoc, writeBatch, enableIndexedDbPersistence }
       from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
-    const APP_VERSION = 'v83';
+    const APP_VERSION = 'v85';
 
     const firebaseConfig = {
       apiKey: "AIzaSyAMPfQ9gX9rbuvcPsVjYVtq5IT_orjDBPs",
@@ -200,20 +200,22 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     }
 
     // ── Trafikklymodell ───────────────────────────────────────────────────────
-    function dailyReadinessKey() {
-      return `treningsapp:readiness:${todayISO()}`;
-    }
-
     function loadDailyReadiness() {
-      try {
-        const raw = localStorage.getItem(dailyReadinessKey());
-        return raw ? JSON.parse(raw) : null;
-      } catch { return null; }
+      return state.settings?.dailyReadiness?.[todayISO()] || null;
     }
 
-    function saveDailyReadiness(data) {
-      try { localStorage.setItem(dailyReadinessKey(), JSON.stringify(data)); }
-      catch (e) { console.warn('Could not save daily readiness', e); }
+    async function saveDailyReadiness(data) {
+      const today = todayISO();
+      const cutoff = addDays(today, -6);
+      const existing = state.settings.dailyReadiness || {};
+      const pruned = Object.fromEntries(Object.entries(existing).filter(([date]) => date >= cutoff));
+      pruned[today] = data;
+      state.settings.dailyReadiness = pruned;
+      try {
+        await fsSet('settings', 'preferences', state.settings);
+      } catch (err) {
+        console.error('Could not save daily readiness to Firestore:', err);
+      }
     }
 
     function assessTrafficLight(sleep, energy, restingHR, stairsOk) {
@@ -338,7 +340,10 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
           : [...defaultSettings.intensities],
         goals: normalizeGoals(settings.goals),
         trainingProfile: normalizeTrainingProfile(settings.trainingProfile),
-        personProfile: normalizePersonProfile(settings.personProfile)
+        personProfile: normalizePersonProfile(settings.personProfile),
+        dailyReadiness: (typeof settings.dailyReadiness === 'object' && settings.dailyReadiness !== null && !Array.isArray(settings.dailyReadiness))
+          ? settings.dailyReadiness
+          : {}
       };
     }
 
@@ -645,7 +650,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
           getDocs(userCol('challenges')),
           getDoc(userDoc('settings', 'preferences'))
         ]);
-        state.templates = tSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+        state.templates = tSnap.docs.map(d => { const t = { id: d.id, ...d.data() }; return { ...t, recommendedWhen: asArray(t.recommendedWhen), avoidWhen: asArray(t.avoidWhen) }; });
         state.planned   = pSnap.docs.map(d => ({ id: d.id, ...d.data() }));
         state.completed = cSnap.docs.map(d => ({ id: d.id, ...d.data() }));
         state.wellness = wSnap.docs.map(d => ({ id: d.id, ...d.data() }));
@@ -909,9 +914,14 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
 
     // ── Settings ──────────────────────────────────────────────────────────────
     async function saveSettings() {
-      state.settings = normalizeSettings(state.settings);
-      await fsSet('settings', 'preferences', state.settings);
-      render();
+      try {
+        state.settings = normalizeSettings(state.settings);
+        await fsSet('settings', 'preferences', state.settings);
+        render();
+      } catch (err) {
+        console.error('saveSettings failed:', err);
+        showToast('Kunne ikke lagre innstillinger — sjekk tilkobling');
+      }
     }
 
     window.addSettingOption = async function(kind) {
@@ -955,7 +965,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         priority: document.getElementById('profilePriority').value,
         trainingFocus: document.getElementById('profileRunningPhase').value,
         weekPlanPreset: document.getElementById('profileWeekPlanPreset').value,
-        weekPlanRoles: [1, 2, 3, 4].map(index => document.getElementById(`profileWeekRole${index}`).value)
+        weekPlanRoles: [1, 2, 3, 4].map(index => document.getElementById(`profileWeekRole${index}`)?.value || '')
       });
       await saveSettings();
       showToast('Treningsprofil lagret');
@@ -2898,22 +2908,25 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       renderTrafficLight();
     };
 
-    window.submitTrafficLight = function() {
+    window.submitTrafficLight = async function() {
       const { sleep, energy, stairsOk } = tlSelections;
       if (!sleep || !energy) return;
       const restingHR = Number(document.getElementById('tlRestingHr')?.value) || null;
       const level = assessTrafficLight(sleep, energy, restingHR, stairsOk);
-      saveDailyReadiness({ date: todayISO(), sleep, energy, restingHR, stairsOk, level });
       tlSelections = { sleep: null, energy: null, stairsOk: null };
       renderTrafficLight();
       render();
+      await saveDailyReadiness({ date: todayISO(), sleep, energy, restingHR, stairsOk, level });
     };
 
-    window.resetTrafficLight = function() {
-      localStorage.removeItem(dailyReadinessKey());
+    window.resetTrafficLight = async function() {
+      const today = todayISO();
+      if (state.settings.dailyReadiness) delete state.settings.dailyReadiness[today];
       tlSelections = { sleep: null, energy: null, stairsOk: null };
       renderTrafficLight();
       render();
+      try { await fsSet('settings', 'preferences', state.settings); }
+      catch (err) { console.error('Could not reset daily readiness:', err); }
     };
 
     function renderDashboardWellness() {
@@ -3085,7 +3098,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       if (suggestion.intensities?.includes(template.intensity)) score += 3;
       if (templateMatches(template, suggestion.keywords || [])) score += 2;
       const avoidMatches = asArray(template.avoidWhen).filter(a => suggestion.avoidTemplateWhen?.includes(a)).length;
-      score -= avoidMatches * 8;
+      score -= Math.min(avoidMatches * 8, 16);
       return score;
     }
 
