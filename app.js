@@ -4,7 +4,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     import { getFirestore, doc, collection, getDoc, getDocs, setDoc, deleteDoc, writeBatch, enableIndexedDbPersistence }
       from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
-    const APP_VERSION = 'v91';
+    const APP_VERSION = 'v92';
 
     const firebaseConfig = {
       apiKey: "AIzaSyAMPfQ9gX9rbuvcPsVjYVtq5IT_orjDBPs",
@@ -4028,7 +4028,6 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       document.getElementById('homeCoachNote').textContent = buildCoachNote(coachCtx);
       document.getElementById('homeCoachBasis').textContent = buildCoachBasis(coachCtx).join(' · ');
       renderWeekPlan(today, weekSummary, weekItems, last14Days, profile, goals, plannedActive);
-      renderWorkoutSuggestion(today, weekSummary, weekItems, last14Days, profile);
     }
 
     function renderHistoryFilterOptions() {
