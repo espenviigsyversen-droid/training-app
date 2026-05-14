@@ -4,7 +4,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     import { getFirestore, doc, collection, getDoc, getDocs, setDoc, deleteDoc, writeBatch, enableIndexedDbPersistence }
       from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
-    const APP_VERSION = 'v85';
+    const APP_VERSION = 'v86';
 
     const firebaseConfig = {
       apiKey: "AIzaSyAMPfQ9gX9rbuvcPsVjYVtq5IT_orjDBPs",
@@ -4143,21 +4143,34 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
 
     function renderChallenges() {
       const list = document.getElementById('challengeList');
-      const homeCard = document.getElementById('homeChallengeCard');
-      const home = document.getElementById('homeChallenge');
-      if (!list || !homeCard || !home) return;
+      if (!list) return;
       const challenges = sortedChallenges();
       const active = challenges.filter(challenge => {
         const progress = challengeProgress(challenge);
         return challenge.status !== 'paused' && !progress.done && !progress.expired;
       });
-      if (active.length) {
-        homeCard.style.display = '';
-        home.innerHTML = challengeCard(active[0], true);
-      } else {
-        homeCard.style.display = 'none';
-        home.innerHTML = '';
+
+      // Mini progress bar under "Denne uken" på hjem
+      const mini = document.getElementById('homeChallengeMini');
+      if (mini) {
+        if (active.length) {
+          const c = active[0];
+          const p = challengeProgress(c);
+          const fillClass = p.done ? 'done' : p.current > 0 ? 'partial' : 'empty';
+          mini.innerHTML = `
+            <div class="challenge-mini">
+              <div class="challenge-mini-top">
+                <span>${escapeHtml(c.name)}</span>
+                <span>${Math.round(p.percent)}%</span>
+              </div>
+              <div class="progress-track"><div class="progress-fill ${fillClass}" style="width:${p.percent}%;"></div></div>
+              <span class="small-note">${escapeHtml(challengeValueLabel(p.current, c.metric))} / ${escapeHtml(challengeValueLabel(p.target, c.metric))} · ${p.daysLeft} dager igjen</span>
+            </div>`;
+        } else {
+          mini.innerHTML = '';
+        }
       }
+
       list.innerHTML = challenges.length
         ? challenges.map(challenge => challengeCard(challenge)).join('')
         : `<div class="empty">Ingen challenges enda. Lag et kortsiktig mål for ekstra motivasjon.</div>`;

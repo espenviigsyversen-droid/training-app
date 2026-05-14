@@ -67,34 +67,8 @@
           <div id="homePrimaryWorkout"></div>
         </div>
         <div class="card">
-          <h2 class="section-title">Denne uken</h2>
-          <div class="insight-grid">
-            <div class="insight-stat"><strong id="homeWeekSessions">0/3</strong><span>Økter</span></div>
-            <div class="insight-stat"><strong id="homeWeekTime">0:00:00</strong><span>Tid</span></div>
-            <div class="insight-stat"><strong id="homeWeekLoad">-</strong><span>Belastning</span></div>
-          </div>
-          <p id="homeWeekNote" class="small-note"></p>
-        </div>
-        <div id="homeChallengeCard" class="card" style="display:none;">
-          <h2 class="section-title">Aktiv challenge</h2>
-          <div id="homeChallenge"></div>
-        </div>
-        <div class="card">
           <h2 class="section-title">Dagsform</h2>
           <div id="trafficLightContent"></div>
-        </div>
-        <div class="card">
-          <h2 class="section-title">Ukeplan</h2>
-          <div id="homeWeekPlan"></div>
-        </div>
-        <div class="card">
-          <h2 class="section-title">Formstatus</h2>
-          <div class="insight-grid">
-            <div class="insight-stat"><strong id="homeVo2Max">-</strong><span>VO2 Max</span></div>
-            <div class="insight-stat"><strong id="homeHrv">-</strong><span>HRV 7d</span></div>
-            <div class="insight-stat"><strong id="homeRestingHr">-</strong><span>Hvilepuls 7d</span></div>
-          </div>
-          <p id="homeWellnessNote" class="small-note"></p>
         </div>
         <div class="card">
           <h2 class="section-title">Coach-notis</h2>
@@ -105,19 +79,22 @@
           </details>
         </div>
         <div class="card">
-          <h2 class="section-title">Foreslå neste økt</h2>
-          <div id="homeWorkoutSuggestion"></div>
-        </div>
-        <div class="card">
-          <h2 class="section-title">Handlinger</h2>
-          <div class="button-row">
-            <button class="btn-primary" onclick="openPlan()">Planlegg økt</button>
-            <button class="btn-soft" onclick="openLibrary()">Øktmaler</button>
+          <h2 class="section-title">Denne uken</h2>
+          <div class="insight-grid">
+            <div class="insight-stat"><strong id="homeWeekSessions">0/3</strong><span>Økter</span></div>
+            <div class="insight-stat"><strong id="homeWeekTime">0:00:00</strong><span>Tid</span></div>
+            <div class="insight-stat"><strong id="homeWeekLoad">-</strong><span>Belastning</span></div>
           </div>
+          <p id="homeWeekNote" class="small-note"></p>
+          <div id="homeChallengeMini"></div>
         </div>
-        <div class="card">
-          <h2 class="section-title">Kommende økter</h2>
-          <div id="upcomingList"></div>
+        <!-- Skjulte elementer for JS-kompatibilitet (Formstatus og gammel challenge) -->
+        <div style="display:none;" aria-hidden="true">
+          <span id="homeVo2Max"></span>
+          <span id="homeHrv"></span>
+          <span id="homeRestingHr"></span>
+          <span id="homeWellnessNote"></span>
+          <div id="homeChallengeCard"><div id="homeChallenge"></div></div>
         </div>
       </section>
 
@@ -291,6 +268,18 @@
             <button class="btn-primary" onclick="openPlan()">Planlegg økt</button>
             <button class="btn-soft" onclick="openLibrary()">Øktmaler</button>
           </div>
+        </div>
+        <div class="card">
+          <h2 class="section-title">Ukeplan</h2>
+          <div id="homeWeekPlan"></div>
+        </div>
+        <div class="card">
+          <h2 class="section-title">Foreslå neste økt</h2>
+          <div id="homeWorkoutSuggestion"></div>
+        </div>
+        <div class="card">
+          <h2 class="section-title">Kommende økter</h2>
+          <div id="upcomingList"></div>
         </div>
       </section>
 

@@ -863,6 +863,22 @@
       gap: 10px;
     }
 
+    .challenge-mini {
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid rgba(17,17,17,0.07);
+    }
+
+    .challenge-mini-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: 6px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--black);
+    }
+
     .challenge-card {
       border: 1px solid rgba(17,17,17,0.08);
       background: #fff;
