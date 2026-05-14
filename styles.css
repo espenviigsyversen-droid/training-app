@@ -1384,6 +1384,47 @@
       font-weight: 650;
     }
 
+    .coach-basis {
+      margin-top: 10px;
+    }
+    .coach-basis summary {
+      font-size: 0.78rem;
+      color: var(--warm-gray-3);
+      cursor: pointer;
+      user-select: none;
+      list-style: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .coach-basis summary::-webkit-details-marker { display: none; }
+    .coach-basis summary::before {
+      content: '?';
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      border: 1.5px solid var(--warm-gray-3);
+      font-size: 0.68rem;
+      font-weight: 800;
+      line-height: 1;
+      flex-shrink: 0;
+    }
+    .coach-basis[open] summary { color: var(--black); }
+    .coach-basis[open] summary::before {
+      background: var(--black);
+      color: #fff;
+      border-color: var(--black);
+    }
+    .coach-basis p {
+      margin: 6px 0 0;
+      font-size: 0.8rem;
+      color: var(--warm-gray-3);
+      line-height: 1.55;
+    }
+
     .suggestion-card {
       border: 1px solid rgba(255,79,46,0.22);
       border-radius: 16px;

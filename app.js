@@ -4,7 +4,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     import { getFirestore, doc, collection, getDoc, getDocs, setDoc, deleteDoc, writeBatch, enableIndexedDbPersistence }
       from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
-    const APP_VERSION = 'v74';
+    const APP_VERSION = 'v75';
 
     const firebaseConfig = {
       apiKey: "AIzaSyAMPfQ9gX9rbuvcPsVjYVtq5IT_orjDBPs",
@@ -3637,7 +3637,9 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       document.getElementById('homeWeekNote').textContent = weekSummary.sessions >= goals.weeklySessionsTarget
         ? 'Ukesmålet er nådd. Videre trening bør styres av overskudd og dagsform.'
         : `${Math.max(0, goals.weeklySessionsTarget - weekSummary.sessions)} økt${Math.max(0, goals.weeklySessionsTarget - weekSummary.sessions) === 1 ? '' : 'er'} igjen til ukesmålet.`;
-      document.getElementById('homeCoachNote').textContent = buildCoachNote(weekSummary, goals, last14Days, profile);
+      const coachCtx = buildCoachContext();
+      document.getElementById('homeCoachNote').textContent = buildCoachNote(coachCtx);
+      document.getElementById('homeCoachBasis').textContent = buildCoachBasis(coachCtx).join(' · ');
       renderWeekPlan(today, weekSummary, weekItems, last14Days, profile, goals, plannedActive);
       renderWorkoutSuggestion(today, weekSummary, weekItems, last14Days, profile);
     }
@@ -4531,46 +4533,181 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       document.getElementById('insightIntensityNote').textContent = '';
     }
 
-    function buildCoachNote(weekSummary, goals, last14Days, profile) {
-      const latest = latestCompletedWorkout(state.completed.filter(c => c.date <= todayISO()));
-      const latestNote = lastWorkoutCoachNote(latest, profile);
-      if (latestNote) return latestNote;
+    function buildCoachContext() {
+      const today = todayISO();
+      const personProfile = normalizePersonProfile(state.settings.personProfile);
+      const trainingProfile = normalizeTrainingProfile(state.settings.trainingProfile);
+      const goals = normalizeGoals(state.settings.goals);
 
-      const bodyState = bodySignalState(last14Days);
-      const hardItems = last14Days.filter(isHardWorkout);
-      const runningBakkenFocus = profile.primaryFocus === 'running' && profile.philosophy === 'bakken_threshold';
-      const strengthGrowthFocus = profile.primaryFocus === 'strength' && profile.trainingFocus === 'muscle_growth';
-      const skiTechniqueFocus = profile.primaryFocus === 'ski' && profile.trainingFocus === 'technique_skill';
-      if (bodyState.level === 'active' || bodyState.level === 'caution') {
-        return runningBakkenFocus
-          ? 'Kroppssignalet er fortsatt relevant. Med skadefri løpsprogresjon som mål bør neste økt være rolig, alternativ trening eller hvile hvis samme område fortsatt kjennes.'
-          : 'Kroppssignalet er fortsatt relevant. Hold neste økt kontrollert, og vurder alternativ trening eller hvile hvis samme område fortsatt kjennes.';
+      const weekStart = startOfWeek(today);
+      const weekEnd = addDays(weekStart, 6);
+      const last7Start = addDays(today, -6);
+      const last14Start = addDays(today, -13);
+      const last28Start = addDays(today, -27);
+
+      const completedToDate = state.completed.filter(c => c.date <= today);
+      const thisWeek = completedToDate.filter(c => c.date >= weekStart && c.date <= weekEnd);
+      const last7Days = completedToDate.filter(c => c.date >= last7Start);
+      const last14Days = completedToDate.filter(c => c.date >= last14Start);
+      const last28Days = completedToDate.filter(c => c.date >= last28Start);
+
+      function loadBreakdown(items) {
+        return items.reduce((acc, c) => {
+          const lvl = completedLoadAssessment(c).level;
+          acc[lvl] = (acc[lvl] || 0) + 1;
+          return acc;
+        }, { low: 0, moderate: 0, high: 0 });
       }
-      if (bodyState.level === 'cooling') {
-        return 'Tidligere kroppssignal er fulgt av en smertefri økt. Bygg videre kontrollert, men du trenger ikke la det styre hele treningsuken.';
+
+      const weekSummary = summarizeCompleted(thisWeek);
+      const load7 = loadBreakdown(last7Days);
+      const load14 = loadBreakdown(last14Days);
+
+      const bodySignals14 = {
+        pain: last14Days.filter(hasPainSignal).length,
+        adaptation: last14Days.filter(hasAdaptationSignal).length
+      };
+
+      let consecutiveDays = 0;
+      for (let i = 0; i < 10; i++) {
+        if (completedToDate.some(c => c.date === addDays(today, -i))) consecutiveDays++;
+        else break;
       }
-      if (strengthGrowthFocus && weekSummary.sessions >= goals.weeklySessionsTarget) {
-        return 'Du ligger godt an mot ukesmålet. Med muskelvekst som fokus blir neste steg å sikre nok restitusjon, jevn progresjon og nok energi inn, ikke bare flere økter.';
+
+      const lastWorkout = latestCompletedWorkout(completedToDate);
+      const daysSinceLast = lastWorkout
+        ? Math.round((new Date(`${today}T12:00:00`) - new Date(`${lastWorkout.date}T12:00:00`)) / 86400000)
+        : null;
+
+      const latestHrv = latestMetric('hrv7d');
+      const latestRestingHr = latestMetric('restingHeartRate7d');
+
+      const maxHR = numberOrZero(personProfile.maxHeartRate);
+      const goldenZone = maxHR ? { low: Math.round(maxHR * 0.80), high: Math.round(maxHR * 0.87), maxHR } : null;
+      const goldenZoneViolations = goldenZone
+        ? last7Days.filter(c => numberOrZero(c.avgHeartRate) > goldenZone.high).length
+        : 0;
+
+      const weekPlanRoles = trainingProfile.weekPlanRoles || [];
+      const completedRoles = new Set(
+        thisWeek.map(c => getTemplate(c.templateId).role).filter(Boolean)
+      );
+      const missingRoles = weekPlanRoles.filter(role => role && !completedRoles.has(role));
+
+      const activeChallenge = (state.challenges || []).find(ch =>
+        ch.active && (!ch.startDate || ch.startDate <= today) && (!ch.endDate || ch.endDate >= today)
+      ) || null;
+
+      const nextPlanned = [...(state.planned || [])]
+        .filter(p => p.date >= today)
+        .sort((a, b) => a.date.localeCompare(b.date))[0] || null;
+
+      const isRunningBakken = trainingProfile.primaryFocus === 'running' && trainingProfile.philosophy === 'bakken_threshold';
+      const hardCount7 = load7.high || 0;
+      const hardCount14 = load14.high || 0;
+      const easyCount14 = load14.low || 0;
+      const intensityRatio14 = last14Days.length >= 3 ? easyCount14 / last14Days.length : null;
+
+      return {
+        today, goals, trainingProfile, personProfile, isRunningBakken,
+        thisWeek, last7Days, last14Days, last28Days,
+        weekSummary, load7, load14,
+        bodySignals14, consecutiveDays, daysSinceLast, lastWorkout,
+        latestHrv, latestRestingHr,
+        goldenZone, goldenZoneViolations,
+        weekPlanRoles, completedRoles, missingRoles,
+        activeChallenge, nextPlanned,
+        hardCount7, hardCount14, easyCount14, intensityRatio14
+      };
+    }
+
+    function buildCoachNote(ctx) {
+      const { goals, trainingProfile, isRunningBakken, weekSummary, load7,
+              bodySignals14, consecutiveDays, daysSinceLast, lastWorkout,
+              goldenZone, goldenZoneViolations,
+              hardCount14, easyCount14, intensityRatio14, last14Days } = ctx;
+
+      // 1. Body signals — alltid høyeste prioritet (Bakken: body_signals_first)
+      if (bodySignals14.pain > 0 || bodySignals14.adaptation > 0) {
+        const bodyState = bodySignalState(last14Days);
+        if (bodyState.level === 'active' || bodyState.level === 'caution') {
+          return isRunningBakken
+            ? 'Kroppssignalet er fortsatt relevant. Med skadefri progresjon som mål bør neste økt være rolig, alternativ trening eller hvile.'
+            : 'Kroppssignalet er fortsatt relevant. Hold neste økt kontrollert og vurder alternativ trening eller hvile.';
+        }
+        if (bodyState.level === 'cooling') {
+          return 'Tidligere kroppssignal er fulgt av en smertefri økt. Bygg videre kontrollert, men du trenger ikke la det styre hele treningsuken.';
+        }
       }
-      if (skiTechniqueFocus && hardItems.length >= 2) {
-        return 'Du har nok hard belastning tett på teknikkfokuset. Neste skiøkt bør trolig handle om stakingsteknikk, rytme og kontrollert kapasitet.';
+
+      // 2. Mange dager på rad uten rolig økt (Bakken: recovery_is_training)
+      if (consecutiveDays >= 3 && load7.low === 0) {
+        return `${consecutiveDays} treningsdager på rad uten rolig økt. En hviledag eller lett bevegelse gir kroppen tid til å adaptere. ${coachPrincipleLine(['recovery_is_training'])}`;
       }
-      if (runningBakkenFocus && hardItems.length >= 2) {
-        return 'Du har allerede nok høy belastning i en Bakken-inspirert løpsuke. Prioriter rolig volum eller kontrollert terskel med overskudd, ikke mer hard intensitet.';
+
+      // 3. Gylne sonen brudd — rolige økter var egentlig for harde (Bakken: golden_zone)
+      if (goldenZone && goldenZoneViolations >= 2) {
+        return `Flere rolige økter siste uke hadde snittpuls over den gylne sonen (${goldenZone.low}–${goldenZone.high} bpm). Prøv å holde rolige dager virkelig rolige. ${coachPrincipleLine(['golden_zone'])}`;
       }
-      if (hardItems.length >= 3) {
-        return 'Det har vært flere harde økter tett på hverandre. For kontinuitet og skadefri progresjon kan neste økt gjerne være rolig eller restitusjon.';
+
+      // 4. Skjev intensitetsbalanse (Bakken: fresh_legs / golden_zone)
+      if (isRunningBakken && hardCount14 >= 2 && intensityRatio14 !== null && intensityRatio14 < 0.4) {
+        return `Intensitetsbalansen siste 2 uker er tung: ${hardCount14} harde mot ${easyCount14} rolige. Bakken-filosofien krever mer rolig volum som fundament. ${coachPrincipleLine(['golden_zone', 'fresh_legs'])}`;
+      }
+      if (!isRunningBakken && hardCount14 >= 3) {
+        return 'Flere harde økter tett på hverandre de siste 2 ukene. Neste økt kan gjerne være rolig for å sikre kontinuitet.';
+      }
+
+      // 5. Siste økt-logikk (kropp og belastning fra siste konkrete økt)
+      if (lastWorkout) {
+        const lastNote = lastWorkoutCoachNote(lastWorkout, trainingProfile);
+        if (lastNote) return lastNote;
+      }
+
+      // 6. Ukesprogrems — mål og momentum
+      if (weekSummary.sessions >= goals.weeklyStretchSessionsTarget) {
+        return 'Sterk kontinuitet denne uken. Du har nådd stretch-målet, så videre trening bør styres av overskudd og dagsform.';
       }
       if (weekSummary.sessions >= goals.weeklySessionsTarget) {
-        return weekSummary.sessions >= goals.weeklyStretchSessionsTarget
-          ? 'Sterk kontinuitet denne uken. Du har nådd stretch-målet, så videre trening bør styres av overskudd og dagsform.'
-          : 'Du er i mål med ukesmålet. En eventuell ekstra økt kan være bonus, ikke press.';
+        return 'Du er i mål med ukesmålet. En eventuell ekstra økt kan være bonus, ikke press.';
       }
       if (weekSummary.sessions > 0) {
         const remaining = Math.max(0, goals.weeklySessionsTarget - weekSummary.sessions);
         return `Du er i gang denne uken. ${remaining} økt${remaining === 1 ? '' : 'er'} igjen til ukesmålet. Velg neste økt ut fra kropp og dagsform.`;
       }
+      if (daysSinceLast !== null && daysSinceLast >= 5) {
+        return `Det er ${daysSinceLast} dager siden siste økt. Start med én gjennomførbar økt — ikke press mer inn enn kroppen er klar for.`;
+      }
       return 'Ingen økter logget denne uken ennå. Start med én gjennomførbar økt, gjerne kontrollert og realistisk.';
+    }
+
+    function buildCoachBasis(ctx) {
+      const { last14Days, load14, bodySignals14, consecutiveDays, daysSinceLast,
+              goldenZone, goldenZoneViolations, latestHrv, latestRestingHr } = ctx;
+      const parts = [];
+      const total14 = last14Days.length;
+      if (total14 > 0) {
+        parts.push(`${total14} økt${total14 === 1 ? '' : 'er'} siste 14 dager (${load14.high || 0} hard, ${load14.low || 0} rolig)`);
+      }
+      if (bodySignals14.pain > 0 || bodySignals14.adaptation > 0) {
+        const sigs = [
+          bodySignals14.pain ? `${bodySignals14.pain} smerte` : '',
+          bodySignals14.adaptation ? `${bodySignals14.adaptation} tilpasning` : ''
+        ].filter(Boolean).join(', ');
+        parts.push(`Kroppssignal: ${sigs}`);
+      }
+      if (consecutiveDays >= 2) {
+        parts.push(`${consecutiveDays} treningsdager på rad`);
+      } else if (daysSinceLast !== null && daysSinceLast >= 3) {
+        parts.push(`${daysSinceLast} dager siden siste økt`);
+      }
+      if (goldenZone) {
+        parts.push(`Gylne sonen: ${goldenZone.low}–${goldenZone.high} bpm${goldenZoneViolations > 0 ? ` (${goldenZoneViolations} brudd siste 7 dager)` : ''}`);
+      }
+      if (latestHrv) parts.push(`HRV: ${latestHrv.hrv7d} ms`);
+      if (latestRestingHr) parts.push(`Hvilepuls: ${latestRestingHr.restingHeartRate7d} bpm`);
+      if (!parts.length) parts.push('Ikke nok data ennå — logg noen økter for bedre innsikt');
+      return parts;
     }
 
     function renderInsights() {
@@ -4632,7 +4769,9 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       }).join('');
 
       renderWellnessInsights();
-      document.getElementById('insightCoachNote').textContent = buildCoachNote(weekSummary, goals, last14Days, profile);
+      const coachCtx = buildCoachContext();
+      document.getElementById('insightCoachNote').textContent = buildCoachNote(coachCtx);
+      document.getElementById('insightCoachBasis').textContent = buildCoachBasis(coachCtx).join(' · ');
     }
 
     // ── Render ────────────────────────────────────────────────────────────────
