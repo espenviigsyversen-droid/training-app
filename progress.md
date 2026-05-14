@@ -1,5 +1,5 @@
 # Treningsapp — progress.md
-Oppdatert: 2026-05-14 (siste endringer: v75–v80)
+Oppdatert: 2026-05-14 (siste endringer: v75–v81)
 
 ---
 
@@ -27,7 +27,7 @@ Standard Bakken-uke: Hoved-terskel → Støtte-terskel → Lang rolig → Valgfr
 **Hosting:** GitHub Pages.  
 **Backend:** Firebase (prosjekt `home-tasks-app-18de3`) — Firestore + Google Auth.  
 **Frontend:** Vanilla JS + HTML + CSS, single-page app, tab-navigasjon.  
-**Versjon:** v80 (konstant i `app.js`).
+**Versjon:** v81 (konstant i `app.js`).
 
 ### Filer
 
@@ -63,6 +63,7 @@ Treningsapp/
 - **Strukturert smertelokasjon** (v77): Fritekstfeltet for område erstattet med dropdown (kroppsdel + side). Konstanter `PAIN_AREA_REGIONS`/`PAIN_AREA_SIDES` + `formatAreaLabel()`. Lagrer `areaRegion`, `areaSide` og beregnet `area`-streng i Firestore. Eksisterende data beholdes uendret (bakoverkompatibelt).
 - **Gylne sone i UI** (v78): `goldenZonePercentages(level)` kalibrerer sonen etter treningsnivå (beginner/building: 77–84 %, intermediate: 78–85 %, experienced: 80–87 %). Snittpuls i detaljvisning viser "gylne sone ✓ / over / under". Loggmodalen viser sonen som hint under pulsfeltene.
 - **Trafikklymodell** (v79): Daglig beredskaps-sjekk på Hjem-fanen. Tre spørsmål: søvn (1–5), energi (1–5), valgfri hvile-HF. Output: grønn / gul / rød med anbefalt tiltak. Lagres i localStorage per dato. Rød overstyrer coach-noten til hvile-råd. Gul gir myk advarsel. Grunnlaget viser dagsform-nivå i "?"-detaljer. `TRAFFIC_LIGHT_CONFIG`, `assessTrafficLight()`, `loadDailyReadiness()`, `saveDailyReadiness()`, `renderTrafficLight()` lagt til.
+- **Bakken-mønstre i Innsikt** (v81): Nytt «Bakken-mønstre»-kort øverst i Innsikt-fanen. Fire mønstre siste 30 dager med grønn/gul/rød/nøytral indikator: (1) Rolig:terskel-ratio (mål ≥ 3:1), (2) Rolige dager er faktisk rolige (avgHeartRate mot gylne sone), (3) RPE på rolige dager (bør ikke være ≥ 7), (4) Ukentlig konsistens siste 4 uker. Viser «ikke nok data»-melding ved for lite historikk. `buildBakkenPatterns()` + `renderBakkenPatterns()`.
 - **Trappetest + HR-baseline** (v80): Trappetest (Bakken: «kan du gå i trapp uten å bli andpusten?») lagt til som valgfritt ja/nei-spørsmål i dagsform-skjemaet. «Nei» → rød uansett øvrige scores, med begrunnelse «trappetest sviktet» i coach-noten. Hvile-HF-feltet vises kun om brukeren har en baseline i Helse-loggen; ellers forklaringstekst. Trapp-resultat vises i «?»-grunnlaget.
 
 ---
@@ -74,7 +75,7 @@ Treningsapp/
 | **1. Trafikklymodell** | Daglig beredskaps-sjekk (søvn/energi/hvile-HF) → grønn/gul/rød på Dashboard | Bygget (v79) |
 | **2. Den gylne sonen** | Nivåkalibrert, vist i loggmodal og detaljvisning | Bygget (v78) |
 | **3. Coach-note** | Kjører ekte logikk via `buildCoachContext` + `buildCoachNote` | Bygget (v75) |
-| **4. Innsikt = mønstre** | Siden viser statistikk, ikke Bakken-stil mønsterspørsmål | Delvis |
+| **4. Innsikt = mønstre** | «Bakken-mønstre»-kort i Innsikt med 4 mønstre siste 30 dager | Bygget (v81) |
 | **5. Interval-struktur** | Ingen støtte for 45/15-sett, arbeid/hvile-felter | Ikke bygget |
 | **6. AI-integrasjon** | Ingen faktisk Claude API-kall | Ikke bygget |
 | **7. Gradert smerte** | Smerte vurderes nå etter alvorlighetsgrad med forfallslogikk | Bygget (v76) |
@@ -84,13 +85,7 @@ Treningsapp/
 
 ## Neste steg (prioritert)
 
-### 1. Innsikt: mønstre, ikke statistikk
-Legg til Bakken-stil mønsterspørsmål basert på siste 30 dager:
-- «Er rolige dager faktisk rolige? (snittpuls < 75 % av maks)»
-- «Er forholdet rolig:terskel ≥ 3:1?»
-- «Følger RPE og HRV hverandre? (indikerer god adaptasjon)»
-
-### 4. AI-integrasjon
+### 1. AI-integrasjon
 Lag en «Spør coachen»-funksjon:
 - Send siste 14 dager komprimert treningshistorikk + `coach-rammeverk.md` som system-prompt til Claude API
 - Vis svaret i Innsikt-fanen

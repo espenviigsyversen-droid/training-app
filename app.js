@@ -4,7 +4,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     import { getFirestore, doc, collection, getDoc, getDocs, setDoc, deleteDoc, writeBatch, enableIndexedDbPersistence }
       from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
-    const APP_VERSION = 'v80';
+    const APP_VERSION = 'v81';
 
     const firebaseConfig = {
       apiKey: "AIzaSyAMPfQ9gX9rbuvcPsVjYVtq5IT_orjDBPs",
@@ -5005,6 +5005,91 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       return parts;
     }
 
+    // ── Bakken-mønstre ────────────────────────────────────────────────────────
+
+    function buildBakkenPatterns(today, profile, goals) {
+      const start30 = addDays(today, -29);
+      const items30 = state.completed.filter(c => c.date >= start30 && c.date <= today);
+      const weekStart = startOfWeek(today);
+      const maxHR = Number(profile.maxHeartRate) || 0;
+      const { lowPct, highPct } = goldenZonePercentages(profile.level);
+      const patterns = [];
+
+      // 1. Rolig:terskel-ratio (Bakken: ≥ 3 rolige per harde økt)
+      const hardItems = items30.filter(c => isHardWorkout(c));
+      const easyItems = items30.filter(c => !isHardWorkout(c));
+      if (items30.length >= 4) {
+        const h = hardItems.length;
+        const e = easyItems.length;
+        if (h === 0) {
+          patterns.push({ status: 'green', label: 'Rolig:terskel-ratio', detail: `${e} rolige, ingen harde — godt volum-fundament` });
+        } else {
+          const ratio = e / h;
+          const status = ratio >= 3 ? 'green' : ratio >= 2 ? 'yellow' : 'red';
+          patterns.push({ status, label: 'Rolig:terskel-ratio', detail: `${e} rolige : ${h} harde (${ratio.toFixed(1)}:1, mål ≥ 3:1)` });
+        }
+      } else {
+        patterns.push({ status: 'neutral', label: 'Rolig:terskel-ratio', detail: 'Trenger minst 4 økter de siste 30 dagene' });
+      }
+
+      // 2. Er rolige dager faktisk rolige? (avgHeartRate mot gylne sone)
+      if (maxHR > 0) {
+        const zoneHigh = Math.round(highPct * maxHR);
+        const easyWithHr = easyItems.filter(c => Number(c.avgHeartRate) > 0);
+        if (easyWithHr.length >= 3) {
+          const overZone = easyWithHr.filter(c => Number(c.avgHeartRate) > zoneHigh).length;
+          const status = overZone === 0 ? 'green' : overZone <= Math.ceil(easyWithHr.length * 0.25) ? 'yellow' : 'red';
+          const detail = overZone === 0
+            ? `Alle ${easyWithHr.length} rolige økter holdt seg under gylne sone (≤ ${zoneHigh} bpm)`
+            : `${overZone} av ${easyWithHr.length} rolige økter var over gylne sone (> ${zoneHigh} bpm)`;
+          patterns.push({ status, label: 'Rolige dager er rolige', detail });
+        } else {
+          patterns.push({ status: 'neutral', label: 'Rolige dager er rolige', detail: 'Logg snittpuls på flere rolige økter for å se dette mønsteret' });
+        }
+      }
+
+      // 3. RPE på rolige dager (bør ikke være ≥ 7)
+      const easyWithRpe = easyItems.filter(c => Number(c.rpe) > 0);
+      if (easyWithRpe.length >= 3) {
+        const hardRpe = easyWithRpe.filter(c => Number(c.rpe) >= 7).length;
+        const status = hardRpe === 0 ? 'green' : hardRpe === 1 ? 'yellow' : 'red';
+        const detail = hardRpe === 0
+          ? `Ingen rolige økter med RPE ≥ 7 — bra`
+          : `${hardRpe} av ${easyWithRpe.length} rolige økter hadde RPE ≥ 7`;
+        patterns.push({ status, label: 'RPE på rolige dager', detail });
+      } else {
+        patterns.push({ status: 'neutral', label: 'RPE på rolige dager', detail: 'Logg RPE på flere rolige økter for å se dette mønsteret' });
+      }
+
+      // 4. Ukentlig konsistens siste 4 uker
+      const recentWeeks = recentWeekSummaries(weekStart, 4);
+      const metGoal = recentWeeks.filter(w => w.summary.sessions >= goals.weeklySessionsTarget).length;
+      const total = recentWeeks.length;
+      if (total >= 2) {
+        const status = metGoal >= 3 ? 'green' : metGoal >= 2 ? 'yellow' : 'red';
+        patterns.push({ status, label: 'Ukentlig konsistens', detail: `${metGoal} av ${total} uker nådde ukesmålet (${goals.weeklySessionsTarget} økter)` });
+      }
+
+      return patterns;
+    }
+
+    function renderBakkenPatterns() {
+      const container = document.getElementById('insightPatterns');
+      if (!container) return;
+      const today = todayISO();
+      const profile = normalizeTrainingProfile(state.settings.trainingProfile);
+      const goals = normalizeGoals(state.settings.goals);
+      const patterns = buildBakkenPatterns(today, profile, goals);
+      container.innerHTML = patterns.map(p => `
+        <div class="pattern-item">
+          <span class="pattern-dot ${p.status}"></span>
+          <div class="pattern-text">
+            <strong>${escapeHtml(p.label)}</strong>
+            <span class="small-note">${escapeHtml(p.detail)}</span>
+          </div>
+        </div>`).join('');
+    }
+
     function renderInsights() {
       const today = todayISO();
       const goals = normalizeGoals(state.settings.goals);
@@ -5063,6 +5148,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
           </div>`;
       }).join('');
 
+      renderBakkenPatterns();
       renderWellnessInsights();
       const coachCtx = buildCoachContext();
       document.getElementById('insightCoachNote').textContent = buildCoachNote(coachCtx);
