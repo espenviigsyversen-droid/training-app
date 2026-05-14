@@ -239,13 +239,12 @@
               </div>
               <div>
                 <label>Unngå når</label>
-                <select id="templateAvoidWhen">
-                  <option value="">Ikke satt</option>
-                  <option value="pain">Smerte / skadefølelse</option>
-                  <option value="heavy_legs">Tunge bein</option>
-                  <option value="many_hard">Mye hard belastning</option>
-                  <option value="low_hrv">Lav HRV / dårlig form</option>
-                </select>
+                <div id="templateAvoidWhen" class="checkbox-grid">
+                  <label class="checkbox-option"><input type="checkbox" value="pain" /> Smerte / skadefølelse</label>
+                  <label class="checkbox-option"><input type="checkbox" value="heavy_legs" /> Tunge bein</label>
+                  <label class="checkbox-option"><input type="checkbox" value="many_hard" /> Mye hard belastning</label>
+                  <label class="checkbox-option"><input type="checkbox" value="low_hrv" /> Lav HRV / dårlig form</label>
+                </div>
               </div>
             </div>
             <div><label>Struktur / øvelser</label><textarea id="templateStructure" placeholder="Eksempel: 10 min oppvarming&#10;6 x 6 min terskel&#10;90 sek pause&#10;10 min nedjogg"></textarea></div>

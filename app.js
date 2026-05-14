@@ -4,7 +4,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     import { getFirestore, doc, collection, getDoc, getDocs, setDoc, deleteDoc, writeBatch, enableIndexedDbPersistence }
       from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
-    const APP_VERSION = 'v81';
+    const APP_VERSION = 'v83';
 
     const firebaseConfig = {
       apiKey: "AIzaSyAMPfQ9gX9rbuvcPsVjYVtq5IT_orjDBPs",
@@ -411,7 +411,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         purpose: 'recovery',
         load: 'low',
         recommendedWhen: ['normal', 'tired', 'pain_adaptation'],
-        avoidWhen: '',
+        avoidWhen: [],
         structure: '25-40 min veldig rolig løp\nHold hele økten under ca. 70 % av makspuls\nSkal føles lett og gi bedre bein etterpå'
       },
       {
@@ -422,7 +422,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         purpose: 'base',
         load: 'low',
         recommendedWhen: ['normal', 'fresh_legs'],
-        avoidWhen: 'pain',
+        avoidWhen: ['pain'],
         structure: '60-75 min rolig løp\nHold igjen, gjerne under ca. 70 % av makspuls\nMålet er aerob base og lave skuldre'
       },
       {
@@ -433,7 +433,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         purpose: 'recovery',
         load: 'low',
         recommendedWhen: ['tired', 'after_hard', 'pain_adaptation'],
-        avoidWhen: '',
+        avoidWhen: [],
         structure: '30-60 min rolig gåtur\nBrukes for sirkulasjon, kontinuitet og lav belastning\nIkke ment som full løpsspesifikk stimulus alene'
       },
       {
@@ -444,7 +444,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         purpose: 'threshold',
         load: 'moderate',
         recommendedWhen: ['fresh_legs', 'normal'],
-        avoidWhen: 'pain',
+        avoidWhen: ['pain'],
         structure: '10-15 min oppvarming\n6 x 6 min kontrollert terskel\n1 min rolig jogg/gange pause\n5-10 min nedjogg\nStart litt forsiktig og hold igjen'
       },
       {
@@ -455,7 +455,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         purpose: 'threshold',
         load: 'moderate',
         recommendedWhen: ['fresh_legs'],
-        avoidWhen: 'heavy_legs',
+        avoidWhen: ['heavy_legs'],
         structure: '10-15 min oppvarming\n4 x 10 min kontrollert terskel\n90 sek rolig pause\n5-10 min nedjogg\nBrukes når kroppen tåler litt lengre drag'
       },
       {
@@ -466,7 +466,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         purpose: 'threshold',
         load: 'moderate',
         recommendedWhen: ['normal', 'fresh_legs'],
-        avoidWhen: 'many_hard',
+        avoidWhen: ['many_hard'],
         structure: '10-15 min oppvarming\n5 x 5 min terskel\n90 sek pause\nProgressivt fra litt under terskel til kontrollert terskel\n5-10 min nedjogg'
       },
       {
@@ -477,7 +477,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         purpose: 'threshold',
         load: 'moderate',
         recommendedWhen: ['normal', 'fresh_legs'],
-        avoidWhen: 'pain',
+        avoidWhen: ['pain'],
         structure: '10-15 min oppvarming\n10 x 3 min kontrollert terskel\n1 min rolig pause\n5-10 min nedjogg\nKortere drag med god kontroll'
       },
       {
@@ -488,7 +488,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         purpose: 'threshold',
         load: 'moderate',
         recommendedWhen: ['normal', 'fresh_legs'],
-        avoidWhen: 'heavy_legs',
+        avoidWhen: ['heavy_legs'],
         structure: '10-15 min oppvarming\n12 x 2 min kontrollert terskel\n45-60 sek pause\n5-10 min nedjogg\nFin når du vil ha kvalitet uten for lange drag'
       },
       {
@@ -499,7 +499,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         purpose: 'threshold',
         load: 'moderate',
         recommendedWhen: ['normal', 'fresh_legs'],
-        avoidWhen: 'many_hard',
+        avoidWhen: ['many_hard'],
         structure: '10-15 min oppvarming\n15-25 x 45 sek kontrollert terskel / 15 sek rolig\n5-10 min nedjogg\nSkal være rytmisk, ikke sprint'
       },
       {
@@ -510,7 +510,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         purpose: 'threshold',
         load: 'moderate',
         recommendedWhen: ['normal'],
-        avoidWhen: 'pain',
+        avoidWhen: ['pain'],
         structure: '10-15 min oppvarming\n30 x 1 min terskel\n30-45 sek rolig pause\n5-10 min nedjogg\nMye kontrollert terskeltid med korte drag'
       },
       {
@@ -521,7 +521,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         purpose: 'threshold',
         load: 'moderate',
         recommendedWhen: ['fresh_legs', 'bonus'],
-        avoidWhen: 'many_hard',
+        avoidWhen: ['many_hard'],
         structure: '10-15 min oppvarming\n3-6-9-6-3 min kontrollert terskel\n90 sek rolig pause\nValgfritt 5 x 20/20 lett og kontrollert til slutt\n5-10 min nedjogg'
       },
       {
@@ -532,7 +532,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         purpose: 'threshold',
         load: 'moderate',
         recommendedWhen: ['fresh_legs', 'bonus'],
-        avoidWhen: 'heavy_legs',
+        avoidWhen: ['heavy_legs'],
         structure: '10-15 min oppvarming\n10-8-6-4-2-1 min kontrollert terskel\n1-2 min rolig pause\nLitt raskere på kortere drag, men fortsatt kontroll\n5-10 min nedjogg'
       },
       {
@@ -543,7 +543,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         purpose: 'threshold',
         load: 'moderate',
         recommendedWhen: ['normal', 'bonus'],
-        avoidWhen: 'pain',
+        avoidWhen: ['pain'],
         structure: '10-15 min rolig\n8-12 x 1 min kontrollert fart / 1 min rolig\n10 min rolig\nFokus på flyt, ikke maksimal fart'
       },
       {
@@ -554,7 +554,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         purpose: 'technique',
         load: 'moderate',
         recommendedWhen: ['fresh_legs', 'bonus'],
-        avoidWhen: 'pain',
+        avoidWhen: ['pain'],
         structure: '10-15 min oppvarming\n8-10 x 45-60 sek kontrollert motbakke\nGå/jogg rolig ned som pause\n5-10 min nedjogg\nKun når legg/fot kjennes bra'
       },
       {
@@ -565,7 +565,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         purpose: 'strength',
         load: 'low',
         recommendedWhen: ['normal', 'bonus'],
-        avoidWhen: 'heavy_legs',
+        avoidWhen: ['heavy_legs'],
         structure: '30-45 min styrke\nHold igjen på bein hvis løpskvalitet kommer snart\nFokus på stabilitet, kontroll og skadeforebygging'
       },
       {
@@ -576,7 +576,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         purpose: 'mobility',
         load: 'low',
         recommendedWhen: ['tired', 'after_hard', 'pain_adaptation'],
-        avoidWhen: '',
+        avoidWhen: [],
         structure: '20-40 min rolig mobilitet eller yoga\nFokus på hofter, legger, bakside lår og pust\nSkal kjennes bedre etterpå enn før'
       }
     ];
@@ -1127,7 +1127,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         purpose: document.getElementById('templatePurpose').value,
         load: document.getElementById('templateLoad').value,
         recommendedWhen: getCheckedValues('templateRecommendedWhen'),
-        avoidWhen: document.getElementById('templateAvoidWhen').value,
+        avoidWhen: getCheckedValues('templateAvoidWhen'),
         structure: document.getElementById('templateStructure').value.trim()
       };
       if (editingId) {
@@ -1158,7 +1158,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       document.getElementById('templatePurpose').value = t.purpose || '';
       document.getElementById('templateLoad').value = t.load || '';
       setCheckedValues('templateRecommendedWhen', t.recommendedWhen);
-      document.getElementById('templateAvoidWhen').value = t.avoidWhen || '';
+      setCheckedValues('templateAvoidWhen', t.avoidWhen);
       document.getElementById('templateStructure').value = t.structure || '';
       document.getElementById('templateSubmitBtn').textContent = 'Lagre endringer';
       document.getElementById('cancelEditTemplateBtn').classList.remove('hidden');
@@ -1174,7 +1174,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       document.getElementById('templatePurpose').value = '';
       document.getElementById('templateLoad').value = '';
       setCheckedValues('templateRecommendedWhen', []);
-      document.getElementById('templateAvoidWhen').value = '';
+      setCheckedValues('templateAvoidWhen', []);
       document.getElementById('templateStructure').value = '';
       document.getElementById('templateSubmitBtn').textContent = 'Lagre øktmal';
       document.getElementById('cancelEditTemplateBtn').classList.add('hidden');
@@ -2260,7 +2260,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
 
     // ── Render helpers ────────────────────────────────────────────────────────
     function getTemplate(id) {
-      return state.templates.find(t => t.id === id) || { name: 'Slettet øktmal', type: 'Annet', intensity: '', role: '', purpose: '', load: '', recommendedWhen: '', avoidWhen: '', structure: '' };
+      return state.templates.find(t => t.id === id) || { name: 'Slettet øktmal', type: 'Annet', intensity: '', role: '', purpose: '', load: '', recommendedWhen: [], avoidWhen: [], structure: '' };
     }
 
     function completedTemplateSnapshot(templateId, manualName) {
@@ -2443,12 +2443,13 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     }
 
     function templateAvoidWhenLabel(value) {
-      return labelFromMap(value, {
+      const map = {
         pain: 'Unngå ved smerte',
         heavy_legs: 'Unngå ved tunge bein',
         many_hard: 'Unngå ved mye hardt',
         low_hrv: 'Unngå ved lav HRV'
-      });
+      };
+      return asArray(value).map(item => labelFromMap(item, map)).filter(Boolean).join(' · ');
     }
 
     function templateSearchText(t) {
@@ -3069,7 +3070,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     }
 
     function templateMatches(template, keywords = []) {
-      const haystack = `${template.name} ${template.type} ${template.intensity} ${template.role || ''} ${templateRoleLabel(template.role)} ${template.purpose || ''} ${template.load || ''} ${asArray(template.recommendedWhen).join(' ')} ${template.avoidWhen || ''} ${template.structure}`.toLowerCase();
+      const haystack = `${template.name} ${template.type} ${template.intensity} ${template.role || ''} ${templateRoleLabel(template.role)} ${template.purpose || ''} ${template.load || ''} ${asArray(template.recommendedWhen).join(' ')} ${asArray(template.avoidWhen).join(' ')} ${template.structure}`.toLowerCase();
       return keywords.some(keyword => haystack.includes(keyword.toLowerCase()));
     }
 
@@ -3083,7 +3084,8 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       score += recommendedMatches * 4;
       if (suggestion.intensities?.includes(template.intensity)) score += 3;
       if (templateMatches(template, suggestion.keywords || [])) score += 2;
-      if (suggestion.avoidTemplateWhen?.includes(template.avoidWhen)) score -= 8;
+      const avoidMatches = asArray(template.avoidWhen).filter(a => suggestion.avoidTemplateWhen?.includes(a)).length;
+      score -= avoidMatches * 8;
       return score;
     }
 
@@ -5022,14 +5024,19 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         const h = hardItems.length;
         const e = easyItems.length;
         if (h === 0) {
-          patterns.push({ status: 'green', label: 'Rolig:terskel-ratio', detail: `${e} rolige, ingen harde — godt volum-fundament` });
+          patterns.push({ status: 'green', label: 'Andel rolige økter', detail: `${e} rolige, ingen harde — godt volum-fundament` });
         } else {
           const ratio = e / h;
           const status = ratio >= 3 ? 'green' : ratio >= 2 ? 'yellow' : 'red';
-          patterns.push({ status, label: 'Rolig:terskel-ratio', detail: `${e} rolige : ${h} harde (${ratio.toFixed(1)}:1, mål ≥ 3:1)` });
+          const detail = status === 'green'
+            ? `${e} rolige, ${h} harde — bra. Bakken anbefaler minst 3 rolige per hard økt`
+            : status === 'yellow'
+            ? `${e} rolige, ${h} harde — litt skjevt. Prøv å legge inn flere rolige økter`
+            : `${h} harde, bare ${e} rolige — for mange harde. Bakken anbefaler minst 3 rolige per hard økt`;
+          patterns.push({ status, label: 'Andel rolige økter', detail });
         }
       } else {
-        patterns.push({ status: 'neutral', label: 'Rolig:terskel-ratio', detail: 'Trenger minst 4 økter de siste 30 dagene' });
+        patterns.push({ status: 'neutral', label: 'Andel rolige økter', detail: 'Trenger minst 4 økter de siste 30 dagene' });
       }
 
       // 2. Er rolige dager faktisk rolige? (avgHeartRate mot gylne sone)
