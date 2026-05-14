@@ -2180,15 +2180,30 @@
     .hidden { display: none !important; }
 
     .calendar-nav {
-      display: grid;
-      grid-template-columns: 48px 1fr 48px;
-      gap: 8px;
+      display: flex;
       align-items: center;
+      gap: 8px;
       margin-bottom: 12px;
     }
 
-    .calendar-nav button { padding: 12px 0; font-size: 1rem; }
-    .calendar-nav input[type="month"] { text-align: center; font-weight: 800; }
+    .calendar-nav button {
+      width: 44px;
+      height: 44px;
+      flex-shrink: 0;
+      padding: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.2rem;
+      line-height: 1;
+    }
+
+    .calendar-nav input[type="month"] {
+      flex: 1;
+      text-align: center;
+      font-weight: 800;
+      min-width: 0;
+    }
 
     .calendar-grid {
       display: grid;
