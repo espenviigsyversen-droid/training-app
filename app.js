@@ -4,7 +4,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     import { getFirestore, doc, collection, getDoc, getDocs, setDoc, deleteDoc, writeBatch, enableIndexedDbPersistence }
       from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
-    const APP_VERSION = 'v92';
+    const APP_VERSION = 'v93';
 
     const firebaseConfig = {
       apiKey: "AIzaSyAMPfQ9gX9rbuvcPsVjYVtq5IT_orjDBPs",
@@ -3750,13 +3750,38 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     }
 
     function weekPlanDatesInRange(rangeStart, rangeEnd, plannedItems, count) {
-      const busyDates = new Set(plannedItems.map(item => item.date));
-      const dates = [];
+      const occupiedDates = new Set(plannedItems.map(item => item.date));
+      const placed = new Set(occupiedDates);
+
+      function isAdjacentToPlaced(date) {
+        return placed.has(addDays(date, -1)) || placed.has(addDays(date, 1));
+      }
+
       const preferredOffsets = count >= 3 ? [0, 2, 4, 6, 1, 3, 5] : count === 2 ? [0, 3, 1, 4, 2, 5, 6] : [0, 1, 2, 3, 4, 5, 6];
+      const dates = [];
+
+      // First pass: respect no-consecutive-days rule (Bakken philosophy)
       preferredOffsets.forEach(offset => {
+        if (dates.length >= count) return;
         const date = addDays(rangeStart, offset);
-        if (date >= rangeStart && date <= rangeEnd && !busyDates.has(date) && !dates.includes(date)) dates.push(date);
+        if (date >= rangeStart && date <= rangeEnd && !placed.has(date) && !isAdjacentToPlaced(date)) {
+          dates.push(date);
+          placed.add(date);
+        }
       });
+
+      // Fallback: relax adjacency if no other option exists
+      if (dates.length < count) {
+        preferredOffsets.forEach(offset => {
+          if (dates.length >= count) return;
+          const date = addDays(rangeStart, offset);
+          if (date >= rangeStart && date <= rangeEnd && !placed.has(date)) {
+            dates.push(date);
+            placed.add(date);
+          }
+        });
+      }
+
       return dates.slice(0, count);
     }
 
@@ -3778,15 +3803,30 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     function weekRoleStatusHtml(coverage) {
       return `
         <div class="week-role-grid">
-          ${coverage.map(item => `
-            <div class="week-role-chip ${item.status}">
+          ${coverage.map(item => {
+            const clickable = item.status === 'missing' && item.required;
+            return `
+            <div class="week-role-chip ${item.status}${clickable ? ' clickable' : ''}"
+              ${clickable ? `onclick="planForRole('${item.role}')" title="Trykk for å planlegge ${escapeHtml(WORKOUT_ROLE_LABELS[item.role] || '')}"` : ''}>
               <span>${escapeHtml(WORKOUT_ROLE_LABELS[item.role] || 'Økt')}</span>
-              <strong>${escapeHtml(roleStatusLabel(item.status))}</strong>
+              <strong>${escapeHtml(roleStatusLabel(item.status))}${clickable ? ' →' : ''}</strong>
               <small>${escapeHtml(roleStatusMeta(item))}</small>
-            </div>
-          `).join('')}
+            </div>`;
+          }).join('')}
         </div>`;
     }
+
+    window.planForRole = function(role) {
+      const suggestion = suggestionForWorkoutRole(role);
+      const template = findSuggestedTemplate(suggestion);
+      showTab('plan');
+      const dateEl = document.getElementById('planDate');
+      if (dateEl && !dateEl.value) dateEl.value = addDays(todayISO(), 1);
+      if (template) {
+        const select = document.getElementById('planTemplate');
+        if (select) select.value = template.id;
+      }
+    };
 
     function suggestionRoleReason(suggestion, template) {
       const role = template?.role || asArray(suggestion.roles)[0] || '';
@@ -3919,6 +3959,13 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       const nextRoleSummary = missingNextRoles.length
         ? `Neste uke mangler foreløpig: ${missingNextRoles.join(', ')}.`
         : 'Neste uke dekker rollene i normaluka.';
+      const suggestedNextRoles = new Set(suggestedNextWeek.flatMap(item => asArray(item.suggestion?.roles || [])));
+      const skippedNextRoles = nextRoleCoverage
+        .filter(item => item.status === 'missing' && item.required && !suggestedNextRoles.has(item.role))
+        .map(item => WORKOUT_ROLE_LABELS[item.role]).filter(Boolean);
+      const skippedRoleNote = skippedNextRoles.length && (bodyState.level === 'cooling' || bodyState.level === 'caution')
+        ? `${skippedNextRoles.join(' og ')} er ikke foreslått denne uken fordi coachen starter rolig etter registrert kroppssignal. Trykk på "Mangler →"-chipen for å legge det inn manuelt hvis du føler deg klar.`
+        : '';
       const actionLine = suggestedItems.length
         ? `${suggestedItems.length} forslag for resten av uka`
         : remainingAfterPlanned <= 0
@@ -3964,6 +4011,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
             ${suggestedNextWeek.map((item, index) => suggestedWeekPlanItem(item.suggestion, item.template, item.date, index)).join('')}
           </div>
           ${suggestedNextWeek.length ? `<p class="week-plan-note">${escapeHtml(nextMainSuggestion.note)}</p>` : ''}
+          ${skippedRoleNote ? `<p class="week-plan-skipped-note">${escapeHtml(skippedRoleNote)}</p>` : ''}
           <div class="button-row">
             ${suggestedNextWeek.some(item => item.template) ? `<button class="btn-primary" onclick="planWeekSuggestions('next')">Legg inn neste uke</button>` : ''}
             <button class="btn-soft" onclick="openPlan('${nextWeekDates[0] || nextWeekStart}')">Planlegg selv</button>

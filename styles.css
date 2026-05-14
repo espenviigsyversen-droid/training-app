@@ -1845,6 +1845,20 @@
       background: rgba(225,29,72,0.05);
     }
 
+    .week-role-chip.missing.clickable {
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s;
+    }
+
+    .week-role-chip.missing.clickable:hover {
+      background: rgba(225,29,72,0.12);
+      border-color: rgba(225,29,72,0.35);
+    }
+
+    .week-role-chip.missing.clickable:active {
+      transform: scale(0.97);
+    }
+
     .week-role-chip.optional {
       opacity: 0.78;
     }
@@ -1965,6 +1979,15 @@
       font-size: 0.82rem;
       font-weight: 700;
       margin-top: 10px;
+    }
+
+    .week-plan-skipped-note {
+      font-size: 0.82rem;
+      color: var(--warning);
+      background: rgba(217,119,6,0.08);
+      border-radius: 8px;
+      padding: 8px 10px;
+      margin-top: 8px;
     }
 
     @media (max-width: 420px) {
