@@ -4,7 +4,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     import { getFirestore, doc, collection, getDoc, getDocs, setDoc, deleteDoc, writeBatch, enableIndexedDbPersistence }
       from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
-    const APP_VERSION = 'v89';
+    const APP_VERSION = 'v90';
 
     const firebaseConfig = {
       apiKey: "AIzaSyAMPfQ9gX9rbuvcPsVjYVtq5IT_orjDBPs",
@@ -3981,7 +3981,9 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       const weekSummary = summarizeCompleted(weekItems);
       const last14Start = addDays(today, -13);
       const last14Days = state.completed.filter(c => c.date >= last14Start && c.date <= today);
-      const primaryItems = todayItems.length ? todayItems : upcomingItems.slice(0, 1);
+      const nextDate = upcomingItems[0]?.date;
+      const nextDateItems = nextDate ? upcomingItems.filter(p => p.date === nextDate) : [];
+      const primaryItems = todayItems.length ? todayItems : nextDateItems;
 
       document.getElementById('homePrimaryTitle').textContent = todayItems.length ? 'Dagens økt' : 'Neste økt';
       document.getElementById('homePrimaryWorkout').innerHTML = primaryItems.length

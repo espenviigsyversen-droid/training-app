@@ -1,5 +1,5 @@
 # Treningsapp — progress.md
-Oppdatert: 2026-05-14 (siste endringer: v75–v89)
+Oppdatert: 2026-05-14 (siste endringer: v75–v90)
 
 ---
 
@@ -27,7 +27,7 @@ Standard Bakken-uke: Hoved-terskel → Støtte-terskel → Lang rolig → Valgfr
 **Hosting:** GitHub Pages.  
 **Backend:** Firebase (prosjekt `home-tasks-app-18de3`) — Firestore + Google Auth.  
 **Frontend:** Vanilla JS + HTML + CSS, single-page app, tab-navigasjon.  
-**Versjon:** v89 (konstant i `app.js`).
+**Versjon:** v90 (konstant i `app.js`).
 
 ### Filer
 
@@ -63,6 +63,7 @@ Treningsapp/
 - **Strukturert smertelokasjon** (v77): Fritekstfeltet for område erstattet med dropdown (kroppsdel + side). Konstanter `PAIN_AREA_REGIONS`/`PAIN_AREA_SIDES` + `formatAreaLabel()`. Lagrer `areaRegion`, `areaSide` og beregnet `area`-streng i Firestore. Eksisterende data beholdes uendret (bakoverkompatibelt).
 - **Gylne sone i UI** (v78): `goldenZonePercentages(level)` kalibrerer sonen etter treningsnivå (beginner/building: 77–84 %, intermediate: 78–85 %, experienced: 80–87 %). Snittpuls i detaljvisning viser "gylne sone ✓ / over / under". Loggmodalen viser sonen som hint under pulsfeltene.
 - **Trafikklymodell** (v79): Daglig beredskaps-sjekk på Hjem-fanen. Tre spørsmål: søvn (1–5), energi (1–5), valgfri hvile-HF. Output: grønn / gul / rød med anbefalt tiltak. Lagres i localStorage per dato. Rød overstyrer coach-noten til hvile-råd. Gul gir myk advarsel. Grunnlaget viser dagsform-nivå i "?"-detaljer. `TRAFFIC_LIGHT_CONFIG`, `assessTrafficLight()`, `loadDailyReadiness()`, `saveDailyReadiness()`, `renderTrafficLight()` lagt til.
+- **Hjem: alle økter samme dag** (v90): «Neste økt» / «Dagens økt» viser nå alle planlagte økter på samme dato, ikke bare én. For fremtidige dager grupperes etter første kommende dato (`nextDateItems`). Tittelen skifter til «Dagens økt» automatisk når det finnes økter på dagens dato (eksisterende logikk).
 - **Kalender overflow med øktdata** (v89): Overflow-celler viser nå faktiske økter — forrige måneds datoer viser utførte økter (grønt), neste måneds datoer viser planlagte (oransje). Cellene er klikkbare og åpner dagsmodal. Opacity 0.4 for tydelig visuell distinksjon fra inneværende måned.
 - **Kalender overflow-datoer** (v88): Tomme celler i starten og slutten av månedsgridet viser nå nabomånedenes datoer med redusert opacity. Gir visuell kontekst for hvilken ukedag måneden starter på.
 - **Kalender nav-fix** (v88): `.calendar-nav` konvertert fra CSS grid til flexbox med eksplisitt `height: 44px` på knappene. Piler er nå korrekt vertikalt sentrert i forhold til månedsfeltet på iOS Safari.
