@@ -4,7 +4,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     import { getFirestore, doc, collection, getDoc, getDocs, setDoc, deleteDoc, writeBatch, enableIndexedDbPersistence }
       from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
-    const APP_VERSION = 'v88';
+    const APP_VERSION = 'v89';
 
     const firebaseConfig = {
       apiKey: "AIzaSyAMPfQ9gX9rbuvcPsVjYVtq5IT_orjDBPs",
@@ -2778,8 +2778,27 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
 
       const startOffset = (firstDay.getDay() + 6) % 7;
       const prevMonthLastDay = new Date(year, month - 1, 0).getDate();
+      const prevYear = month === 1 ? year - 1 : year;
+      const prevMonthNum = month === 1 ? 12 : month - 1;
       for (let i = startOffset - 1; i >= 0; i--) {
-        html += `<div class="calendar-day calendar-day-overflow"><div class="calendar-date">${prevMonthLastDay - i}</div></div>`;
+        const prevDay = prevMonthLastDay - i;
+        const dateIso = `${prevYear}-${String(prevMonthNum).padStart(2,'0')}-${String(prevDay).padStart(2,'0')}`;
+        const doneItems = state.completed.filter(c => c.date === dateIso).map(c => {
+          const t = completedTemplate(c);
+          return { status: 'done', name: t.name, shortLabel: shortCalendarLabel(t) };
+        });
+        const visibleItems = doneItems.slice(0, 2);
+        const hiddenCount = doneItems.length - visibleItems.length;
+        html += `
+          <div class="calendar-day calendar-day-overflow" onclick="openCalendarDayModal('${dateIso}')">
+            <div class="calendar-date">${prevDay}</div>
+            ${visibleItems.map(item => `
+              <div class="calendar-entry ${item.status}" title="${escapeHtml(item.name)}">
+                <span class="calendar-entry-short">${escapeHtml(item.shortLabel)}</span>
+                <span class="calendar-entry-full">${escapeHtml(item.name)}</span>
+              </div>`).join('')}
+            ${hiddenCount > 0 ? `<div class="calendar-entry calendar-more">+${hiddenCount} flere</div>` : ''}
+          </div>`;
       }
 
       for (let day = 1; day <= lastDay.getDate(); day++) {
@@ -2813,8 +2832,26 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
 
       const totalCells = startOffset + lastDay.getDate();
       const trailingCells = (7 - (totalCells % 7)) % 7;
+      const nextYear = month === 12 ? year + 1 : year;
+      const nextMonthNum = month === 12 ? 1 : month + 1;
       for (let i = 1; i <= trailingCells; i++) {
-        html += `<div class="calendar-day calendar-day-overflow"><div class="calendar-date">${i}</div></div>`;
+        const dateIso = `${nextYear}-${String(nextMonthNum).padStart(2,'0')}-${String(i).padStart(2,'0')}`;
+        const plannedItems = state.planned.filter(p => p.date === dateIso && p.status !== 'done').map(p => {
+          const t = getTemplate(p.templateId);
+          return { status: 'planned', name: t.name, shortLabel: shortCalendarLabel(t) };
+        });
+        const visibleItems = plannedItems.slice(0, 2);
+        const hiddenCount = plannedItems.length - visibleItems.length;
+        html += `
+          <div class="calendar-day calendar-day-overflow" onclick="openCalendarDayModal('${dateIso}')">
+            <div class="calendar-date">${i}</div>
+            ${visibleItems.map(item => `
+              <div class="calendar-entry ${item.status}" title="${escapeHtml(item.name)}">
+                <span class="calendar-entry-short">${escapeHtml(item.shortLabel)}</span>
+                <span class="calendar-entry-full">${escapeHtml(item.name)}</span>
+              </div>`).join('')}
+            ${hiddenCount > 0 ? `<div class="calendar-entry calendar-more">+${hiddenCount} flere</div>` : ''}
+          </div>`;
       }
 
       html += '</div>';

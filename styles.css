@@ -2258,8 +2258,7 @@
     .calendar-entry.done { color: var(--success); }
 
     .calendar-day-overflow {
-      opacity: 0.28;
-      pointer-events: none;
+      opacity: 0.4;
     }
     .calendar-more { color: var(--warm-gray-3); font-weight: 800; }
     .calendar-entry-short { display: none; }
