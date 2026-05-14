@@ -4,7 +4,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     import { getFirestore, doc, collection, getDoc, getDocs, setDoc, deleteDoc, writeBatch, enableIndexedDbPersistence }
       from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
-    const APP_VERSION = 'v90';
+    const APP_VERSION = 'v91';
 
     const firebaseConfig = {
       apiKey: "AIzaSyAMPfQ9gX9rbuvcPsVjYVtq5IT_orjDBPs",
@@ -2001,13 +2001,17 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       const worseningPain = painAfter >= 4 || painAfter > painBefore + 1;
       const repeatedSameArea = sameAreaSignals >= 2 && cleanAfter.length < 2;
 
+      const maxPainScore = Math.max(painBefore, painAfter);
+      const isMildPain = maxPainScore <= 2 && !repeatedSameArea;
+
       let level = 'resolved';
       if (latestHasSignal && worseningPain) level = 'active';
+      else if (latestHasSignal && isMildPain) level = 'cooling';
       else if (latestHasSignal || repeatedSameArea) level = 'caution';
       else if (cleanAfter.length >= 2) level = 'resolved';
       else if (cleanAfter.length === 1) level = 'cooling';
 
-      return { level, signalItems, cleanAfter, latest, latestSignal, painBefore, painAfter, area, repeatedSameArea };
+      return { level, signalItems, cleanAfter, latest, latestSignal, painBefore, painAfter, maxPainScore, area, repeatedSameArea };
     }
 
     function weeklyBodySignalNote(items) {
@@ -3320,11 +3324,18 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
             note: 'Foreslått fordi du allerede har nok høy belastning eller mangler rolig støtte rundt kvaliteten.'
           }, ['easy_support', 'fresh_legs']);
         }
-        if (weekSummary.sessions === 0 || (low >= 1 && high === 0 && weekSummary.sessions < 2)) {
+        const canSuggestThreshold = profile.priority === 'performance'
+          ? high === 0
+          : profile.priority === 'injury_free_progression'
+            ? weekSummary.sessions === 0 || (low >= 2 && high === 0)
+            : weekSummary.sessions === 0 || (low >= 1 && high === 0 && weekSummary.sessions < 2);
+        if (canSuggestThreshold) {
           return withCoachPrinciples({
             title: 'Kontrollert terskeløkt',
             detail: 'Hold deg kontrollert under maks press. Målet er kvalitet med friske bein, ikke å vinne økten.',
-            note: 'Foreslått fordi profilen din er Bakken-inspirert løping og uken tåler én kontrollert kvalitetsøkt.',
+            note: profile.priority === 'performance'
+              ? 'Foreslått fordi prestasjonsprofilen din prioriterer kvalitetsøkter når belastningsrommet er der.'
+              : 'Foreslått fordi profilen din er Bakken-inspirert løping og uken tåler én kontrollert kvalitetsøkt.',
             principleIds: ['controlled_threshold', 'golden_zone'],
             types: ['Løping'],
             intensities: ['Terskel', 'Tempo'],
@@ -3610,10 +3621,20 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       const missingRoles = missingRoleOrder(profile, goals, completedItems, plannedItems);
 
       if (bodyState.level === 'cooling') {
+        if (profile.priority === 'injury_free_progression') {
+          const safeRoles = missingRoles.filter(role => ['long_easy', 'recovery', 'mobility'].includes(role));
+          return [
+            longEasySuggestion('Lav smerte registrert. Start rolig og bekreft at kroppen svarer fint.'),
+            ...safeRoles.map(role => suggestionForWorkoutRole(role)),
+            gentleBaseSuggestion('Rolig støtte. Legg terskel neste gang kroppen kjennes frisk.'),
+            xWorkoutSuggestion('Bonus hvis beina er friske — men lett er bedre enn hard.')
+          ].slice(0, target);
+        }
         const afterEasy = missingRoles.filter(role => role !== 'long_easy').map(role => suggestionForWorkoutRole(role));
         return [
           longEasySuggestion('Siste signal virker på vei ned. Start med rolig base og se at kroppen svarer fint.'),
           ...afterEasy,
+          xWorkoutSuggestion('X-økt hvis beina er friske etter terskel.'),
           gentleBaseSuggestion('Rolig støtte rundt kvaliteten.')
         ].slice(0, target);
       }
@@ -3637,7 +3658,14 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         usedRoles.add(role);
         return true;
       });
-      return [...suggestions, ...fallback].slice(0, target);
+      const result = [...suggestions, ...fallback].slice(0, target);
+      const hasX = result.some(s => asArray(s.roles).some(r => r === 'x_workout'));
+      if (!hasX && result.length < target) {
+        result.push(xWorkoutSuggestion('X-økt for VO2max, teknikk eller styrke — ta den hvis du har overskudd.'));
+      } else if (!hasX && target >= 4) {
+        result[target - 1] = xWorkoutSuggestion('X-økt for VO2max, teknikk eller styrke — ta den hvis du har overskudd.');
+      }
+      return result;
     }
 
     function normalWeekRoleSuggestions(profile, count) {
