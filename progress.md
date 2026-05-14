@@ -1,5 +1,5 @@
 # Treningsapp — progress.md
-Oppdatert: 2026-05-14
+Oppdatert: 2026-05-14 (siste endringer: v75–v76)
 
 ---
 
@@ -27,7 +27,7 @@ Standard Bakken-uke: Hoved-terskel → Støtte-terskel → Lang rolig → Valgfr
 **Hosting:** GitHub Pages.  
 **Backend:** Firebase (prosjekt `home-tasks-app-18de3`) — Firestore + Google Auth.  
 **Frontend:** Vanilla JS + HTML + CSS, single-page app, tab-navigasjon.  
-**Versjon:** v74 (konstant i `app.js`).
+**Versjon:** v76 (konstant i `app.js`).
 
 ### Filer
 
@@ -58,6 +58,8 @@ Treningsapp/
 - Coach-rammeverk-objekt med 7 Bakken-prinsipper i koden
 - Innsikt-fane med grunnleggende statistikk
 - Utfordringer/mål-modul
+- **Coach-kontekst v1** (v75): `buildCoachContext()` samler nå-bilde fra 7/14/28 dager, gylne sone, HRV, kroppssignaler, ukesroller, challenges. Coach-noten på Hjem og Innsikt kjører ekte logikk. "?"-knapp viser grunnlaget.
+- **Gradert smertevurdering** (v76): `gradedPainContext()` skiller lav/moderat/høy smerte med ulik forfallstid (3/5/7 dager). Coach-noten gir tilpasset råd per nivå. Sjekk-inn-hint vises i fullføre-modal når det er relevant aktiv smerte.
 
 ---
 
@@ -66,35 +68,36 @@ Treningsapp/
 | Gap | Beskrivelse | Status |
 |---|---|---|
 | **1. Trafikklymodell** | Ingen daglig beredskaps-sjekk før økt | Ikke bygget |
-| **2. Den gylne sonen** | Max-HF lagres i innstillinger, men sonen beregnes/vises aldri | Ikke bygget |
-| **3. Coach-note** | Dashboard-kortet er eksplisitt placeholder — ingen logikk kjører | Ikke bygget |
+| **2. Den gylne sonen** | Beregnes internt i `buildCoachContext`, brukt i coach-note og basis | Delvis (ikke vist i UI) |
+| **3. Coach-note** | Kjører ekte logikk via `buildCoachContext` + `buildCoachNote` | Bygget (v75) |
 | **4. Innsikt = mønstre** | Siden viser statistikk, ikke Bakken-stil mønsterspørsmål | Delvis |
 | **5. Interval-struktur** | Ingen støtte for 45/15-sett, arbeid/hvile-felter | Ikke bygget |
 | **6. AI-integrasjon** | Ingen faktisk Claude API-kall | Ikke bygget |
+| **7. Gradert smerte** | Smerte vurderes nå etter alvorlighetsgrad med forfallslogikk | Bygget (v76) |
 
 ---
 
 ## Neste steg (prioritert)
 
-### 1. Aktiv coach-note på Dashboard
-Fyll placeholder-kortet med faktisk logikk:
-- Hent siste 7–14 dagers `completed` + `wellness`
-- Kjør gjennom `COACH_FRAMEWORK`-reglene i `app.js`
-- Skriv én konkret setning: «Du har trent 3 dager på rad — i dag er det grønt lys for hvile eller rolig økt»
-
-### 2. Trafikklymodell — pre-økt beredskaps-sjekk
+### 1. Trafikklymodell — pre-økt beredskaps-sjekk
 Modal eller inline før økt starter:
 - Tre spørsmål: søvn (1–5), energi (1–5), hvile-HF vs. personlig snitt
 - Output: grønn / gul / rød med konsekvens (planlagt økt / reduser intensitet / hvil)
 
-### 3. Den gylne sonen i logging og innsikt
-- Beregn `goldenZoneLow = maxHR * 0.80` og `goldenZoneHigh = maxHR * 0.87`
-- Vis sonen i logg-modal og innsikt-fane
-- Marker om gjennomsnittspuls på en økt lå innenfor, under eller over sonen
+### 2. Den gylne sonen — synlig i UI
+Gylne sone beregnes allerede internt (`buildCoachContext`). Neste steg:
+- Vis sonen (f.eks. 136–149 bpm) i fullføre-modal og i historikk-kort
+- Marker om gjennomsnittspuls på en økt lå innenfor / under / over sonen
+
+### 3. Strukturert lokasjon for smerte
+Bytt ut fritekstfeltet `completePainArea` med dropdown:
+- Alternativ: fot/ankel, kne, legg/skinneben, lår/hofte, rygg, skulder/nakke, annet
+- + høyre/venstre-valg
+- Gjør at `gradedPainContext` kan sammenligne eksakt sted på tvers av økter
 
 ### 4. Innsikt: mønstre, ikke statistikk
 Legg til Bakken-stil mønsterspørsmål basert på siste 30 dager:
-- «Er rolige dager faktisk rolige? (gjennomsnittspuls < 75 % av maks)»
+- «Er rolige dager faktisk rolige? (snittpuls < 75 % av maks)»
 - «Er forholdet rolig:terskel ≥ 3:1?»
 - «Følger RPE og HRV hverandre? (indikerer god adaptasjon)»
 
@@ -103,3 +106,12 @@ Lag en «Spør coachen»-funksjon:
 - Send siste 14 dager komprimert treningshistorikk + `coach-rammeverk.md` som system-prompt til Claude API
 - Vis svaret i Innsikt-fanen
 - Kan bruke `claude-haiku-4-5` for lavere kostnad per kall
+
+---
+
+## Arbeidsnotater
+
+**Prosjektstruktur**
+- Lokal kopi — ikke et Git-repo. Filer lastes opp manuelt til GitHub Pages.
+- Filer som typisk endres per økt: `app.js`, `index.html`, `styles.css`, `service-worker.js`
+- Husk alltid å bumpe `APP_VERSION` i `app.js` og `CACHE_NAME` i `service-worker.js`
