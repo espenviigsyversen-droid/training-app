@@ -4892,6 +4892,19 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         return `Rødt lys i dag — ${reason}. Hvil eller velg en rolig alternativ økt. ${coachPrincipleLine(['recovery_is_training'])}`;
       }
 
+      // 2b. Gul dagsform — myk advarsel, men overrides kun harde råd (Bakken: trafikklymodell)
+      if (dailyReadiness?.level === 'yellow') {
+        const reason = dailyReadiness.sleep <= 3 && dailyReadiness.energy <= 3
+          ? 'søvn og energi er under par'
+          : dailyReadiness.sleep <= 3 ? 'søvnen var noe lav'
+          : 'energinivået er noe lavt';
+        const hasHardPlanned = ctx.nextPlanned?.intensity === 'hard' || ctx.nextPlanned?.type === 'threshold';
+        const extra = hasHardPlanned
+          ? ' Du har en hard økt planlagt — vurder å tone den ned eller flytte den.'
+          : ' En rolig økt eller lett bevegelse passer godt i dag.';
+        return `Gult lys i dag — ${reason}.${extra} ${coachPrincipleLine(['recovery_is_training'])}`;
+      }
+
       // 3. Mange dager på rad uten rolig økt (Bakken: recovery_is_training)
       if (consecutiveDays >= 3 && load7.low === 0) {
         return `${consecutiveDays} treningsdager på rad uten rolig økt. En hviledag eller lett bevegelse gir kroppen tid til å adaptere. ${coachPrincipleLine(['recovery_is_training'])}`;
