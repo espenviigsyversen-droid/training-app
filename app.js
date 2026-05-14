@@ -4,7 +4,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     import { getFirestore, doc, collection, getDoc, getDocs, setDoc, deleteDoc, writeBatch, enableIndexedDbPersistence }
       from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
-    const APP_VERSION = 'v75';
+    const APP_VERSION = 'v76';
 
     const firebaseConfig = {
       apiKey: "AIzaSyAMPfQ9gX9rbuvcPsVjYVtq5IT_orjDBPs",
@@ -1820,6 +1820,50 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       return Boolean(item.bodyStatus?.painBefore || item.bodyStatus?.painAfter || item.bodyStatus?.area);
     }
 
+    function gradedPainContext(completedItems, today) {
+      const sorted = sortedCompletedItems(completedItems);
+      const todayMs = new Date(`${today}T12:00:00`).getTime();
+      const DECAY_DAYS = { low: 3, moderate: 5, high: 7 };
+      const tierOrder = { high: 3, moderate: 2, low: 1 };
+
+      function painTier(score) {
+        if (score >= 5) return 'high';
+        if (score >= 3) return 'moderate';
+        if (score >= 1) return 'low';
+        return null;
+      }
+
+      const painItems = sorted.filter(hasPainSignal);
+      if (!painItems.length) return { activePain: [], resolvedRecently: [], highestTier: null };
+
+      const evaluated = painItems.map(item => {
+        const score = Math.max(
+          numberOrZero(item.bodyStatus?.painBefore),
+          numberOrZero(item.bodyStatus?.painAfter)
+        );
+        const tier = painTier(score);
+        if (!tier) return null;
+        const itemMs = new Date(`${item.date}T12:00:00`).getTime();
+        const daysAgo = Math.round((todayMs - itemMs) / 86400000);
+        if (daysAgo > DECAY_DAYS[tier]) return null;
+        const sortVal = workoutSortValue(item);
+        const clearedByClean = sorted.some(w =>
+          workoutSortValue(w) > sortVal &&
+          !numberOrZero(w.bodyStatus?.painBefore) &&
+          !numberOrZero(w.bodyStatus?.painAfter)
+        );
+        return { item, score, tier, daysAgo, area: item.bodyStatus?.area || '', clearedByClean };
+      }).filter(Boolean);
+
+      const activePain = evaluated.filter(p => !p.clearedByClean);
+      const resolvedRecently = evaluated.filter(p => p.clearedByClean);
+      const highestTier = activePain.length
+        ? activePain.reduce((best, p) => (tierOrder[p.tier] > tierOrder[best] ? p.tier : best), activePain[0].tier)
+        : null;
+
+      return { activePain, resolvedRecently, highestTier };
+    }
+
     function hasAdaptationSignal(item) {
       const adaptation = item.bodyStatus?.adaptation || '';
       return Boolean(adaptation && adaptation !== 'none');
@@ -1955,6 +1999,19 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       clearCompleteForm();
       setCompleteModalMode('create');
       document.getElementById('completePlannedId').value = plannedId;
+      const hint = document.getElementById('completePainHint');
+      if (hint) {
+        const gp = gradedPainContext(state.completed.filter(c => c.date <= todayISO()), todayISO());
+        if (gp.activePain.length) {
+          const p = [...gp.activePain].sort((a, b) => b.score - a.score)[0];
+          const dayStr = p.daysAgo === 0 ? 'i dag' : p.daysAgo === 1 ? 'i går' : `for ${p.daysAgo} dager siden`;
+          const loc = p.area ? ` i ${p.area}` : '';
+          hint.textContent = `Du hadde vondt${loc} (${p.score}/10) ${dayStr}. Logg smerte nedenfor om det fortsatt kjennes noe.`;
+          hint.hidden = false;
+        } else {
+          hint.hidden = true;
+        }
+      }
       document.getElementById('completeModal').classList.add('active');
     };
 
@@ -4607,6 +4664,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       const hardCount14 = load14.high || 0;
       const easyCount14 = load14.low || 0;
       const intensityRatio14 = last14Days.length >= 3 ? easyCount14 / last14Days.length : null;
+      const gradedPain = gradedPainContext(completedToDate, today);
 
       return {
         today, goals, trainingProfile, personProfile, isRunningBakken,
@@ -4617,7 +4675,8 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         goldenZone, goldenZoneViolations,
         weekPlanRoles, completedRoles, missingRoles,
         activeChallenge, nextPlanned,
-        hardCount7, hardCount14, easyCount14, intensityRatio14
+        hardCount7, hardCount14, easyCount14, intensityRatio14,
+        gradedPain
       };
     }
 
@@ -4625,18 +4684,36 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       const { goals, trainingProfile, isRunningBakken, weekSummary, load7,
               bodySignals14, consecutiveDays, daysSinceLast, lastWorkout,
               goldenZone, goldenZoneViolations,
-              hardCount14, easyCount14, intensityRatio14, last14Days } = ctx;
+              hardCount14, easyCount14, intensityRatio14, last14Days,
+              gradedPain } = ctx;
 
-      // 1. Body signals — alltid høyeste prioritet (Bakken: body_signals_first)
-      if (bodySignals14.pain > 0 || bodySignals14.adaptation > 0) {
+      // 1. Smerte — gradert respons etter alvorlighetsgrad (Bakken: body_signals_first)
+      const { activePain, resolvedRecently, highestTier } = gradedPain;
+      if (highestTier === 'high') {
+        const p = activePain.find(p => p.tier === 'high');
+        const loc = p?.area ? ` i ${p.area}` : '';
+        const dayStr = p?.daysAgo === 0 ? 'i dag' : p?.daysAgo === 1 ? 'i går' : `for ${p?.daysAgo} dager siden`;
+        return `Du registrerte smerte${loc} på ${p?.score}/10 ${dayStr}. Alternativ trening eller hvile er riktig valg nå — ikke tren gjennom høy smerte. ${coachPrincipleLine(['body_signals_first'])}`;
+      }
+      if (highestTier === 'moderate') {
+        const p = activePain.find(p => p.tier === 'moderate');
+        const loc = p?.area ? ` i ${p.area}` : '';
+        const dayStr = p?.daysAgo === 0 ? 'i dag' : p?.daysAgo === 1 ? 'i går' : `for ${p?.daysAgo} dager siden`;
+        return `Du hadde smerte${loc} (${p?.score}/10) ${dayStr}. Gjennomfør neste økt lettere enn planlagt, og logg om det kjennes ved start. ${coachPrincipleLine(['body_signals_first'])}`;
+      }
+      if (highestTier === 'low') {
+        const p = activePain.find(p => p.tier === 'low');
+        const loc = p?.area ? ` i ${p.area}` : '';
+        const dayStr = p?.daysAgo === 0 ? 'i dag' : p?.daysAgo === 1 ? 'i går' : `for ${p?.daysAgo} dager siden`;
+        return `Litt smerte${loc} (${p?.score}/10) ${dayStr}. Planlegg normalt, men sjekk inn rett før neste økt — kjennes det noe, logg det og juster da.`;
+      }
+      if (!highestTier && resolvedRecently.length > 0) {
+        return 'Tidligere smerte er fulgt av en smertefri økt. Bygg videre kontrollert, men du trenger ikke la det styre hele treningsuken.';
+      }
+      if (bodySignals14.adaptation > 0) {
         const bodyState = bodySignalState(last14Days);
         if (bodyState.level === 'active' || bodyState.level === 'caution') {
-          return isRunningBakken
-            ? 'Kroppssignalet er fortsatt relevant. Med skadefri progresjon som mål bør neste økt være rolig, alternativ trening eller hvile.'
-            : 'Kroppssignalet er fortsatt relevant. Hold neste økt kontrollert og vurder alternativ trening eller hvile.';
-        }
-        if (bodyState.level === 'cooling') {
-          return 'Tidligere kroppssignal er fulgt av en smertefri økt. Bygg videre kontrollert, men du trenger ikke la det styre hele treningsuken.';
+          return 'En økt ble tilpasset nylig. Bruk neste økt til å bekrefte at kroppen responderer fint før du øker belastningen.';
         }
       }
 
@@ -4683,18 +4760,27 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
 
     function buildCoachBasis(ctx) {
       const { last14Days, load14, bodySignals14, consecutiveDays, daysSinceLast,
-              goldenZone, goldenZoneViolations, latestHrv, latestRestingHr } = ctx;
+              goldenZone, goldenZoneViolations, latestHrv, latestRestingHr,
+              gradedPain } = ctx;
       const parts = [];
       const total14 = last14Days.length;
       if (total14 > 0) {
         parts.push(`${total14} økt${total14 === 1 ? '' : 'er'} siste 14 dager (${load14.high || 0} hard, ${load14.low || 0} rolig)`);
       }
-      if (bodySignals14.pain > 0 || bodySignals14.adaptation > 0) {
-        const sigs = [
-          bodySignals14.pain ? `${bodySignals14.pain} smerte` : '',
-          bodySignals14.adaptation ? `${bodySignals14.adaptation} tilpasning` : ''
-        ].filter(Boolean).join(', ');
-        parts.push(`Kroppssignal: ${sigs}`);
+      if (gradedPain.activePain.length > 0) {
+        const byTier = gradedPain.activePain.reduce((acc, p) => {
+          acc[p.tier] = (acc[p.tier] || 0) + 1;
+          return acc;
+        }, {});
+        const tierLabels = { high: 'høy', moderate: 'moderat', low: 'lav' };
+        const sigParts = Object.entries(byTier).map(([tier, n]) => `${n} ${tierLabels[tier]}`);
+        const locs = [...new Set(gradedPain.activePain.map(p => p.area).filter(Boolean))];
+        const locStr = locs.length ? ` (${locs.slice(0, 2).join(', ')})` : '';
+        parts.push(`Aktiv smerte: ${sigParts.join(', ')}${locStr}`);
+      } else if (gradedPain.resolvedRecently.length > 0) {
+        parts.push('Tidligere smerte løst av smertefri økt');
+      } else if (bodySignals14.adaptation > 0) {
+        parts.push(`${bodySignals14.adaptation} tilpasset økt siste 14 dager`);
       }
       if (consecutiveDays >= 2) {
         parts.push(`${consecutiveDays} treningsdager på rad`);

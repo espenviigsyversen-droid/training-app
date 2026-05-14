@@ -1384,6 +1384,17 @@
       font-weight: 650;
     }
 
+    .pain-hint {
+      background: #fff7f3;
+      border: 1px solid rgba(255,79,46,0.25);
+      border-radius: 10px;
+      padding: 9px 12px;
+      font-size: 0.82rem;
+      color: #b83a1e;
+      line-height: 1.45;
+      margin-bottom: 10px;
+    }
+
     .coach-basis {
       margin-top: 10px;
     }
