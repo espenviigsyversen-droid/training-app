@@ -1,5 +1,5 @@
 # Treningsapp — progress.md
-Oppdatert: 2026-05-14 (siste endringer: v75–v86)
+Oppdatert: 2026-05-14 (siste endringer: v75–v88)
 
 ---
 
@@ -27,7 +27,7 @@ Standard Bakken-uke: Hoved-terskel → Støtte-terskel → Lang rolig → Valgfr
 **Hosting:** GitHub Pages.  
 **Backend:** Firebase (prosjekt `home-tasks-app-18de3`) — Firestore + Google Auth.  
 **Frontend:** Vanilla JS + HTML + CSS, single-page app, tab-navigasjon.  
-**Versjon:** v86 (konstant i `app.js`).
+**Versjon:** v88 (konstant i `app.js`).
 
 ### Filer
 
@@ -63,6 +63,7 @@ Treningsapp/
 - **Strukturert smertelokasjon** (v77): Fritekstfeltet for område erstattet med dropdown (kroppsdel + side). Konstanter `PAIN_AREA_REGIONS`/`PAIN_AREA_SIDES` + `formatAreaLabel()`. Lagrer `areaRegion`, `areaSide` og beregnet `area`-streng i Firestore. Eksisterende data beholdes uendret (bakoverkompatibelt).
 - **Gylne sone i UI** (v78): `goldenZonePercentages(level)` kalibrerer sonen etter treningsnivå (beginner/building: 77–84 %, intermediate: 78–85 %, experienced: 80–87 %). Snittpuls i detaljvisning viser "gylne sone ✓ / over / under". Loggmodalen viser sonen som hint under pulsfeltene.
 - **Trafikklymodell** (v79): Daglig beredskaps-sjekk på Hjem-fanen. Tre spørsmål: søvn (1–5), energi (1–5), valgfri hvile-HF. Output: grønn / gul / rød med anbefalt tiltak. Lagres i localStorage per dato. Rød overstyrer coach-noten til hvile-råd. Gul gir myk advarsel. Grunnlaget viser dagsform-nivå i "?"-detaljer. `TRAFFIC_LIGHT_CONFIG`, `assessTrafficLight()`, `loadDailyReadiness()`, `saveDailyReadiness()`, `renderTrafficLight()` lagt til.
+- **Logg-fane kompakt** (v88): `historyRow(c)` erstatter `completedCard` i Logg-fanen. Hvert element viser fargestripe etter intensitet (grønn/oransje/rød/lilla/grå), dato, navn, nøkkelmetrikk (distanse · tid · bpm) og pil. Knapper og tagger skjult bak «Detaljer»-klikk. Filtrene er nå bak en «Filter / Sorter»-knapp med badge som viser antall aktive filtre.
 - **Hjemskjerm forenklet** (v86): Hjem viser nå kun: Dagens økt → Dagsform → Coach-notis → Denne uken (med mini challenge-progresjonslinje). Formstatus, Ukeplan, Foreslå neste økt, Handlinger og Kommende økter er flyttet til Kalender-fanen. `renderChallenges()` renderer ny `.challenge-mini` inline under «Denne uken».
 - **Dagsform synkes via Firestore** (v85): `dailyReadiness` flyttet fra localStorage til `state.settings.dailyReadiness` (lagret i Firestore-dokumentet `settings/preferences`). `loadDailyReadiness()` leser nå fra `state.settings`, `saveDailyReadiness()` er async og skriver til Firestore. Automatisk opprydding av oppføringer eldre enn 7 dager. `submitTrafficLight` og `resetTrafficLight` er async. Dagsform er nå tilgjengelig på alle enheter med samme bruker.
 - **Code review + robusthet** (v84): Fire rettelser fra gjennomgang: (1) `avoidWhen`-straff i `templateSuggestionScore` cappet til maks −16 for å unngå urimelig negativ score. (2) `profileWeekRole`-DOM-oppslag gjort null-safe med `?.value`. (3) `saveSettings()` fått try/catch med toast ved Firestore-feil. (4) Templates normaliseres ved Firestore-lasting: `recommendedWhen` og `avoidWhen` alltid konvertert til array via `asArray()` for bakoverkompatibilitet med eldre streng-data.

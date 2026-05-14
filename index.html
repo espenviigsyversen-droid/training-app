@@ -285,7 +285,12 @@
         <div class="card">
           <h2 class="section-title">Historikk</h2>
           <button class="btn-primary btn-full" onclick="openHistoricalCompleteModal()" style="margin-bottom:12px;">+ Legg inn historisk økt</button>
-          <div class="history-filters">
+          <div class="history-filter-toggle-row">
+            <button class="btn-soft history-filter-toggle" onclick="toggleHistoryFilters()">
+              Filter / Sorter <span id="historyFilterBadge" class="filter-badge hidden">0</span>
+            </button>
+          </div>
+          <div id="historyFilterPanel" class="history-filter-panel hidden">
             <div>
               <label>Søk</label>
               <input id="historySearch" type="search" placeholder="Øktnavn, notat, område" oninput="render()" />

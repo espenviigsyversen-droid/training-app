@@ -4,7 +4,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     import { getFirestore, doc, collection, getDoc, getDocs, setDoc, deleteDoc, writeBatch, enableIndexedDbPersistence }
       from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
-    const APP_VERSION = 'v87';
+    const APP_VERSION = 'v88';
 
     const firebaseConfig = {
       apiKey: "AIzaSyAMPfQ9gX9rbuvcPsVjYVtq5IT_orjDBPs",
@@ -2667,6 +2667,63 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         </div>`;
     }
 
+    function intensityStripeClass(intensity) {
+      const easy = ['Rolig', 'Restitusjon', 'Mobilitet'];
+      const medium = ['Tempo', 'Terskel'];
+      const hard = ['Intervall', 'Anaerob'];
+      const strength = ['Styrke'];
+      if (easy.includes(intensity)) return 'easy';
+      if (medium.includes(intensity)) return 'medium';
+      if (hard.includes(intensity)) return 'hard';
+      if (strength.includes(intensity)) return 'strength';
+      return 'neutral';
+    }
+
+    function historyRow(c) {
+      const t = completedTemplate(c);
+      const durationLabel = completedDurationLabel(c);
+      const metrics = [
+        c.distanceKm ? `${c.distanceKm} km` : null,
+        durationLabel || null,
+        c.avgHeartRate ? `${c.avgHeartRate} bpm` : null
+      ].filter(Boolean).join(' · ');
+      const stripeClass = intensityStripeClass(t.intensity);
+      const assessment = completedLoadAssessment(c);
+      const loadDot = assessment.level !== 'moderate'
+        ? `<span class="history-load-dot load-${assessment.level}"></span>`
+        : '';
+      const bodyDot = (c.bodyStatus?.painBefore || c.bodyStatus?.painAfter || (c.bodyStatus?.adaptation && c.bodyStatus.adaptation !== 'none'))
+        ? `<span class="history-load-dot load-high" title="Kroppssignal"></span>`
+        : '';
+      return `
+        <div class="history-row" onclick="openWorkoutDetail('${c.id}')">
+          <div class="history-row-stripe stripe-${stripeClass}"></div>
+          <div class="history-row-body">
+            <div class="history-row-title">${escapeHtml(t.name)}</div>
+            <div class="history-row-meta">${formatDate(c.date)} · ${escapeHtml(t.type)}${loadDot}${bodyDot}</div>
+          </div>
+          <div class="history-row-metrics">${escapeHtml(metrics)}</div>
+          <div class="history-row-chevron">›</div>
+        </div>`;
+    }
+
+    function activeFilterCount() {
+      const nonDefault = [
+        (document.getElementById('historySearch')?.value || '').trim(),
+        document.getElementById('historyPeriod')?.value !== 'all' ? '1' : '',
+        document.getElementById('historyFilter')?.value !== 'Alle' ? '1' : '',
+        document.getElementById('historyEffect')?.value !== 'all' ? '1' : '',
+        document.getElementById('historyLoad')?.value !== 'all' ? '1' : '',
+        document.getElementById('historyBodySignal')?.value !== 'all' ? '1' : ''
+      ];
+      return nonDefault.filter(Boolean).length;
+    }
+
+    window.toggleHistoryFilters = function() {
+      const panel = document.getElementById('historyFilterPanel');
+      if (panel) panel.classList.toggle('hidden');
+    };
+
     function shortCalendarLabel(template) {
       const typeMap = {
         'Løping': 'Løp',
@@ -3982,10 +4039,17 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       if (customRange) customRange.classList.toggle('hidden', period !== 'custom');
       const total = state.completed.length;
       const summary = document.getElementById('historyFilterSummary');
-      if (!summary) return;
-      summary.textContent = total === completed.length
-        ? `${completed.length} økt${completed.length === 1 ? '' : 'er'} i historikken.`
-        : `Viser ${completed.length} av ${total} økt${total === 1 ? '' : 'er'}.`;
+      if (summary) {
+        summary.textContent = total === completed.length
+          ? `${completed.length} økt${completed.length === 1 ? '' : 'er'} i historikken.`
+          : `Viser ${completed.length} av ${total} økt${total === 1 ? '' : 'er'}.`;
+      }
+      const badge = document.getElementById('historyFilterBadge');
+      if (badge) {
+        const count = activeFilterCount();
+        badge.textContent = count;
+        badge.classList.toggle('hidden', count === 0);
+      }
     }
 
     function dateToISO(date) {
@@ -5238,7 +5302,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       const completed = filteredCompletedHistory();
       renderHistoryFilterSummary(completed);
       document.getElementById('historyList').innerHTML = completed.length
-        ? completed.map(completedCard).join('')
+        ? completed.map(historyRow).join('')
         : `<div class="empty">Ingen økter matcher filtrene.</div>`;
     }
 
