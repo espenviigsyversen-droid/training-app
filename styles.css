@@ -2256,6 +2256,11 @@
 
     .calendar-entry.planned { color: var(--primary); }
     .calendar-entry.done { color: var(--success); }
+
+    .calendar-day-overflow {
+      opacity: 0.28;
+      pointer-events: none;
+    }
     .calendar-more { color: var(--warm-gray-3); font-weight: 800; }
     .calendar-entry-short { display: none; }
     .calendar-entry-full { display: inline; }

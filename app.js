@@ -2777,7 +2777,10 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       });
 
       const startOffset = (firstDay.getDay() + 6) % 7;
-      for (let i = 0; i < startOffset; i++) html += '<div></div>';
+      const prevMonthLastDay = new Date(year, month - 1, 0).getDate();
+      for (let i = startOffset - 1; i >= 0; i--) {
+        html += `<div class="calendar-day calendar-day-overflow"><div class="calendar-date">${prevMonthLastDay - i}</div></div>`;
+      }
 
       for (let day = 1; day <= lastDay.getDate(); day++) {
         // BUGFIX punkt 2: tid satt til 12:00 for å unngå tidssone-feil i Norge
@@ -2806,6 +2809,12 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
               </div>`).join('')}
             ${hiddenCount > 0 ? `<div class="calendar-entry calendar-more">+${hiddenCount} flere</div>` : ''}
           </div>`;
+      }
+
+      const totalCells = startOffset + lastDay.getDate();
+      const trailingCells = (7 - (totalCells % 7)) % 7;
+      for (let i = 1; i <= trailingCells; i++) {
+        html += `<div class="calendar-day calendar-day-overflow"><div class="calendar-date">${i}</div></div>`;
       }
 
       html += '</div>';
