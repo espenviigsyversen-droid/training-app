@@ -2700,9 +2700,11 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
           <div class="history-row-stripe stripe-${stripeClass}"></div>
           <div class="history-row-body">
             <div class="history-row-title">${escapeHtml(t.name)}</div>
-            <div class="history-row-meta">${formatDate(c.date)} · ${escapeHtml(t.type)}${loadDot}${bodyDot}</div>
+            <div class="history-row-bottom">
+              <span class="history-row-meta">${formatDate(c.date)} · ${escapeHtml(t.type)}${loadDot}${bodyDot}</span>
+              <span class="history-row-metrics">${escapeHtml(metrics)}</span>
+            </div>
           </div>
-          <div class="history-row-metrics">${escapeHtml(metrics)}</div>
           <div class="history-row-chevron">›</div>
         </div>`;
     }

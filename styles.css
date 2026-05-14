@@ -551,7 +551,7 @@
 
     .history-row-stripe {
       width: 4px;
-      height: 40px;
+      align-self: stretch;
       border-radius: 2px;
       flex-shrink: 0;
     }
@@ -571,18 +571,25 @@
       font-size: 0.9rem;
       font-weight: 600;
       color: var(--black);
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
+      line-height: 1.3;
+    }
+
+    .history-row-bottom {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      margin-top: 4px;
     }
 
     .history-row-meta {
       font-size: 0.78rem;
       color: var(--gray);
-      margin-top: 2px;
-      display: flex;
+      display: inline-flex;
       align-items: center;
       gap: 5px;
+      flex-shrink: 1;
+      min-width: 0;
     }
 
     .history-load-dot {
@@ -597,11 +604,11 @@
     .history-load-dot.load-high     { background: var(--red); }
 
     .history-row-metrics {
-      font-size: 0.8rem;
+      font-size: 0.78rem;
       color: var(--gray);
-      text-align: right;
       white-space: nowrap;
       flex-shrink: 0;
+      text-align: right;
     }
 
     .history-row-chevron {
