@@ -4,7 +4,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     import { getFirestore, doc, collection, getDoc, getDocs, setDoc, deleteDoc, writeBatch, enableIndexedDbPersistence }
       from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
-    const APP_VERSION = 'v86';
+    const APP_VERSION = 'v87';
 
     const firebaseConfig = {
       apiKey: "AIzaSyAMPfQ9gX9rbuvcPsVjYVtq5IT_orjDBPs",
