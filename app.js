@@ -4,7 +4,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     import { getFirestore, doc, collection, getDoc, getDocs, setDoc, deleteDoc, writeBatch, enableIndexedDbPersistence }
       from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
-    const APP_VERSION = 'v94';
+    const APP_VERSION = 'v95';
 
     const firebaseConfig = {
       apiKey: "AIzaSyAMPfQ9gX9rbuvcPsVjYVtq5IT_orjDBPs",
@@ -3164,10 +3164,15 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       if (!sleep || !energy) return;
       const restingHR = Number(document.getElementById('tlRestingHr')?.value) || null;
       const level = assessTrafficLight(sleep, energy, restingHR, stairsOk);
+      const readiness = { date: todayISO(), sleep, energy, restingHR, stairsOk, level };
       tlSelections = { sleep: null, energy: null, stairsOk: null };
+      state.settings.dailyReadiness = {
+        ...(state.settings.dailyReadiness || {}),
+        [readiness.date]: readiness
+      };
       renderTrafficLight();
       render();
-      await saveDailyReadiness({ date: todayISO(), sleep, energy, restingHR, stairsOk, level });
+      await saveDailyReadiness(readiness);
     };
 
     window.resetTrafficLight = async function() {
