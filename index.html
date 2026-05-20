@@ -802,7 +802,7 @@
         <div class="card" style="border:2px solid var(--red);">
           <button class="btn-soft setup-back" onclick="openSetupSection('overview')">Tilbake til Setup</button>
           <h2 class="section-title" style="color:var(--red);">Faresone</h2>
-          <p class="small-note">Dette sletter alle øktmaler, planlagte økter, historikk og formmålinger. Setup-valgene dine beholdes.</p>
+          <p class="small-note">Dette sletter alle øktmaler, planlagte økter, historikk, formmålinger, challenges og ikke-treningsdager. Setup-valgene dine beholdes.</p>
           <button class="btn-danger btn-full" onclick="confirmResetData()">Slett alt</button>
         </div>
         <div class="card">
@@ -861,6 +861,7 @@
   <div id="calendarDayModal" class="modal-backdrop">
     <div class="modal">
       <h2 id="calendarDayTitle">Kalenderdag</h2>
+      <div id="calendarDayBlockControls"></div>
       <div id="calendarDayList"></div>
       <div class="button-row">
         <button class="btn-primary" onclick="planFromCalendarDay()">Planlegg denne dagen</button>
@@ -1083,4 +1084,3 @@
   <script type="module" src="app.js"></script>
 </body>
 </html>
-

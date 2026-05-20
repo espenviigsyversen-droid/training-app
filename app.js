@@ -4,7 +4,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     import { getFirestore, doc, collection, getDoc, getDocs, setDoc, deleteDoc, writeBatch, enableIndexedDbPersistence }
       from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
-    const APP_VERSION = 'v93';
+    const APP_VERSION = 'v94';
 
     const firebaseConfig = {
       apiKey: "AIzaSyAMPfQ9gX9rbuvcPsVjYVtq5IT_orjDBPs",
@@ -55,7 +55,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         thresholdHeartRate: ''
       }
     };
-    let state = { templates: [], planned: [], completed: [], wellness: [], challenges: [], settings: JSON.parse(JSON.stringify(defaultSettings)) };
+    let state = { templates: [], planned: [], completed: [], wellness: [], challenges: [], blockedDays: [], settings: JSON.parse(JSON.stringify(defaultSettings)) };
     let volumeTrendPeriod = 'week';
     let volumeTrendActivity = 'all';
     let templateCoachFilter = 'all';
@@ -190,6 +190,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
           completed: Array.isArray(snapshot.state.completed) ? snapshot.state.completed : [],
           wellness: Array.isArray(snapshot.state.wellness) ? snapshot.state.wellness : [],
           challenges: Array.isArray(snapshot.state.challenges) ? snapshot.state.challenges : [],
+          blockedDays: Array.isArray(snapshot.state.blockedDays) ? snapshot.state.blockedDays : [],
           settings: normalizeSettings(snapshot.state.settings)
         };
         return snapshot.savedAt || null;
@@ -324,6 +325,44 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       const d = new Date(`${dateIso}T12:00:00`);
       d.setDate(d.getDate() + days);
       return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    }
+
+    const BLOCKED_DAY_REASONS = {
+      unavailable: 'Ikke tilgjengelig',
+      travel: 'Bortreist',
+      work: 'Jobb',
+      family: 'Familie',
+      sick: 'Syk',
+      recovery: 'Planlagt hvile',
+      other: 'Annet'
+    };
+
+    function blockedDayForDate(dateIso) {
+      return (state.blockedDays || []).find(day => day.date === dateIso) || null;
+    }
+
+    function isBlockedTrainingDate(dateIso) {
+      return Boolean(blockedDayForDate(dateIso));
+    }
+
+    function blockedDayLabel(day) {
+      if (!day) return '';
+      return BLOCKED_DAY_REASONS[day.reason] || day.reason || BLOCKED_DAY_REASONS.unavailable;
+    }
+
+    function nextAvailableTrainingDate(dateIso, maxDays = 21) {
+      let candidate = dateIso || todayISO();
+      for (let i = 0; i <= maxDays; i++) {
+        if (!isBlockedTrainingDate(candidate)) return candidate;
+        candidate = addDays(candidate, 1);
+      }
+      return dateIso || todayISO();
+    }
+
+    function blockedDaysBetween(startIso, endIso) {
+      return (state.blockedDays || [])
+        .filter(day => day.date >= startIso && day.date <= endIso)
+        .sort((a, b) => a.date.localeCompare(b.date));
     }
 
     function freshDefaultSettings() {
@@ -642,12 +681,13 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       if (!navigator.onLine) setSyncStatus(hasPendingLocalWrites ? 'pending' : 'offline');
       else setSyncStatus('syncing');
       try {
-        const [tSnap, pSnap, cSnap, wSnap, challengeSnap, settingsSnap] = await Promise.all([
+        const [tSnap, pSnap, cSnap, wSnap, challengeSnap, blockedDaySnap, settingsSnap] = await Promise.all([
           getDocs(userCol('templates')),
           getDocs(userCol('planned')),
           getDocs(userCol('completed')),
           getDocs(userCol('wellness')),
           getDocs(userCol('challenges')),
+          getDocs(userCol('blockedDays')),
           getDoc(userDoc('settings', 'preferences'))
         ]);
         state.templates = tSnap.docs.map(d => { const t = { id: d.id, ...d.data() }; return { ...t, recommendedWhen: asArray(t.recommendedWhen), avoidWhen: asArray(t.avoidWhen) }; });
@@ -655,6 +695,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         state.completed = cSnap.docs.map(d => ({ id: d.id, ...d.data() }));
         state.wellness = wSnap.docs.map(d => ({ id: d.id, ...d.data() }));
         state.challenges = challengeSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+        state.blockedDays = blockedDaySnap.docs.map(d => ({ id: d.id, ...d.data() }));
         state.settings = settingsSnap.exists() ? normalizeSettings(settingsSnap.data()) : freshDefaultSettings();
         if (!settingsSnap.exists()) await fsSet('settings', 'preferences', state.settings);
         offlineSnapshotMode = false;
@@ -823,7 +864,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         }
         currentUser = null;
         offlineSnapshotMode = false;
-        state = { templates: [], planned: [], completed: [], wellness: [], challenges: [], settings: normalizeSettings(state.settings) };
+        state = { templates: [], planned: [], completed: [], wellness: [], challenges: [], blockedDays: [], settings: normalizeSettings(state.settings) };
         loading.classList.add('hidden');
         authScreen.classList.remove('hidden');
         mainApp.classList.add('hidden');
@@ -903,9 +944,14 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       if (isMainNavTab || previousTab === tabId) scrollAppToTop();
     };
 
-    window.openPlan = function(dateIso = '') {
+    window.openPlan = function(dateIso = '', allowBlocked = false) {
       showTab('plan');
-      document.getElementById('planDate').value = dateIso || document.getElementById('planDate').value || todayISO();
+      const requestedDate = dateIso || document.getElementById('planDate').value || todayISO();
+      const date = !allowBlocked && isBlockedTrainingDate(requestedDate)
+        ? nextAvailableTrainingDate(requestedDate)
+        : requestedDate;
+      document.getElementById('planDate').value = date;
+      if (date !== requestedDate) showToast('Valgt dato er ikke treningsdag, så neste ledige dato er valgt', 'info');
     };
 
     window.openLibrary = function() {
@@ -1257,6 +1303,8 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
 
       if (!templateId) return alert('Du må først lage eller velge en øktmal.');
       if (!date) return alert('Velg dato.');
+      const blockedDate = blockedDayForDate(date);
+      if (repeat === 'none' && blockedDate && !confirm(`${formatDate(date)} er markert som ikke treningsdag (${blockedDayLabel(blockedDate)}). Planlegge økt likevel?`)) return;
 
       let intervalWeeks = 0;
       if (repeat === 'weekly') intervalWeeks = 1;
@@ -1271,14 +1319,17 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       } else {
         if (!repeatWeeks || repeatWeeks < 1) return alert('Velg antall uker frem i tid.');
         for (let weekOffset = 0; weekOffset <= repeatWeeks; weekOffset += intervalWeeks) {
+          const plannedDate = addDays(date, weekOffset * 7);
+          if (isBlockedTrainingDate(plannedDate)) continue;
           workoutsToAdd.push({
-            id: uid('planned'), templateId, date: addDays(date, weekOffset * 7),
+            id: uid('planned'), templateId, date: plannedDate,
             status: 'planned', notes, repeatGroupId: plannedGroupId,
             repeatRule: { type: repeat, intervalWeeks, totalWeeks: repeatWeeks },
             createdAt: todayISO()
           });
         }
       }
+      if (!workoutsToAdd.length) return alert('Alle datoene i repetisjonen er markert som ikke treningsdager.');
 
       state.planned.push(...workoutsToAdd);
       document.getElementById('planNotes').value = '';
@@ -1328,6 +1379,8 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       const planned = state.planned.find(p => p.id === plannedId);
       if (!planned) return alert('Fant ikke økten.');
       if (!newDate) return alert('Velg ny dato.');
+      const blockedDate = blockedDayForDate(newDate);
+      if (blockedDate && !confirm(`${formatDate(newDate)} er markert som ikke treningsdag (${blockedDayLabel(blockedDate)}). Flytte økten dit likevel?`)) return;
 
       const diffDays = daysBetween(oldDate, newDate);
       if (diffDays === 0) { closeRescheduleModal(); return; }
@@ -2791,10 +2844,15 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
           const t = completedTemplate(c);
           return { status: 'done', name: t.name, shortLabel: shortCalendarLabel(t) };
         });
-        const visibleItems = doneItems.slice(0, 2);
-        const hiddenCount = doneItems.length - visibleItems.length;
+        const blockedDay = blockedDayForDate(dateIso);
+        const dayItems = [
+          ...(blockedDay ? [{ status: 'blocked', name: `Ikke treningsdag: ${blockedDayLabel(blockedDay)}`, shortLabel: 'Fri' }] : []),
+          ...doneItems
+        ];
+        const visibleItems = dayItems.slice(0, 2);
+        const hiddenCount = dayItems.length - visibleItems.length;
         html += `
-          <div class="calendar-day calendar-day-overflow" onclick="openCalendarDayModal('${dateIso}')">
+          <div class="calendar-day calendar-day-overflow ${blockedDay ? 'no-training' : ''}" onclick="openCalendarDayModal('${dateIso}')">
             <div class="calendar-date">${prevDay}</div>
             ${visibleItems.map(item => `
               <div class="calendar-entry ${item.status}" title="${escapeHtml(item.name)}">
@@ -2810,7 +2868,9 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         const dateIso = new Date(year, month - 1, day, 12).toISOString().slice(0, 10);
         const plannedItems = state.planned.filter(p => p.date === dateIso && p.status !== 'done');
         const doneItems = state.completed.filter(c => c.date === dateIso);
+        const blockedDay = blockedDayForDate(dateIso);
         const dayItems = [
+          ...(blockedDay ? [{ status: 'blocked', name: `Ikke treningsdag: ${blockedDayLabel(blockedDay)}`, shortLabel: 'Fri' }] : []),
           ...plannedItems.map(p => {
             const template = getTemplate(p.templateId);
             return { status: 'planned', name: template.name, shortLabel: shortCalendarLabel(template) };
@@ -2823,7 +2883,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         const visibleItems = dayItems.slice(0, 2);
         const hiddenCount = dayItems.length - visibleItems.length;
         html += `
-          <div class="calendar-day ${dateIso === todayISO() ? 'today' : ''}" onclick="openCalendarDayModal('${dateIso}')">
+          <div class="calendar-day ${dateIso === todayISO() ? 'today' : ''} ${blockedDay ? 'no-training' : ''}" onclick="openCalendarDayModal('${dateIso}')">
             <div class="calendar-date">${day}</div>
             ${visibleItems.map(item => `
               <div class="calendar-entry ${item.status}" title="${escapeHtml(item.name)}">
@@ -2844,10 +2904,15 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
           const t = getTemplate(p.templateId);
           return { status: 'planned', name: t.name, shortLabel: shortCalendarLabel(t) };
         });
-        const visibleItems = plannedItems.slice(0, 2);
-        const hiddenCount = plannedItems.length - visibleItems.length;
+        const blockedDay = blockedDayForDate(dateIso);
+        const dayItems = [
+          ...(blockedDay ? [{ status: 'blocked', name: `Ikke treningsdag: ${blockedDayLabel(blockedDay)}`, shortLabel: 'Fri' }] : []),
+          ...plannedItems
+        ];
+        const visibleItems = dayItems.slice(0, 2);
+        const hiddenCount = dayItems.length - visibleItems.length;
         html += `
-          <div class="calendar-day calendar-day-overflow" onclick="openCalendarDayModal('${dateIso}')">
+          <div class="calendar-day calendar-day-overflow ${blockedDay ? 'no-training' : ''}" onclick="openCalendarDayModal('${dateIso}')">
             <div class="calendar-date">${i}</div>
             ${visibleItems.map(item => `
               <div class="calendar-entry ${item.status}" title="${escapeHtml(item.name)}">
@@ -2864,6 +2929,79 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
 
     let selectedCalendarDate = '';
 
+    function calendarBlockControlsHtml(dateIso) {
+      const blocked = blockedDayForDate(dateIso);
+      const reason = blocked?.reason || 'unavailable';
+      return `
+        <div class="calendar-block-controls">
+          <label class="calendar-block-toggle">
+            <input type="checkbox" ${blocked ? 'checked' : ''} onchange="toggleBlockedTrainingDay(this.checked)" />
+            <span>
+              Ikke treningsdag
+              <small class="small-note">Rådgiveren hopper over denne datoen når den foreslår økter.</small>
+            </span>
+          </label>
+          ${blocked ? `
+            <div class="form-grid">
+              <div>
+                <label>Grunn</label>
+                <select id="calendarBlockedReason" onchange="updateBlockedTrainingDay()">
+                  ${Object.entries(BLOCKED_DAY_REASONS).map(([value, label]) =>
+                    `<option value="${escapeHtml(value)}" ${value === reason ? 'selected' : ''}>${escapeHtml(label)}</option>`
+                  ).join('')}
+                </select>
+              </div>
+              <div>
+                <label>Notat</label>
+                <input id="calendarBlockedNote" value="${escapeHtml(blocked.note || '')}" placeholder="Valgfritt" onblur="updateBlockedTrainingDay()" />
+              </div>
+            </div>` : ''}
+        </div>`;
+    }
+
+    window.toggleBlockedTrainingDay = async function(checked) {
+      const date = selectedCalendarDate || todayISO();
+      if (checked) {
+        const existing = blockedDayForDate(date);
+        const blockedDay = {
+          id: date,
+          date,
+          reason: existing?.reason || 'unavailable',
+          note: existing?.note || '',
+          createdAt: existing?.createdAt || new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        };
+        state.blockedDays = [...(state.blockedDays || []).filter(day => day.date !== date), blockedDay];
+        render();
+        openCalendarDayModal(date);
+        await fsSet('blockedDays', blockedDay.id, blockedDay);
+        showToast('Dagen er markert som ikke treningsdag');
+        return;
+      }
+
+      const existing = blockedDayForDate(date);
+      if (!existing) return;
+      state.blockedDays = (state.blockedDays || []).filter(day => day.date !== date);
+      render();
+      openCalendarDayModal(date);
+      await fsDelete('blockedDays', existing.id || date);
+      showToast('Dagen er åpnet for trening igjen');
+    };
+
+    window.updateBlockedTrainingDay = async function() {
+      const date = selectedCalendarDate || todayISO();
+      const existing = blockedDayForDate(date);
+      if (!existing) return;
+      const reason = document.getElementById('calendarBlockedReason')?.value || 'unavailable';
+      const note = document.getElementById('calendarBlockedNote')?.value.trim() || '';
+      const updated = { ...existing, id: existing.id || date, date, reason, note, updatedAt: new Date().toISOString() };
+      state.blockedDays = (state.blockedDays || []).map(day => day.date === date ? updated : day);
+      render();
+      openCalendarDayModal(date);
+      await fsSet('blockedDays', updated.id, updated);
+      showToast('Ikke-treningsdag oppdatert');
+    };
+
     window.openCalendarDayModal = function(dateIso) {
       selectedCalendarDate = dateIso;
       const plannedItems = state.planned.filter(p => p.date === dateIso && p.status !== 'done')
@@ -2871,6 +3009,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       const doneItems = state.completed.filter(c => c.date === dateIso)
         .sort((a,b) => String(a.completedAt || '').localeCompare(String(b.completedAt || '')));
       document.getElementById('calendarDayTitle').textContent = formatDate(dateIso);
+      document.getElementById('calendarDayBlockControls').innerHTML = calendarBlockControlsHtml(dateIso);
       document.getElementById('calendarDayList').innerHTML =
         [
           ...plannedItems.map(p => workoutCard(p, { canDelete: true })),
@@ -2884,8 +3023,10 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     };
 
     window.planFromCalendarDay = function() {
+      const blocked = blockedDayForDate(selectedCalendarDate);
+      if (blocked && !confirm(`${formatDate(selectedCalendarDate)} er markert som ikke treningsdag (${blockedDayLabel(blocked)}). Planlegge økt likevel?`)) return;
       closeCalendarDayModal();
-      openPlan(selectedCalendarDate || todayISO());
+      openPlan(selectedCalendarDate || todayISO(), Boolean(blocked));
     };
 
     function renderSettingsList(kind, elementId) {
@@ -3377,7 +3518,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     function renderWorkoutSuggestion(today, weekSummary, weekItems, last14Days, profile) {
       const suggestion = buildWorkoutSuggestion(today, weekSummary, weekItems, last14Days, profile);
       const template = findSuggestedTemplate(suggestion);
-      const tomorrow = addDays(today, 1);
+      const tomorrow = nextAvailableTrainingDate(addDays(today, 1));
       const templateCoachMeta = template
         ? [templatePurposeLabel(template.purpose), templateLoadLabel(template.load)].filter(Boolean).join(' · ')
         : '';
@@ -3740,6 +3881,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
 
     function weekPlanDates(today, weekEnd, plannedThisWeek, count) {
       const busyDates = new Set(plannedThisWeek.map(item => item.date));
+      blockedDaysBetween(today, weekEnd).forEach(day => busyDates.add(day.date));
       const dates = [];
       const preferredOffsets = count >= 3 ? [1, 3, 5, 2, 4, 6, 0] : count === 2 ? [1, 4, 2, 5, 3, 6, 0] : [1, 2, 3, 4, 5, 6, 0];
       preferredOffsets.forEach(offset => {
@@ -3751,6 +3893,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
 
     function weekPlanDatesInRange(rangeStart, rangeEnd, plannedItems, count) {
       const occupiedDates = new Set(plannedItems.map(item => item.date));
+      blockedDaysBetween(rangeStart, rangeEnd).forEach(day => occupiedDates.add(day.date));
       const placed = new Set(occupiedDates);
 
       function isAdjacentToPlaced(date) {
@@ -3821,7 +3964,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       const template = findSuggestedTemplate(suggestion);
       showTab('plan');
       const dateEl = document.getElementById('planDate');
-      if (dateEl && !dateEl.value) dateEl.value = addDays(todayISO(), 1);
+      if (dateEl && !dateEl.value) dateEl.value = nextAvailableTrainingDate(addDays(todayISO(), 1));
       if (template) {
         const select = document.getElementById('planTemplate');
         if (select) select.value = template.id;
@@ -5392,6 +5535,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       document.getElementById('planDate').value ||= today;
       state.settings = normalizeSettings(state.settings);
       state.challenges = Array.isArray(state.challenges) ? state.challenges : [];
+      state.blockedDays = Array.isArray(state.blockedDays) ? state.blockedDays : [];
 
       const editingTemplateId = document.getElementById('editingTemplateId').value;
       const selectedType = document.getElementById('templateType').value;
@@ -5482,7 +5626,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
           const imported = JSON.parse(reader.result);
           if (!imported.templates || !imported.planned || !imported.completed) throw new Error('Invalid format');
           if (!confirm('Import vil overskrive data som ligger i appen nå. Fortsette?')) return;
-          state = { ...imported, wellness: imported.wellness || [], challenges: imported.challenges || [], settings: normalizeSettings(imported.settings) };
+          state = { ...imported, wellness: imported.wellness || [], challenges: imported.challenges || [], blockedDays: imported.blockedDays || [], settings: normalizeSettings(imported.settings) };
           render();
           await Promise.all([
             fsBatchSet('templates', state.templates),
@@ -5490,6 +5634,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
             fsBatchSet('completed', state.completed),
             fsBatchSet('wellness', state.wellness),
             fsBatchSet('challenges', state.challenges),
+            fsBatchSet('blockedDays', state.blockedDays),
             fsSet('settings', 'preferences', state.settings)
           ]);
         } catch (err) {
@@ -5514,7 +5659,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     };
 
     window.confirmResetData = function() {
-      const userInput = prompt('Skriv inn "SLETT" for å bekrefte sletting av alle økter, planer, historikk og formmålinger.');
+      const userInput = prompt('Skriv inn "SLETT" for å bekrefte sletting av alle økter, planer, historikk, formmålinger, challenges og ikke-treningsdager.');
       if (userInput !== 'SLETT') {
         if (userInput !== null) alert('Feil tekst - sletting avbrutt.');
         return;
@@ -5523,20 +5668,21 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     };
 
     window.resetData = async function() {
-      if (!confirm('SISTE ADVARSEL: Dette sletter alle økter, planer, historikk og formmålinger. Dette kan ikke angres. Fortsette?')) return;
+      if (!confirm('SISTE ADVARSEL: Dette sletter alle økter, planer, historikk, formmålinger, challenges og ikke-treningsdager. Dette kan ikke angres. Fortsette?')) return;
       setSyncStatus('syncing');
       try {
-        const [tSnap, pSnap, cSnap, wSnap, challengeSnap] = await Promise.all([
+        const [tSnap, pSnap, cSnap, wSnap, challengeSnap, blockedDaySnap] = await Promise.all([
           getDocs(userCol('templates')),
           getDocs(userCol('planned')),
           getDocs(userCol('completed')),
           getDocs(userCol('wellness')),
-          getDocs(userCol('challenges'))
+          getDocs(userCol('challenges')),
+          getDocs(userCol('blockedDays'))
         ]);
         const batch = writeBatch(db);
-        [...tSnap.docs, ...pSnap.docs, ...cSnap.docs, ...wSnap.docs, ...challengeSnap.docs].forEach(d => batch.delete(d.ref));
+        [...tSnap.docs, ...pSnap.docs, ...cSnap.docs, ...wSnap.docs, ...challengeSnap.docs, ...blockedDaySnap.docs].forEach(d => batch.delete(d.ref));
         await batch.commit();
-        state = { templates: [], planned: [], completed: [], wellness: [], challenges: [], settings: normalizeSettings(state.settings) };
+        state = { templates: [], planned: [], completed: [], wellness: [], challenges: [], blockedDays: [], settings: normalizeSettings(state.settings) };
         setSyncStatus('ok');
         render();
       } catch (err) {

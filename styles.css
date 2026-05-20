@@ -2260,6 +2260,16 @@
 
     .calendar-day:active { transform: scale(0.98); }
     .calendar-day.today { border-color: var(--primary); background: #fff7f3; }
+    .calendar-day.no-training {
+      border-color: rgba(17,17,17,0.1);
+      background: repeating-linear-gradient(
+        135deg,
+        rgba(244,240,235,0.72) 0,
+        rgba(244,240,235,0.72) 8px,
+        rgba(255,255,255,0.82) 8px,
+        rgba(255,255,255,0.82) 16px
+      );
+    }
 
     .calendar-date {
       font-weight: 800;
@@ -2279,6 +2289,37 @@
 
     .calendar-entry.planned { color: var(--primary); }
     .calendar-entry.done { color: var(--success); }
+    .calendar-entry.blocked { color: var(--warm-gray-3); }
+
+    .calendar-block-controls {
+      display: grid;
+      gap: 10px;
+      padding: 12px;
+      margin-bottom: 12px;
+      border-radius: 12px;
+      background: var(--warm-gray-1);
+    }
+
+    .calendar-block-toggle {
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+      font-weight: 850;
+      color: var(--black);
+      line-height: 1.25;
+    }
+
+    .calendar-block-toggle input {
+      margin-top: 2px;
+      width: 18px;
+      height: 18px;
+      flex: 0 0 auto;
+      accent-color: var(--primary);
+    }
+
+    .calendar-block-controls .small-note {
+      margin: 0;
+    }
 
     .calendar-day-overflow {
       opacity: 0.4;
