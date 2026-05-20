@@ -4255,6 +4255,11 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       return `${Math.round(number)} økt${Math.round(number) === 1 ? '' : 'er'}`;
     }
 
+    function challengeRemainingLabel(progress, metric) {
+      if (progress.done) return 'Mål nådd';
+      return `${challengeValueLabel(progress.remaining, metric)} igjen`;
+    }
+
     function challengeItems(challenge) {
       return state.completed.filter(completed => {
         if (!completed.date || completed.date < challenge.startDate || completed.date > challenge.endDate) return false;
@@ -4274,8 +4279,9 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       const today = todayISO();
       const done = target > 0 && current >= target;
       const expired = today > challenge.endDate && !done;
+      const remaining = Math.max(0, target - current);
       const daysLeft = Math.max(0, Math.ceil((new Date(`${challenge.endDate}T12:00:00`) - new Date(`${today}T12:00:00`)) / 86400000));
-      return { current, target, percent, done, expired, daysLeft, count: items.length };
+      return { current, target, remaining, percent, done, expired, daysLeft, count: items.length };
     }
 
     function challengeStatusLabel(challenge, progress) {
@@ -4301,7 +4307,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
           </div>
           <div class="progress-track"><div class="progress-fill ${progress.done ? 'done' : progress.current > 0 ? 'partial' : 'empty'}" style="width:${progress.percent}%;"></div></div>
           <div class="challenge-meta">
-            <span>${escapeHtml(challengeValueLabel(progress.current, challenge.metric))} / ${escapeHtml(challengeValueLabel(progress.target, challenge.metric))}</span>
+            <span>${escapeHtml(challengeValueLabel(progress.current, challenge.metric))} / ${escapeHtml(challengeValueLabel(progress.target, challenge.metric))} · ${escapeHtml(challengeRemainingLabel(progress, challenge.metric))}</span>
             <span>${escapeHtml(status)}${status === 'Aktiv' ? ` · ${progress.daysLeft} dager igjen` : ''}</span>
           </div>
           ${compact ? '' : `
@@ -4354,7 +4360,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
                 <span>${Math.round(p.percent)}%</span>
               </div>
               <div class="progress-track"><div class="progress-fill ${fillClass}" style="width:${p.percent}%;"></div></div>
-              <span class="small-note">${escapeHtml(challengeValueLabel(p.current, c.metric))} / ${escapeHtml(challengeValueLabel(p.target, c.metric))} · ${p.daysLeft} dager igjen</span>
+              <span class="small-note">${escapeHtml(challengeValueLabel(p.current, c.metric))} / ${escapeHtml(challengeValueLabel(p.target, c.metric))} · ${escapeHtml(challengeRemainingLabel(p, c.metric))} · ${p.daysLeft} dager igjen</span>
             </div>`;
         } else {
           mini.innerHTML = '';
