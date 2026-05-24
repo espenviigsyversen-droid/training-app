@@ -67,6 +67,13 @@ function test(name, fn) {
     });
   });
 
+  test('setup shows app version from app constants', () => {
+    assert.ok(index.includes('id="appVersionInfo"'), 'visible app version element is missing from Setup');
+    assert.ok(app.includes('const APP_CACHE_NAME = `treningsapp-${APP_VERSION}`'), 'cache display name should be derived from APP_VERSION');
+    assert.ok(app.includes('Appversjon: ${APP_VERSION}'), 'visible app version should use APP_VERSION');
+    assert.ok(app.includes('Cache: ${APP_CACHE_NAME}'), 'visible cache name should use APP_CACHE_NAME');
+  });
+
   test('challenge progress shows remaining distance', () => {
     const progress = challengeProgress(
       { target: 80, metric: 'km', activity: 'all', startDate: '2026-05-01', endDate: '2026-05-31' },
