@@ -145,23 +145,106 @@ export function structuredWorkoutTotalSeconds(structuredWorkout) {
   }, 0);
 }
 
-export function structuredWorkoutSummary(structuredWorkout) {
+export function structuredWorkoutWarmupSeconds(structuredWorkout) {
   const workout = normalizeStructuredWorkout(structuredWorkout);
-  if (!workout) return '';
-  const parts = workout.blocks.map(block => {
-    if (block.type === 'warmup') return `${formatDurationWords(block.durationSeconds)} oppvarming`;
-    if (block.type === 'cooldown') return `${formatDurationWords(block.durationSeconds)} nedjogg`;
-    if (block.type === 'interval') {
-      const rest = block.restSeconds ? ` / ${formatDurationWords(block.restSeconds)}${block.restType ? ` ${restTypeLabel(block.restType).toLowerCase()}` : ' hvile'}` : '';
-      const intensity = block.intensity ? ` (${structuredIntensityLabel(block.intensity).toLowerCase()})` : '';
-      return `${block.repetitions} x ${formatDurationWords(block.workSeconds)}${rest}${intensity}`;
-    }
-    return '';
-  }).filter(Boolean);
-  const total = structuredWorkoutTotalSeconds(workout);
-  if (total) parts.push(`totalt ${formatDuration(total)}`);
-  if (workout.note) parts.push(workout.note);
+  if (!workout) return 0;
+  return workout.blocks.reduce((sum, block) => (
+    block.type === 'warmup' ? sum + block.durationSeconds : sum
+  ), 0);
+}
+
+export function structuredWorkoutCooldownSeconds(structuredWorkout) {
+  const workout = normalizeStructuredWorkout(structuredWorkout);
+  if (!workout) return 0;
+  return workout.blocks.reduce((sum, block) => (
+    block.type === 'cooldown' ? sum + block.durationSeconds : sum
+  ), 0);
+}
+
+export function structuredWorkoutIntervalBlocks(structuredWorkout) {
+  const workout = normalizeStructuredWorkout(structuredWorkout);
+  return workout ? workout.blocks.filter(block => block.type === 'interval') : [];
+}
+
+export function compactDurationText(seconds) {
+  const total = parseNonNegativeInteger(seconds);
+  if (!total) return '0';
+  if (total < 60) return String(total);
+  const minutes = Math.floor(total / 60);
+  const restSeconds = total % 60;
+  return restSeconds ? `${minutes}:${String(restSeconds).padStart(2, '0')}` : `${minutes} min`;
+}
+
+export function structuredWorkoutCompactText(structuredWorkout) {
+  const blocks = structuredWorkoutIntervalBlocks(structuredWorkout);
+  if (!blocks.length) return '';
+  return blocks.map(block => {
+    const rest = block.restSeconds ? `/${compactDurationText(block.restSeconds)}` : '';
+    return `${block.repetitions} x ${compactDurationText(block.workSeconds)}${rest}`;
+  }).join(' + ');
+}
+
+export function structuredWorkoutBreakdown(structuredWorkout) {
+  const workout = normalizeStructuredWorkout(structuredWorkout);
+  if (!workout) return null;
+  const interval = structuredWorkoutIntervalBlocks(workout)[0] || null;
+  const restType = interval?.restType ? restTypeLabel(interval.restType) : '';
+  const intensity = interval?.intensity ? structuredIntensityLabel(interval.intensity) : '';
+  return {
+    compact: structuredWorkoutCompactText(workout),
+    warmupSeconds: structuredWorkoutWarmupSeconds(workout),
+    workSeconds: structuredWorkoutWorkSeconds(workout),
+    restSeconds: structuredWorkoutRestSeconds(workout),
+    cooldownSeconds: structuredWorkoutCooldownSeconds(workout),
+    totalSeconds: structuredWorkoutTotalSeconds(workout),
+    restType,
+    intensity,
+    note: workout.note || interval?.note || ''
+  };
+}
+
+export function structuredWorkoutSummary(structuredWorkout) {
+  const breakdown = structuredWorkoutBreakdown(structuredWorkout);
+  if (!breakdown) return '';
+  const parts = [];
+  if (breakdown.compact) parts.push(breakdown.compact);
+  if (breakdown.warmupSeconds) parts.push(`oppvarming ${formatDurationWords(breakdown.warmupSeconds)}`);
+  if (breakdown.workSeconds) parts.push(`arbeid ${formatDuration(breakdown.workSeconds)}`);
+  if (breakdown.restSeconds) parts.push(`hvile ${formatDuration(breakdown.restSeconds)}`);
+  if (breakdown.cooldownSeconds) parts.push(`nedjogg ${formatDurationWords(breakdown.cooldownSeconds)}`);
+  if (breakdown.totalSeconds) parts.push(`totalt ${formatDuration(breakdown.totalSeconds)}`);
+  if (breakdown.restType) parts.push(`hviletype ${breakdown.restType.toLowerCase()}`);
+  if (breakdown.intensity) parts.push(`intensitet ${breakdown.intensity.toLowerCase()}`);
+  if (breakdown.note) parts.push(breakdown.note);
   return parts.join(' · ');
+}
+
+export function structuredIntervalInsights(completedItems = [], todayIso = dateToISO(new Date())) {
+  const startIso = addDays(todayIso, -27);
+  const items = Array.isArray(completedItems) ? completedItems : [];
+  const structuredItems = items
+    .filter(item => item?.date >= startIso && item?.date <= todayIso)
+    .map(item => ({
+      ...item,
+      structuredWorkout: normalizeStructuredWorkout(item.structuredWorkout || item.templateSnapshot?.structuredWorkout)
+    }))
+    .filter(item => item.structuredWorkout)
+    .sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')));
+
+  const totalWorkSeconds = structuredItems.reduce((sum, item) => sum + structuredWorkoutWorkSeconds(item.structuredWorkout), 0);
+  const totalRestSeconds = structuredItems.reduce((sum, item) => sum + structuredWorkoutRestSeconds(item.structuredWorkout), 0);
+  const latest = structuredItems[0] || null;
+
+  return {
+    count: structuredItems.length,
+    totalWorkSeconds,
+    totalRestSeconds,
+    latest: latest ? {
+      date: latest.date || '',
+      name: latest.name || latest.templateSnapshot?.name || 'Strukturert intervall',
+      summary: structuredWorkoutSummary(latest.structuredWorkout)
+    } : null
+  };
 }
 
 export function formatDurationWords(seconds) {

@@ -419,6 +419,43 @@
       font-weight: 750;
     }
 
+    .structured-workout-summary strong {
+      display: block;
+      font-size: 0.98rem;
+      margin-bottom: 8px;
+    }
+
+    .structured-workout-summary p {
+      margin: 8px 0 0;
+      color: var(--warm-gray-3);
+      font-size: 0.78rem;
+      font-weight: 700;
+    }
+
+    .structured-workout-facts {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 6px;
+    }
+
+    .structured-workout-facts span {
+      border: 1px solid rgba(17,17,17,0.06);
+      border-radius: 10px;
+      background: rgba(255,255,255,0.72);
+      padding: 7px 8px;
+      color: var(--black);
+      font-size: 0.78rem;
+      font-weight: 800;
+    }
+
+    .structured-workout-facts b {
+      display: block;
+      color: var(--warm-gray-3);
+      font-size: 0.62rem;
+      text-transform: uppercase;
+      margin-bottom: 2px;
+    }
+
     .coach-readiness-card {
       border: 1px solid rgba(17,17,17,0.08);
       border-radius: 16px;
@@ -971,6 +1008,16 @@
       display: grid;
       gap: 10px;
       margin-top: 14px;
+    }
+
+    .interval-insight-grid {
+      margin-top: 8px;
+    }
+
+    .interval-latest {
+      margin-top: 12px;
+      font-weight: 800;
+      color: var(--black);
     }
 
     .progress-row {

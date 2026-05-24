@@ -1,5 +1,5 @@
 # Treningsapp — progress.md
-Oppdatert: 2026-05-24 (siste endringer: v75–v102)
+Oppdatert: 2026-05-24 (siste endringer: v75–v103)
 
 ---
 
@@ -27,7 +27,7 @@ Standard Bakken-uke: Hoved-terskel → Støtte-terskel → Lang rolig → Valgfr
 **Hosting:** GitHub Pages.  
 **Backend:** Firebase (prosjekt `home-tasks-app-18de3`) — Firestore + Google Auth.  
 **Frontend:** Vanilla JS + HTML + CSS, single-page app, tab-navigasjon.  
-**Versjon:** v102 (konstant i `app.js`).
+**Versjon:** v103 (konstant i `app.js`).
 
 ### Filer
 
@@ -74,6 +74,7 @@ Treningsapp/
 - **Intervall-arkitekturgrunnlag** (v100): `ARCHITECTURE.md` har nå et tydelig feature-mønster for nye funksjoner: ren domene-logikk i `domain-core.js`/egen domene-fil, små wrappers i `app.js`, UI foreløpig i `app.js`/`index.html`, tester fra produksjonsfil og PWA-cache ved nye runtime-filer. Opprettet `INTERVALS_DESIGN.md` med bakoverkompatibel `structuredWorkout`-modell som beholder eksisterende `structure`-tekstfelt. Flyttet rene varighet-/tempo-hjelpere til `domain-core.js` som grunnlag for senere intervallstøtte.
 - **Best Practice Guardrails før intervaller** (v101): Tydeligere feature-regler i `ARCHITECTURE.md` og `AGENTS.md`: datamodell først, ren logikk i domene, små `app.js`-wrappers, bakoverkompatible felter, normalisering før bruk og versjon/cache-kontroll. Lagt til `normalizeTemplate()` og `normalizeStructuredWorkout()` i `domain-core.js`. Firestore-load, backup-import og lokal snapshot normaliserer nå templates før bruk. `settings.features.structuredIntervals` er lagt inn som intern feature flag, uten synlig UI.
 - **Strukturert intervallstøtte v1** (v102): Øktmaler kan nå valgfritt lagre `structuredWorkout` med oppvarming, én intervallblokk, repetisjoner, arbeidstid, hviletid, hviletype, intensitet, nedjogg og notat. Eksisterende `structure`-tekstfelt beholdes og gamle maler får `structuredWorkout: null`. Strukturert sammendrag vises på øktmaler, planlagte økter og detaljvisning når feltet finnes. `domain-core.js` har rene funksjoner for bygging, normalisering, arbeid/hvile/total tid og formattering. Stabilitetstestene dekker 20 x 45/15, fallback ved ugyldig struktur og at backup/import/lokal snapshot bevarer feltet.
+- **Bedre intervallopplevelse og enkel innsikt** (v103): Strukturert intervallinfo vises nå som mer nyttig breakdown med kompakt form (`20 x 45/15`), oppvarming, arbeid, hvile, nedjogg, total varighet, hviletype, intensitet og notat. Innsikt har en liten intervallblokk som vises når det finnes strukturerte intervalløkter siste 28 dager: antall økter, total intervallarbeid, hvile i drag og siste strukturerte intervalløkt. Nye rene funksjoner i `domain-core.js`: `structuredWorkoutCompactText()`, `structuredWorkoutBreakdown()` og `structuredIntervalInsights()`.
 - **Fjernet «Foreslå neste økt»** (v92): Kortet er fjernet fra Kalender-fanen. Ukeplanen dekker samme behov bedre og er rollebevisst. `renderWorkoutSuggestion`-kallet er fjernet fra render-løkken for å unngå krasj.
 - **Coach: smertegradering + priority-felt + X-økt** (v91): Tre coach-forbedringer: (1) `bodySignalState` skiller nå mellom mild smerte (1–2/10 → `cooling`, foreslår terskel etter en rolig økt) og bekymringsfull smerte (3+/10 → `caution`, kun recovery). Løser at mild smerte blokkerte terskelforslag for hele neste uke. (2) `priority`-feltet i treningsprofilen er nå aktivt: `performance` foreslår terskel straks det er rom, `injury_free_progression` krever 2 rolige øyer før terskel. (3) X-økt vises alltid som 4. forslag i normaluke når det er rom — sikrer at VO2max/teknikk/styrke alltid er synlig som alternativ.
 - **Hjem: alle økter samme dag** (v90): «Neste økt» / «Dagens økt» viser nå alle planlagte økter på samme dato, ikke bare én. For fremtidige dager grupperes etter første kommende dato (`nextDateItems`). Tittelen skifter til «Dagens økt» automatisk når det finnes økter på dagens dato (eksisterende logikk).
@@ -109,7 +110,7 @@ Treningsapp/
 ## Neste steg (prioritert)
 
 ### 1. Strukturert intervallstøtte v2
-- Test v102 manuelt i øktmalflyten på mobil.
+- Test v103 manuelt i øktmalflyten, planlagt økt, fullført detaljvisning og Innsikt.
 - Vurder om strukturen også skal kunne brukes direkte når en planlagt økt logges.
 - Vurder flere intervallblokker senere hvis én blokk blir for begrensende.
 

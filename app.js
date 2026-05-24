@@ -21,12 +21,14 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       normalizeTemplate,
       parseNonNegativeInteger,
       startOfWeek,
+      structuredIntervalInsights,
+      structuredWorkoutBreakdown,
       structuredWorkoutSummary,
       weekPlanDates as weekPlanDatesCore,
       weekPlanDatesInRange as weekPlanDatesInRangeCore
     } from './domain-core.js';
 
-    const APP_VERSION = 'v102';
+    const APP_VERSION = 'v103';
     const APP_CACHE_NAME = `treningsapp-${APP_VERSION}`;
 
     const firebaseConfig = {
@@ -1371,9 +1373,29 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     };
 
     function structuredWorkoutSummaryHtml(structuredWorkout) {
-      const summary = structuredWorkoutSummary(structuredWorkout);
-      if (!summary) return '';
-      return `<p class="structured-workout-summary">${escapeHtml(summary)}</p>`;
+      const breakdown = structuredWorkoutBreakdown(structuredWorkout);
+      if (!breakdown) return '';
+      const rows = [
+        breakdown.warmupSeconds ? ['Oppvarming', formatDuration(breakdown.warmupSeconds)] : null,
+        breakdown.workSeconds ? ['Arbeid', formatDuration(breakdown.workSeconds)] : null,
+        breakdown.restSeconds ? ['Hvile', formatDuration(breakdown.restSeconds)] : null,
+        breakdown.cooldownSeconds ? ['Nedjogg', formatDuration(breakdown.cooldownSeconds)] : null,
+        breakdown.totalSeconds ? ['Totalt', formatDuration(breakdown.totalSeconds)] : null
+      ].filter(Boolean);
+      return `
+        <div class="structured-workout-summary">
+          ${breakdown.compact ? `<strong>${escapeHtml(breakdown.compact)}</strong>` : ''}
+          <div class="structured-workout-facts">
+            ${rows.map(([label, value]) => `<span><b>${escapeHtml(label)}</b>${escapeHtml(value)}</span>`).join('')}
+          </div>
+          ${(breakdown.restType || breakdown.intensity || breakdown.note) ? `
+            <p>${[
+              breakdown.restType ? `Hvile: ${breakdown.restType}` : '',
+              breakdown.intensity ? `Intensitet: ${breakdown.intensity}` : '',
+              breakdown.note || ''
+            ].filter(Boolean).map(escapeHtml).join(' · ')}</p>
+          ` : ''}
+        </div>`;
     }
 
     window.saveTemplate = async function() {
@@ -2661,7 +2683,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
           ${c.rpe ? `<p class="detail-text"><strong>Opplevd intensitet:</strong> ${escapeHtml(c.rpe)}/10</p>` : ''}
         `)}
         ${detailSection('Puls', heartRateLines)}
-        ${detailSection('Strukturert intervall', t.structuredWorkout ? `<p>${escapeHtml(structuredWorkoutSummary(t.structuredWorkout))}</p>` : '')}
+        ${detailSection('Strukturert intervall', structuredWorkoutSummaryHtml(t.structuredWorkout))}
         ${detailSection('Terreng og stigning', terrainLines)}
         ${detailSection('Gjennomføring', [
           detailLine('Gjennomføring', execution),
@@ -5687,10 +5709,40 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       }).join('');
 
       renderBakkenPatterns();
+      renderStructuredIntervalInsights(today);
       renderWellnessInsights();
       const coachCtx = buildCoachContext();
       document.getElementById('insightCoachNote').textContent = buildCoachNote(coachCtx);
       document.getElementById('insightCoachBasis').textContent = buildCoachBasis(coachCtx).join(' · ');
+    }
+
+    function renderStructuredIntervalInsights(today) {
+      const card = document.getElementById('insightStructuredIntervalsCard');
+      const grid = document.getElementById('insightStructuredIntervals');
+      const latest = document.getElementById('insightStructuredIntervalLatest');
+      const note = document.getElementById('insightStructuredIntervalNote');
+      if (!card || !grid || !latest || !note) return;
+
+      const items = state.completed.map(item => ({
+        ...item,
+        name: completedTemplate(item).name,
+        structuredWorkout: completedTemplate(item).structuredWorkout
+      }));
+      const insight = structuredIntervalInsights(items, today);
+      if (!insight.count) {
+        card.style.display = 'none';
+        return;
+      }
+
+      card.style.display = '';
+      grid.innerHTML = `
+        <div class="insight-stat"><strong>${insight.count}</strong><span>Økter siste 28 d</span></div>
+        <div class="insight-stat"><strong>${escapeHtml(formatDuration(insight.totalWorkSeconds))}</strong><span>Intervallarbeid</span></div>
+        <div class="insight-stat"><strong>${escapeHtml(formatDuration(insight.totalRestSeconds))}</strong><span>Hvile i drag</span></div>`;
+      latest.textContent = insight.latest
+        ? `Siste: ${formatDate(insight.latest.date)} · ${insight.latest.name} · ${insight.latest.summary}`
+        : '';
+      note.textContent = 'Strukturert intervallarbeid hjelper deg å se faktisk kvalitetstid, ikke bare total økttid.';
     }
 
     function renderAppVersionInfo() {

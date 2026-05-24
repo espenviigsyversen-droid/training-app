@@ -26,6 +26,7 @@ node tests\stability-tests.js
 - at varighet-/tempo-hjelpere i `domain-core.js` gir stabile beregninger for logging og senere intervallstøtte
 - at gamle øktmaler normaliseres trygt, inkl. array-felter og manglende `structuredWorkout`
 - at strukturert intervallinfo normaliseres trygt, beregner arbeid/hvile/total tid og formatteres lesbart
+- at kompakt intervallformat, breakdown og enkel 28-dagers intervallinnsikt beregnes fra `domain-core.js`
 - at backup/import og lokal snapshot ikke mister `structuredWorkout`
 - at challenge-progress viser gjenstående distanse og håndterer fullførte mål
 - at trafikklyset gir grønn/gul/rød etter søvn, energi, hvilepuls og trappetest

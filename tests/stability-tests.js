@@ -37,6 +37,9 @@ function test(name, fn) {
     normalizeStructuredWorkout,
     normalizeTemplate,
     parseNonNegativeInteger,
+    structuredIntervalInsights,
+    structuredWorkoutBreakdown,
+    structuredWorkoutCompactText,
     structuredWorkoutRestSeconds,
     structuredWorkoutSummary,
     structuredWorkoutTotalSeconds,
@@ -89,7 +92,7 @@ function test(name, fn) {
 
   test('settings include internal structured interval feature flag', () => {
     assert.ok(app.includes('features: {'), 'settings features object is missing');
-    assert.ok(app.includes('structuredIntervals: true'), 'structuredIntervals should be enabled in v102 defaults');
+    assert.ok(app.includes('structuredIntervals: true'), 'structuredIntervals should be enabled in v103 defaults');
     assert.ok(app.includes('features: normalizeFeatures(source.features)'), 'settings should normalize feature flags');
   });
 
@@ -183,6 +186,7 @@ function test(name, fn) {
     assert.ok(app.includes('structuredWorkoutFromForm'), 'structured interval form wrapper is missing');
     assert.ok(app.includes('structuredWorkoutSummaryHtml(t.structuredWorkout)'), 'structured interval summary is not rendered for templates/planned workouts');
     assert.ok(app.includes("structuredWorkout: template?.structuredWorkout || null"), 'completed template snapshot should preserve structuredWorkout');
+    assert.ok(index.includes('id="insightStructuredIntervalsCard"'), 'structured interval insight card is missing');
   });
 
   test('empty or invalid structured workouts fall back safely', () => {
@@ -191,6 +195,8 @@ function test(name, fn) {
     assert.strictEqual(normalizeStructuredWorkout({ version: 1, blocks: [{ type: 'interval', repetitions: 0, workSeconds: 45 }] }), null);
     assert.strictEqual(buildStructuredWorkout({ warmupMinutes: 0, repetitions: 0, workSeconds: 0 }), null);
     assert.strictEqual(structuredWorkoutSummary(null), '');
+    assert.strictEqual(structuredWorkoutCompactText(null), '');
+    assert.strictEqual(structuredWorkoutBreakdown(null), null);
   });
 
   test('20 x 45/15 structured interval calculates work and rest time', () => {
@@ -201,6 +207,7 @@ function test(name, fn) {
       restType: 'float',
       intensity: 'threshold'
     });
+    assert.strictEqual(structuredWorkoutCompactText(workout), '20 x 45/15');
     assert.strictEqual(structuredWorkoutWorkSeconds(workout), 900);
     assert.strictEqual(structuredWorkoutRestSeconds(workout), 300);
     assert.strictEqual(structuredWorkoutTotalSeconds(workout), 1200);
@@ -218,12 +225,49 @@ function test(name, fn) {
       note: 'Hold kontroll'
     });
     assert.strictEqual(structuredWorkoutTotalSeconds(workout), 2700);
+    assert.deepStrictEqual(structuredWorkoutBreakdown(workout), {
+      compact: '20 x 45/15',
+      warmupSeconds: 900,
+      workSeconds: 900,
+      restSeconds: 300,
+      cooldownSeconds: 600,
+      totalSeconds: 2700,
+      restType: 'Flyt',
+      intensity: 'Terskel',
+      note: 'Hold kontroll'
+    });
     const summary = structuredWorkoutSummary(workout);
-    assert.ok(summary.includes('15 min oppvarming'), summary);
-    assert.ok(summary.includes('20 x 45 sek / 15 sek flyt (terskel)'), summary);
-    assert.ok(summary.includes('10 min nedjogg'), summary);
+    assert.ok(summary.includes('20 x 45/15'), summary);
+    assert.ok(summary.includes('oppvarming 15 min'), summary);
+    assert.ok(summary.includes('arbeid 15:00'), summary);
+    assert.ok(summary.includes('hvile 5:00'), summary);
+    assert.ok(summary.includes('nedjogg 10 min'), summary);
     assert.ok(summary.includes('totalt 45:00'), summary);
+    assert.ok(summary.includes('hviletype flyt'), summary);
+    assert.ok(summary.includes('intensitet terskel'), summary);
     assert.ok(summary.includes('Hold kontroll'), summary);
+  });
+
+  test('structured interval insight summarizes last 28 days', () => {
+    const structuredWorkout = buildStructuredWorkout({
+      warmupMinutes: 15,
+      repetitions: 20,
+      workSeconds: 45,
+      restSeconds: 15,
+      cooldownMinutes: 10
+    });
+    const insight = structuredIntervalInsights([
+      { date: '2026-04-20', name: 'For gammel', structuredWorkout },
+      { date: '2026-05-05', name: '45/15 terskel', structuredWorkout },
+      { date: '2026-05-12', templateSnapshot: { name: 'Snapshot 45/15', structuredWorkout } },
+      { date: '2026-05-13', name: 'Rolig tur' }
+    ], '2026-05-24');
+    assert.strictEqual(insight.count, 2);
+    assert.strictEqual(insight.totalWorkSeconds, 1800);
+    assert.strictEqual(insight.totalRestSeconds, 600);
+    assert.strictEqual(insight.latest.date, '2026-05-12');
+    assert.strictEqual(insight.latest.name, 'Snapshot 45/15');
+    assert.ok(insight.latest.summary.includes('20 x 45/15'), insight.latest.summary);
   });
 
   test('backup import and local snapshot normalize without losing structuredWorkout', () => {
