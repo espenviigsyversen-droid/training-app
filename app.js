@@ -17,7 +17,8 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       weekPlanDatesInRange as weekPlanDatesInRangeCore
     } from './domain-core.js';
 
-    const APP_VERSION = 'v97';
+    const APP_VERSION = 'v98';
+    const APP_CACHE_NAME = `treningsapp-${APP_VERSION}`;
 
     const firebaseConfig = {
       apiKey: "AIzaSyAMPfQ9gX9rbuvcPsVjYVtq5IT_orjDBPs",
@@ -5604,10 +5605,17 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       document.getElementById('insightCoachBasis').textContent = buildCoachBasis(coachCtx).join(' · ');
     }
 
+    function renderAppVersionInfo() {
+      const el = document.getElementById('appVersionInfo');
+      if (!el) return;
+      el.textContent = `Appversjon: ${APP_VERSION} · Cache: ${APP_CACHE_NAME}`;
+    }
+
     // ── Render ────────────────────────────────────────────────────────────────
     function render() {
       renderCalendar();
       const today = todayISO();
+      renderAppVersionInfo();
       document.getElementById('todayPill').textContent = formatDate(today);
       document.getElementById('planDate').value ||= today;
       state.settings = normalizeSettings(state.settings);

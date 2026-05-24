@@ -20,6 +20,7 @@ Bruk lokale, ikke-destruktive kommandoer først:
 Get-ChildItem -Force
 node --check app.js
 node --check service-worker.js
+node --check domain-core.js
 node tests\stability-tests.js
 ```
 
@@ -27,6 +28,7 @@ node tests\stability-tests.js
 
 - `index.html` - app-skall og modaler
 - `app.js` - hovedlogikk, state, Firebase, coach, render
+- `domain-core.js` - rene testbare domenehjelpere
 - `styles.css` - styling
 - `service-worker.js` - PWA-cache
 - `manifest.json` - PWA-manifest
@@ -40,6 +42,7 @@ Etter endringer skal du som minimum kjøre:
 ```powershell
 node --check app.js
 node --check service-worker.js
+node --check domain-core.js
 node tests\stability-tests.js
 ```
 
@@ -48,7 +51,12 @@ Hvis `service-worker.js` eller `app.js` endres, vurder om PWA-versjonen må bump
 - `APP_VERSION` i `app.js`
 - `CACHE_NAME` i `service-worker.js`
 
-Disse skal normalt matche, f.eks. `v96` og `treningsapp-v96`.
+Disse skal normalt matche, f.eks. `v98` og `treningsapp-v98`.
+
+Når `APP_VERSION` / `CACHE_NAME` bumpes, skal synlig versjonsinfo i appen også kontrolleres:
+
+- Setup -> Data og system -> Backup og oppdatering
+- feltet skal vise riktig `Appversjon` og cache-navn
 
 ## Sluttrapport
 
@@ -58,4 +66,3 @@ Oppsummer alltid:
 - hvilke sjekker som er kjørt
 - hvilke filer brukeren må laste opp til GitHub
 - om noe ikke ble testet
-

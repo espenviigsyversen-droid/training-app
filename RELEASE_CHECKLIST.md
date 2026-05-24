@@ -24,9 +24,15 @@ Hvis `app.js`, `domain-core.js`, `index.html`, `styles.css` eller `service-worke
 Eksempel:
 
 ```js
-const APP_VERSION = 'v97';
-const CACHE_NAME = "treningsapp-v97";
+const APP_VERSION = 'v98';
+const CACHE_NAME = "treningsapp-v98";
 ```
+
+Kontroller også at synlig versjonsinfo i appen viser samme versjon:
+
+- Setup -> Data og system -> Backup og oppdatering
+- `Appversjon: v...`
+- `Cache: treningsapp-v...`
 
 ## Filer som ofte må lastes opp
 
@@ -54,7 +60,8 @@ Ved dokumentasjon/testendring:
 2. Bruk Setup -> Backup og oppdatering -> Oppdater app
 3. Lukk og åpne appen igjen
 4. Sjekk at ny versjon faktisk kjører
-5. Test én trygg handling, f.eks. åpne Kalender eller Innsikt
+5. Sjekk at riktig appversjon vises i Setup -> Data og system -> Backup og oppdatering
+6. Test én trygg handling, f.eks. åpne Kalender eller Innsikt
 
 ## Ved feil etter opplasting
 
