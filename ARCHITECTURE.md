@@ -30,6 +30,7 @@ Treningsapp/
 ├── AGENTS.md
 ├── ARCHITECTURE.md
 ├── DATA_AND_SYNC.md
+├── INTERVALS_DESIGN.md
 ├── TESTING.md
 ├── RELEASE_CHECKLIST.md
 ├── tests/
@@ -72,6 +73,7 @@ Inneholder rene, testbare hjelpefunksjoner uten DOM, Firebase eller direkte `sta
 - dato- og ukeplanlegging
 - trafikklys/dagsform-regler
 - gylne sone-prosenter
+- varighet, tempo og enkle treningsberegninger
 - challenge-progress og etiketter
 
 Filen lastes som ES module fra `app.js` og caches av `service-worker.js`.
@@ -96,3 +98,17 @@ Ikke gjør en stor rewrite. Del heller appen gradvis i tydelige soner:
 6. `tests` - rene tester for kritiske regler
 
 Målet er lavere risiko, lettere testing og mindre sjanse for regresjoner.
+
+## Feature-mønster
+
+Nye features skal bygges smått og med lav regresjonsrisiko:
+
+1. Legg ren domene-logikk i `domain-core.js`, eller i en egen domene-fil hvis området blir stort nok til å fortjene det.
+2. La `app.js` beholde små wrapper-funksjoner når logikken trenger `state`, DOM, Firebase eller eksisterende render-flyt.
+3. UI og rendering kan foreløpig ligge i `app.js` og `index.html`. Ikke splitt UI bare for å splitte.
+4. Ny ren logikk skal testes fra faktisk produksjonsfil i `tests/stability-tests.js`.
+5. Ikke kopier produksjonslogikk inn i testene hvis den kan importeres.
+6. Hvis en ny JS-fil brukes i runtime, må den lastes riktig og vurderes lagt i `APP_SHELL` i `service-worker.js`.
+7. Hvis runtime-filer endres, bump `APP_VERSION` og `CACHE_NAME`, og kontroller synlig versjon under Setup -> Data og system -> Backup og oppdatering.
+
+For intervallstøtte betyr dette at selve datastrukturen, normalisering og format-/beregningsregler bør være rene funksjoner først. Skjema, visning og lagring kan kobles på i små steg etterpå.

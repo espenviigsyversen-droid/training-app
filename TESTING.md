@@ -23,6 +23,7 @@ node tests\stability-tests.js
 - at lokal recovery snapshot kan nås fra UI
 - at service worker cacher nødvendige app shell-filer
 - at produksjonsfunksjonene i `domain-core.js` dekker challenge-progress, trafikklys, gylne sone og ukeplan-datoer
+- at varighet-/tempo-hjelpere i `domain-core.js` gir stabile beregninger for logging og senere intervallstøtte
 - at challenge-progress viser gjenstående distanse og håndterer fullførte mål
 - at trafikklyset gir grønn/gul/rød etter søvn, energi, hvilepuls og trappetest
 - at gylne sone-prosentene matcher treningsnivå

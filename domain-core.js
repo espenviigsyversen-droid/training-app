@@ -35,6 +35,58 @@ export function formatKm(km) {
   return `${value.toLocaleString('no-NO', { maximumFractionDigits: value < 10 ? 1 : 0 })} km`;
 }
 
+export function parseNonNegativeInteger(value) {
+  const parsed = Number.parseInt(value, 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
+}
+
+export function formatDuration(totalSeconds) {
+  const secondsTotal = parseNonNegativeInteger(totalSeconds);
+  if (!secondsTotal) return '';
+  const hours = Math.floor(secondsTotal / 3600);
+  const minutes = Math.floor((secondsTotal % 3600) / 60);
+  const seconds = secondsTotal % 60;
+  if (hours) return `${hours}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+  return `${minutes}:${String(seconds).padStart(2, '0')}`;
+}
+
+export function formatPace(secondsPerKm) {
+  const secondsTotal = parseNonNegativeInteger(secondsPerKm);
+  if (!secondsTotal) return '';
+  const minutes = Math.floor(secondsTotal / 60);
+  const seconds = secondsTotal % 60;
+  return `${minutes}:${String(seconds).padStart(2, '0')}`;
+}
+
+export function calculatePaceMetrics(durationSeconds, distanceKm) {
+  const seconds = parseNonNegativeInteger(durationSeconds);
+  const distance = Number(String(distanceKm || '').replace(',', '.'));
+  if (!seconds || !Number.isFinite(distance) || distance <= 0) {
+    return { averageSpeedKmh: '', paceSecondsPerKm: '', paceDisplay: '' };
+  }
+  const averageSpeedKmh = distance / (seconds / 3600);
+  const paceSecondsPerKm = Math.round(seconds / distance);
+  return {
+    averageSpeedKmh: averageSpeedKmh.toFixed(1),
+    paceSecondsPerKm,
+    paceDisplay: formatPace(paceSecondsPerKm)
+  };
+}
+
+export function completedDurationSeconds(completed = {}) {
+  if (completed.durationSeconds) return Number(completed.durationSeconds) || 0;
+  if (completed.durationMinutes) return (Number(completed.durationMinutes) || 0) * 60;
+  return 0;
+}
+
+export function formatClockDuration(seconds) {
+  const total = Math.max(0, Math.round(Number(seconds) || 0));
+  const hours = Math.floor(total / 3600);
+  const minutes = Math.floor((total % 3600) / 60);
+  const remainingSeconds = total % 60;
+  return `${hours}:${String(minutes).padStart(2, '0')}:${String(remainingSeconds).padStart(2, '0')}`;
+}
+
 export function challengeValueLabel(value, metric) {
   const number = Number(value) || 0;
   if (metric === 'hours') return `${number.toLocaleString('no-NO', { maximumFractionDigits: number < 10 ? 1 : 0 })} t`;

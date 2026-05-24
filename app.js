@@ -6,18 +6,24 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     import {
       addDays,
       assessTrafficLight as assessTrafficLightCore,
+      calculatePaceMetrics,
+      completedDurationSeconds,
       challengeProgress as challengeProgressCore,
       challengeRemainingLabel,
       challengeValueLabel,
       dateToISO,
+      formatClockDuration,
+      formatDuration,
       formatKm,
+      formatPace,
       goldenZonePercentages,
+      parseNonNegativeInteger,
       startOfWeek,
       weekPlanDates as weekPlanDatesCore,
       weekPlanDatesInRange as weekPlanDatesInRangeCore
     } from './domain-core.js';
 
-    const APP_VERSION = 'v99';
+    const APP_VERSION = 'v100';
     const APP_CACHE_NAME = `treningsapp-${APP_VERSION}`;
 
     const firebaseConfig = {
@@ -1624,11 +1630,6 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       return (hours * 3600) + (Math.min(minutes, 59) * 60) + Math.min(seconds, 59);
     }
 
-    function parseNonNegativeInteger(value) {
-      const parsed = Number.parseInt(value, 10);
-      return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
-    }
-
     function setDurationFormFromSeconds(totalSeconds) {
       const secondsTotal = parseNonNegativeInteger(totalSeconds);
       const hours = Math.floor(secondsTotal / 3600);
@@ -1637,39 +1638,6 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       document.getElementById('completeDurationHours').value = hours || '';
       document.getElementById('completeDurationMinutes').value = minutes || '';
       document.getElementById('completeDurationSeconds').value = seconds || '';
-    }
-
-    function formatDuration(totalSeconds) {
-      const secondsTotal = parseNonNegativeInteger(totalSeconds);
-      if (!secondsTotal) return '';
-      const hours = Math.floor(secondsTotal / 3600);
-      const minutes = Math.floor((secondsTotal % 3600) / 60);
-      const seconds = secondsTotal % 60;
-      if (hours) return `${hours}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-      return `${minutes}:${String(seconds).padStart(2, '0')}`;
-    }
-
-    function calculatePaceMetrics(durationSeconds, distanceKm) {
-      const seconds = parseNonNegativeInteger(durationSeconds);
-      const distance = Number(String(distanceKm || '').replace(',', '.'));
-      if (!seconds || !Number.isFinite(distance) || distance <= 0) {
-        return { averageSpeedKmh: '', paceSecondsPerKm: '', paceDisplay: '' };
-      }
-      const averageSpeedKmh = distance / (seconds / 3600);
-      const paceSecondsPerKm = Math.round(seconds / distance);
-      return {
-        averageSpeedKmh: averageSpeedKmh.toFixed(1),
-        paceSecondsPerKm,
-        paceDisplay: formatPace(paceSecondsPerKm)
-      };
-    }
-
-    function formatPace(secondsPerKm) {
-      const secondsTotal = parseNonNegativeInteger(secondsPerKm);
-      if (!secondsTotal) return '';
-      const minutes = Math.floor(secondsTotal / 60);
-      const seconds = secondsTotal % 60;
-      return `${minutes}:${String(seconds).padStart(2, '0')}`;
     }
 
     function updatePacePreview() {
@@ -4441,25 +4409,11 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       }
     }
 
-    function completedDurationSeconds(completed) {
-      if (completed.durationSeconds) return Number(completed.durationSeconds) || 0;
-      if (completed.durationMinutes) return (Number(completed.durationMinutes) || 0) * 60;
-      return 0;
-    }
-
     function formatHoursFromSeconds(seconds) {
       const total = Number(seconds) || 0;
       const hours = total / 3600;
       if (!hours) return '0 t';
       return `${hours.toLocaleString('no-NO', { maximumFractionDigits: hours < 10 ? 1 : 0 })} t`;
-    }
-
-    function formatClockDuration(seconds) {
-      const total = Math.max(0, Math.round(Number(seconds) || 0));
-      const hours = Math.floor(total / 3600);
-      const minutes = Math.floor((total % 3600) / 60);
-      const remainingSeconds = total % 60;
-      return `${hours}:${String(minutes).padStart(2, '0')}:${String(remainingSeconds).padStart(2, '0')}`;
     }
 
     function isHardWorkout(completed) {

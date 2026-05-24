@@ -25,9 +25,15 @@ function test(name, fn) {
   const domain = await import(pathToFileURL(path.join(root, 'domain-core.js')).href);
   const {
     assessTrafficLight,
+    calculatePaceMetrics,
+    completedDurationSeconds,
     challengeProgress,
     challengeRemainingLabel,
+    formatClockDuration,
+    formatDuration,
+    formatPace,
     goldenZonePercentages,
+    parseNonNegativeInteger,
     weekPlanDates,
     weekPlanDatesInRange
   } = domain;
@@ -79,6 +85,27 @@ function test(name, fn) {
     assert.ok(normalCompleteFlow.includes("if (item) item.status = 'done'"), 'planned workout should be marked done locally');
     assert.ok(normalCompleteFlow.includes('afterApply'), 'normal complete flow should refresh UI after local state update');
     assert.ok(normalCompleteFlow.includes('openCalendarDayModal(selectedCalendarDate)'), 'calendar day modal should be refreshed after completion');
+  });
+
+  test('duration and pace helpers come from domain core', () => {
+    assert.strictEqual(parseNonNegativeInteger('12'), 12);
+    assert.strictEqual(parseNonNegativeInteger('-1'), 0);
+    assert.strictEqual(formatDuration(65), '1:05');
+    assert.strictEqual(formatDuration(3661), '1:01:01');
+    assert.strictEqual(formatPace(341), '5:41');
+    assert.deepStrictEqual(calculatePaceMetrics(1800, '5'), {
+      averageSpeedKmh: '10.0',
+      paceSecondsPerKm: 360,
+      paceDisplay: '6:00'
+    });
+    assert.deepStrictEqual(calculatePaceMetrics(0, '5'), {
+      averageSpeedKmh: '',
+      paceSecondsPerKm: '',
+      paceDisplay: ''
+    });
+    assert.strictEqual(completedDurationSeconds({ durationSeconds: 2700 }), 2700);
+    assert.strictEqual(completedDurationSeconds({ durationMinutes: 45 }), 2700);
+    assert.strictEqual(formatClockDuration(3661), '1:01:01');
   });
 
   test('challenge progress shows remaining distance', () => {

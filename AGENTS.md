@@ -33,6 +33,7 @@ node tests\stability-tests.js
 - `service-worker.js` - PWA-cache
 - `manifest.json` - PWA-manifest
 - `progress.md` - historikk og utviklingsnotater
+- `INTERVALS_DESIGN.md` - designnotat for strukturert intervallstøtte
 - `tests/stability-tests.js` - lokal stabilitetstest
 
 ## Ved kodeendringer
@@ -51,7 +52,7 @@ Hvis `service-worker.js` eller `app.js` endres, vurder om PWA-versjonen må bump
 - `APP_VERSION` i `app.js`
 - `CACHE_NAME` i `service-worker.js`
 
-Disse skal normalt matche, f.eks. `v99` og `treningsapp-v99`.
+Disse skal normalt matche, f.eks. `v100` og `treningsapp-v100`.
 
 Når `APP_VERSION` / `CACHE_NAME` bumpes, skal synlig versjonsinfo i appen også kontrolleres:
 
