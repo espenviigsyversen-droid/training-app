@@ -20,7 +20,9 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       goldenZonePercentages,
       normalizeTemplate,
       parseNonNegativeInteger,
+      hasStructuredIntervals,
       startOfWeek,
+      structuredIntervalContext,
       structuredIntervalInsights,
       structuredWorkoutBreakdown,
       structuredWorkoutSummary,
@@ -28,7 +30,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       weekPlanDatesInRange as weekPlanDatesInRangeCore
     } from './domain-core.js';
 
-    const APP_VERSION = 'v103';
+    const APP_VERSION = 'v104';
     const APP_CACHE_NAME = `treningsapp-${APP_VERSION}`;
 
     const firebaseConfig = {
@@ -4570,7 +4572,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     function isHardWorkout(completed) {
       const template = getTemplate(completed.templateId);
       const hardIntensities = ['Tempo', 'Terskel', 'Intervall', 'Anaerob'];
-      return hardIntensities.includes(template.intensity) || Number(completed.rpe || 0) >= 7;
+      return hardIntensities.includes(template.intensity) || hasStructuredIntervals(template.structuredWorkout) || Number(completed.rpe || 0) >= 7;
     }
 
     function summarizeCompleted(items) {
@@ -5341,6 +5343,14 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       const last7Days = completedToDate.filter(c => c.date >= last7Start);
       const last14Days = completedToDate.filter(c => c.date >= last14Start);
       const last28Days = completedToDate.filter(c => c.date >= last28Start);
+      const completedWithTemplateContext = completedToDate.map(c => {
+        const template = completedTemplate(c);
+        return {
+          ...c,
+          name: template.name,
+          structuredWorkout: template.structuredWorkout
+        };
+      });
 
       function loadBreakdown(items) {
         return items.reduce((acc, c) => {
@@ -5401,6 +5411,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       const intensityRatio14 = last14Days.length >= 3 ? easyCount14 / last14Days.length : null;
       const gradedPain = gradedPainContext(completedToDate, today);
       const dailyReadiness = loadDailyReadiness();
+      const structuredIntervals = structuredIntervalContext(completedWithTemplateContext, today);
 
       return {
         today, goals, trainingProfile, personProfile, isRunningBakken,
@@ -5412,7 +5423,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         weekPlanRoles, completedRoles, missingRoles,
         activeChallenge, nextPlanned,
         hardCount7, hardCount14, easyCount14, intensityRatio14,
-        gradedPain, dailyReadiness
+        gradedPain, dailyReadiness, structuredIntervals
       };
     }
 
@@ -5421,7 +5432,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
               bodySignals14, consecutiveDays, daysSinceLast, lastWorkout,
               goldenZone, goldenZoneViolations,
               hardCount14, easyCount14, intensityRatio14, last14Days,
-              gradedPain, dailyReadiness } = ctx;
+              gradedPain, dailyReadiness, structuredIntervals } = ctx;
 
       // 1. Smerte — gradert respons etter alvorlighetsgrad (Bakken: body_signals_first)
       const { activePain, resolvedRecently, highestTier } = gradedPain;
@@ -5493,6 +5504,17 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         return 'Flere harde økter tett på hverandre de siste 2 ukene. Neste økt kan gjerne være rolig for å sikre kontinuitet.';
       }
 
+      // 4b. Strukturert intervallarbeid — støtteinformasjon, ikke hard fasit.
+      if (structuredIntervals?.last7.count >= 2 || structuredIntervals?.closeQualityDays) {
+        return `Du har hatt ${structuredIntervals.last7.count} strukturerte intervalløkter siste 7 dager. La neste økt være rolig eller restitusjon, slik at kvalitetsarbeidet faktisk får effekt. ${coachPrincipleLine(['fresh_legs', 'recovery_is_training'])}`;
+      }
+      if (isRunningBakken && structuredIntervals?.last28.count === 0 && weekSummary.sessions > 0 && dailyReadiness?.level === 'green') {
+        return `Du har ingen strukturerte intervalløkter siste 28 dager. Hvis kroppssignalene fortsatt er grønne, kan en kontrollert terskel-/intervalløkt være neste kvalitetssteg. ${coachPrincipleLine(['controlled_threshold', 'fresh_legs'])}`;
+      }
+      if (structuredIntervals?.last14.count === 1 && structuredIntervals.last14.totalWorkSeconds <= 1800 && hardCount14 <= 1) {
+        return `Siste 14 dager har du én strukturert kvalitetsøkt med ${formatDuration(structuredIntervals.last14.totalWorkSeconds)} intervallarbeid. Det teller som kontrollert kvalitet — bygg rolig volum rundt den. ${coachPrincipleLine(['controlled_threshold', 'golden_zone'])}`;
+      }
+
       // 5. Siste økt-logikk (kropp og belastning fra siste konkrete økt)
       if (lastWorkout) {
         const lastNote = lastWorkoutCoachNote(lastWorkout, trainingProfile);
@@ -5519,7 +5541,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     function buildCoachBasis(ctx) {
       const { last14Days, load14, bodySignals14, consecutiveDays, daysSinceLast,
               goldenZone, goldenZoneViolations, latestHrv, latestRestingHr,
-              gradedPain, dailyReadiness } = ctx;
+              gradedPain, dailyReadiness, structuredIntervals } = ctx;
       const parts = [];
       if (dailyReadiness) {
         const cfg = TRAFFIC_LIGHT_CONFIG[dailyReadiness.level];
@@ -5553,6 +5575,10 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       }
       if (goldenZone) {
         parts.push(`Gylne sonen: ${goldenZone.low}–${goldenZone.high} bpm${goldenZoneViolations > 0 ? ` (${goldenZoneViolations} brudd siste 7 dager)` : ''}`);
+      }
+      if (structuredIntervals?.last14.count > 0) {
+        const latest = structuredIntervals.latest?.date ? `, siste ${formatDate(structuredIntervals.latest.date)}` : '';
+        parts.push(`Strukturert intervall: ${structuredIntervals.last14.count} siste 14 dager, ${formatDuration(structuredIntervals.last14.totalWorkSeconds)} arbeid${latest}`);
       }
       if (latestHrv) parts.push(`HRV: ${latestHrv.hrv7d} ms`);
       if (latestRestingHr) parts.push(`Hvilepuls: ${latestRestingHr.restingHeartRate7d} bpm`);

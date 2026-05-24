@@ -34,9 +34,11 @@ function test(name, fn) {
     formatDuration,
     formatPace,
     goldenZonePercentages,
+    hasStructuredIntervals,
     normalizeStructuredWorkout,
     normalizeTemplate,
     parseNonNegativeInteger,
+    structuredIntervalContext,
     structuredIntervalInsights,
     structuredWorkoutBreakdown,
     structuredWorkoutCompactText,
@@ -92,7 +94,7 @@ function test(name, fn) {
 
   test('settings include internal structured interval feature flag', () => {
     assert.ok(app.includes('features: {'), 'settings features object is missing');
-    assert.ok(app.includes('structuredIntervals: true'), 'structuredIntervals should be enabled in v103 defaults');
+    assert.ok(app.includes('structuredIntervals: true'), 'structuredIntervals should be enabled in v104 defaults');
     assert.ok(app.includes('features: normalizeFeatures(source.features)'), 'settings should normalize feature flags');
   });
 
@@ -194,6 +196,7 @@ function test(name, fn) {
     assert.strictEqual(normalizeStructuredWorkout({ version: 1, blocks: [] }), null);
     assert.strictEqual(normalizeStructuredWorkout({ version: 1, blocks: [{ type: 'interval', repetitions: 0, workSeconds: 45 }] }), null);
     assert.strictEqual(buildStructuredWorkout({ warmupMinutes: 0, repetitions: 0, workSeconds: 0 }), null);
+    assert.strictEqual(hasStructuredIntervals(null), false);
     assert.strictEqual(structuredWorkoutSummary(null), '');
     assert.strictEqual(structuredWorkoutCompactText(null), '');
     assert.strictEqual(structuredWorkoutBreakdown(null), null);
@@ -207,6 +210,7 @@ function test(name, fn) {
       restType: 'float',
       intensity: 'threshold'
     });
+    assert.strictEqual(hasStructuredIntervals(workout), true);
     assert.strictEqual(structuredWorkoutCompactText(workout), '20 x 45/15');
     assert.strictEqual(structuredWorkoutWorkSeconds(workout), 900);
     assert.strictEqual(structuredWorkoutRestSeconds(workout), 300);
@@ -268,6 +272,36 @@ function test(name, fn) {
     assert.strictEqual(insight.latest.date, '2026-05-12');
     assert.strictEqual(insight.latest.name, 'Snapshot 45/15');
     assert.ok(insight.latest.summary.includes('20 x 45/15'), insight.latest.summary);
+  });
+
+  test('structured interval context summarizes 7 14 28 days and latest workout', () => {
+    const structuredWorkout = buildStructuredWorkout({
+      repetitions: 20,
+      workSeconds: 45,
+      restSeconds: 15
+    });
+    const context = structuredIntervalContext([
+      { date: '2026-04-20', name: 'For gammel', structuredWorkout },
+      { date: '2026-04-30', name: 'Innen 28', structuredWorkout },
+      { date: '2026-05-12', name: 'Innen 14', structuredWorkout },
+      { date: '2026-05-22', name: 'Innen 7', structuredWorkout },
+      { date: '2026-05-24', name: 'Siste', structuredWorkout },
+      { date: '2026-05-24', name: 'Gammel rolig mal' }
+    ], '2026-05-24');
+    assert.strictEqual(context.last7.count, 2);
+    assert.strictEqual(context.last14.count, 3);
+    assert.strictEqual(context.last28.count, 4);
+    assert.strictEqual(context.last28.totalWorkSeconds, 3600);
+    assert.strictEqual(context.latest.date, '2026-05-24');
+    assert.strictEqual(context.latest.name, 'Siste');
+    assert.strictEqual(context.closeQualityDays, true);
+  });
+
+  test('coach context uses structured intervals as quality signal', () => {
+    assert.ok(app.includes('structuredIntervalContext(completedWithTemplateContext, today)'), 'coach context should build structured interval context');
+    assert.ok(app.includes('hasStructuredIntervals(template.structuredWorkout)'), 'hard workout classification should count structured intervals');
+    assert.ok(app.includes('structuredIntervals?.last7.count >= 2'), 'coach note should detect recent structured interval load');
+    assert.ok(app.includes('structuredIntervals.last14.totalWorkSeconds'), 'coach basis should include structured interval work time');
   });
 
   test('backup import and local snapshot normalize without losing structuredWorkout', () => {

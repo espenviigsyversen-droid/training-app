@@ -166,6 +166,16 @@ export function structuredWorkoutIntervalBlocks(structuredWorkout) {
   return workout ? workout.blocks.filter(block => block.type === 'interval') : [];
 }
 
+export function hasStructuredIntervals(structuredWorkout) {
+  return structuredWorkoutIntervalBlocks(structuredWorkout)
+    .some(block => block.repetitions > 0 && block.workSeconds > 0);
+}
+
+export function structuredWorkoutFromItem(item = {}) {
+  if (!item || typeof item !== 'object') return null;
+  return normalizeStructuredWorkout(item.structuredWorkout || item.templateSnapshot?.structuredWorkout);
+}
+
 export function compactDurationText(seconds) {
   const total = parseNonNegativeInteger(seconds);
   if (!total) return '0';
@@ -226,9 +236,9 @@ export function structuredIntervalInsights(completedItems = [], todayIso = dateT
     .filter(item => item?.date >= startIso && item?.date <= todayIso)
     .map(item => ({
       ...item,
-      structuredWorkout: normalizeStructuredWorkout(item.structuredWorkout || item.templateSnapshot?.structuredWorkout)
+      structuredWorkout: structuredWorkoutFromItem(item)
     }))
-    .filter(item => item.structuredWorkout)
+    .filter(item => hasStructuredIntervals(item.structuredWorkout))
     .sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')));
 
   const totalWorkSeconds = structuredItems.reduce((sum, item) => sum + structuredWorkoutWorkSeconds(item.structuredWorkout), 0);
@@ -244,6 +254,55 @@ export function structuredIntervalInsights(completedItems = [], todayIso = dateT
       name: latest.name || latest.templateSnapshot?.name || 'Strukturert intervall',
       summary: structuredWorkoutSummary(latest.structuredWorkout)
     } : null
+  };
+}
+
+export function structuredIntervalContext(completedItems = [], todayIso = dateToISO(new Date())) {
+  const items = Array.isArray(completedItems) ? completedItems : [];
+  const structuredItems = items
+    .filter(item => item?.date && item.date <= todayIso)
+    .map(item => ({
+      ...item,
+      structuredWorkout: structuredWorkoutFromItem(item)
+    }))
+    .filter(item => hasStructuredIntervals(item.structuredWorkout))
+    .sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')));
+
+  const summarizeWindow = (days) => {
+    const startIso = addDays(todayIso, -(days - 1));
+    const inRange = structuredItems.filter(item => item.date >= startIso && item.date <= todayIso);
+    return {
+      days,
+      count: inRange.length,
+      totalWorkSeconds: inRange.reduce((sum, item) => sum + structuredWorkoutWorkSeconds(item.structuredWorkout), 0),
+      totalRestSeconds: inRange.reduce((sum, item) => sum + structuredWorkoutRestSeconds(item.structuredWorkout), 0)
+    };
+  };
+
+  const closeWindowStartIso = addDays(todayIso, -13);
+  const datesAsc = [...new Set(
+    structuredItems
+      .filter(item => item.date >= closeWindowStartIso && item.date <= todayIso)
+      .map(item => item.date)
+  )].sort();
+  const closeQualityDays = datesAsc.some((date, index) => {
+    if (index === 0) return false;
+    const previous = datesAsc[index - 1];
+    const diff = (new Date(`${date}T12:00:00`) - new Date(`${previous}T12:00:00`)) / 86400000;
+    return diff <= 2;
+  });
+  const latest = structuredItems[0] || null;
+
+  return {
+    last7: summarizeWindow(7),
+    last14: summarizeWindow(14),
+    last28: summarizeWindow(28),
+    latest: latest ? {
+      date: latest.date,
+      name: latest.name || latest.templateSnapshot?.name || 'Strukturert intervall',
+      summary: structuredWorkoutSummary(latest.structuredWorkout)
+    } : null,
+    closeQualityDays
   };
 }
 

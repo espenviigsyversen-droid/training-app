@@ -1,5 +1,5 @@
 # Treningsapp — progress.md
-Oppdatert: 2026-05-24 (siste endringer: v75–v103)
+Oppdatert: 2026-05-24 (siste endringer: v75–v104)
 
 ---
 
@@ -27,7 +27,7 @@ Standard Bakken-uke: Hoved-terskel → Støtte-terskel → Lang rolig → Valgfr
 **Hosting:** GitHub Pages.  
 **Backend:** Firebase (prosjekt `home-tasks-app-18de3`) — Firestore + Google Auth.  
 **Frontend:** Vanilla JS + HTML + CSS, single-page app, tab-navigasjon.  
-**Versjon:** v103 (konstant i `app.js`).
+**Versjon:** v104 (konstant i `app.js`).
 
 ### Filer
 
@@ -75,6 +75,7 @@ Treningsapp/
 - **Best Practice Guardrails før intervaller** (v101): Tydeligere feature-regler i `ARCHITECTURE.md` og `AGENTS.md`: datamodell først, ren logikk i domene, små `app.js`-wrappers, bakoverkompatible felter, normalisering før bruk og versjon/cache-kontroll. Lagt til `normalizeTemplate()` og `normalizeStructuredWorkout()` i `domain-core.js`. Firestore-load, backup-import og lokal snapshot normaliserer nå templates før bruk. `settings.features.structuredIntervals` er lagt inn som intern feature flag, uten synlig UI.
 - **Strukturert intervallstøtte v1** (v102): Øktmaler kan nå valgfritt lagre `structuredWorkout` med oppvarming, én intervallblokk, repetisjoner, arbeidstid, hviletid, hviletype, intensitet, nedjogg og notat. Eksisterende `structure`-tekstfelt beholdes og gamle maler får `structuredWorkout: null`. Strukturert sammendrag vises på øktmaler, planlagte økter og detaljvisning når feltet finnes. `domain-core.js` har rene funksjoner for bygging, normalisering, arbeid/hvile/total tid og formattering. Stabilitetstestene dekker 20 x 45/15, fallback ved ugyldig struktur og at backup/import/lokal snapshot bevarer feltet.
 - **Bedre intervallopplevelse og enkel innsikt** (v103): Strukturert intervallinfo vises nå som mer nyttig breakdown med kompakt form (`20 x 45/15`), oppvarming, arbeid, hvile, nedjogg, total varighet, hviletype, intensitet og notat. Innsikt har en liten intervallblokk som vises når det finnes strukturerte intervalløkter siste 28 dager: antall økter, total intervallarbeid, hvile i drag og siste strukturerte intervalløkt. Nye rene funksjoner i `domain-core.js`: `structuredWorkoutCompactText()`, `structuredWorkoutBreakdown()` og `structuredIntervalInsights()`.
+- **Coach forstår strukturert intervallarbeid** (v104): Intern coach-context bruker nå `structuredWorkout` som støtteinformasjon. Strukturerte intervalløkter teller som kvalitetsarbeid når de har intervallblokk med arbeidstid. Coach-grunnlaget ser antall strukturerte intervalløkter og total arbeidstid siste 7/14/28 dager, siste strukturerte økt og om kvalitetsøkter ligger tett. Coach-notisen kan derfor anbefale rolig/restitusjon etter tett intervallarbeid, anerkjenne kontrollert kvalitet ved god balanse eller foreslå kontrollert terskel/intervall når kvalitet har manglet lenge og signalene er grønne. Nye rene funksjoner: `hasStructuredIntervals()` og `structuredIntervalContext()`.
 - **Fjernet «Foreslå neste økt»** (v92): Kortet er fjernet fra Kalender-fanen. Ukeplanen dekker samme behov bedre og er rollebevisst. `renderWorkoutSuggestion`-kallet er fjernet fra render-løkken for å unngå krasj.
 - **Coach: smertegradering + priority-felt + X-økt** (v91): Tre coach-forbedringer: (1) `bodySignalState` skiller nå mellom mild smerte (1–2/10 → `cooling`, foreslår terskel etter en rolig økt) og bekymringsfull smerte (3+/10 → `caution`, kun recovery). Løser at mild smerte blokkerte terskelforslag for hele neste uke. (2) `priority`-feltet i treningsprofilen er nå aktivt: `performance` foreslår terskel straks det er rom, `injury_free_progression` krever 2 rolige øyer før terskel. (3) X-økt vises alltid som 4. forslag i normaluke når det er rom — sikrer at VO2max/teknikk/styrke alltid er synlig som alternativ.
 - **Hjem: alle økter samme dag** (v90): «Neste økt» / «Dagens økt» viser nå alle planlagte økter på samme dato, ikke bare én. For fremtidige dager grupperes etter første kommende dato (`nextDateItems`). Tittelen skifter til «Dagens økt» automatisk når det finnes økter på dagens dato (eksisterende logikk).
@@ -100,7 +101,7 @@ Treningsapp/
 | **2. Den gylne sonen** | Nivåkalibrert, vist i loggmodal og detaljvisning | Bygget (v78) |
 | **3. Coach-note** | Kjører ekte logikk via `buildCoachContext` + `buildCoachNote` | Bygget (v75) |
 | **4. Innsikt = mønstre** | «Bakken-mønstre»-kort i Innsikt med 4 mønstre siste 30 dager | Bygget (v81) |
-| **5. Interval-struktur** | Valgfri strukturert info for oppvarming, én intervallblokk, arbeid/hvile og nedjogg på øktmaler | Første versjon bygget (v102) |
+| **5. Interval-struktur** | Valgfri strukturert info for oppvarming, én intervallblokk, arbeid/hvile og nedjogg på øktmaler. Coach-grunnlaget forstår nå strukturert intervallarbeid. | Bygget (v102–v104) |
 | **6. AI-integrasjon** | Ingen faktisk Claude API-kall | Ikke bygget |
 | **7. Gradert smerte** | Smerte vurderes nå etter alvorlighetsgrad med forfallslogikk | Bygget (v76) |
 | **8. Strukturert lokasjon** | Fritekst erstattet med kroppsdel+side-dropdown, lagres strukturert | Bygget (v77) |
@@ -110,7 +111,7 @@ Treningsapp/
 ## Neste steg (prioritert)
 
 ### 1. Strukturert intervallstøtte v2
-- Test v103 manuelt i øktmalflyten, planlagt økt, fullført detaljvisning og Innsikt.
+- Test v104 manuelt i øktmalflyten, planlagt økt, fullført detaljvisning, Innsikt og coach-notis.
 - Vurder om strukturen også skal kunne brukes direkte når en planlagt økt logges.
 - Vurder flere intervallblokker senere hvis én blokk blir for begrensende.
 

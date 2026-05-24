@@ -27,6 +27,7 @@ node tests\stability-tests.js
 - at gamle øktmaler normaliseres trygt, inkl. array-felter og manglende `structuredWorkout`
 - at strukturert intervallinfo normaliseres trygt, beregner arbeid/hvile/total tid og formatteres lesbart
 - at kompakt intervallformat, breakdown og enkel 28-dagers intervallinnsikt beregnes fra `domain-core.js`
+- at strukturert intervallarbeid identifiseres som kvalitetsarbeid og kan summeres for coach-grunnlag siste 7/14/28 dager
 - at backup/import og lokal snapshot ikke mister `structuredWorkout`
 - at challenge-progress viser gjenstående distanse og håndterer fullførte mål
 - at trafikklyset gir grønn/gul/rød etter søvn, energi, hvilepuls og trappetest
