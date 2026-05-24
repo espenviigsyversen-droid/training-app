@@ -21,16 +21,17 @@ node tests\stability-tests.js
 - at `safeStateWrite()` finnes og brukes bredt
 - at lokal recovery snapshot kan nås fra UI
 - at service worker cacher nødvendige app shell-filer
+- at challenge-progress viser gjenstående distanse og håndterer fullførte mål
+- at trafikklyset gir grønn/gul/rød etter søvn, energi, hvilepuls og trappetest
+- at gylne sone-prosentene matcher treningsnivå
+- at ukeplan-datoer hopper over planlagte og blokkerte dager
+- at neste uke-planlegging prioriterer ikke-sammenhengende dager når mulig
 
 ## Hva testene ikke dekker ennå
 
 Disse bør legges til senere:
 
 - coach-context og coach-note
-- ukeplan og datoalgoritmer
-- blocked days i ukeplanforslag
-- challenge-progress
-- gylne sone
 - import av reell backupfil
 - full Firestore-sync med testbruker
 - visuell regresjon i mobilvisning
@@ -60,4 +61,3 @@ Etter større endringer:
 7. Lag eller oppdater en challenge
 8. Eksporter backup
 9. Kjør `Oppdater app`
-
