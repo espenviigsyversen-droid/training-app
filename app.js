@@ -4,7 +4,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     import { getFirestore, doc, collection, getDoc, getDocs, setDoc, deleteDoc, writeBatch, enableIndexedDbPersistence }
       from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
-    const APP_VERSION = 'v95';
+    const APP_VERSION = 'v96';
 
     const firebaseConfig = {
       apiKey: "AIzaSyAMPfQ9gX9rbuvcPsVjYVtq5IT_orjDBPs",
@@ -796,6 +796,87 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       }
     }
 
+    const DATA_COLLECTIONS = ['templates', 'planned', 'completed', 'wellness', 'challenges', 'blockedDays'];
+
+    async function commitBatchedOperations(operations, chunkSize = 450) {
+      for (let i = 0; i < operations.length; i += chunkSize) {
+        const batch = writeBatch(db);
+        operations.slice(i, i + chunkSize).forEach(operation => operation(batch));
+        await batch.commit();
+      }
+    }
+
+    function saveRecoverySnapshot(reason) {
+      try {
+        localStorage.setItem(`${LOCAL_STATE_KEY}_recovery`, JSON.stringify({
+          savedAt: new Date().toISOString(),
+          reason,
+          state: cloneAppState()
+        }));
+      } catch (err) {
+        console.warn('Could not save recovery snapshot:', err);
+      }
+    }
+
+    function loadRecoverySnapshot() {
+      try {
+        const raw = localStorage.getItem(`${LOCAL_STATE_KEY}_recovery`);
+        if (!raw) return null;
+        const snapshot = JSON.parse(raw);
+        if (!snapshot?.state) return null;
+        return snapshot;
+      } catch (err) {
+        console.warn('Could not load recovery snapshot:', err);
+        return null;
+      }
+    }
+
+    async function replaceFirestoreData(nextState) {
+      if (blockOfflineSnapshotWrite()) throw new Error('Offline snapshot is read-only');
+      setSyncStatus('syncing');
+      const existingSnapshots = await Promise.all(DATA_COLLECTIONS.map(colName => getDocs(userCol(colName))));
+      const deleteOps = existingSnapshots.flatMap(snapshot => snapshot.docs.map(docSnapshot => batch => batch.delete(docSnapshot.ref)));
+      const setOps = DATA_COLLECTIONS.flatMap(colName => (nextState[colName] || []).map(item => batch => {
+        const { id, ...rest } = item;
+        batch.set(userDoc(colName, id), rest);
+      }));
+      await commitBatchedOperations([...deleteOps, ...setOps]);
+      await fsSet('settings', 'preferences', nextState.settings);
+      saveLocalStateSnapshot();
+      setSyncStatus('ok');
+    }
+
+    function cloneAppState() {
+      if (typeof structuredClone === 'function') return structuredClone(state);
+      return JSON.parse(JSON.stringify(state));
+    }
+
+    function restoreAppState(snapshot) {
+      state = snapshot;
+      saveLocalStateSnapshot();
+      render();
+      if (document.getElementById('calendarDayModal')?.classList.contains('active') && selectedCalendarDate) {
+        openCalendarDayModal(selectedCalendarDate);
+      }
+    }
+
+    async function safeStateWrite({ apply, write, successMessage = 'Lagret', errorMessage = 'Kunne ikke lagre endringen', afterApply }) {
+      const snapshot = cloneAppState();
+      try {
+        apply();
+        saveLocalStateSnapshot();
+        render();
+        if (typeof afterApply === 'function') afterApply();
+        await write();
+        showToast(successMessage);
+      } catch (err) {
+        console.error(errorMessage, err);
+        restoreAppState(snapshot);
+        setSyncStatus(navigator.onLine ? 'error' : 'offline');
+        showToast(`${errorMessage}. Endringen er rullet tilbake.`, 'error');
+      }
+    }
+
     // ── Auth ──────────────────────────────────────────────────────────────────
     document.getElementById('googleSignInBtn').addEventListener('click', async () => {
       try {
@@ -1073,17 +1154,21 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         updatedAt: new Date().toISOString()
       };
 
-      if (editingId) {
-        const index = state.wellness.findIndex(item => item.id === editingId);
-        if (index >= 0) state.wellness[index] = measurement;
-      } else {
-        state.wellness.push(measurement);
-      }
-      state.wellness.sort((a, b) => b.date.localeCompare(a.date));
       clearWellnessForm();
-      render();
-      await fsSet('wellness', measurement.id, measurement);
-      showToast(editingId ? 'Formmåling oppdatert' : 'Formmåling lagret');
+      await safeStateWrite({
+        apply: () => {
+          if (editingId) {
+            const index = state.wellness.findIndex(item => item.id === editingId);
+            if (index >= 0) state.wellness[index] = measurement;
+          } else {
+            state.wellness.push(measurement);
+          }
+          state.wellness.sort((a, b) => b.date.localeCompare(a.date));
+        },
+        write: () => fsSet('wellness', measurement.id, measurement),
+        successMessage: editingId ? 'Formmåling oppdatert' : 'Formmåling lagret',
+        errorMessage: 'Kunne ikke lagre formmålingen'
+      });
     };
 
     window.editWellnessMeasurement = function(id) {
@@ -1103,10 +1188,12 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       const item = state.wellness.find(entry => entry.id === id);
       if (!item) return;
       if (!confirm(`Slette formmåling fra ${formatDate(item.date)}?`)) return;
-      state.wellness = state.wellness.filter(entry => entry.id !== id);
-      render();
-      await fsDelete('wellness', id);
-      showToast('Formmåling slettet');
+      await safeStateWrite({
+        apply: () => { state.wellness = state.wellness.filter(entry => entry.id !== id); },
+        write: () => fsDelete('wellness', id),
+        successMessage: 'Formmåling slettet',
+        errorMessage: 'Kunne ikke slette formmålingen'
+      });
     };
 
     // ── Templates ─────────────────────────────────────────────────────────────
@@ -1186,19 +1273,28 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         avoidWhen: getCheckedValues('templateAvoidWhen'),
         structure: document.getElementById('templateStructure').value.trim()
       };
+      let savedTemplate = null;
       if (editingId) {
         const idx = state.templates.findIndex(t => t.id === editingId);
         if (idx === -1) return alert('Fant ikke øktmalen.');
-        state.templates[idx] = { ...state.templates[idx], ...templateData, updatedAt: new Date().toISOString() };
-        await fsSet('templates', editingId, state.templates[idx]);
+        savedTemplate = { ...state.templates[idx], ...templateData, updatedAt: new Date().toISOString() };
       } else {
-        const newT = { id: uid('template'), ...templateData, createdAt: todayISO() };
-        state.templates.push(newT);
-        await fsSet('templates', newT.id, newT);
+        savedTemplate = { id: uid('template'), ...templateData, createdAt: todayISO() };
       }
       clearTemplateForm();
-      render();
-      showToast(editingId ? 'Øktmal oppdatert' : 'Øktmal lagret');
+      await safeStateWrite({
+        apply: () => {
+          if (editingId) {
+            const idx = state.templates.findIndex(t => t.id === editingId);
+            if (idx >= 0) state.templates[idx] = savedTemplate;
+          } else {
+            state.templates.push(savedTemplate);
+          }
+        },
+        write: () => fsSet('templates', savedTemplate.id, savedTemplate),
+        successMessage: editingId ? 'Øktmal oppdatert' : 'Øktmal lagret',
+        errorMessage: 'Kunne ikke lagre øktmalen'
+      });
     };
 
     window.editTemplate = function(id) {
@@ -1238,9 +1334,12 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
 
     window.deleteTemplate = async function(id) {
       if (!confirm('Slette denne øktmalen? Planlagte økter blir ikke slettet.')) return;
-      state.templates = state.templates.filter(t => t.id !== id);
-      await fsDelete('templates', id);
-      render();
+      await safeStateWrite({
+        apply: () => { state.templates = state.templates.filter(t => t.id !== id); },
+        write: () => fsDelete('templates', id),
+        successMessage: 'Øktmal slettet',
+        errorMessage: 'Kunne ikke slette øktmalen'
+      });
     };
 
     window.addBakkenStandardTemplates = async function() {
@@ -1331,25 +1430,32 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       }
       if (!workoutsToAdd.length) return alert('Alle datoene i repetisjonen er markert som ikke treningsdager.');
 
-      state.planned.push(...workoutsToAdd);
       document.getElementById('planNotes').value = '';
       document.getElementById('planRepeat').value = 'none';
       document.getElementById('planRepeatWeeks').value = 8;
       document.getElementById('planRepeatInterval').value = 1;
       toggleRepeatOptions();
-      render();
-      await fsBatchSet('planned', workoutsToAdd);
-      showToast(workoutsToAdd.length > 1 ? `${workoutsToAdd.length} økter planlagt` : 'Økt planlagt');
+      await safeStateWrite({
+        apply: () => { state.planned.push(...workoutsToAdd); },
+        write: () => fsBatchSet('planned', workoutsToAdd),
+        successMessage: workoutsToAdd.length > 1 ? `${workoutsToAdd.length} økter planlagt` : 'Økt planlagt',
+        errorMessage: 'Kunne ikke planlegge økten'
+      });
     };
 
     window.deletePlanned = async function(id) {
       if (!confirm('Slette planlagt økt?')) return;
-      state.planned = state.planned.filter(p => p.id !== id);
-      await fsDelete('planned', id);
-      render();
-      if (document.getElementById('calendarDayModal')?.classList.contains('active') && selectedCalendarDate) {
-        openCalendarDayModal(selectedCalendarDate);
-      }
+      await safeStateWrite({
+        apply: () => { state.planned = state.planned.filter(p => p.id !== id); },
+        write: () => fsDelete('planned', id),
+        afterApply: () => {
+          if (document.getElementById('calendarDayModal')?.classList.contains('active') && selectedCalendarDate) {
+            openCalendarDayModal(selectedCalendarDate);
+          }
+        },
+        successMessage: 'Planlagt økt slettet',
+        errorMessage: 'Kunne ikke slette planlagt økt'
+      });
     };
 
     // ── Reschedule ────────────────────────────────────────────────────────────
@@ -1385,24 +1491,31 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       const diffDays = daysBetween(oldDate, newDate);
       if (diffDays === 0) { closeRescheduleModal(); return; }
 
-      const toUpdate = [];
-      if (shiftFollowing) {
-        state.planned.forEach(p => {
-          if (p.status !== 'done' && p.date >= oldDate) {
-            p.date = addDays(p.date, diffDays);
-            p.updatedAt = new Date().toISOString();
-            toUpdate.push(p);
-          }
-        });
-      } else {
-        planned.date = newDate;
-        planned.updatedAt = new Date().toISOString();
-        toUpdate.push(planned);
-      }
-
       closeRescheduleModal();
-      render();
-      await fsBatchSet('planned', toUpdate);
+      const toUpdate = [];
+      await safeStateWrite({
+        apply: () => {
+          if (shiftFollowing) {
+            state.planned.forEach(p => {
+              if (p.status !== 'done' && p.date >= oldDate) {
+                p.date = addDays(p.date, diffDays);
+                p.updatedAt = new Date().toISOString();
+                toUpdate.push(p);
+              }
+            });
+          } else {
+            const item = state.planned.find(p => p.id === plannedId);
+            if (item) {
+              item.date = newDate;
+              item.updatedAt = new Date().toISOString();
+              toUpdate.push(item);
+            }
+          }
+        },
+        write: () => fsBatchSet('planned', toUpdate),
+        successMessage: 'Økt flyttet',
+        errorMessage: 'Kunne ikke flytte økten'
+      });
     };
 
     // ── Complete ──────────────────────────────────────────────────────────────
@@ -2235,7 +2348,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         const templateId = document.getElementById('completeTemplate').value || state.completed[completedIndex].templateId;
         const manualName = document.getElementById('completeManualName').value.trim();
 
-        state.completed[completedIndex] = {
+        const updatedCompleted = {
           ...state.completed[completedIndex],
           date,
           templateId,
@@ -2245,14 +2358,21 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
           updatedAt: new Date().toISOString()
         };
 
-        const updatedCompleted = state.completed[completedIndex];
         closeCompleteModal();
-        render();
-        if (selectedCalendarDate && document.getElementById('calendarDayModal').classList.contains('active')) {
-          openCalendarDayModal(selectedCalendarDate);
-        }
-        await fsSet('completed', editingId, updatedCompleted);
-        showToast('Økt oppdatert');
+        await safeStateWrite({
+          apply: () => {
+            const index = state.completed.findIndex(c => c.id === editingId);
+            if (index >= 0) state.completed[index] = updatedCompleted;
+          },
+          write: () => fsSet('completed', editingId, updatedCompleted),
+          afterApply: () => {
+            if (selectedCalendarDate && document.getElementById('calendarDayModal').classList.contains('active')) {
+              openCalendarDayModal(selectedCalendarDate);
+            }
+          },
+          successMessage: 'Økt oppdatert',
+          errorMessage: 'Kunne ikke oppdatere økten'
+        });
         return;
       }
 
@@ -2275,14 +2395,15 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
           completedAt: new Date().toISOString(),
           source: 'manual'
         };
-        state.completed.push(completed);
         closeCompleteModal();
-        render();
-        await fsSet('completed', completed.id, completed);
-        showToast('Historisk økt lagret');
+        await safeStateWrite({
+          apply: () => { state.completed.push(completed); },
+          write: () => fsSet('completed', completed.id, completed),
+          successMessage: 'Historisk økt lagret',
+          errorMessage: 'Kunne ikke lagre historisk økt'
+        });
         return;
       }
-      planned.status = 'done';
       const completed = {
         id: uid('completed'),
         plannedWorkoutId: plannedId,
@@ -2293,11 +2414,20 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         ...completedFormData(),
         completedAt: new Date().toISOString()
       };
-      state.completed.push(completed);
       closeCompleteModal();
-      render();
-      await Promise.all([fsSet('planned', plannedId, planned), fsSet('completed', completed.id, completed)]);
-      showToast('Økt logget - bra jobba!');
+      await safeStateWrite({
+        apply: () => {
+          const item = state.planned.find(p => p.id === plannedId);
+          if (item) item.status = 'done';
+          state.completed.push(completed);
+        },
+        write: () => {
+          const updatedPlanned = state.planned.find(p => p.id === plannedId) || { ...planned, status: 'done' };
+          return Promise.all([fsSet('planned', plannedId, updatedPlanned), fsSet('completed', completed.id, completed)]);
+        },
+        successMessage: 'Økt logget - bra jobba!',
+        errorMessage: 'Kunne ikke loggføre økten'
+      });
     };
 
     window.undoComplete = async function(completedId) {
@@ -2309,16 +2439,28 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         ? `Er du sikker på at du vil angre utført økt?\n\n${template.name} flyttes tilbake til planlagt økt.`
         : `Er du sikker på at du vil slette denne historiske økten?\n\n${template.name} fjernes fra historikken.`;
       if (!confirm(confirmText)) return;
-      if (planned) planned.status = 'planned';
-      state.completed = state.completed.filter(c => c.id !== completedId);
-      render();
-      if (document.getElementById('calendarDayModal')?.classList.contains('active') && selectedCalendarDate) {
-        openCalendarDayModal(selectedCalendarDate);
-      }
-      const ops = [fsDelete('completed', completedId)];
-      if (planned) ops.push(fsSet('planned', planned.id, planned));
-      await Promise.all(ops);
-      showToast(planned ? 'Økt flyttet tilbake til planlagt' : 'Historisk økt slettet');
+      await safeStateWrite({
+        apply: () => {
+          if (planned) {
+            const item = state.planned.find(p => p.id === planned.id);
+            if (item) item.status = 'planned';
+          }
+          state.completed = state.completed.filter(c => c.id !== completedId);
+        },
+        write: () => {
+          const ops = [fsDelete('completed', completedId)];
+          const updatedPlanned = planned ? state.planned.find(p => p.id === planned.id) : null;
+          if (updatedPlanned) ops.push(fsSet('planned', updatedPlanned.id, updatedPlanned));
+          return Promise.all(ops);
+        },
+        afterApply: () => {
+          if (document.getElementById('calendarDayModal')?.classList.contains('active') && selectedCalendarDate) {
+            openCalendarDayModal(selectedCalendarDate);
+          }
+        },
+        successMessage: planned ? 'Økt flyttet tilbake til planlagt' : 'Historisk økt slettet',
+        errorMessage: 'Kunne ikke angre økten'
+      });
     };
 
     window.closeWorkoutDetailModal = function() {
@@ -2971,21 +3113,27 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
           createdAt: existing?.createdAt || new Date().toISOString(),
           updatedAt: new Date().toISOString()
         };
-        state.blockedDays = [...(state.blockedDays || []).filter(day => day.date !== date), blockedDay];
-        render();
-        openCalendarDayModal(date);
-        await fsSet('blockedDays', blockedDay.id, blockedDay);
-        showToast('Dagen er markert som ikke treningsdag');
+        await safeStateWrite({
+          apply: () => {
+            state.blockedDays = [...(state.blockedDays || []).filter(day => day.date !== date), blockedDay];
+          },
+          write: () => fsSet('blockedDays', blockedDay.id, blockedDay),
+          afterApply: () => openCalendarDayModal(date),
+          successMessage: 'Dagen er markert som ikke treningsdag',
+          errorMessage: 'Kunne ikke markere dagen'
+        });
         return;
       }
 
       const existing = blockedDayForDate(date);
       if (!existing) return;
-      state.blockedDays = (state.blockedDays || []).filter(day => day.date !== date);
-      render();
-      openCalendarDayModal(date);
-      await fsDelete('blockedDays', existing.id || date);
-      showToast('Dagen er åpnet for trening igjen');
+      await safeStateWrite({
+        apply: () => { state.blockedDays = (state.blockedDays || []).filter(day => day.date !== date); },
+        write: () => fsDelete('blockedDays', existing.id || date),
+        afterApply: () => openCalendarDayModal(date),
+        successMessage: 'Dagen er åpnet for trening igjen',
+        errorMessage: 'Kunne ikke åpne dagen for trening'
+      });
     };
 
     window.updateBlockedTrainingDay = async function() {
@@ -2995,11 +3143,15 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       const reason = document.getElementById('calendarBlockedReason')?.value || 'unavailable';
       const note = document.getElementById('calendarBlockedNote')?.value.trim() || '';
       const updated = { ...existing, id: existing.id || date, date, reason, note, updatedAt: new Date().toISOString() };
-      state.blockedDays = (state.blockedDays || []).map(day => day.date === date ? updated : day);
-      render();
-      openCalendarDayModal(date);
-      await fsSet('blockedDays', updated.id, updated);
-      showToast('Ikke-treningsdag oppdatert');
+      await safeStateWrite({
+        apply: () => {
+          state.blockedDays = (state.blockedDays || []).map(day => day.date === date ? updated : day);
+        },
+        write: () => fsSet('blockedDays', updated.id, updated),
+        afterApply: () => openCalendarDayModal(date),
+        successMessage: 'Ikke-treningsdag oppdatert',
+        errorMessage: 'Kunne ikke oppdatere ikke-treningsdag'
+      });
     };
 
     window.openCalendarDayModal = function(dateIso) {
@@ -4190,10 +4342,12 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         repeatGroupId: null,
         createdAt: todayISO()
       }));
-      state.planned.push(...workoutsToAdd);
-      render();
-      await fsBatchSet('planned', workoutsToAdd);
-      showToast(workoutsToAdd.length === 1 ? 'Forslag lagt i kalender' : `${workoutsToAdd.length} forslag lagt i kalender`);
+      await safeStateWrite({
+        apply: () => { state.planned.push(...workoutsToAdd); },
+        write: () => fsBatchSet('planned', workoutsToAdd),
+        successMessage: workoutsToAdd.length === 1 ? 'Forslag lagt i kalender' : `${workoutsToAdd.length} forslag lagt i kalender`,
+        errorMessage: 'Kunne ikke legge inn forslagene'
+      });
     };
 
     function renderDashboardSummary(today, todayItems, upcomingItems, plannedActive = []) {
@@ -4567,16 +4721,20 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         createdAt: editingId ? state.challenges.find(item => item.id === editingId)?.createdAt || todayISO() : todayISO(),
         updatedAt: new Date().toISOString()
       };
-      if (editingId) {
-        const index = state.challenges.findIndex(item => item.id === editingId);
-        if (index >= 0) state.challenges[index] = challenge;
-      } else {
-        state.challenges.push(challenge);
-      }
       clearChallengeForm();
-      render();
-      await fsSet('challenges', challenge.id, challenge);
-      showToast(editingId ? 'Challenge oppdatert' : 'Challenge lagret');
+      await safeStateWrite({
+        apply: () => {
+          if (editingId) {
+            const index = state.challenges.findIndex(item => item.id === editingId);
+            if (index >= 0) state.challenges[index] = challenge;
+          } else {
+            state.challenges.push(challenge);
+          }
+        },
+        write: () => fsSet('challenges', challenge.id, challenge),
+        successMessage: editingId ? 'Challenge oppdatert' : 'Challenge lagret',
+        errorMessage: 'Kunne ikke lagre challenge'
+      });
     };
 
     window.editChallenge = function(id) {
@@ -4601,10 +4759,12 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       const challenge = state.challenges.find(item => item.id === id);
       if (!challenge) return;
       if (!confirm(`Slette challengen "${challenge.name}"?`)) return;
-      state.challenges = state.challenges.filter(item => item.id !== id);
-      render();
-      await fsDelete('challenges', id);
-      showToast('Challenge slettet');
+      await safeStateWrite({
+        apply: () => { state.challenges = state.challenges.filter(item => item.id !== id); },
+        write: () => fsDelete('challenges', id),
+        successMessage: 'Challenge slettet',
+        errorMessage: 'Kunne ikke slette challenge'
+      });
     };
 
     function weekSummaryForStart(startIso) {
@@ -5601,6 +5761,35 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       URL.revokeObjectURL(url);
     };
 
+    window.restoreRecoverySnapshot = async function() {
+      const snapshot = loadRecoverySnapshot();
+      if (!snapshot) return alert('Fant ingen lokal sikkerhetskopi å gjenopprette.');
+      const savedAt = snapshot.savedAt ? new Date(snapshot.savedAt).toLocaleString('no-NO') : 'ukjent tidspunkt';
+      if (!confirm(`Gjenopprette lokal sikkerhetskopi fra ${savedAt}? Dette erstatter dataene som ligger i appen nå.`)) return;
+      const previousState = cloneAppState();
+      try {
+        saveRecoverySnapshot('before-recovery-restore');
+        const nextState = {
+          templates: Array.isArray(snapshot.state.templates) ? snapshot.state.templates : [],
+          planned: Array.isArray(snapshot.state.planned) ? snapshot.state.planned : [],
+          completed: Array.isArray(snapshot.state.completed) ? snapshot.state.completed : [],
+          wellness: Array.isArray(snapshot.state.wellness) ? snapshot.state.wellness : [],
+          challenges: Array.isArray(snapshot.state.challenges) ? snapshot.state.challenges : [],
+          blockedDays: Array.isArray(snapshot.state.blockedDays) ? snapshot.state.blockedDays : [],
+          settings: normalizeSettings(snapshot.state.settings)
+        };
+        state = nextState;
+        saveLocalStateSnapshot();
+        render();
+        await replaceFirestoreData(nextState);
+        showToast('Sikkerhetskopi gjenopprettet');
+      } catch (err) {
+        console.error('Recovery restore error:', err);
+        restoreAppState(previousState);
+        alert('Kunne ikke gjenopprette sikkerhetskopien. Dataene i appen er rullet tilbake lokalt.');
+      }
+    };
+
     window.refreshApp = async function() {
       showToast('Oppdaterer app ...', 'info');
       try {
@@ -5627,22 +5816,30 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       if (!file) return;
       const reader = new FileReader();
       reader.onload = async () => {
+        let previousState = null;
         try {
           const imported = JSON.parse(reader.result);
           if (!imported.templates || !imported.planned || !imported.completed) throw new Error('Invalid format');
           if (!confirm('Import vil overskrive data som ligger i appen nå. Fortsette?')) return;
-          state = { ...imported, wellness: imported.wellness || [], challenges: imported.challenges || [], blockedDays: imported.blockedDays || [], settings: normalizeSettings(imported.settings) };
+          previousState = cloneAppState();
+          saveRecoverySnapshot('before-import');
+          const nextState = {
+            templates: Array.isArray(imported.templates) ? imported.templates : [],
+            planned: Array.isArray(imported.planned) ? imported.planned : [],
+            completed: Array.isArray(imported.completed) ? imported.completed : [],
+            wellness: Array.isArray(imported.wellness) ? imported.wellness : [],
+            challenges: Array.isArray(imported.challenges) ? imported.challenges : [],
+            blockedDays: Array.isArray(imported.blockedDays) ? imported.blockedDays : [],
+            settings: normalizeSettings(imported.settings)
+          };
+          state = nextState;
+          saveLocalStateSnapshot();
           render();
-          await Promise.all([
-            fsBatchSet('templates', state.templates),
-            fsBatchSet('planned', state.planned),
-            fsBatchSet('completed', state.completed),
-            fsBatchSet('wellness', state.wellness),
-            fsBatchSet('challenges', state.challenges),
-            fsBatchSet('blockedDays', state.blockedDays),
-            fsSet('settings', 'preferences', state.settings)
-          ]);
+          await replaceFirestoreData(nextState);
+          showToast('Backup importert');
         } catch (err) {
+          if (previousState) restoreAppState(previousState);
+          console.error('Import error:', err);
           alert('Kunne ikke importere filen. Sjekk at dette er en gyldig backup fra appen.');
           setSyncStatus('error');
         }
@@ -5674,6 +5871,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
 
     window.resetData = async function() {
       if (!confirm('SISTE ADVARSEL: Dette sletter alle økter, planer, historikk, formmålinger, challenges og ikke-treningsdager. Dette kan ikke angres. Fortsette?')) return;
+      saveRecoverySnapshot('before-reset');
       setSyncStatus('syncing');
       try {
         const [tSnap, pSnap, cSnap, wSnap, challengeSnap, blockedDaySnap] = await Promise.all([
