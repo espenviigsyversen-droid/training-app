@@ -202,12 +202,26 @@
     .btn-dark { background: var(--black); color: #fff; }
     .btn-soft { background: var(--warm-gray-1); color: var(--black); }
     .btn-danger { background: var(--red); color: #fff; }
+    .btn-subtle-danger {
+      background: transparent;
+      color: var(--warm-gray-3);
+      border: 1px solid rgba(230, 57, 70, 0.18);
+      box-shadow: none;
+      font-size: 0.8rem;
+      padding: 9px 10px;
+    }
     .btn-success { background: var(--success); color: #fff; }
     .btn-purple { background: var(--purple); color: #fff; }
     .btn-full { width: 100%; }
 
     .button-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
     .button-row button { flex: 1; min-width: 120px; }
+
+    .detail-danger-row {
+      display: flex;
+      justify-content: flex-end;
+      margin-top: 8px;
+    }
 
     .setup-action-card {
       display: grid;

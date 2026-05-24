@@ -105,6 +105,14 @@ function test(name, fn) {
     assert.ok(normalCompleteFlow.includes('openCalendarDayModal(selectedCalendarDate)'), 'calendar day modal should be refreshed after completion');
   });
 
+  test('completed workout detail has discreet confirmed delete action', () => {
+    assert.ok(app.includes('btn-subtle-danger'), 'completed detail should include a discreet delete button');
+    assert.ok(app.includes("'Slett fra logg'"), 'historical completed workouts should be deletable from detail view');
+    assert.ok(app.includes('Er du sikker på at du vil slette denne historiske økten?'), 'delete action should require confirmation');
+    assert.ok(app.includes("fsDelete('completed', completedId)"), 'delete action should remove completed workout from Firestore');
+    assert.ok(app.includes('closeWorkoutDetailModal();'), 'detail modal should close after delete/undo apply');
+  });
+
   test('duration and pace helpers come from domain core', () => {
     assert.strictEqual(parseNonNegativeInteger('12'), 12);
     assert.strictEqual(parseNonNegativeInteger('-1'), 0);

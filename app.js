@@ -30,7 +30,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       weekPlanDatesInRange as weekPlanDatesInRangeCore
     } from './domain-core.js';
 
-    const APP_VERSION = 'v104';
+    const APP_VERSION = 'v105';
     const APP_CACHE_NAME = `treningsapp-${APP_VERSION}`;
 
     const firebaseConfig = {
@@ -1602,6 +1602,9 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
           if (document.getElementById('calendarDayModal')?.classList.contains('active') && selectedCalendarDate) {
             openCalendarDayModal(selectedCalendarDate);
           }
+          if (document.getElementById('workoutDetailModal')?.classList.contains('active')) {
+            closeWorkoutDetailModal();
+          }
         },
         successMessage: 'Planlagt økt slettet',
         errorMessage: 'Kunne ikke slette planlagt økt'
@@ -2698,6 +2701,9 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         <div class="button-row">
           <button class="btn-primary" onclick="editCompleted('${c.id}'); closeWorkoutDetailModal();">Rediger</button>
           <button class="btn-soft" onclick="closeWorkoutDetailModal()">Lukk</button>
+        </div>
+        <div class="detail-danger-row">
+          <button class="btn-subtle-danger" onclick="undoComplete('${c.id}')">${c.plannedWorkoutId ? 'Angre utført' : 'Slett fra logg'}</button>
         </div>`;
     }
 
