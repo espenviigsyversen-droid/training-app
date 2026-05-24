@@ -17,7 +17,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       weekPlanDatesInRange as weekPlanDatesInRangeCore
     } from './domain-core.js';
 
-    const APP_VERSION = 'v98';
+    const APP_VERSION = 'v99';
     const APP_CACHE_NAME = `treningsapp-${APP_VERSION}`;
 
     const firebaseConfig = {
@@ -2421,6 +2421,11 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         write: () => {
           const updatedPlanned = state.planned.find(p => p.id === plannedId) || { ...planned, status: 'done' };
           return Promise.all([fsSet('planned', plannedId, updatedPlanned), fsSet('completed', completed.id, completed)]);
+        },
+        afterApply: () => {
+          if (document.getElementById('calendarDayModal')?.classList.contains('active') && selectedCalendarDate) {
+            openCalendarDayModal(selectedCalendarDate);
+          }
         },
         successMessage: 'Økt logget - bra jobba!',
         errorMessage: 'Kunne ikke loggføre økten'
