@@ -17,13 +17,14 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       formatKm,
       formatPace,
       goldenZonePercentages,
+      normalizeTemplate,
       parseNonNegativeInteger,
       startOfWeek,
       weekPlanDates as weekPlanDatesCore,
       weekPlanDatesInRange as weekPlanDatesInRangeCore
     } from './domain-core.js';
 
-    const APP_VERSION = 'v100';
+    const APP_VERSION = 'v101';
     const APP_CACHE_NAME = `treningsapp-${APP_VERSION}`;
 
     const firebaseConfig = {
@@ -73,6 +74,9 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         weightKg: '',
         maxHeartRate: '',
         thresholdHeartRate: ''
+      },
+      features: {
+        structuredIntervals: false
       }
     };
     let state = { templates: [], planned: [], completed: [], wellness: [], challenges: [], blockedDays: [], settings: JSON.parse(JSON.stringify(defaultSettings)) };
@@ -204,15 +208,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         if (!raw) return null;
         const snapshot = JSON.parse(raw);
         if (!snapshot || !snapshot.state) return null;
-        state = {
-          templates: Array.isArray(snapshot.state.templates) ? snapshot.state.templates : [],
-          planned: Array.isArray(snapshot.state.planned) ? snapshot.state.planned : [],
-          completed: Array.isArray(snapshot.state.completed) ? snapshot.state.completed : [],
-          wellness: Array.isArray(snapshot.state.wellness) ? snapshot.state.wellness : [],
-          challenges: Array.isArray(snapshot.state.challenges) ? snapshot.state.challenges : [],
-          blockedDays: Array.isArray(snapshot.state.blockedDays) ? snapshot.state.blockedDays : [],
-          settings: normalizeSettings(snapshot.state.settings)
-        };
+        state = normalizeAppState(snapshot.state);
         return snapshot.savedAt || null;
       } catch (err) {
         console.warn('Could not load local state snapshot:', err);
@@ -378,20 +374,46 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       return JSON.parse(JSON.stringify(defaultSettings));
     }
 
-    function normalizeSettings(settings = {}) {
+    function normalizeFeatures(features = {}) {
+      const source = features && typeof features === 'object' && !Array.isArray(features) ? features : {};
+      const defaults = defaultSettings.features;
       return {
-        activityTypes: Array.isArray(settings.activityTypes) && settings.activityTypes.length
-          ? settings.activityTypes
+        structuredIntervals: Boolean(source.structuredIntervals ?? defaults.structuredIntervals)
+      };
+    }
+
+    function normalizeSettings(settings = {}) {
+      const source = settings && typeof settings === 'object' && !Array.isArray(settings) ? settings : {};
+      return {
+        activityTypes: Array.isArray(source.activityTypes) && source.activityTypes.length
+          ? source.activityTypes
           : [...defaultSettings.activityTypes],
-        intensities: Array.isArray(settings.intensities) && settings.intensities.length
-          ? settings.intensities
+        intensities: Array.isArray(source.intensities) && source.intensities.length
+          ? source.intensities
           : [...defaultSettings.intensities],
-        goals: normalizeGoals(settings.goals),
-        trainingProfile: normalizeTrainingProfile(settings.trainingProfile),
-        personProfile: normalizePersonProfile(settings.personProfile),
-        dailyReadiness: (typeof settings.dailyReadiness === 'object' && settings.dailyReadiness !== null && !Array.isArray(settings.dailyReadiness))
-          ? settings.dailyReadiness
+        goals: normalizeGoals(source.goals),
+        trainingProfile: normalizeTrainingProfile(source.trainingProfile),
+        personProfile: normalizePersonProfile(source.personProfile),
+        features: normalizeFeatures(source.features),
+        dailyReadiness: (typeof source.dailyReadiness === 'object' && source.dailyReadiness !== null && !Array.isArray(source.dailyReadiness))
+          ? source.dailyReadiness
           : {}
+      };
+    }
+
+    function normalizeTemplates(templates = []) {
+      return Array.isArray(templates) ? templates.map(normalizeTemplate).filter(template => template.id) : [];
+    }
+
+    function normalizeAppState(input = {}) {
+      return {
+        templates: normalizeTemplates(input.templates),
+        planned: Array.isArray(input.planned) ? input.planned : [],
+        completed: Array.isArray(input.completed) ? input.completed : [],
+        wellness: Array.isArray(input.wellness) ? input.wellness : [],
+        challenges: Array.isArray(input.challenges) ? input.challenges : [],
+        blockedDays: Array.isArray(input.blockedDays) ? input.blockedDays : [],
+        settings: normalizeSettings(input.settings)
       };
     }
 
@@ -693,13 +715,15 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
           getDocs(userCol('blockedDays')),
           getDoc(userDoc('settings', 'preferences'))
         ]);
-        state.templates = tSnap.docs.map(d => { const t = { id: d.id, ...d.data() }; return { ...t, recommendedWhen: asArray(t.recommendedWhen), avoidWhen: asArray(t.avoidWhen) }; });
-        state.planned   = pSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-        state.completed = cSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-        state.wellness = wSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-        state.challenges = challengeSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-        state.blockedDays = blockedDaySnap.docs.map(d => ({ id: d.id, ...d.data() }));
-        state.settings = settingsSnap.exists() ? normalizeSettings(settingsSnap.data()) : freshDefaultSettings();
+        state = normalizeAppState({
+          templates: tSnap.docs.map(d => ({ id: d.id, ...d.data() })),
+          planned: pSnap.docs.map(d => ({ id: d.id, ...d.data() })),
+          completed: cSnap.docs.map(d => ({ id: d.id, ...d.data() })),
+          wellness: wSnap.docs.map(d => ({ id: d.id, ...d.data() })),
+          challenges: challengeSnap.docs.map(d => ({ id: d.id, ...d.data() })),
+          blockedDays: blockedDaySnap.docs.map(d => ({ id: d.id, ...d.data() })),
+          settings: settingsSnap.exists() ? settingsSnap.data() : freshDefaultSettings()
+        });
         if (!settingsSnap.exists()) await fsSet('settings', 'preferences', state.settings);
         offlineSnapshotMode = false;
         saveLocalStateSnapshot();
@@ -1284,6 +1308,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       } else {
         savedTemplate = { id: uid('template'), ...templateData, createdAt: todayISO() };
       }
+      savedTemplate = normalizeTemplate(savedTemplate);
       clearTemplateForm();
       await safeStateWrite({
         apply: () => {
@@ -1354,7 +1379,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       const now = new Date().toISOString();
       const templatesToAdd = BAKKEN_STANDARD_TEMPLATES
         .filter(template => !existingKeys.has(`${template.name.toLowerCase()}|${template.type.toLowerCase()}`))
-        .map(template => ({
+        .map(template => normalizeTemplate({
           id: uid('template'),
           ...template,
           standardSource: 'bakken_v1',
@@ -5578,6 +5603,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       document.getElementById('todayPill').textContent = formatDate(today);
       document.getElementById('planDate').value ||= today;
       state.settings = normalizeSettings(state.settings);
+      state.templates = normalizeTemplates(state.templates);
       state.challenges = Array.isArray(state.challenges) ? state.challenges : [];
       state.blockedDays = Array.isArray(state.blockedDays) ? state.blockedDays : [];
 
@@ -5648,15 +5674,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       const previousState = cloneAppState();
       try {
         saveRecoverySnapshot('before-recovery-restore');
-        const nextState = {
-          templates: Array.isArray(snapshot.state.templates) ? snapshot.state.templates : [],
-          planned: Array.isArray(snapshot.state.planned) ? snapshot.state.planned : [],
-          completed: Array.isArray(snapshot.state.completed) ? snapshot.state.completed : [],
-          wellness: Array.isArray(snapshot.state.wellness) ? snapshot.state.wellness : [],
-          challenges: Array.isArray(snapshot.state.challenges) ? snapshot.state.challenges : [],
-          blockedDays: Array.isArray(snapshot.state.blockedDays) ? snapshot.state.blockedDays : [],
-          settings: normalizeSettings(snapshot.state.settings)
-        };
+        const nextState = normalizeAppState(snapshot.state);
         state = nextState;
         saveLocalStateSnapshot();
         render();
@@ -5702,15 +5720,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
           if (!confirm('Import vil overskrive data som ligger i appen nå. Fortsette?')) return;
           previousState = cloneAppState();
           saveRecoverySnapshot('before-import');
-          const nextState = {
-            templates: Array.isArray(imported.templates) ? imported.templates : [],
-            planned: Array.isArray(imported.planned) ? imported.planned : [],
-            completed: Array.isArray(imported.completed) ? imported.completed : [],
-            wellness: Array.isArray(imported.wellness) ? imported.wellness : [],
-            challenges: Array.isArray(imported.challenges) ? imported.challenges : [],
-            blockedDays: Array.isArray(imported.blockedDays) ? imported.blockedDays : [],
-            settings: normalizeSettings(imported.settings)
-          };
+          const nextState = normalizeAppState(imported);
           state = nextState;
           saveLocalStateSnapshot();
           render();
@@ -5729,8 +5739,8 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
 
     window.seedDemoData = async function() {
       if (!confirm('Legge inn demo-data?')) return;
-      const t1 = { id: uid('template'), name: '6 x 6 min terskel', type: 'Løping', intensity: 'Terskel', structure: '10 min oppvarming\n6 x 6 min terskel\n90 sek pause\n10 min nedjogg', createdAt: todayISO() };
-      const t2 = { id: uid('template'), name: 'Basis styrke', type: 'Styrke', intensity: 'Styrke', structure: 'Deadbugs 3 x 10\nTåhev 3 x 15\nUtfall 3 x 10 per bein\nPlanke 3 x 30 sek\nPushups 3 x kontrollert', createdAt: todayISO() };
+      const t1 = normalizeTemplate({ id: uid('template'), name: '6 x 6 min terskel', type: 'Løping', intensity: 'Terskel', structure: '10 min oppvarming\n6 x 6 min terskel\n90 sek pause\n10 min nedjogg', createdAt: todayISO() });
+      const t2 = normalizeTemplate({ id: uid('template'), name: 'Basis styrke', type: 'Styrke', intensity: 'Styrke', structure: 'Deadbugs 3 x 10\nTåhev 3 x 15\nUtfall 3 x 10 per bein\nPlanke 3 x 30 sek\nPushups 3 x kontrollert', createdAt: todayISO() });
       const p1 = { id: uid('planned'), templateId: t1.id, date: todayISO(), status: 'planned', notes: 'Hold kontrollert terskel, ikke makse.', createdAt: todayISO() };
       const p2 = { id: uid('planned'), templateId: t2.id, date: todayISO(), status: 'planned', notes: '', createdAt: todayISO() };
       state.templates.push(t1, t2);

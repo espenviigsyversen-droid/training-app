@@ -35,6 +35,44 @@ export function formatKm(km) {
   return `${value.toLocaleString('no-NO', { maximumFractionDigits: value < 10 ? 1 : 0 })} km`;
 }
 
+export function asArray(value) {
+  if (Array.isArray(value)) return value.filter(Boolean);
+  return value ? [value] : [];
+}
+
+export function normalizeStructuredWorkout(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const blocks = Array.isArray(value.blocks)
+    ? value.blocks
+        .filter(block => block && typeof block === 'object' && !Array.isArray(block))
+        .map(block => ({ ...block }))
+    : [];
+  if (!blocks.length) return null;
+  return {
+    version: Number(value.version) || 1,
+    blocks,
+    note: typeof value.note === 'string' ? value.note : ''
+  };
+}
+
+export function normalizeTemplate(template = {}) {
+  const source = template && typeof template === 'object' && !Array.isArray(template) ? template : {};
+  return {
+    ...source,
+    id: String(source.id || ''),
+    name: String(source.name || 'Uten navn'),
+    type: String(source.type || 'Annet'),
+    intensity: String(source.intensity || ''),
+    role: String(source.role || ''),
+    purpose: String(source.purpose || ''),
+    load: String(source.load || ''),
+    recommendedWhen: asArray(source.recommendedWhen),
+    avoidWhen: asArray(source.avoidWhen),
+    structure: String(source.structure || ''),
+    structuredWorkout: normalizeStructuredWorkout(source.structuredWorkout)
+  };
+}
+
 export function parseNonNegativeInteger(value) {
   const parsed = Number.parseInt(value, 10);
   return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;

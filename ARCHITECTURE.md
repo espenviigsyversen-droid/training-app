@@ -103,12 +103,23 @@ Målet er lavere risiko, lettere testing og mindre sjanse for regresjoner.
 
 Nye features skal bygges smått og med lav regresjonsrisiko:
 
-1. Legg ren domene-logikk i `domain-core.js`, eller i en egen domene-fil hvis området blir stort nok til å fortjene det.
-2. La `app.js` beholde små wrapper-funksjoner når logikken trenger `state`, DOM, Firebase eller eksisterende render-flyt.
-3. UI og rendering kan foreløpig ligge i `app.js` og `index.html`. Ikke splitt UI bare for å splitte.
-4. Ny ren logikk skal testes fra faktisk produksjonsfil i `tests/stability-tests.js`.
-5. Ikke kopier produksjonslogikk inn i testene hvis den kan importeres.
-6. Hvis en ny JS-fil brukes i runtime, må den lastes riktig og vurderes lagt i `APP_SHELL` i `service-worker.js`.
-7. Hvis runtime-filer endres, bump `APP_VERSION` og `CACHE_NAME`, og kontroller synlig versjon under Setup -> Data og system -> Backup og oppdatering.
+1. Start med datamodell/design før UI når featuret introduserer nye felter eller ny beslutningslogikk.
+2. Legg ren domene-logikk i `domain-core.js`, eller i en egen domene-fil hvis området blir stort nok til å fortjene det.
+3. La `app.js` beholde små wrapper-funksjoner når logikken trenger `state`, DOM, Firebase eller eksisterende render-flyt.
+4. UI og rendering kan foreløpig ligge i `app.js` og `index.html`. Ikke splitt UI bare for å splitte.
+5. Ny ren logikk skal testes fra faktisk produksjonsfil i `tests/stability-tests.js`.
+6. Ikke kopier produksjonslogikk inn i testene hvis den kan importeres.
+7. Alle nye datafelter skal være valgfrie eller ha trygge defaults, slik at gamle Firestore-data og backupfiler fungerer uendret.
+8. Data fra Firestore, import og lokal snapshot skal normaliseres før bruk.
+9. Hvis en ny JS-fil brukes i runtime, må den lastes riktig og vurderes lagt i `APP_SHELL` i `service-worker.js`.
+10. Hvis runtime-filer endres, bump `APP_VERSION` og `CACHE_NAME`, og kontroller synlig versjon under Setup -> Data og system -> Backup og oppdatering.
 
 For intervallstøtte betyr dette at selve datastrukturen, normalisering og format-/beregningsregler bør være rene funksjoner først. Skjema, visning og lagring kan kobles på i små steg etterpå.
+
+## Data-normalisering
+
+Appen skal ikke stole direkte på rå Firestore-, backup- eller snapshot-data. Data som leses inn skal normaliseres til trygg form før rendering eller coach-logikk bruker den.
+
+`normalizeTemplate()` i `domain-core.js` er første guardrail for øktmaler. Den sørger for trygge defaults på kjernefelter, konverterer `recommendedWhen` og `avoidWhen` til arrays, beholder eksisterende `structure` og gjør fremtidig `structuredWorkout` valgfri og bakoverkompatibel.
+
+`settings.features` er en intern feature flag-struktur. Den vises ikke i UI, men gjør det mulig å bygge nye funksjoner kontrollert. Første flagg er `structuredIntervals: false`.

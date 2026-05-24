@@ -33,6 +33,8 @@ function test(name, fn) {
     formatDuration,
     formatPace,
     goldenZonePercentages,
+    normalizeStructuredWorkout,
+    normalizeTemplate,
     parseNonNegativeInteger,
     weekPlanDates,
     weekPlanDatesInRange
@@ -80,6 +82,12 @@ function test(name, fn) {
     assert.ok(app.includes('Cache: ${APP_CACHE_NAME}'), 'visible cache name should use APP_CACHE_NAME');
   });
 
+  test('settings include internal structured interval feature flag', () => {
+    assert.ok(app.includes('features: {'), 'settings features object is missing');
+    assert.ok(app.includes('structuredIntervals: false'), 'structuredIntervals should default to false');
+    assert.ok(app.includes('features: normalizeFeatures(source.features)'), 'settings should normalize feature flags');
+  });
+
   test('calendar day modal refreshes after marking planned workout complete', () => {
     const normalCompleteFlow = app.match(/const completed = \{[\s\S]+?successMessage: 'Økt logget - bra jobba!'/)?.[0] || '';
     assert.ok(normalCompleteFlow.includes("if (item) item.status = 'done'"), 'planned workout should be marked done locally');
@@ -106,6 +114,61 @@ function test(name, fn) {
     assert.strictEqual(completedDurationSeconds({ durationSeconds: 2700 }), 2700);
     assert.strictEqual(completedDurationSeconds({ durationMinutes: 45 }), 2700);
     assert.strictEqual(formatClockDuration(3661), '1:01:01');
+  });
+
+  test('old templates normalize safely for future structured intervals', () => {
+    const template = normalizeTemplate({
+      id: 'legacy-1',
+      name: 'Legacy terskel',
+      type: 'Løping',
+      intensity: 'Terskel',
+      recommendedWhen: 'normal',
+      avoidWhen: null,
+      structure: '10 min oppvarming'
+    });
+    assert.strictEqual(template.id, 'legacy-1');
+    assert.strictEqual(template.name, 'Legacy terskel');
+    assert.strictEqual(template.type, 'Løping');
+    assert.strictEqual(template.intensity, 'Terskel');
+    assert.deepStrictEqual(template.recommendedWhen, ['normal']);
+    assert.deepStrictEqual(template.avoidWhen, []);
+    assert.strictEqual(template.structure, '10 min oppvarming');
+    assert.strictEqual(template.structuredWorkout, null);
+  });
+
+  test('template normalizer supplies safe defaults and structured workout shape', () => {
+    const template = normalizeTemplate({
+      id: 123,
+      recommendedWhen: ['normal', '', 'tired'],
+      avoidWhen: 'pain',
+      structuredWorkout: {
+        version: 1,
+        blocks: [
+          { type: 'warmup', durationSeconds: 600 },
+          null,
+          { type: 'interval', repetitions: 20, workSeconds: 45, restSeconds: 15 }
+        ]
+      }
+    });
+    assert.strictEqual(template.id, '123');
+    assert.strictEqual(template.name, 'Uten navn');
+    assert.strictEqual(template.type, 'Annet');
+    assert.strictEqual(template.intensity, '');
+    assert.strictEqual(template.role, '');
+    assert.strictEqual(template.purpose, '');
+    assert.strictEqual(template.load, '');
+    assert.deepStrictEqual(template.recommendedWhen, ['normal', 'tired']);
+    assert.deepStrictEqual(template.avoidWhen, ['pain']);
+    assert.strictEqual(template.structure, '');
+    assert.deepStrictEqual(template.structuredWorkout, {
+      version: 1,
+      blocks: [
+        { type: 'warmup', durationSeconds: 600 },
+        { type: 'interval', repetitions: 20, workSeconds: 45, restSeconds: 15 }
+      ],
+      note: ''
+    });
+    assert.strictEqual(normalizeStructuredWorkout({ version: 1, blocks: [] }), null);
   });
 
   test('challenge progress shows remaining distance', () => {

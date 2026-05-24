@@ -52,12 +52,25 @@ Hvis `service-worker.js` eller `app.js` endres, vurder om PWA-versjonen må bump
 - `APP_VERSION` i `app.js`
 - `CACHE_NAME` i `service-worker.js`
 
-Disse skal normalt matche, f.eks. `v100` og `treningsapp-v100`.
+Disse skal normalt matche, f.eks. `v101` og `treningsapp-v101`.
 
 Når `APP_VERSION` / `CACHE_NAME` bumpes, skal synlig versjonsinfo i appen også kontrolleres:
 
 - Setup -> Data og system -> Backup og oppdatering
 - feltet skal vise riktig `Appversjon` og cache-navn
+
+## Nye features
+
+Følg guardrails før ny funksjonalitet bygges:
+
+- dokumenter datamodell/design først når featuret introduserer nye felter
+- legg ren logikk i `domain-core.js` eller egen domene-fil
+- behold små wrappers i `app.js` for `state`, DOM og Firebase
+- UI/render kan foreløpig ligge i `app.js`/`index.html`
+- test ny ren logikk fra produksjonsfil
+- nye felter må være bakoverkompatible med gamle Firestore-data og backupfiler
+- normaliser data fra Firestore, import og lokal snapshot før bruk
+- oppdater PWA-cache hvis nye runtime JS-filer legges til
 
 ## Sluttrapport
 
