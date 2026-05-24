@@ -225,6 +225,64 @@
               </div>
             </div>
             <div><label>Struktur / øvelser</label><textarea id="templateStructure" placeholder="Eksempel: 10 min oppvarming&#10;6 x 6 min terskel&#10;90 sek pause&#10;10 min nedjogg"></textarea></div>
+            <div class="structured-workout-box">
+              <label class="checkbox-option structured-workout-toggle">
+                <input id="templateStructuredEnabled" type="checkbox" onchange="toggleStructuredWorkoutFields()" />
+                Strukturert intervalløkt
+              </label>
+              <div id="templateStructuredFields" class="structured-workout-fields hidden">
+                <div class="grid-2">
+                  <div><label>Oppvarming min</label><input id="templateWarmupMinutes" type="number" min="0" step="1" inputmode="numeric" /></div>
+                  <div><label>Nedjogg min</label><input id="templateCooldownMinutes" type="number" min="0" step="1" inputmode="numeric" /></div>
+                </div>
+                <div class="grid-2">
+                  <div><label>Repetisjoner</label><input id="templateIntervalRepetitions" type="number" min="1" step="1" inputmode="numeric" /></div>
+                  <div>
+                    <label>Intensitet</label>
+                    <select id="templateIntervalIntensity">
+                      <option value="">Ikke satt</option>
+                      <option value="easy">Rolig</option>
+                      <option value="threshold">Terskel</option>
+                      <option value="vo2">VO2 maks</option>
+                      <option value="hard">Hard</option>
+                      <option value="sprint">Sprint</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="grid-2">
+                  <div>
+                    <label>Arbeidstid</label>
+                    <div class="duration-inputs">
+                      <input id="templateWorkMinutes" type="number" min="0" step="1" inputmode="numeric" placeholder="min" aria-label="Arbeid minutter" />
+                      <input id="templateWorkSeconds" type="number" min="0" max="59" step="1" inputmode="numeric" placeholder="sek" aria-label="Arbeid sekunder" />
+                    </div>
+                  </div>
+                  <div>
+                    <label>Hviletid</label>
+                    <div class="duration-inputs">
+                      <input id="templateRestMinutes" type="number" min="0" step="1" inputmode="numeric" placeholder="min" aria-label="Hvile minutter" />
+                      <input id="templateRestSeconds" type="number" min="0" max="59" step="1" inputmode="numeric" placeholder="sek" aria-label="Hvile sekunder" />
+                    </div>
+                  </div>
+                </div>
+                <div class="grid-2">
+                  <div>
+                    <label>Hviletype</label>
+                    <select id="templateRestType">
+                      <option value="">Ikke satt</option>
+                      <option value="float">Flyt</option>
+                      <option value="jog">Jogg</option>
+                      <option value="walk">Gange</option>
+                      <option value="standing">Stående</option>
+                      <option value="passive">Passiv</option>
+                    </select>
+                  </div>
+                  <div><label>Intervallnotat</label><input id="templateIntervalNote" placeholder="F.eks. kontrollert terskel" /></div>
+                </div>
+                <div><label>Notat til struktur</label><input id="templateStructuredNote" placeholder="Valgfritt" /></div>
+                <p id="templateStructuredPreview" class="small-note"></p>
+              </div>
+            </div>
             <input type="hidden" id="editingTemplateId" />
             <button id="templateSubmitBtn" class="btn-dark btn-full" onclick="saveTemplate()">Lagre øktmal</button>
             <button id="cancelEditTemplateBtn" class="btn-soft btn-full hidden" onclick="cancelEditTemplate()">Avbryt redigering</button>

@@ -45,7 +45,8 @@ export function normalizeStructuredWorkout(value) {
   const blocks = Array.isArray(value.blocks)
     ? value.blocks
         .filter(block => block && typeof block === 'object' && !Array.isArray(block))
-        .map(block => ({ ...block }))
+        .map(normalizeStructuredWorkoutBlock)
+        .filter(Boolean)
     : [];
   if (!blocks.length) return null;
   return {
@@ -53,6 +54,144 @@ export function normalizeStructuredWorkout(value) {
     blocks,
     note: typeof value.note === 'string' ? value.note : ''
   };
+}
+
+export function normalizeStructuredWorkoutBlock(block = {}) {
+  const type = String(block.type || '').trim();
+  if (type === 'warmup' || type === 'cooldown') {
+    const durationSeconds = parseNonNegativeInteger(block.durationSeconds);
+    if (!durationSeconds) return null;
+    return {
+      type,
+      durationSeconds,
+      note: String(block.note || '')
+    };
+  }
+  if (type === 'interval') {
+    const repetitions = parseNonNegativeInteger(block.repetitions);
+    const workSeconds = parseNonNegativeInteger(block.workSeconds);
+    const restSeconds = parseNonNegativeInteger(block.restSeconds);
+    if (!repetitions || !workSeconds) return null;
+    return {
+      type,
+      repetitions,
+      workSeconds,
+      restSeconds,
+      restType: String(block.restType || ''),
+      intensity: String(block.intensity || ''),
+      note: String(block.note || '')
+    };
+  }
+  return null;
+}
+
+export function buildStructuredWorkout(input = {}) {
+  const source = input && typeof input === 'object' && !Array.isArray(input) ? input : {};
+  const blocks = [];
+  const warmupSeconds = parseNonNegativeInteger(source.warmupMinutes) * 60;
+  const cooldownSeconds = parseNonNegativeInteger(source.cooldownMinutes) * 60;
+  const repetitions = parseNonNegativeInteger(source.repetitions);
+  const workSeconds = parseNonNegativeInteger(source.workSeconds);
+  const restSeconds = parseNonNegativeInteger(source.restSeconds);
+
+  if (warmupSeconds) blocks.push({ type: 'warmup', durationSeconds: warmupSeconds });
+  if (repetitions && workSeconds) {
+    blocks.push({
+      type: 'interval',
+      repetitions,
+      workSeconds,
+      restSeconds,
+      restType: String(source.restType || ''),
+      intensity: String(source.intensity || ''),
+      note: String(source.intervalNote || '')
+    });
+  }
+  if (cooldownSeconds) blocks.push({ type: 'cooldown', durationSeconds: cooldownSeconds });
+
+  return normalizeStructuredWorkout({
+    version: 1,
+    blocks,
+    note: String(source.note || '')
+  });
+}
+
+export function structuredWorkoutWorkSeconds(structuredWorkout) {
+  const workout = normalizeStructuredWorkout(structuredWorkout);
+  if (!workout) return 0;
+  return workout.blocks.reduce((sum, block) => {
+    if (block.type !== 'interval') return sum;
+    return sum + (block.repetitions * block.workSeconds);
+  }, 0);
+}
+
+export function structuredWorkoutRestSeconds(structuredWorkout) {
+  const workout = normalizeStructuredWorkout(structuredWorkout);
+  if (!workout) return 0;
+  return workout.blocks.reduce((sum, block) => {
+    if (block.type !== 'interval') return sum;
+    return sum + (block.repetitions * block.restSeconds);
+  }, 0);
+}
+
+export function structuredWorkoutTotalSeconds(structuredWorkout) {
+  const workout = normalizeStructuredWorkout(structuredWorkout);
+  if (!workout) return 0;
+  return workout.blocks.reduce((sum, block) => {
+    if (block.type === 'warmup' || block.type === 'cooldown') return sum + block.durationSeconds;
+    if (block.type === 'interval') {
+      return sum + (block.repetitions * block.workSeconds) + (block.repetitions * block.restSeconds);
+    }
+    return sum;
+  }, 0);
+}
+
+export function structuredWorkoutSummary(structuredWorkout) {
+  const workout = normalizeStructuredWorkout(structuredWorkout);
+  if (!workout) return '';
+  const parts = workout.blocks.map(block => {
+    if (block.type === 'warmup') return `${formatDurationWords(block.durationSeconds)} oppvarming`;
+    if (block.type === 'cooldown') return `${formatDurationWords(block.durationSeconds)} nedjogg`;
+    if (block.type === 'interval') {
+      const rest = block.restSeconds ? ` / ${formatDurationWords(block.restSeconds)}${block.restType ? ` ${restTypeLabel(block.restType).toLowerCase()}` : ' hvile'}` : '';
+      const intensity = block.intensity ? ` (${structuredIntensityLabel(block.intensity).toLowerCase()})` : '';
+      return `${block.repetitions} x ${formatDurationWords(block.workSeconds)}${rest}${intensity}`;
+    }
+    return '';
+  }).filter(Boolean);
+  const total = structuredWorkoutTotalSeconds(workout);
+  if (total) parts.push(`totalt ${formatDuration(total)}`);
+  if (workout.note) parts.push(workout.note);
+  return parts.join(' · ');
+}
+
+export function formatDurationWords(seconds) {
+  const total = parseNonNegativeInteger(seconds);
+  if (!total) return '';
+  const minutes = Math.floor(total / 60);
+  const remainingSeconds = total % 60;
+  if (minutes && remainingSeconds) return `${minutes} min ${remainingSeconds} sek`;
+  if (minutes) return `${minutes} min`;
+  return `${remainingSeconds} sek`;
+}
+
+export function restTypeLabel(value) {
+  return {
+    float: 'Flyt',
+    jog: 'Jogg',
+    walk: 'Gange',
+    standing: 'Stående',
+    passive: 'Passiv'
+  }[value] || value || 'Hvile';
+}
+
+export function structuredIntensityLabel(value) {
+  return {
+    easy: 'Rolig',
+    threshold: 'Terskel',
+    vo2: 'VO2 maks',
+    hard: 'Hard',
+    sprint: 'Sprint'
+  }[value] || value || '';
 }
 
 export function normalizeTemplate(template = {}) {

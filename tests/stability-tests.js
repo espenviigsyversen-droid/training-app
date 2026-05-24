@@ -25,6 +25,7 @@ function test(name, fn) {
   const domain = await import(pathToFileURL(path.join(root, 'domain-core.js')).href);
   const {
     assessTrafficLight,
+    buildStructuredWorkout,
     calculatePaceMetrics,
     completedDurationSeconds,
     challengeProgress,
@@ -36,6 +37,10 @@ function test(name, fn) {
     normalizeStructuredWorkout,
     normalizeTemplate,
     parseNonNegativeInteger,
+    structuredWorkoutRestSeconds,
+    structuredWorkoutSummary,
+    structuredWorkoutTotalSeconds,
+    structuredWorkoutWorkSeconds,
     weekPlanDates,
     weekPlanDatesInRange
   } = domain;
@@ -84,7 +89,7 @@ function test(name, fn) {
 
   test('settings include internal structured interval feature flag', () => {
     assert.ok(app.includes('features: {'), 'settings features object is missing');
-    assert.ok(app.includes('structuredIntervals: false'), 'structuredIntervals should default to false');
+    assert.ok(app.includes('structuredIntervals: true'), 'structuredIntervals should be enabled in v102 defaults');
     assert.ok(app.includes('features: normalizeFeatures(source.features)'), 'settings should normalize feature flags');
   });
 
@@ -146,7 +151,7 @@ function test(name, fn) {
         blocks: [
           { type: 'warmup', durationSeconds: 600 },
           null,
-          { type: 'interval', repetitions: 20, workSeconds: 45, restSeconds: 15 }
+          { type: 'interval', repetitions: 20, workSeconds: 45, restSeconds: 15, restType: 'float', intensity: 'threshold' }
         ]
       }
     });
@@ -163,12 +168,81 @@ function test(name, fn) {
     assert.deepStrictEqual(template.structuredWorkout, {
       version: 1,
       blocks: [
-        { type: 'warmup', durationSeconds: 600 },
-        { type: 'interval', repetitions: 20, workSeconds: 45, restSeconds: 15 }
+        { type: 'warmup', durationSeconds: 600, note: '' },
+        { type: 'interval', repetitions: 20, workSeconds: 45, restSeconds: 15, restType: 'float', intensity: 'threshold', note: '' }
       ],
       note: ''
     });
     assert.strictEqual(normalizeStructuredWorkout({ version: 1, blocks: [] }), null);
+  });
+
+  test('structured interval UI fields and summaries are wired into production files', () => {
+    assert.ok(index.includes('id="templateStructuredEnabled"'), 'structured interval toggle is missing');
+    assert.ok(index.includes('id="templateIntervalRepetitions"'), 'structured interval repetitions field is missing');
+    assert.ok(index.includes('id="templateWorkSeconds"'), 'structured interval work seconds field is missing');
+    assert.ok(app.includes('structuredWorkoutFromForm'), 'structured interval form wrapper is missing');
+    assert.ok(app.includes('structuredWorkoutSummaryHtml(t.structuredWorkout)'), 'structured interval summary is not rendered for templates/planned workouts');
+    assert.ok(app.includes("structuredWorkout: template?.structuredWorkout || null"), 'completed template snapshot should preserve structuredWorkout');
+  });
+
+  test('empty or invalid structured workouts fall back safely', () => {
+    assert.strictEqual(normalizeStructuredWorkout(null), null);
+    assert.strictEqual(normalizeStructuredWorkout({ version: 1, blocks: [] }), null);
+    assert.strictEqual(normalizeStructuredWorkout({ version: 1, blocks: [{ type: 'interval', repetitions: 0, workSeconds: 45 }] }), null);
+    assert.strictEqual(buildStructuredWorkout({ warmupMinutes: 0, repetitions: 0, workSeconds: 0 }), null);
+    assert.strictEqual(structuredWorkoutSummary(null), '');
+  });
+
+  test('20 x 45/15 structured interval calculates work and rest time', () => {
+    const workout = buildStructuredWorkout({
+      repetitions: 20,
+      workSeconds: 45,
+      restSeconds: 15,
+      restType: 'float',
+      intensity: 'threshold'
+    });
+    assert.strictEqual(structuredWorkoutWorkSeconds(workout), 900);
+    assert.strictEqual(structuredWorkoutRestSeconds(workout), 300);
+    assert.strictEqual(structuredWorkoutTotalSeconds(workout), 1200);
+  });
+
+  test('warmup interval cooldown total and formatting are readable', () => {
+    const workout = buildStructuredWorkout({
+      warmupMinutes: 15,
+      repetitions: 20,
+      workSeconds: 45,
+      restSeconds: 15,
+      restType: 'float',
+      intensity: 'threshold',
+      cooldownMinutes: 10,
+      note: 'Hold kontroll'
+    });
+    assert.strictEqual(structuredWorkoutTotalSeconds(workout), 2700);
+    const summary = structuredWorkoutSummary(workout);
+    assert.ok(summary.includes('15 min oppvarming'), summary);
+    assert.ok(summary.includes('20 x 45 sek / 15 sek flyt (terskel)'), summary);
+    assert.ok(summary.includes('10 min nedjogg'), summary);
+    assert.ok(summary.includes('totalt 45:00'), summary);
+    assert.ok(summary.includes('Hold kontroll'), summary);
+  });
+
+  test('backup import and local snapshot normalize without losing structuredWorkout', () => {
+    assert.ok(app.includes('const nextState = normalizeAppState(imported)'), 'backup import should normalize app state');
+    assert.ok(app.includes('state = normalizeAppState(snapshot.state)'), 'local snapshot should normalize app state');
+    assert.ok(app.includes('state.templates = normalizeTemplates(state.templates)'), 'render should normalize templates before use');
+    const importedTemplate = normalizeTemplate({
+      id: 'structured-1',
+      name: '45/15 terskel',
+      structuredWorkout: buildStructuredWorkout({
+        warmupMinutes: 15,
+        repetitions: 20,
+        workSeconds: 45,
+        restSeconds: 15,
+        cooldownMinutes: 10
+      })
+    });
+    assert.strictEqual(importedTemplate.structuredWorkout.blocks.length, 3);
+    assert.strictEqual(structuredWorkoutTotalSeconds(importedTemplate.structuredWorkout), 2700);
   });
 
   test('challenge progress shows remaining distance', () => {

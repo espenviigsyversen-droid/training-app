@@ -6,7 +6,7 @@ Designnotat for strukturert intervallstotte i Treningsapp.
 
 Legg til valgfri strukturert intervallinformasjon paa oektmaler uten aa endre gamle maler, brukerflyt eller dagens fritekstfelt.
 
-Dette er kun datamodell og arkitekturgrunnlag. UI bygges i en senere runde.
+Fra v102 er første enkle UI-versjon bygget i øktmal-skjemaet. Det finnes fortsatt ingen timer/stoppeklokke, ingen automatisk konvertering fra fritekst og ingen coach-logikk som krever feltet.
 
 ## Prinsipper
 
@@ -85,14 +85,16 @@ En ny mal kan ha begge:
 
 I v1 boer UI vise strukturert sammendrag hvis `structuredWorkout` finnes og er gyldig, ellers dagens `structure`-tekst.
 
-## Foreslaatte rene hjelpefunksjoner senere
+## Rene hjelpefunksjoner i v102
 
 - `normalizeStructuredWorkout(value)`
+- `buildStructuredWorkout(input)`
 - `structuredWorkoutSummary(structuredWorkout)`
+- `structuredWorkoutWorkSeconds(structuredWorkout)`
+- `structuredWorkoutRestSeconds(structuredWorkout)`
 - `structuredWorkoutTotalSeconds(structuredWorkout)`
-- `isStructuredWorkout(value)`
 
-Disse boer legges i `domain-core.js` eller en senere `domain-intervals.js` hvis intervallomraadet vokser.
+Disse ligger nå i `domain-core.js`. Hvis intervallområdet vokser, kan de senere flyttes samlet til en egen domene-fil.
 
 ## Ikke i v1
 

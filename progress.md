@@ -1,5 +1,5 @@
 # Treningsapp — progress.md
-Oppdatert: 2026-05-24 (siste endringer: v75–v101)
+Oppdatert: 2026-05-24 (siste endringer: v75–v102)
 
 ---
 
@@ -27,7 +27,7 @@ Standard Bakken-uke: Hoved-terskel → Støtte-terskel → Lang rolig → Valgfr
 **Hosting:** GitHub Pages.  
 **Backend:** Firebase (prosjekt `home-tasks-app-18de3`) — Firestore + Google Auth.  
 **Frontend:** Vanilla JS + HTML + CSS, single-page app, tab-navigasjon.  
-**Versjon:** v101 (konstant i `app.js`).
+**Versjon:** v102 (konstant i `app.js`).
 
 ### Filer
 
@@ -72,7 +72,8 @@ Treningsapp/
 - **Synlig appversjon** (v98): Setup -> Data og system -> Backup og oppdatering viser nå `Appversjon` og cache-navn. Verdien hentes fra `APP_VERSION` i `app.js`, og cache-navnet avledes som `treningsapp-${APP_VERSION}`. Release-checklist og agentregler minner nå om å kontrollere synlig versjon etter versjonsbump/opplasting.
 - **Kalenderdag oppdateres etter fullført økt** (v99): Når en planlagt økt markeres som utført fra kalenderdag-modal, tegnes den åpne dagen nå opp igjen umiddelbart. Økten flyttes dermed visuelt fra `Planlagt` til `Utført` uten at brukeren må lukke og åpne kalenderen.
 - **Intervall-arkitekturgrunnlag** (v100): `ARCHITECTURE.md` har nå et tydelig feature-mønster for nye funksjoner: ren domene-logikk i `domain-core.js`/egen domene-fil, små wrappers i `app.js`, UI foreløpig i `app.js`/`index.html`, tester fra produksjonsfil og PWA-cache ved nye runtime-filer. Opprettet `INTERVALS_DESIGN.md` med bakoverkompatibel `structuredWorkout`-modell som beholder eksisterende `structure`-tekstfelt. Flyttet rene varighet-/tempo-hjelpere til `domain-core.js` som grunnlag for senere intervallstøtte.
-- **Best Practice Guardrails før intervaller** (v101): Tydeligere feature-regler i `ARCHITECTURE.md` og `AGENTS.md`: datamodell først, ren logikk i domene, små `app.js`-wrappers, bakoverkompatible felter, normalisering før bruk og versjon/cache-kontroll. Lagt til `normalizeTemplate()` og `normalizeStructuredWorkout()` i `domain-core.js`. Firestore-load, backup-import og lokal snapshot normaliserer nå templates før bruk. `settings.features.structuredIntervals` er lagt inn som intern feature flag med default `false`, uten UI. Stabilitetstestene dekker gamle templates, array-normalisering og manglende `structuredWorkout`.
+- **Best Practice Guardrails før intervaller** (v101): Tydeligere feature-regler i `ARCHITECTURE.md` og `AGENTS.md`: datamodell først, ren logikk i domene, små `app.js`-wrappers, bakoverkompatible felter, normalisering før bruk og versjon/cache-kontroll. Lagt til `normalizeTemplate()` og `normalizeStructuredWorkout()` i `domain-core.js`. Firestore-load, backup-import og lokal snapshot normaliserer nå templates før bruk. `settings.features.structuredIntervals` er lagt inn som intern feature flag, uten synlig UI.
+- **Strukturert intervallstøtte v1** (v102): Øktmaler kan nå valgfritt lagre `structuredWorkout` med oppvarming, én intervallblokk, repetisjoner, arbeidstid, hviletid, hviletype, intensitet, nedjogg og notat. Eksisterende `structure`-tekstfelt beholdes og gamle maler får `structuredWorkout: null`. Strukturert sammendrag vises på øktmaler, planlagte økter og detaljvisning når feltet finnes. `domain-core.js` har rene funksjoner for bygging, normalisering, arbeid/hvile/total tid og formattering. Stabilitetstestene dekker 20 x 45/15, fallback ved ugyldig struktur og at backup/import/lokal snapshot bevarer feltet.
 - **Fjernet «Foreslå neste økt»** (v92): Kortet er fjernet fra Kalender-fanen. Ukeplanen dekker samme behov bedre og er rollebevisst. `renderWorkoutSuggestion`-kallet er fjernet fra render-løkken for å unngå krasj.
 - **Coach: smertegradering + priority-felt + X-økt** (v91): Tre coach-forbedringer: (1) `bodySignalState` skiller nå mellom mild smerte (1–2/10 → `cooling`, foreslår terskel etter en rolig økt) og bekymringsfull smerte (3+/10 → `caution`, kun recovery). Løser at mild smerte blokkerte terskelforslag for hele neste uke. (2) `priority`-feltet i treningsprofilen er nå aktivt: `performance` foreslår terskel straks det er rom, `injury_free_progression` krever 2 rolige øyer før terskel. (3) X-økt vises alltid som 4. forslag i normaluke når det er rom — sikrer at VO2max/teknikk/styrke alltid er synlig som alternativ.
 - **Hjem: alle økter samme dag** (v90): «Neste økt» / «Dagens økt» viser nå alle planlagte økter på samme dato, ikke bare én. For fremtidige dager grupperes etter første kommende dato (`nextDateItems`). Tittelen skifter til «Dagens økt» automatisk når det finnes økter på dagens dato (eksisterende logikk).
@@ -98,7 +99,7 @@ Treningsapp/
 | **2. Den gylne sonen** | Nivåkalibrert, vist i loggmodal og detaljvisning | Bygget (v78) |
 | **3. Coach-note** | Kjører ekte logikk via `buildCoachContext` + `buildCoachNote` | Bygget (v75) |
 | **4. Innsikt = mønstre** | «Bakken-mønstre»-kort i Innsikt med 4 mønstre siste 30 dager | Bygget (v81) |
-| **5. Interval-struktur** | Ingen støtte for 45/15-sett, arbeid/hvile-felter | Ikke bygget |
+| **5. Interval-struktur** | Valgfri strukturert info for oppvarming, én intervallblokk, arbeid/hvile og nedjogg på øktmaler | Første versjon bygget (v102) |
 | **6. AI-integrasjon** | Ingen faktisk Claude API-kall | Ikke bygget |
 | **7. Gradert smerte** | Smerte vurderes nå etter alvorlighetsgrad med forfallslogikk | Bygget (v76) |
 | **8. Strukturert lokasjon** | Fritekst erstattet med kroppsdel+side-dropdown, lagres strukturert | Bygget (v77) |
@@ -107,8 +108,13 @@ Treningsapp/
 
 ## Neste steg (prioritert)
 
-### 1. AI-integrasjon
-Lag en «Spør coachen»-funksjon:
+### 1. Strukturert intervallstøtte v2
+- Test v102 manuelt i øktmalflyten på mobil.
+- Vurder om strukturen også skal kunne brukes direkte når en planlagt økt logges.
+- Vurder flere intervallblokker senere hvis én blokk blir for begrensende.
+
+### 2. AI-integrasjon senere
+Lag en «Spør coachen»-funksjon når datagrunnlaget og intervallstøtten er stabile:
 - Send siste 14 dager komprimert treningshistorikk + `coach-rammeverk.md` som system-prompt til Claude API
 - Vis svaret i Innsikt-fanen
 - Kan bruke `claude-haiku-4-5` for lavere kostnad per kall

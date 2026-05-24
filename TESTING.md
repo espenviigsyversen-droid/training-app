@@ -25,6 +25,8 @@ node tests\stability-tests.js
 - at produksjonsfunksjonene i `domain-core.js` dekker challenge-progress, trafikklys, gylne sone og ukeplan-datoer
 - at varighet-/tempo-hjelpere i `domain-core.js` gir stabile beregninger for logging og senere intervallstøtte
 - at gamle øktmaler normaliseres trygt, inkl. array-felter og manglende `structuredWorkout`
+- at strukturert intervallinfo normaliseres trygt, beregner arbeid/hvile/total tid og formatteres lesbart
+- at backup/import og lokal snapshot ikke mister `structuredWorkout`
 - at challenge-progress viser gjenstående distanse og håndterer fullførte mål
 - at trafikklyset gir grønn/gul/rød etter søvn, energi, hvilepuls og trappetest
 - at gylne sone-prosentene matcher treningsnivå

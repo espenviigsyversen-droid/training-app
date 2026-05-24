@@ -8,6 +8,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       assessTrafficLight as assessTrafficLightCore,
       calculatePaceMetrics,
       completedDurationSeconds,
+      buildStructuredWorkout,
       challengeProgress as challengeProgressCore,
       challengeRemainingLabel,
       challengeValueLabel,
@@ -20,11 +21,12 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       normalizeTemplate,
       parseNonNegativeInteger,
       startOfWeek,
+      structuredWorkoutSummary,
       weekPlanDates as weekPlanDatesCore,
       weekPlanDatesInRange as weekPlanDatesInRangeCore
     } from './domain-core.js';
 
-    const APP_VERSION = 'v101';
+    const APP_VERSION = 'v102';
     const APP_CACHE_NAME = `treningsapp-${APP_VERSION}`;
 
     const firebaseConfig = {
@@ -76,7 +78,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         thresholdHeartRate: ''
       },
       features: {
-        structuredIntervals: false
+        structuredIntervals: true
       }
     };
     let state = { templates: [], planned: [], completed: [], wellness: [], challenges: [], blockedDays: [], settings: JSON.parse(JSON.stringify(defaultSettings)) };
@@ -1285,10 +1287,103 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       return options.join('');
     }
 
+    function durationSecondsFromParts(minutesId, secondsId) {
+      const minutes = parseNonNegativeInteger(document.getElementById(minutesId)?.value);
+      const seconds = parseNonNegativeInteger(document.getElementById(secondsId)?.value);
+      return (minutes * 60) + Math.min(seconds, 59);
+    }
+
+    function setDurationPartsFromSeconds(totalSeconds, minutesId, secondsId) {
+      const total = parseNonNegativeInteger(totalSeconds);
+      const minutes = Math.floor(total / 60);
+      const seconds = total % 60;
+      document.getElementById(minutesId).value = minutes || '';
+      document.getElementById(secondsId).value = seconds || '';
+    }
+
+    function structuredWorkoutFromForm() {
+      const enabled = document.getElementById('templateStructuredEnabled')?.checked;
+      if (!enabled) return null;
+      return buildStructuredWorkout({
+        warmupMinutes: document.getElementById('templateWarmupMinutes').value,
+        cooldownMinutes: document.getElementById('templateCooldownMinutes').value,
+        repetitions: document.getElementById('templateIntervalRepetitions').value,
+        workSeconds: durationSecondsFromParts('templateWorkMinutes', 'templateWorkSeconds'),
+        restSeconds: durationSecondsFromParts('templateRestMinutes', 'templateRestSeconds'),
+        restType: document.getElementById('templateRestType').value,
+        intensity: document.getElementById('templateIntervalIntensity').value,
+        intervalNote: document.getElementById('templateIntervalNote').value.trim(),
+        note: document.getElementById('templateStructuredNote').value.trim()
+      });
+    }
+
+    function clearStructuredWorkoutForm() {
+      document.getElementById('templateStructuredEnabled').checked = false;
+      [
+        'templateWarmupMinutes',
+        'templateCooldownMinutes',
+        'templateIntervalRepetitions',
+        'templateWorkMinutes',
+        'templateWorkSeconds',
+        'templateRestMinutes',
+        'templateRestSeconds',
+        'templateIntervalNote',
+        'templateStructuredNote'
+      ].forEach(id => { document.getElementById(id).value = ''; });
+      document.getElementById('templateRestType').value = '';
+      document.getElementById('templateIntervalIntensity').value = '';
+      toggleStructuredWorkoutFields();
+    }
+
+    function setStructuredWorkoutForm(structuredWorkout) {
+      clearStructuredWorkoutForm();
+      const workout = structuredWorkout || null;
+      if (!workout) return;
+      document.getElementById('templateStructuredEnabled').checked = true;
+      const warmup = workout.blocks.find(block => block.type === 'warmup');
+      const interval = workout.blocks.find(block => block.type === 'interval');
+      const cooldown = workout.blocks.find(block => block.type === 'cooldown');
+      if (warmup) document.getElementById('templateWarmupMinutes').value = Math.round(warmup.durationSeconds / 60) || '';
+      if (cooldown) document.getElementById('templateCooldownMinutes').value = Math.round(cooldown.durationSeconds / 60) || '';
+      if (interval) {
+        document.getElementById('templateIntervalRepetitions').value = interval.repetitions || '';
+        setDurationPartsFromSeconds(interval.workSeconds, 'templateWorkMinutes', 'templateWorkSeconds');
+        setDurationPartsFromSeconds(interval.restSeconds, 'templateRestMinutes', 'templateRestSeconds');
+        document.getElementById('templateRestType').value = interval.restType || '';
+        document.getElementById('templateIntervalIntensity').value = interval.intensity || '';
+        document.getElementById('templateIntervalNote').value = interval.note || '';
+      }
+      document.getElementById('templateStructuredNote').value = workout.note || '';
+      toggleStructuredWorkoutFields();
+    }
+
+    function renderStructuredWorkoutPreview() {
+      const preview = document.getElementById('templateStructuredPreview');
+      if (!preview) return;
+      const workout = structuredWorkoutFromForm();
+      preview.textContent = workout ? structuredWorkoutSummary(workout) : 'Fyll inn repetisjoner og arbeidstid for å lagre strukturert intervallinfo.';
+    }
+
+    window.toggleStructuredWorkoutFields = function() {
+      const enabled = document.getElementById('templateStructuredEnabled')?.checked;
+      document.getElementById('templateStructuredFields')?.classList.toggle('hidden', !enabled);
+      renderStructuredWorkoutPreview();
+    };
+
+    function structuredWorkoutSummaryHtml(structuredWorkout) {
+      const summary = structuredWorkoutSummary(structuredWorkout);
+      if (!summary) return '';
+      return `<p class="structured-workout-summary">${escapeHtml(summary)}</p>`;
+    }
+
     window.saveTemplate = async function() {
       const editingId = document.getElementById('editingTemplateId').value;
       const name = document.getElementById('templateName').value.trim();
       if (!name) return alert('Skriv inn navn på økten først.');
+      const structuredWorkout = structuredWorkoutFromForm();
+      if (document.getElementById('templateStructuredEnabled')?.checked && !structuredWorkout) {
+        return alert('Fyll inn repetisjoner og arbeidstid for strukturert intervallinfo, eller fjern avhukingen.');
+      }
       const templateData = {
         name,
         type: document.getElementById('templateType').value,
@@ -1298,7 +1393,8 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         load: document.getElementById('templateLoad').value,
         recommendedWhen: getCheckedValues('templateRecommendedWhen'),
         avoidWhen: getCheckedValues('templateAvoidWhen'),
-        structure: document.getElementById('templateStructure').value.trim()
+        structure: document.getElementById('templateStructure').value.trim(),
+        structuredWorkout
       };
       let savedTemplate = null;
       if (editingId) {
@@ -1340,6 +1436,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       setCheckedValues('templateRecommendedWhen', t.recommendedWhen);
       setCheckedValues('templateAvoidWhen', t.avoidWhen);
       document.getElementById('templateStructure').value = t.structure || '';
+      setStructuredWorkoutForm(t.structuredWorkout);
       document.getElementById('templateSubmitBtn').textContent = 'Lagre endringer';
       document.getElementById('cancelEditTemplateBtn').classList.remove('hidden');
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -1356,6 +1453,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       setCheckedValues('templateRecommendedWhen', []);
       setCheckedValues('templateAvoidWhen', []);
       document.getElementById('templateStructure').value = '';
+      clearStructuredWorkoutForm();
       document.getElementById('templateSubmitBtn').textContent = 'Lagre øktmal';
       document.getElementById('cancelEditTemplateBtn').classList.add('hidden');
     }
@@ -2476,7 +2574,8 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         role: template?.role || '',
         purpose: template?.purpose || '',
         load: template?.load || '',
-        structure: template?.structure || ''
+        structure: template?.structure || '',
+        structuredWorkout: template?.structuredWorkout || null
       };
     }
 
@@ -2490,7 +2589,8 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         role: completed.templateSnapshot?.role || '',
         purpose: completed.templateSnapshot?.purpose || '',
         load: completed.templateSnapshot?.load || '',
-        structure: completed.templateSnapshot?.structure || ''
+        structure: completed.templateSnapshot?.structure || '',
+        structuredWorkout: completed.templateSnapshot?.structuredWorkout || null
       };
     }
 
@@ -2561,6 +2661,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
           ${c.rpe ? `<p class="detail-text"><strong>Opplevd intensitet:</strong> ${escapeHtml(c.rpe)}/10</p>` : ''}
         `)}
         ${detailSection('Puls', heartRateLines)}
+        ${detailSection('Strukturert intervall', t.structuredWorkout ? `<p>${escapeHtml(structuredWorkoutSummary(t.structuredWorkout))}</p>` : '')}
         ${detailSection('Terreng og stigning', terrainLines)}
         ${detailSection('Gjennomføring', [
           detailLine('Gjennomføring', execution),
@@ -2595,6 +2696,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
             <span class="tag ${planned.status === 'done' ? 'done' : 'planned'}">${planned.status === 'done' ? 'Utført' : 'Planlagt'}</span>
           </div>
           ${t.structure ? `<p class="meta" style="white-space:pre-line;">${escapeHtml(t.structure)}</p>` : ''}
+          ${structuredWorkoutSummaryHtml(t.structuredWorkout)}
           ${planned.notes ? `<p class="meta"><strong>Notat:</strong> ${escapeHtml(planned.notes)}</p>` : ''}
           <div class="button-row">
             ${planned.status !== 'done' ? `<button class="btn-success" onclick="openCompleteModal('${planned.id}')">Marker utført</button>` : ''}
@@ -2662,6 +2764,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         t.type,
         t.intensity,
         t.structure,
+        structuredWorkoutSummary(t.structuredWorkout),
         templateRoleLabel(t.role),
         templatePurposeLabel(t.purpose),
         templateLoadLabel(t.load),
@@ -2816,6 +2919,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
           </div>
           ${coachTags.length ? `<div class="template-tags">${coachTags.map(tag => `<span class="tag template-tag">${escapeHtml(tag)}</span>`).join('')}</div>` : ''}
           ${readiness.ready ? '' : `<div class="template-missing">${readiness.missing.map(item => `<span>${escapeHtml(item)}</span>`).join('')}</div>`}
+          ${structuredWorkoutSummaryHtml(t.structuredWorkout)}
           ${t.structure ? `<p class="template-structure">${escapeHtml(t.structure)}</p>` : ''}
           <div class="button-row">
             <button class="btn-primary" onclick="editTemplate('${t.id}')">Rediger</button>
@@ -5698,7 +5802,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
           const keys = await caches.keys();
           await Promise.all(keys.filter(key => key.startsWith('treningsapp-')).map(key => caches.delete(key)));
         }
-        await Promise.all(['./index.html', './styles.css', './app.js'].map(path =>
+        await Promise.all(['./index.html', './styles.css', './app.js', './domain-core.js', './service-worker.js'].map(path =>
           fetch(path, { cache: 'reload' }).catch(() => null)
         ));
       } finally {
@@ -5789,6 +5893,23 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       'completeDurationSeconds',
       'completeDistance'
     ].forEach(id => document.getElementById(id)?.addEventListener('input', updatePacePreview));
+
+    [
+      'templateWarmupMinutes',
+      'templateCooldownMinutes',
+      'templateIntervalRepetitions',
+      'templateWorkMinutes',
+      'templateWorkSeconds',
+      'templateRestMinutes',
+      'templateRestSeconds',
+      'templateRestType',
+      'templateIntervalIntensity',
+      'templateIntervalNote',
+      'templateStructuredNote'
+    ].forEach(id => {
+      document.getElementById(id)?.addEventListener('input', renderStructuredWorkoutPreview);
+      document.getElementById(id)?.addEventListener('change', renderStructuredWorkoutPreview);
+    });
 
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
