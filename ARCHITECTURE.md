@@ -22,6 +22,7 @@ Treningsapp er en installbar PWA uten build-step. Appen kjøres direkte fra stat
 Treningsapp/
 ├── index.html
 ├── app.js
+├── domain-core.js
 ├── styles.css
 ├── manifest.json
 ├── service-worker.js
@@ -48,7 +49,7 @@ Inneholder app-skallet, faner, skjemaer og modaler.
 
 ### `app.js`
 
-Inneholder foreløpig nesten all applikasjonslogikk:
+Inneholder applikasjonslogikk og UI-kobling:
 
 - Firebase-init
 - Auth
@@ -62,7 +63,18 @@ Inneholder foreløpig nesten all applikasjonslogikk:
 - innsikt
 - rendering
 
-Dette er praktisk for en liten statisk app, men bør gradvis deles opp når kompleksiteten øker.
+`app.js` skal fortsatt eie state, DOM og Firebase-kobling. Rene regler bør gradvis flyttes til testbare domene-filer.
+
+### `domain-core.js`
+
+Inneholder rene, testbare hjelpefunksjoner uten DOM, Firebase eller direkte `state`:
+
+- dato- og ukeplanlegging
+- trafikklys/dagsform-regler
+- gylne sone-prosenter
+- challenge-progress og etiketter
+
+Filen lastes som ES module fra `app.js` og caches av `service-worker.js`.
 
 ### `styles.css`
 
@@ -77,11 +89,10 @@ Håndterer app shell-cache og offline fallback.
 Ikke gjør en stor rewrite. Del heller appen gradvis i tydelige soner:
 
 1. `storage` - Firestore, local snapshot, import/export
-2. `domain/dates` - datoer, uker, perioder
-3. `domain/coach` - coach-context, anbefalinger, Bakken-regler
-4. `domain/training` - økter, roller, belastning, intensitet
+2. `domain-core.js` / senere `domain/dates` - datoer, uker, perioder
+3. senere `domain/coach` - coach-context, anbefalinger, Bakken-regler
+4. senere `domain/training` - økter, roller, belastning, intensitet
 5. `ui/render` - render-funksjoner og DOM-hjelpere
 6. `tests` - rene tester for kritiske regler
 
 Målet er lavere risiko, lettere testing og mindre sjanse for regresjoner.
-

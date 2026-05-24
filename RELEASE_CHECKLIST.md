@@ -9,12 +9,13 @@ Kjør:
 ```powershell
 node --check app.js
 node --check service-worker.js
+node --check domain-core.js
 node tests\stability-tests.js
 ```
 
 ## Versjon/cache
 
-Hvis `app.js`, `index.html`, `styles.css` eller `service-worker.js` er endret:
+Hvis `app.js`, `domain-core.js`, `index.html`, `styles.css` eller `service-worker.js` er endret:
 
 - sjekk `APP_VERSION` i `app.js`
 - sjekk `CACHE_NAME` i `service-worker.js`
@@ -23,8 +24,8 @@ Hvis `app.js`, `index.html`, `styles.css` eller `service-worker.js` er endret:
 Eksempel:
 
 ```js
-const APP_VERSION = 'v96';
-const CACHE_NAME = "treningsapp-v96";
+const APP_VERSION = 'v97';
+const CACHE_NAME = "treningsapp-v97";
 ```
 
 ## Filer som ofte må lastes opp
@@ -32,6 +33,7 @@ const CACHE_NAME = "treningsapp-v96";
 Ved vanlig appendring:
 
 - `app.js`
+- `domain-core.js`
 - `index.html`
 - `styles.css`
 - `service-worker.js`
@@ -61,4 +63,3 @@ Ved dokumentasjon/testendring:
 3. Last opp alle endrede filer på nytt
 4. Hvis data ser feil ut: ikke importer backup før årsaken er forstått
 5. Bruk eventuelt `Gjenopprett sikkerhetskopi` hvis feilen kom etter import/reset
-

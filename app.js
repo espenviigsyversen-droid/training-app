@@ -3,8 +3,21 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
     import { getFirestore, doc, collection, getDoc, getDocs, setDoc, deleteDoc, writeBatch, enableIndexedDbPersistence }
       from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+    import {
+      addDays,
+      assessTrafficLight as assessTrafficLightCore,
+      challengeProgress as challengeProgressCore,
+      challengeRemainingLabel,
+      challengeValueLabel,
+      dateToISO,
+      formatKm,
+      goldenZonePercentages,
+      startOfWeek,
+      weekPlanDates as weekPlanDatesCore,
+      weekPlanDatesInRange as weekPlanDatesInRangeCore
+    } from './domain-core.js';
 
-    const APP_VERSION = 'v96';
+    const APP_VERSION = 'v97';
 
     const firebaseConfig = {
       apiKey: "AIzaSyAMPfQ9gX9rbuvcPsVjYVtq5IT_orjDBPs",
@@ -220,13 +233,8 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     }
 
     function assessTrafficLight(sleep, energy, restingHR, stairsOk) {
-      if (stairsOk === false) return 'red';
-      const avg = (sleep + energy) / 2;
       const baseline = latestMetric('restingHeartRate7d')?.restingHeartRate7d;
-      const hrDelta = (restingHR && baseline) ? Number(restingHR) - Number(baseline) : 0;
-      if (avg <= 2 || hrDelta >= 10) return 'red';
-      if (avg <= 3.5 || hrDelta >= 5) return 'yellow';
-      return 'green';
+      return assessTrafficLightCore(sleep, energy, restingHR, stairsOk, baseline);
     }
 
     const TRAFFIC_LIGHT_CONFIG = {
@@ -321,12 +329,6 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
 
     window.showToast = showToast;
 
-    function addDays(dateIso, days) {
-      const d = new Date(`${dateIso}T12:00:00`);
-      d.setDate(d.getDate() + days);
-      return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-    }
-
     const BLOCKED_DAY_REASONS = {
       unavailable: 'Ikke tilgjengelig',
       travel: 'Bortreist',
@@ -397,12 +399,6 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         maxHeartRate: normalizeGoalNumber(profile.maxHeartRate, defaults.maxHeartRate),
         thresholdHeartRate: normalizeGoalNumber(profile.thresholdHeartRate, defaults.thresholdHeartRate)
       };
-    }
-
-    function goldenZonePercentages(level) {
-      if (level === 'experienced') return { lowPct: 0.80, highPct: 0.87 };
-      if (level === 'intermediate') return { lowPct: 0.78, highPct: 0.85 };
-      return { lowPct: 0.77, highPct: 0.84 }; // beginner + building_beginner
     }
 
     const PAIN_AREA_REGIONS = {
@@ -4037,52 +4033,11 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     }
 
     function weekPlanDates(today, weekEnd, plannedThisWeek, count) {
-      const busyDates = new Set(plannedThisWeek.map(item => item.date));
-      blockedDaysBetween(today, weekEnd).forEach(day => busyDates.add(day.date));
-      const dates = [];
-      const preferredOffsets = count >= 3 ? [1, 3, 5, 2, 4, 6, 0] : count === 2 ? [1, 4, 2, 5, 3, 6, 0] : [1, 2, 3, 4, 5, 6, 0];
-      preferredOffsets.forEach(offset => {
-        const date = addDays(today, offset);
-        if (date >= today && date <= weekEnd && !busyDates.has(date) && !dates.includes(date)) dates.push(date);
-      });
-      return dates.slice(0, count);
+      return weekPlanDatesCore(today, weekEnd, plannedThisWeek, blockedDaysBetween(today, weekEnd), count);
     }
 
     function weekPlanDatesInRange(rangeStart, rangeEnd, plannedItems, count) {
-      const occupiedDates = new Set(plannedItems.map(item => item.date));
-      blockedDaysBetween(rangeStart, rangeEnd).forEach(day => occupiedDates.add(day.date));
-      const placed = new Set(occupiedDates);
-
-      function isAdjacentToPlaced(date) {
-        return placed.has(addDays(date, -1)) || placed.has(addDays(date, 1));
-      }
-
-      const preferredOffsets = count >= 3 ? [0, 2, 4, 6, 1, 3, 5] : count === 2 ? [0, 3, 1, 4, 2, 5, 6] : [0, 1, 2, 3, 4, 5, 6];
-      const dates = [];
-
-      // First pass: respect no-consecutive-days rule (Bakken philosophy)
-      preferredOffsets.forEach(offset => {
-        if (dates.length >= count) return;
-        const date = addDays(rangeStart, offset);
-        if (date >= rangeStart && date <= rangeEnd && !placed.has(date) && !isAdjacentToPlaced(date)) {
-          dates.push(date);
-          placed.add(date);
-        }
-      });
-
-      // Fallback: relax adjacency if no other option exists
-      if (dates.length < count) {
-        preferredOffsets.forEach(offset => {
-          if (dates.length >= count) return;
-          const date = addDays(rangeStart, offset);
-          if (date >= rangeStart && date <= rangeEnd && !placed.has(date)) {
-            dates.push(date);
-            placed.add(date);
-          }
-        });
-      }
-
-      return dates.slice(0, count);
+      return weekPlanDatesInRangeCore(rangeStart, rangeEnd, plannedItems, blockedDaysBetween(rangeStart, rangeEnd), count);
     }
 
     function roleStatusLabel(status) {
@@ -4480,17 +4435,6 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       }
     }
 
-    function dateToISO(date) {
-      return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`;
-    }
-
-    function startOfWeek(dateIso) {
-      const date = new Date(`${dateIso}T12:00:00`);
-      const day = date.getDay() || 7;
-      date.setDate(date.getDate() - day + 1);
-      return dateToISO(date);
-    }
-
     function completedDurationSeconds(completed) {
       if (completed.durationSeconds) return Number(completed.durationSeconds) || 0;
       if (completed.durationMinutes) return (Number(completed.durationMinutes) || 0) * 60;
@@ -4510,11 +4454,6 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       const minutes = Math.floor((total % 3600) / 60);
       const remainingSeconds = total % 60;
       return `${hours}:${String(minutes).padStart(2, '0')}:${String(remainingSeconds).padStart(2, '0')}`;
-    }
-
-    function formatKm(km) {
-      const value = Number(km) || 0;
-      return `${value.toLocaleString('no-NO', { maximumFractionDigits: value < 10 ? 1 : 0 })} km`;
     }
 
     function isHardWorkout(completed) {
@@ -4550,40 +4489,13 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       return { km: 'Kilometer', hours: 'Timer', sessions: 'Økter' }[metric] || 'Mål';
     }
 
-    function challengeValueLabel(value, metric) {
-      const number = Number(value) || 0;
-      if (metric === 'hours') return `${number.toLocaleString('no-NO', { maximumFractionDigits: number < 10 ? 1 : 0 })} t`;
-      if (metric === 'km') return formatKm(number);
-      return `${Math.round(number)} økt${Math.round(number) === 1 ? '' : 'er'}`;
-    }
-
-    function challengeRemainingLabel(progress, metric) {
-      if (progress.done) return 'Mål nådd';
-      return `${challengeValueLabel(progress.remaining, metric)} igjen`;
-    }
-
-    function challengeItems(challenge) {
-      return state.completed.filter(completed => {
-        if (!completed.date || completed.date < challenge.startDate || completed.date > challenge.endDate) return false;
-        if (!challenge.activity || challenge.activity === 'all') return true;
-        return (completedTemplate(completed).type || 'Annet') === challenge.activity;
-      });
-    }
-
     function challengeProgress(challenge) {
-      const items = challengeItems(challenge);
-      const target = Number(challenge.target) || 0;
-      let current = 0;
-      if (challenge.metric === 'hours') current = items.reduce((sum, item) => sum + completedDurationSeconds(item), 0) / 3600;
-      else if (challenge.metric === 'sessions') current = items.length;
-      else current = items.reduce((sum, item) => sum + (Number(item.distanceKm) || 0), 0);
-      const percent = target ? Math.max(0, Math.min(100, (current / target) * 100)) : 0;
-      const today = todayISO();
-      const done = target > 0 && current >= target;
-      const expired = today > challenge.endDate && !done;
-      const remaining = Math.max(0, target - current);
-      const daysLeft = Math.max(0, Math.ceil((new Date(`${challenge.endDate}T12:00:00`) - new Date(`${today}T12:00:00`)) / 86400000));
-      return { current, target, remaining, percent, done, expired, daysLeft, count: items.length };
+      const completedItems = state.completed.map(completed => ({
+        ...completed,
+        type: completedTemplate(completed).type || 'Annet',
+        durationSeconds: completedDurationSeconds(completed)
+      }));
+      return challengeProgressCore(challenge, completedItems, todayISO());
     }
 
     function challengeStatusLabel(challenge, progress) {

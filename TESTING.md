@@ -9,6 +9,7 @@ Kjør alltid:
 ```powershell
 node --check app.js
 node --check service-worker.js
+node --check domain-core.js
 node tests\stability-tests.js
 ```
 
@@ -21,6 +22,7 @@ node tests\stability-tests.js
 - at `safeStateWrite()` finnes og brukes bredt
 - at lokal recovery snapshot kan nås fra UI
 - at service worker cacher nødvendige app shell-filer
+- at produksjonsfunksjonene i `domain-core.js` dekker challenge-progress, trafikklys, gylne sone og ukeplan-datoer
 - at challenge-progress viser gjenstående distanse og håndterer fullførte mål
 - at trafikklyset gir grønn/gul/rød etter søvn, energi, hvilepuls og trappetest
 - at gylne sone-prosentene matcher treningsnivå

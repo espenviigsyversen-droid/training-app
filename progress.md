@@ -1,5 +1,5 @@
 # Treningsapp — progress.md
-Oppdatert: 2026-05-14 (siste endringer: v75–v93)
+Oppdatert: 2026-05-24 (siste endringer: v75–v97)
 
 ---
 
@@ -27,14 +27,15 @@ Standard Bakken-uke: Hoved-terskel → Støtte-terskel → Lang rolig → Valgfr
 **Hosting:** GitHub Pages.  
 **Backend:** Firebase (prosjekt `home-tasks-app-18de3`) — Firestore + Google Auth.  
 **Frontend:** Vanilla JS + HTML + CSS, single-page app, tab-navigasjon.  
-**Versjon:** v96 (konstant i `app.js`).
+**Versjon:** v97 (konstant i `app.js`).
 
 ### Filer
 
 ```
 Treningsapp/
 ├── index.html          # App-skall, 5 seksjoner (Hjem, Kalender, Logg, Innsikt, Innstillinger)
-├── app.js              # All logikk, ~4 800 linjer. Firebase-init, coach-system, sync, state.
+├── app.js              # App-logikk, Firebase-init, coach-system, sync, state og UI-wrappere.
+├── domain-core.js      # Rene testbare domenehjelpere uten DOM/Firebase/state.
 ├── styles.css          # Design-tokens (oransje #ff4f2e), mobil-først, 2 000+ linjer.
 ├── manifest.json       # PWA-manifest
 ├── service-worker.js   # Offline-cache
@@ -66,6 +67,7 @@ Treningsapp/
 - **Ukeplan: hvile-regler + klikkbare chips + forklaring** (v93): Tre forbedringer: (1) `weekPlanDatesInRange` respekterer nå «ingen konsekutive dager»-regelen (Bakken-filosofi) — plasserer forslag på dager som ikke er nabodag til allerede planlagte økter. Fallback til vanlig logikk kun om ingen ledige dager finnes. (2) «Mangler →»-chips er nå klikkbare — trykk åpner planlegg-fanen med best matchende mal pre-valgt via `planForRole(role)`. (3) Ny `skippedRoleNote` vises i oransje boks når coachen ikke foreslår en obligatorisk rolle pga. kroppssignal — forklarer WHY og guider brukeren til manuell planlegging.
 - **Profesjonalisering: tryggere lagring + import + tester** (v96): Ny `safeStateWrite()` gir felles mønster for optimistisk UI, lokal snapshot, Firestore-skriving og rollback ved feil. Brukt på sentrale skriveflyter som planlegging, loggføring/fullføring, formmålinger, challenges og ikke-treningsdager. Import erstatter nå Firestore-data ved å slette eksisterende dokumenter i appens collections før backupen skrives inn, slik at gamle poster ikke gjenoppstår. Setup har nå «Gjenopprett sikkerhetskopi» basert på lokal recovery snapshot før import/reset. Ny lokal testpakke: `node tests/stability-tests.js`.
 - **Utvidede lokale tester** (v96): `tests/stability-tests.js` dekker nå også challenge-progress inkl. «km igjen», fullførte mål, trafikklysets grønn/gul/rød-regler, gylne sone-prosent per treningsnivå, ukeplan-datoer som hopper over planlagte/blokkerte dager og neste-uke-forslag med ikke-sammenhengende dager.
+- **Domain-core v1** (v97): Opprettet `domain-core.js` for rene, testbare funksjoner uten DOM/Firebase/state. Flyttet dato-hjelpere, trafikklys-regel, gylne sone-prosenter, ukeplan-datoer, challenge-progress og challenge-etiketter. `app.js` beholder små wrappere der dagens `state`, templates og blokkerte dager må sendes inn. Service worker cacher ny fil, og lokale stabilitetstester importerer nå produksjonsfunksjonene direkte.
 - **Fjernet «Foreslå neste økt»** (v92): Kortet er fjernet fra Kalender-fanen. Ukeplanen dekker samme behov bedre og er rollebevisst. `renderWorkoutSuggestion`-kallet er fjernet fra render-løkken for å unngå krasj.
 - **Coach: smertegradering + priority-felt + X-økt** (v91): Tre coach-forbedringer: (1) `bodySignalState` skiller nå mellom mild smerte (1–2/10 → `cooling`, foreslår terskel etter en rolig økt) og bekymringsfull smerte (3+/10 → `caution`, kun recovery). Løser at mild smerte blokkerte terskelforslag for hele neste uke. (2) `priority`-feltet i treningsprofilen er nå aktivt: `performance` foreslår terskel straks det er rom, `injury_free_progression` krever 2 rolige øyer før terskel. (3) X-økt vises alltid som 4. forslag i normaluke når det er rom — sikrer at VO2max/teknikk/styrke alltid er synlig som alternativ.
 - **Hjem: alle økter samme dag** (v90): «Neste økt» / «Dagens økt» viser nå alle planlagte økter på samme dato, ikke bare én. For fremtidige dager grupperes etter første kommende dato (`nextDateItems`). Tittelen skifter til «Dagens økt» automatisk når det finnes økter på dagens dato (eksisterende logikk).
