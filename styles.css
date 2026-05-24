@@ -2528,3 +2528,134 @@
       .app { margin-top: 20px; margin-bottom: 20px; border-radius: 32px; min-height: calc(100vh - 40px); overflow: hidden; }
       nav { border-radius: 24px 24px 0 0; }
     }
+
+    @media (min-width: 900px) {
+      body {
+        background:
+          radial-gradient(circle at top left, rgba(255,225,216,0.55), transparent 34%),
+          var(--grey);
+      }
+
+      .app {
+        max-width: 1120px;
+        padding-bottom: 98px;
+      }
+
+      header {
+        padding: 28px 34px 14px;
+      }
+
+      main {
+        padding: 20px 24px 0;
+      }
+
+      nav {
+        max-width: 1120px;
+        padding-left: 24px;
+        padding-right: 24px;
+      }
+
+      .card {
+        margin-bottom: 0;
+      }
+
+      #insights.tab.active {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 16px;
+        align-items: start;
+      }
+
+      #insights > .desktop-wide {
+        grid-column: 1 / -1;
+      }
+
+      #insights .insight-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      #insights .trend-grid,
+      #insights .volume-summary {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+
+      #calendar.tab.active {
+        display: grid;
+        grid-template-columns: minmax(0, 1.45fr) minmax(320px, 0.75fr);
+        gap: 16px;
+        align-items: start;
+      }
+
+      #calendar > .card:first-child {
+        grid-row: span 2;
+      }
+
+      #calendar .calendar-day {
+        min-height: 132px;
+      }
+
+      #calendar .calendar-entry {
+        font-size: 0.7rem;
+        line-height: 1.2;
+      }
+
+      #settings #setupOverview {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 16px;
+      }
+
+      #settings #setupOverview > .card:first-child {
+        grid-column: 1 / -1;
+      }
+
+      #settings .setup-section:not(.hidden) {
+        max-width: 820px;
+        margin: 0 auto;
+      }
+
+      #settings .setup-menu {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      #history .card {
+        max-width: 980px;
+        margin-left: auto;
+        margin-right: auto;
+      }
+
+      #history .history-filter-panel {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+      }
+
+      #history .history-filter-panel > div:first-child {
+        grid-column: span 2;
+      }
+
+      #historyList {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 6px 18px;
+      }
+
+      #historyList .empty {
+        grid-column: 1 / -1;
+      }
+
+      #history .history-row {
+        border: 1px solid rgba(17,17,17,0.06);
+        padding: 12px;
+        background: rgba(255,255,255,0.7);
+      }
+
+      #history .history-row:last-child {
+        border-bottom: 1px solid rgba(17,17,17,0.06);
+      }
+    }
+
+    @media (min-width: 1200px) {
+      .app,
+      nav {
+        max-width: 1180px;
+      }
+    }
