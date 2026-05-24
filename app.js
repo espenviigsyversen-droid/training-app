@@ -30,7 +30,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       weekPlanDatesInRange as weekPlanDatesInRangeCore
     } from './domain-core.js';
 
-    const APP_VERSION = 'v107';
+    const APP_VERSION = 'v108';
     const APP_CACHE_NAME = `treningsapp-${APP_VERSION}`;
 
     const firebaseConfig = {
@@ -5744,8 +5744,10 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       renderStructuredIntervalInsights(today);
       renderWellnessInsights();
       const coachCtx = buildCoachContext();
-      document.getElementById('insightCoachNote').textContent = buildCoachNote(coachCtx);
-      document.getElementById('insightCoachBasis').textContent = buildCoachBasis(coachCtx).join(' · ');
+      const insightCoachNote = document.getElementById('insightCoachNote');
+      const insightCoachBasis = document.getElementById('insightCoachBasis');
+      if (insightCoachNote) insightCoachNote.textContent = buildCoachNote(coachCtx);
+      if (insightCoachBasis) insightCoachBasis.textContent = buildCoachBasis(coachCtx).join(' · ');
     }
 
     function renderStructuredIntervalInsights(today) {
