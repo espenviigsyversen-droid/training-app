@@ -1,5 +1,5 @@
 # Treningsapp — progress.md
-Oppdatert: 2026-05-24 (siste endringer: v75–v106)
+Oppdatert: 2026-05-24 (siste endringer: v75–v107)
 
 ---
 
@@ -27,7 +27,7 @@ Standard Bakken-uke: Hoved-terskel → Støtte-terskel → Lang rolig → Valgfr
 **Hosting:** GitHub Pages.  
 **Backend:** Firebase (prosjekt `home-tasks-app-18de3`) — Firestore + Google Auth.  
 **Frontend:** Vanilla JS + HTML + CSS, single-page app, tab-navigasjon.  
-**Versjon:** v106 (konstant i `app.js`).
+**Versjon:** v107 (konstant i `app.js`).
 
 ### Filer
 
@@ -78,6 +78,7 @@ Treningsapp/
 - **Coach forstår strukturert intervallarbeid** (v104): Intern coach-context bruker nå `structuredWorkout` som støtteinformasjon. Strukturerte intervalløkter teller som kvalitetsarbeid når de har intervallblokk med arbeidstid. Coach-grunnlaget ser antall strukturerte intervalløkter og total arbeidstid siste 7/14/28 dager, siste strukturerte økt og om kvalitetsøkter ligger tett. Coach-notisen kan derfor anbefale rolig/restitusjon etter tett intervallarbeid, anerkjenne kontrollert kvalitet ved god balanse eller foreslå kontrollert terskel/intervall når kvalitet har manglet lenge og signalene er grønne. Nye rene funksjoner: `hasStructuredIntervals()` og `structuredIntervalContext()`.
 - **Diskret sletting fra loggdetalj** (v105): Fullførte historiske økter kan nå slettes fra detaljvisningen via en diskret knapp nederst i modalvinduet. Handlingen bruker eksisterende bekreftelse og trygg `safeStateWrite()`/rollback-flyt. Økter som kommer fra planlagt økt viser fortsatt «Angre utført» og flyttes tilbake til planlagt.
 - **Desktop layout enhancement** (v106): Mobilvisningen er beholdt som baseline, mens brede skjermer fra 900 px får bedre utnyttelse av flaten. `.app` og bottom nav utvides til desktopbredde, Innsikt får 2-kolonne kortflyt, Kalender viser kalender og ukeplan side ved side, Setup-overview bruker 2 kolonner, og Historikk får bredere filter/listeoppsett. Endringen er primært CSS og endrer ikke datalogikk.
+- **Desktop layout finpuss** (v107): Hjem-siden bruker nå desktop-grid der Neste/Dagens økt og Dagsform ligger ved siden av hverandre på brede skjermer, mens Coach-notis og Denne uken fortsatt går full bredde. I Innsikt er Formutvikling gjort full bredde på desktop slik at Garmin-grafene får bedre lesbarhet. Mobilopplevelsen er uendret.
 - **Fjernet «Foreslå neste økt»** (v92): Kortet er fjernet fra Kalender-fanen. Ukeplanen dekker samme behov bedre og er rollebevisst. `renderWorkoutSuggestion`-kallet er fjernet fra render-løkken for å unngå krasj.
 - **Coach: smertegradering + priority-felt + X-økt** (v91): Tre coach-forbedringer: (1) `bodySignalState` skiller nå mellom mild smerte (1–2/10 → `cooling`, foreslår terskel etter en rolig økt) og bekymringsfull smerte (3+/10 → `caution`, kun recovery). Løser at mild smerte blokkerte terskelforslag for hele neste uke. (2) `priority`-feltet i treningsprofilen er nå aktivt: `performance` foreslår terskel straks det er rom, `injury_free_progression` krever 2 rolige øyer før terskel. (3) X-økt vises alltid som 4. forslag i normaluke når det er rom — sikrer at VO2max/teknikk/styrke alltid er synlig som alternativ.
 - **Hjem: alle økter samme dag** (v90): «Neste økt» / «Dagens økt» viser nå alle planlagte økter på samme dato, ikke bare én. For fremtidige dager grupperes etter første kommende dato (`nextDateItems`). Tittelen skifter til «Dagens økt» automatisk når det finnes økter på dagens dato (eksisterende logikk).
