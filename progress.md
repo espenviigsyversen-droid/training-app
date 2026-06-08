@@ -1,5 +1,5 @@
 # Treningsapp — progress.md
-Oppdatert: 2026-06-08 (siste endringer: v75–v113)
+Oppdatert: 2026-06-08 (siste endringer: v75–v114)
 
 ---
 
@@ -27,7 +27,7 @@ Standard Bakken-uke: Hoved-terskel → Støtte-terskel → Lang rolig → Valgfr
 **Hosting:** GitHub Pages.  
 **Backend:** Firebase (prosjekt `home-tasks-app-18de3`) — Firestore + Google Auth.  
 **Frontend:** Vanilla JS + HTML + CSS, single-page app, tab-navigasjon.  
-**Versjon:** v113 (konstant i `app.js`).
+**Versjon:** v114 (konstant i `app.js`).
 
 ### Filer
 
@@ -85,6 +85,7 @@ Treningsapp/
 - **Race/testløp-opplevelse v1** (v111): Fullførte økter kan nå ha valgfri `raceResult` med løpsnavn, distanse, resultattid, løype/sted, PB-flagg og notat. Innsikt har egen seksjon for `Personlige bestenoteringer` på 1 km, 2 km, 3 km, 5 km, 10 km, 12 km, halvmaraton og maraton, beregnet fra registrerte race/testløp. Setup har `Mål-løp` med ett prioritert løp og nedtelling i Innsikt, for eksempel Halv-Birken 12 km. Gamle økter fungerer uendret via trygg normalisering.
 - **Race/testløp-opplevelse v2** (v112): Resultattid i loggføring og måltid for Mål-løp bruker nå samme t/min/sek-format som varighet, som gir mindre feil på mobil. Mål-løp-layouten og modalene er strammet inn for å hindre horisontal scrolling/overlapp på små skjermer. Setup -> Mål-løp har nå manuelle race-resultater for gamle tider som ikke finnes i loggen, lagret i `raceResults`; personlige bestenoteringer kombinerer loggede race/testløp og manuelle resultater.
 - **Mobil- og Setup-fiks for race/testløp** (v113): Detailmodalen låses nå til vertikal scroll og lange tags/tekst brytes innenfor skjermen, slik at historikkdetaljer ikke kan skli sideveis på mobil. Dato/distanse-rader i modal/Setup kollapser til én kolonne på små skjermer for å unngå overlapp. Setup -> Mål-løp er ryddet opp med to kompakte accordions: `Mål-løp` og `Manuelle race-resultater`; blyantknappen i PB-visningen åpner automatisk riktig seksjon.
+- **PB-historikk per distanse** (v114): Personlige bestenoteringer er nå klikkbare. Trykk på en distanse åpner en enkel historikkmodal med beste tid, siste tid, antall resultater, utvikling fra første til siste, graf og komplett resultatliste. Historikken kombinerer loggede race/testløp og manuelle race-resultater. Blyantknappen på PB-kortene er fortsatt snarvei for å legge inn manuelt resultat.
 - **Fjernet «Foreslå neste økt»** (v92): Kortet er fjernet fra Kalender-fanen. Ukeplanen dekker samme behov bedre og er rollebevisst. `renderWorkoutSuggestion`-kallet er fjernet fra render-løkken for å unngå krasj.
 - **Coach: smertegradering + priority-felt + X-økt** (v91): Tre coach-forbedringer: (1) `bodySignalState` skiller nå mellom mild smerte (1–2/10 → `cooling`, foreslår terskel etter en rolig økt) og bekymringsfull smerte (3+/10 → `caution`, kun recovery). Løser at mild smerte blokkerte terskelforslag for hele neste uke. (2) `priority`-feltet i treningsprofilen er nå aktivt: `performance` foreslår terskel straks det er rom, `injury_free_progression` krever 2 rolige øyer før terskel. (3) X-økt vises alltid som 4. forslag i normaluke når det er rom — sikrer at VO2max/teknikk/styrke alltid er synlig som alternativ.
 - **Hjem: alle økter samme dag** (v90): «Neste økt» / «Dagens økt» viser nå alle planlagte økter på samme dato, ikke bare én. For fremtidige dager grupperes etter første kommende dato (`nextDateItems`). Tittelen skifter til «Dagens økt» automatisk når det finnes økter på dagens dato (eksisterende logikk).

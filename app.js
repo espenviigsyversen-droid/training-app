@@ -26,6 +26,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       normalizeTemplate,
       parseNonNegativeInteger,
       personalBestSummary,
+      raceHistoryForDistance,
       raceDistanceLabel,
       raceGoalCountdown,
       hasStructuredIntervals,
@@ -39,7 +40,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       weekPlanDatesInRange as weekPlanDatesInRangeCore
     } from './domain-core.js';
 
-    const APP_VERSION = 'v113';
+    const APP_VERSION = 'v114';
     const APP_CACHE_NAME = `treningsapp-${APP_VERSION}`;
 
     const firebaseConfig = {
@@ -6052,6 +6053,13 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       renderPersonalBestInsights();
     }
 
+    function completedRaceItems() {
+      return state.completed.map(item => ({
+        ...item,
+        name: completedTemplate(item).name
+      }));
+    }
+
     function renderRaceGoalInsight(today) {
       const card = document.getElementById('insightRaceGoalCard');
       const container = document.getElementById('insightRaceGoal');
@@ -6082,10 +6090,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       const grid = document.getElementById('insightPersonalBests');
       const latest = document.getElementById('insightRaceLatest');
       if (!card || !grid || !latest) return;
-      const items = state.completed.map(item => ({
-        ...item,
-        name: completedTemplate(item).name
-      }));
+      const items = completedRaceItems();
       const summary = personalBestSummary(items, state.raceResults);
       if (!summary.raceResults.length) {
         card.style.display = 'none';
@@ -6097,10 +6102,10 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       grid.innerHTML = summary.entries.map(entry => {
         const best = entry.best;
         return `
-          <div class="personal-best-item ${best ? 'has-best' : 'empty-best'}">
+          <div class="personal-best-item ${best ? 'has-best' : 'empty-best'}" role="button" tabindex="0" onclick="openPersonalBestHistory('${entry.km}')" onkeydown="if(event.key === 'Enter' || event.key === ' ') { event.preventDefault(); openPersonalBestHistory('${entry.km}'); }">
             <div class="pb-title-row">
               <span>${escapeHtml(entry.label)}</span>
-              <button class="btn-soft btn-icon" onclick="openManualRaceResultForm('${entry.km}')" aria-label="Legg til resultat for ${escapeHtml(entry.label)}">✎</button>
+              <button class="btn-soft btn-icon" onclick="event.stopPropagation(); openManualRaceResultForm('${entry.km}')" aria-label="Legg til resultat for ${escapeHtml(entry.label)}">✎</button>
             </div>
             <strong>${best ? escapeHtml(formatRaceTime(best.resultSeconds)) : '-'}</strong>
             <small>${best ? escapeHtml(`${formatDate(best.date)} · ${best.name || best.workoutName || 'Race'}`) : 'Ingen registrert'}</small>
@@ -6110,6 +6115,92 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         ? `Siste race/testløp: ${formatDate(summary.latest.date)} · ${summary.latest.name || summary.latest.workoutName || 'Race'} · ${raceDistanceLabel(summary.latest.distanceKm)} · ${formatRaceTime(summary.latest.resultSeconds)}`
         : '';
     }
+
+    function personalBestHistoryChart(results) {
+      if (!results.length) return '';
+      const width = 320;
+      const height = 130;
+      const pad = 18;
+      const values = results.map(item => Number(item.resultSeconds) || 0).filter(Boolean);
+      const min = Math.min(...values);
+      const max = Math.max(...values);
+      const range = Math.max(1, max - min);
+      const xFor = index => results.length === 1 ? width / 2 : pad + (index * ((width - pad * 2) / (results.length - 1)));
+      const yFor = seconds => pad + ((Number(seconds) - min) / range) * (height - pad * 2);
+      const points = results.map((item, index) => `${xFor(index).toFixed(1)},${yFor(item.resultSeconds).toFixed(1)}`).join(' ');
+      const dots = results.map((item, index) => {
+        const x = xFor(index).toFixed(1);
+        const y = yFor(item.resultSeconds).toFixed(1);
+        return `<circle cx="${x}" cy="${y}" r="4"><title>${escapeHtml(formatDate(item.date))}: ${escapeHtml(formatRaceTime(item.resultSeconds))}</title></circle>`;
+      }).join('');
+      return `
+        <div class="pb-history-chart">
+          <svg viewBox="0 0 ${width} ${height}" role="img" aria-label="Utvikling i resultattid">
+            <line x1="${pad}" y1="${height - pad}" x2="${width - pad}" y2="${height - pad}"></line>
+            <line x1="${pad}" y1="${pad}" x2="${pad}" y2="${height - pad}"></line>
+            ${results.length > 1 ? `<polyline points="${points}"></polyline>` : ''}
+            ${dots}
+          </svg>
+        </div>`;
+    }
+
+    function trendLabel(history) {
+      if (history.trendSeconds === null) return 'Trenger minst to resultater';
+      if (history.trendSeconds === 0) return 'Stabilt fra første til siste';
+      return history.trendSeconds < 0
+        ? `${formatRaceTime(Math.abs(history.trendSeconds))} raskere fra første til siste`
+        : `${formatRaceTime(history.trendSeconds)} saktere fra første til siste`;
+    }
+
+    function personalBestHistoryHtml(distanceKm) {
+      const history = raceHistoryForDistance(completedRaceItems(), state.raceResults, distanceKm);
+      const rows = history.results.slice().reverse();
+      const bestId = history.best ? `${history.best.source || ''}-${history.best.id || ''}-${history.best.date || ''}` : '';
+      const rowHtml = rows.length
+        ? rows.map(item => {
+          const rowId = `${item.source || ''}-${item.id || ''}-${item.date || ''}`;
+          const isBest = bestId && rowId === bestId;
+          const meta = [formatDate(item.date), item.name || item.workoutName || 'Race', item.course, item.source === 'manual' ? 'Manuell' : 'Logg'].filter(Boolean).join(' · ');
+          return `
+            <div class="pb-history-row ${isBest ? 'best' : ''}">
+              <div>
+                <strong>${escapeHtml(formatRaceTime(item.resultSeconds))}</strong>
+                <span>${escapeHtml(meta)}</span>
+              </div>
+              ${isBest ? '<span class="tag race-tag">PB</span>' : ''}
+            </div>`;
+        }).join('')
+        : '<p class="small-note">Ingen resultater på denne distansen ennå.</p>';
+      return `
+        <div class="section-title-row">
+          <h2 class="section-title">${escapeHtml(history.label || raceDistanceLabel(distanceKm))} historikk</h2>
+          <button class="btn-soft btn-icon" onclick="closePersonalBestHistory()" aria-label="Lukk">×</button>
+        </div>
+        <div class="pb-history-summary">
+          <div><strong>${history.best ? escapeHtml(formatRaceTime(history.best.resultSeconds)) : '-'}</strong><span>Beste</span></div>
+          <div><strong>${history.latest ? escapeHtml(formatRaceTime(history.latest.resultSeconds)) : '-'}</strong><span>Siste</span></div>
+          <div><strong>${history.results.length}</strong><span>Resultater</span></div>
+        </div>
+        <p class="small-note">${escapeHtml(trendLabel(history))}</p>
+        ${personalBestHistoryChart(history.results)}
+        <div class="pb-history-list">${rowHtml}</div>
+        <div class="button-row">
+          <button class="btn-primary" onclick="closePersonalBestHistory(); openManualRaceResultForm('${Number(distanceKm) || ''}')">Legg til resultat</button>
+          <button class="btn-soft" onclick="closePersonalBestHistory()">Lukk</button>
+        </div>`;
+    }
+
+    window.openPersonalBestHistory = function(distanceKm) {
+      const modal = document.getElementById('personalBestHistoryModal');
+      const content = document.getElementById('personalBestHistoryContent');
+      if (!modal || !content) return;
+      content.innerHTML = personalBestHistoryHtml(distanceKm);
+      modal.classList.add('active');
+    };
+
+    window.closePersonalBestHistory = function() {
+      document.getElementById('personalBestHistoryModal')?.classList.remove('active');
+    };
 
     function renderAppVersionInfo() {
       const el = document.getElementById('appVersionInfo');

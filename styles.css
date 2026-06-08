@@ -1147,6 +1147,11 @@
       padding: 12px;
       background: #fff;
       min-width: 0;
+      cursor: pointer;
+    }
+    .personal-best-item:focus-visible {
+      outline: 3px solid rgba(255,79,46,0.28);
+      outline-offset: 2px;
     }
     .personal-best-item span {
       display: block;
@@ -1187,6 +1192,112 @@
     }
     .personal-best-item.empty-best {
       background: var(--warm-gray-1);
+    }
+
+    .pb-history-modal {
+      max-width: min(620px, calc(100vw - 36px));
+    }
+
+    .pb-history-summary {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+      margin: 12px 0;
+    }
+
+    .pb-history-summary div {
+      border: 1px solid var(--warm-gray-2);
+      border-radius: 14px;
+      padding: 10px;
+      background: #fff;
+    }
+
+    .pb-history-summary strong,
+    .pb-history-summary span {
+      display: block;
+    }
+
+    .pb-history-summary strong {
+      font-size: 1.05rem;
+      line-height: 1.1;
+      overflow-wrap: anywhere;
+    }
+
+    .pb-history-summary span {
+      margin-top: 4px;
+      color: var(--warm-gray-3);
+      font-size: 0.68rem;
+      font-weight: 900;
+      text-transform: uppercase;
+    }
+
+    .pb-history-chart {
+      border: 1px solid var(--warm-gray-2);
+      border-radius: 16px;
+      background: linear-gradient(180deg, #fff 0%, rgba(244,240,235,0.55) 100%);
+      padding: 10px;
+      margin: 12px 0;
+      overflow: hidden;
+    }
+
+    .pb-history-chart svg {
+      display: block;
+      width: 100%;
+      height: auto;
+    }
+
+    .pb-history-chart line {
+      stroke: rgba(128,118,111,0.28);
+      stroke-width: 1;
+    }
+
+    .pb-history-chart polyline {
+      fill: none;
+      stroke: var(--primary);
+      stroke-width: 4;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    .pb-history-chart circle {
+      fill: var(--primary);
+      stroke: #fff;
+      stroke-width: 2;
+    }
+
+    .pb-history-list {
+      display: grid;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .pb-history-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 10px;
+      align-items: center;
+      border: 1px solid var(--warm-gray-2);
+      border-radius: 14px;
+      padding: 10px 12px;
+      background: #fff;
+    }
+
+    .pb-history-row.best {
+      border-color: rgba(255,79,46,0.24);
+      background: rgba(255,79,46,0.045);
+    }
+
+    .pb-history-row strong,
+    .pb-history-row span {
+      display: block;
+      min-width: 0;
+    }
+
+    .pb-history-row span:not(.tag) {
+      margin-top: 3px;
+      color: var(--warm-gray-3);
+      font-size: 0.78rem;
+      line-height: 1.25;
     }
 
     .progress-row {
@@ -2843,6 +2954,10 @@
 
       .race-result-item {
         flex-direction: column;
+      }
+
+      .pb-history-summary {
+        grid-template-columns: 1fr;
       }
 
       .item-actions {

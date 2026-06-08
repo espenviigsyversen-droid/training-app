@@ -46,6 +46,7 @@ function test(name, fn) {
     parseNonNegativeInteger,
     parseRaceTimeToSeconds,
     personalBestSummary,
+    raceHistoryForDistance,
     raceDistanceLabel,
     raceGoalCountdown,
     structuredIntervalContext,
@@ -147,6 +148,17 @@ function test(name, fn) {
     assert.ok(app.includes('renderRaceInsights(today)'), 'insights should render race insights');
   });
 
+  test('personal best history modal is wired into production files', () => {
+    const styles = read('styles.css');
+    assert.ok(index.includes('id="personalBestHistoryModal"'), 'PB history modal is missing');
+    assert.ok(index.includes('id="personalBestHistoryContent"'), 'PB history content container is missing');
+    assert.ok(app.includes('openPersonalBestHistory'), 'PB cards should open history modal');
+    assert.ok(app.includes('raceHistoryForDistance(completedRaceItems(), state.raceResults'), 'PB history should use combined production race data');
+    assert.ok(app.includes('personalBestHistoryChart'), 'PB history chart renderer is missing');
+    assert.ok(styles.includes('.pb-history-chart'), 'PB history chart styles are missing');
+    assert.ok(styles.includes('.pb-history-row.best'), 'PB best row style is missing');
+  });
+
   test('mobile race forms avoid horizontal overflow patterns', () => {
     const styles = read('styles.css');
     assert.ok(styles.includes('overflow-x: hidden'), 'styles should guard against horizontal page/modal overflow');
@@ -216,6 +228,25 @@ function test(name, fn) {
     const twoKm = summary.entries.find(entry => entry.key === '2k');
     assert.strictEqual(twoKm.best.name, 'Gammel 2 km');
     assert.strictEqual(twoKm.best.source, 'manual');
+  });
+
+  test('race history for distance returns sorted results and trend', () => {
+    const history = raceHistoryForDistance(
+      [
+        { id: 'a', date: '2026-05-01', raceResult: { name: '2 km vår', distanceKm: 2, resultSeconds: 520 } },
+        { id: 'b', date: '2026-06-01', raceResult: { name: '2 km sommer', distanceKm: 2, resultSeconds: 505 } }
+      ],
+      [
+        { id: 'manual', date: '2026-04-01', name: 'Gammel 2 km', distanceKm: 2, resultSeconds: 530 }
+      ],
+      2
+    );
+    assert.strictEqual(history.label, '2 km');
+    assert.strictEqual(history.results.length, 3);
+    assert.strictEqual(history.results[0].name, 'Gammel 2 km');
+    assert.strictEqual(history.latest.name, '2 km sommer');
+    assert.strictEqual(history.best.name, '2 km sommer');
+    assert.strictEqual(history.trendSeconds, -25);
   });
 
   test('race goal countdown supports 12 km target race', () => {

@@ -289,6 +289,40 @@ export function personalBestSummary(completedItems = [], manualRaceResults = [],
   };
 }
 
+export function raceHistoryForDistance(completedItems = [], manualRaceResults = [], distanceKm = 0, tolerance = 0.02) {
+  const km = Number(distanceKm) || 0;
+  if (!km) {
+    return {
+      distanceKm: 0,
+      label: '',
+      results: [],
+      best: null,
+      latest: null,
+      first: null,
+      trendSeconds: null
+    };
+  }
+  const results = combinedRaceResults(completedItems, manualRaceResults)
+    .filter(result => result.countsAsPersonalBest !== false)
+    .filter(result => Math.abs(Number(result.distanceKm) - km) < tolerance)
+    .sort((a, b) => String(a.date || '').localeCompare(String(b.date || '')));
+  const best = results.slice().sort((a, b) => Number(a.resultSeconds) - Number(b.resultSeconds))[0] || null;
+  const first = results[0] || null;
+  const latest = results[results.length - 1] || null;
+  const trendSeconds = first && latest && first !== latest
+    ? Number(latest.resultSeconds) - Number(first.resultSeconds)
+    : null;
+  return {
+    distanceKm: km,
+    label: raceDistanceLabel(km),
+    results,
+    best,
+    latest,
+    first,
+    trendSeconds
+  };
+}
+
 export function formatKm(km) {
   const value = Number(km) || 0;
   return `${value.toLocaleString('no-NO', { maximumFractionDigits: value < 10 ? 1 : 0 })} km`;
