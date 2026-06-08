@@ -449,7 +449,10 @@
           <div id="insightRaceGoal" class="race-goal-card"></div>
         </div>
         <div id="insightPersonalBestsCard" class="card" style="display:none;">
-          <h2 class="section-title">Personlige bestenoteringer</h2>
+          <div class="section-title-row">
+            <h2 class="section-title">Personlige bestenoteringer</h2>
+            <button class="btn-soft btn-icon" onclick="openManualRaceResultForm()" aria-label="Legg til manuell bestenotering">✎</button>
+          </div>
           <div id="insightPersonalBests" class="personal-best-grid"></div>
           <p id="insightRaceLatest" class="small-note"></p>
           <p class="small-note">Basert på økter der konkurranse/testløp er registrert og markert som tellende for PB.</p>
@@ -673,13 +676,49 @@
               <div><label>Dato</label><input id="raceGoalDate" type="date" /></div>
               <div><label>Distanse km</label><input id="raceGoalDistance" type="number" min="0" step="0.01" inputmode="decimal" placeholder="12" /></div>
             </div>
-            <div><label>Måltid</label><input id="raceGoalTargetTime" placeholder="Valgfritt, f.eks. 1:05:00" /></div>
+            <div>
+              <label>Måltid</label>
+              <div class="duration-inputs">
+                <input id="raceGoalTargetHours" type="number" min="0" step="1" inputmode="numeric" placeholder="t" aria-label="Måltid timer" />
+                <input id="raceGoalTargetMinutes" type="number" min="0" max="59" step="1" inputmode="numeric" placeholder="min" aria-label="Måltid minutter" />
+                <input id="raceGoalTargetSeconds" type="number" min="0" max="59" step="1" inputmode="numeric" placeholder="sek" aria-label="Måltid sekunder" />
+              </div>
+            </div>
             <div><label>Notat</label><textarea id="raceGoalNote" placeholder="Valgfritt mål, fokus eller løypeinfo"></textarea></div>
             <div class="button-row">
               <button class="btn-primary" onclick="saveRaceGoal()">Lagre mål-løp</button>
               <button class="btn-soft" onclick="clearRaceGoal()">Tøm</button>
             </div>
           </div>
+        </div>
+        <div class="card">
+          <h2 class="section-title">Manuelle race-resultater</h2>
+          <p class="small-note">Legg inn gamle konkurranser og testløp som ikke finnes i loggen. Disse brukes i personlige bestenoteringer.</p>
+          <div class="inline-form">
+            <input type="hidden" id="manualRaceEditingId" />
+            <div class="grid-2">
+              <div><label>Distanse km</label><input id="manualRaceDistance" type="number" min="0" step="0.01" inputmode="decimal" placeholder="F.eks. 2 eller 12" /></div>
+              <div><label>Dato</label><input id="manualRaceDate" type="date" /></div>
+            </div>
+            <div>
+              <label>Resultattid</label>
+              <div class="duration-inputs">
+                <input id="manualRaceHours" type="number" min="0" step="1" inputmode="numeric" placeholder="t" aria-label="Resultattid timer" />
+                <input id="manualRaceMinutes" type="number" min="0" max="59" step="1" inputmode="numeric" placeholder="min" aria-label="Resultattid minutter" />
+                <input id="manualRaceSeconds" type="number" min="0" max="59" step="1" inputmode="numeric" placeholder="sek" aria-label="Resultattid sekunder" />
+              </div>
+            </div>
+            <div class="grid-2">
+              <div><label>Løpsnavn</label><input id="manualRaceName" placeholder="F.eks. Oppegårdmila" /></div>
+              <div><label>Løype / sted</label><input id="manualRaceCourse" placeholder="Valgfritt" /></div>
+            </div>
+            <div><label>Notat</label><textarea id="manualRaceNote" placeholder="Valgfritt, f.eks. vær, løype eller dagsform"></textarea></div>
+            <div class="button-row">
+              <button id="manualRaceSubmitBtn" class="btn-primary" onclick="saveManualRaceResult()">Lagre resultat</button>
+              <button id="manualRaceCancelBtn" class="btn-soft hidden" onclick="clearManualRaceResultForm()">Avbryt</button>
+            </div>
+          </div>
+          <div id="manualRaceResultList" class="settings-list"></div>
         </div>
         </div>
 
@@ -1032,7 +1071,14 @@
             <div><label>Race-distanse km</label><input id="completeRaceDistance" type="number" min="0" step="0.01" inputmode="decimal" placeholder="F.eks. 2 eller 12" /></div>
           </div>
           <div class="grid-2">
-            <div><label>Resultattid</label><input id="completeRaceTime" placeholder="F.eks. 8:30 eller 1:05:00" /></div>
+            <div>
+              <label>Resultattid</label>
+              <div class="duration-inputs">
+                <input id="completeRaceHours" type="number" min="0" step="1" inputmode="numeric" placeholder="t" aria-label="Race resultattid timer" />
+                <input id="completeRaceMinutes" type="number" min="0" max="59" step="1" inputmode="numeric" placeholder="min" aria-label="Race resultattid minutter" />
+                <input id="completeRaceSeconds" type="number" min="0" max="59" step="1" inputmode="numeric" placeholder="sek" aria-label="Race resultattid sekunder" />
+              </div>
+            </div>
             <div><label>Løype / sted</label><input id="completeRaceCourse" placeholder="Valgfritt" /></div>
           </div>
           <label class="checkbox-line">

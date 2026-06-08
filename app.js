@@ -21,6 +21,8 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       goldenZonePercentages,
       normalizeRaceGoal,
       normalizeRaceResult,
+      normalizeRaceResultEntry,
+      normalizeRaceResultEntries,
       normalizeTemplate,
       parseNonNegativeInteger,
       personalBestSummary,
@@ -37,7 +39,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       weekPlanDatesInRange as weekPlanDatesInRangeCore
     } from './domain-core.js';
 
-    const APP_VERSION = 'v111';
+    const APP_VERSION = 'v112';
     const APP_CACHE_NAME = `treningsapp-${APP_VERSION}`;
 
     const firebaseConfig = {
@@ -99,7 +101,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         structuredIntervals: true
       }
     };
-    let state = { templates: [], planned: [], completed: [], wellness: [], challenges: [], blockedDays: [], settings: JSON.parse(JSON.stringify(defaultSettings)) };
+    let state = { templates: [], planned: [], completed: [], wellness: [], challenges: [], blockedDays: [], raceResults: [], settings: JSON.parse(JSON.stringify(defaultSettings)) };
     let volumeTrendPeriod = 'week';
     let volumeTrendActivity = 'all';
     let templateCoachFilter = 'all';
@@ -445,6 +447,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         wellness: Array.isArray(input.wellness) ? input.wellness : [],
         challenges: Array.isArray(input.challenges) ? input.challenges : [],
         blockedDays: Array.isArray(input.blockedDays) ? input.blockedDays : [],
+        raceResults: normalizeRaceResultEntries(input.raceResults),
         settings: normalizeSettings(input.settings)
       };
     }
@@ -750,13 +753,14 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       if (!navigator.onLine) setSyncStatus(hasPendingLocalWrites ? 'pending' : 'offline');
       else setSyncStatus('syncing');
       try {
-        const [tSnap, pSnap, cSnap, wSnap, challengeSnap, blockedDaySnap, settingsSnap] = await Promise.all([
+        const [tSnap, pSnap, cSnap, wSnap, challengeSnap, blockedDaySnap, raceResultSnap, settingsSnap] = await Promise.all([
           getDocs(userCol('templates')),
           getDocs(userCol('planned')),
           getDocs(userCol('completed')),
           getDocs(userCol('wellness')),
           getDocs(userCol('challenges')),
           getDocs(userCol('blockedDays')),
+          getDocs(userCol('raceResults')),
           getDoc(userDoc('settings', 'preferences'))
         ]);
         state = normalizeAppState({
@@ -766,6 +770,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
           wellness: wSnap.docs.map(d => ({ id: d.id, ...d.data() })),
           challenges: challengeSnap.docs.map(d => ({ id: d.id, ...d.data() })),
           blockedDays: blockedDaySnap.docs.map(d => ({ id: d.id, ...d.data() })),
+          raceResults: raceResultSnap.docs.map(d => ({ id: d.id, ...d.data() })),
           settings: settingsSnap.exists() ? settingsSnap.data() : freshDefaultSettings()
         });
         if (!settingsSnap.exists()) await fsSet('settings', 'preferences', state.settings);
@@ -867,7 +872,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       }
     }
 
-    const DATA_COLLECTIONS = ['templates', 'planned', 'completed', 'wellness', 'challenges', 'blockedDays'];
+    const DATA_COLLECTIONS = ['templates', 'planned', 'completed', 'wellness', 'challenges', 'blockedDays', 'raceResults'];
 
     async function commitBatchedOperations(operations, chunkSize = 450) {
       for (let i = 0; i < operations.length; i += chunkSize) {
@@ -1016,7 +1021,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         }
         currentUser = null;
         offlineSnapshotMode = false;
-        state = { templates: [], planned: [], completed: [], wellness: [], challenges: [], blockedDays: [], settings: normalizeSettings(state.settings) };
+        state = { templates: [], planned: [], completed: [], wellness: [], challenges: [], blockedDays: [], raceResults: [], settings: normalizeSettings(state.settings) };
         loading.classList.add('hidden');
         authScreen.classList.remove('hidden');
         mainApp.classList.add('hidden');
@@ -1161,7 +1166,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         name: document.getElementById('raceGoalName').value,
         date: document.getElementById('raceGoalDate').value,
         distanceKm: document.getElementById('raceGoalDistance').value,
-        targetTime: document.getElementById('raceGoalTargetTime').value,
+        targetTimeSeconds: getDurationSecondsFromFields('raceGoalTargetHours', 'raceGoalTargetMinutes', 'raceGoalTargetSeconds'),
         note: document.getElementById('raceGoalNote').value
       });
       await saveSettings();
@@ -1173,6 +1178,89 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       state.settings.raceGoal = normalizeRaceGoal({});
       await saveSettings();
       showToast('Mål-løp tømt');
+    };
+
+    function manualRaceResultFormData() {
+      const editingId = document.getElementById('manualRaceEditingId').value;
+      return normalizeRaceResultEntry({
+        id: editingId || uid('race'),
+        date: document.getElementById('manualRaceDate').value,
+        name: document.getElementById('manualRaceName').value,
+        distanceKm: document.getElementById('manualRaceDistance').value,
+        resultSeconds: getDurationSecondsFromFields('manualRaceHours', 'manualRaceMinutes', 'manualRaceSeconds'),
+        course: document.getElementById('manualRaceCourse').value,
+        note: document.getElementById('manualRaceNote').value,
+        countsAsPersonalBest: true,
+        source: 'manual',
+        createdAt: editingId ? state.raceResults.find(item => item.id === editingId)?.createdAt || new Date().toISOString() : new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      });
+    }
+
+    window.saveManualRaceResult = async function() {
+      const result = manualRaceResultFormData();
+      if (!result?.distanceKm || !result?.resultSeconds || !result?.date) {
+        return alert('Legg inn dato, distanse og resultattid.');
+      }
+      const editingId = document.getElementById('manualRaceEditingId').value;
+      await safeStateWrite({
+        apply: () => {
+          if (editingId) {
+            const index = state.raceResults.findIndex(item => item.id === editingId);
+            if (index >= 0) state.raceResults[index] = result;
+          } else {
+            state.raceResults.push(result);
+          }
+        },
+        write: () => fsSet('raceResults', result.id, result),
+        successMessage: editingId ? 'Race-resultat oppdatert' : 'Race-resultat lagret',
+        errorMessage: 'Kunne ikke lagre race-resultat'
+      });
+      clearManualRaceResultForm();
+    };
+
+    window.editManualRaceResult = function(id) {
+      const result = state.raceResults.find(item => item.id === id);
+      if (!result) return;
+      openManualRaceResultForm(result.distanceKm);
+      document.getElementById('manualRaceEditingId').value = result.id;
+      document.getElementById('manualRaceDistance').value = result.distanceKm || '';
+      document.getElementById('manualRaceDate').value = result.date || '';
+      setDurationFieldsFromSeconds('manualRaceHours', 'manualRaceMinutes', 'manualRaceSeconds', result.resultSeconds || 0);
+      document.getElementById('manualRaceName').value = result.name || '';
+      document.getElementById('manualRaceCourse').value = result.course || '';
+      document.getElementById('manualRaceNote').value = result.note || '';
+      document.getElementById('manualRaceSubmitBtn').textContent = 'Lagre endringer';
+      document.getElementById('manualRaceCancelBtn').classList.remove('hidden');
+    };
+
+    window.deleteManualRaceResult = async function(id) {
+      const result = state.raceResults.find(item => item.id === id);
+      if (!result) return;
+      if (!confirm(`Slette race-resultatet ${formatRaceTime(result.resultSeconds)} på ${raceDistanceLabel(result.distanceKm)}?`)) return;
+      await safeStateWrite({
+        apply: () => { state.raceResults = state.raceResults.filter(item => item.id !== id); },
+        write: () => fsDelete('raceResults', id),
+        successMessage: 'Race-resultat slettet',
+        errorMessage: 'Kunne ikke slette race-resultat'
+      });
+    };
+
+    window.clearManualRaceResultForm = function() {
+      document.getElementById('manualRaceEditingId').value = '';
+      ['manualRaceDistance', 'manualRaceDate', 'manualRaceHours', 'manualRaceMinutes', 'manualRaceSeconds', 'manualRaceName', 'manualRaceCourse', 'manualRaceNote']
+        .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+      document.getElementById('manualRaceSubmitBtn').textContent = 'Lagre resultat';
+      document.getElementById('manualRaceCancelBtn').classList.add('hidden');
+    };
+
+    window.openManualRaceResultForm = function(distanceKm = '') {
+      showTab('settings');
+      openSetupSection('raceGoal');
+      if (distanceKm) document.getElementById('manualRaceDistance').value = distanceKm;
+      const field = document.getElementById('manualRaceDistance');
+      field?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      field?.focus();
     };
 
     window.saveTrainingProfile = async function() {
@@ -1761,7 +1849,9 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         'completeBodyNotes',
         'completeRaceName',
         'completeRaceDistance',
-        'completeRaceTime',
+        'completeRaceHours',
+        'completeRaceMinutes',
+        'completeRaceSeconds',
         'completeRaceCourse',
         'completeRaceNote',
         'completeNotes'
@@ -1801,7 +1891,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       const raceResult = normalizeRaceResult({
         name: document.getElementById('completeRaceName').value,
         distanceKm: document.getElementById('completeRaceDistance').value,
-        resultTime: document.getElementById('completeRaceTime').value,
+        resultSeconds: getDurationSecondsFromFields('completeRaceHours', 'completeRaceMinutes', 'completeRaceSeconds'),
         course: document.getElementById('completeRaceCourse').value,
         note: document.getElementById('completeRaceNote').value,
         countsAsPersonalBest: document.getElementById('completeRaceCountsPb').checked
@@ -1847,20 +1937,28 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     }
 
     function getDurationSecondsFromForm() {
-      const hours = parseNonNegativeInteger(document.getElementById('completeDurationHours').value);
-      const minutes = parseNonNegativeInteger(document.getElementById('completeDurationMinutes').value);
-      const seconds = parseNonNegativeInteger(document.getElementById('completeDurationSeconds').value);
+      return getDurationSecondsFromFields('completeDurationHours', 'completeDurationMinutes', 'completeDurationSeconds');
+    }
+
+    function getDurationSecondsFromFields(hoursId, minutesId, secondsId) {
+      const hours = parseNonNegativeInteger(document.getElementById(hoursId)?.value);
+      const minutes = parseNonNegativeInteger(document.getElementById(minutesId)?.value);
+      const seconds = parseNonNegativeInteger(document.getElementById(secondsId)?.value);
       return (hours * 3600) + (Math.min(minutes, 59) * 60) + Math.min(seconds, 59);
     }
 
     function setDurationFormFromSeconds(totalSeconds) {
+      setDurationFieldsFromSeconds('completeDurationHours', 'completeDurationMinutes', 'completeDurationSeconds', totalSeconds);
+    }
+
+    function setDurationFieldsFromSeconds(hoursId, minutesId, secondsId, totalSeconds) {
       const secondsTotal = parseNonNegativeInteger(totalSeconds);
       const hours = Math.floor(secondsTotal / 3600);
       const minutes = Math.floor((secondsTotal % 3600) / 60);
       const seconds = secondsTotal % 60;
-      document.getElementById('completeDurationHours').value = hours || '';
-      document.getElementById('completeDurationMinutes').value = minutes || '';
-      document.getElementById('completeDurationSeconds').value = seconds || '';
+      document.getElementById(hoursId).value = hours || '';
+      document.getElementById(minutesId).value = minutes || '';
+      document.getElementById(secondsId).value = seconds || '';
     }
 
     function updatePacePreview() {
@@ -2525,7 +2623,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       const raceResult = normalizeRaceResult(completed.raceResult);
       document.getElementById('completeRaceName').value = raceResult?.name || '';
       document.getElementById('completeRaceDistance').value = raceResult?.distanceKm || '';
-      document.getElementById('completeRaceTime').value = raceResult?.resultSeconds ? formatRaceTime(raceResult.resultSeconds) : '';
+      setDurationFieldsFromSeconds('completeRaceHours', 'completeRaceMinutes', 'completeRaceSeconds', raceResult?.resultSeconds || 0);
       document.getElementById('completeRaceCourse').value = raceResult?.course || '';
       document.getElementById('completeRaceCountsPb').checked = raceResult?.countsAsPersonalBest !== false;
       document.getElementById('completeRaceNote').value = raceResult?.note || '';
@@ -3429,8 +3527,28 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       document.getElementById('raceGoalName').value = goal.name;
       document.getElementById('raceGoalDate').value = goal.date;
       document.getElementById('raceGoalDistance').value = goal.distanceKm;
-      document.getElementById('raceGoalTargetTime').value = goal.targetTimeSeconds ? formatRaceTime(goal.targetTimeSeconds) : '';
+      setDurationFieldsFromSeconds('raceGoalTargetHours', 'raceGoalTargetMinutes', 'raceGoalTargetSeconds', goal.targetTimeSeconds || 0);
       document.getElementById('raceGoalNote').value = goal.note;
+    }
+
+    function renderManualRaceResultList() {
+      const list = document.getElementById('manualRaceResultList');
+      if (!list) return;
+      const items = normalizeRaceResultEntries(state.raceResults)
+        .sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')));
+      list.innerHTML = items.length
+        ? items.map(item => `
+          <div class="settings-item race-result-item">
+            <span>
+              <strong>${escapeHtml(raceDistanceLabel(item.distanceKm))} · ${escapeHtml(formatRaceTime(item.resultSeconds))}</strong>
+              <small>${escapeHtml([formatDate(item.date), item.name, item.course].filter(Boolean).join(' · '))}</small>
+            </span>
+            <div class="item-actions">
+              <button class="btn-soft" onclick="editManualRaceResult('${item.id}')">Rediger</button>
+              <button class="btn-soft" onclick="deleteManualRaceResult('${item.id}')">Slett</button>
+            </div>
+          </div>`).join('')
+        : '<p class="small-note">Ingen manuelle race-resultater registrert ennå.</p>';
     }
 
     function renderTrainingProfile() {
@@ -5966,7 +6084,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         ...item,
         name: completedTemplate(item).name
       }));
-      const summary = personalBestSummary(items);
+      const summary = personalBestSummary(items, state.raceResults);
       if (!summary.raceResults.length) {
         card.style.display = 'none';
         grid.innerHTML = '';
@@ -5978,7 +6096,10 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         const best = entry.best;
         return `
           <div class="personal-best-item ${best ? 'has-best' : 'empty-best'}">
-            <span>${escapeHtml(entry.label)}</span>
+            <div class="pb-title-row">
+              <span>${escapeHtml(entry.label)}</span>
+              <button class="btn-soft btn-icon" onclick="openManualRaceResultForm('${entry.km}')" aria-label="Legg til resultat for ${escapeHtml(entry.label)}">✎</button>
+            </div>
             <strong>${best ? escapeHtml(formatRaceTime(best.resultSeconds)) : '-'}</strong>
             <small>${best ? escapeHtml(`${formatDate(best.date)} · ${best.name || best.workoutName || 'Race'}`) : 'Ingen registrert'}</small>
           </div>`;
@@ -6005,6 +6126,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       state.templates = normalizeTemplates(state.templates);
       state.challenges = Array.isArray(state.challenges) ? state.challenges : [];
       state.blockedDays = Array.isArray(state.blockedDays) ? state.blockedDays : [];
+      state.raceResults = normalizeRaceResultEntries(state.raceResults);
 
       const editingTemplateId = document.getElementById('editingTemplateId').value;
       const selectedType = document.getElementById('templateType').value;
@@ -6017,6 +6139,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       renderSettingsList('intensities', 'intensityList');
       renderTrainingGoals();
       renderRaceGoalSettings();
+      renderManualRaceResultList();
       renderTrainingProfile();
       renderPersonProfile();
       renderWellnessList();
@@ -6150,7 +6273,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     };
 
     window.confirmResetData = function() {
-      const userInput = prompt('Skriv inn "SLETT" for å bekrefte sletting av alle økter, planer, historikk, formmålinger, challenges og ikke-treningsdager.');
+      const userInput = prompt('Skriv inn "SLETT" for å bekrefte sletting av alle økter, planer, historikk, formmålinger, race-resultater, challenges og ikke-treningsdager.');
       if (userInput !== 'SLETT') {
         if (userInput !== null) alert('Feil tekst - sletting avbrutt.');
         return;
@@ -6159,22 +6282,23 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     };
 
     window.resetData = async function() {
-      if (!confirm('SISTE ADVARSEL: Dette sletter alle økter, planer, historikk, formmålinger, challenges og ikke-treningsdager. Dette kan ikke angres. Fortsette?')) return;
+      if (!confirm('SISTE ADVARSEL: Dette sletter alle økter, planer, historikk, formmålinger, race-resultater, challenges og ikke-treningsdager. Dette kan ikke angres. Fortsette?')) return;
       saveRecoverySnapshot('before-reset');
       setSyncStatus('syncing');
       try {
-        const [tSnap, pSnap, cSnap, wSnap, challengeSnap, blockedDaySnap] = await Promise.all([
+        const [tSnap, pSnap, cSnap, wSnap, challengeSnap, blockedDaySnap, raceResultSnap] = await Promise.all([
           getDocs(userCol('templates')),
           getDocs(userCol('planned')),
           getDocs(userCol('completed')),
           getDocs(userCol('wellness')),
           getDocs(userCol('challenges')),
-          getDocs(userCol('blockedDays'))
+          getDocs(userCol('blockedDays')),
+          getDocs(userCol('raceResults'))
         ]);
         const batch = writeBatch(db);
-        [...tSnap.docs, ...pSnap.docs, ...cSnap.docs, ...wSnap.docs, ...challengeSnap.docs, ...blockedDaySnap.docs].forEach(d => batch.delete(d.ref));
+        [...tSnap.docs, ...pSnap.docs, ...cSnap.docs, ...wSnap.docs, ...challengeSnap.docs, ...blockedDaySnap.docs, ...raceResultSnap.docs].forEach(d => batch.delete(d.ref));
         await batch.commit();
-        state = { templates: [], planned: [], completed: [], wellness: [], challenges: [], blockedDays: [], settings: normalizeSettings(state.settings) };
+        state = { templates: [], planned: [], completed: [], wellness: [], challenges: [], blockedDays: [], raceResults: [], settings: normalizeSettings(state.settings) };
         setSyncStatus('ok');
         render();
       } catch (err) {

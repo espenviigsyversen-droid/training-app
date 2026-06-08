@@ -25,14 +25,17 @@
       background: var(--grey);
       color: var(--black);
       line-height: 1.4;
+      overflow-x: hidden;
     }
 
     .app {
+      width: 100%;
       max-width: 520px;
       margin: 0 auto;
       min-height: 100vh;
       padding-bottom: 92px;
       background: linear-gradient(180deg, #fff 0%, var(--grey) 44%);
+      overflow-x: hidden;
     }
 
     header {
@@ -81,7 +84,17 @@
     }
 
     .section-title { font-size: 1.05rem; margin: 0 0 12px; letter-spacing: -0.02em; }
-    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .section-title-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+    .section-title-row .section-title {
+      margin: 0;
+    }
+    .grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
     .grid-4 { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
     .week-recipe-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 
@@ -97,6 +110,7 @@
 
     input, select, textarea {
       width: 100%;
+      min-width: 0;
       border: 1px solid var(--warm-gray-2);
       background: #fff;
       border-radius: 14px;
@@ -201,6 +215,17 @@
     .btn-primary { background: var(--primary); color: #fff; box-shadow: 0 8px 18px rgba(255,79,46,0.22); }
     .btn-dark { background: var(--black); color: #fff; }
     .btn-soft { background: var(--warm-gray-1); color: var(--black); }
+    .btn-icon {
+      width: 34px;
+      height: 34px;
+      padding: 0;
+      border-radius: 12px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex: 0 0 auto;
+      font-size: 1rem;
+    }
     .btn-danger { background: var(--red); color: #fff; }
     .btn-subtle-danger {
       background: transparent;
@@ -1112,6 +1137,21 @@
       font-size: 0.72rem;
       font-weight: 900;
       text-transform: uppercase;
+    }
+    .pb-title-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .pb-title-row span {
+      min-width: 0;
+    }
+    .pb-title-row .btn-icon {
+      width: 28px;
+      height: 28px;
+      border-radius: 10px;
+      font-size: 0.86rem;
     }
     .personal-best-item strong {
       display: block;
@@ -2336,6 +2376,25 @@
       font-weight: 700;
     }
     .settings-item button { padding: 8px 10px; font-size: 0.78rem; border-radius: 12px; }
+    .settings-item > span {
+      min-width: 0;
+    }
+    .settings-item small {
+      display: block;
+      margin-top: 3px;
+      color: var(--warm-gray-3);
+      font-size: 0.78rem;
+      line-height: 1.3;
+      font-weight: 650;
+    }
+    .item-actions {
+      display: flex;
+      gap: 6px;
+      flex: 0 0 auto;
+    }
+    .race-result-item {
+      align-items: flex-start;
+    }
 
     .setup-menu {
       display: grid;
@@ -2428,19 +2487,25 @@
       background: rgba(0,0,0,0.42);
       padding: 18px;
       align-items: flex-end;
+      overflow-x: hidden;
     }
 
     .modal-backdrop.active { display: flex; }
 
     .modal {
       width: 100%;
-      max-width: 520px;
+      max-width: min(520px, calc(100vw - 36px));
       margin: 0 auto;
       background: white;
       border-radius: 22px 22px 16px 16px;
       padding: 18px;
       max-height: 88vh;
       overflow: auto;
+      overflow-x: hidden;
+    }
+
+    .modal * {
+      min-width: 0;
     }
 
     .modal h2 { margin: 0 0 14px; }
@@ -2679,6 +2744,29 @@
     @media (min-width: 700px) {
       .app { margin-top: 20px; margin-bottom: 20px; border-radius: 32px; min-height: calc(100vh - 40px); overflow: hidden; }
       nav { border-radius: 24px 24px 0 0; }
+    }
+
+    @media (max-width: 430px) {
+      .modal-backdrop {
+        padding-left: 12px;
+        padding-right: 12px;
+      }
+
+      .modal {
+        max-width: calc(100vw - 24px);
+      }
+
+      .race-result-item {
+        flex-direction: column;
+      }
+
+      .item-actions {
+        width: 100%;
+      }
+
+      .item-actions button {
+        flex: 1;
+      }
     }
 
     @media (min-width: 900px) {

@@ -36,8 +36,11 @@ function test(name, fn) {
     formatRaceTime,
     goldenZonePercentages,
     hasStructuredIntervals,
+    combinedRaceResults,
     normalizeRaceGoal,
     normalizeRaceResult,
+    normalizeRaceResultEntry,
+    normalizeRaceResultEntries,
     normalizeStructuredWorkout,
     normalizeTemplate,
     parseNonNegativeInteger,
@@ -68,7 +71,7 @@ function test(name, fn) {
 
   test('all user data collections are included in replacement import', () => {
     const collections = app.match(/DATA_COLLECTIONS\s*=\s*\[([^\]]+)\]/)?.[1] || '';
-    ['templates', 'planned', 'completed', 'wellness', 'challenges', 'blockedDays'].forEach(collection => {
+    ['templates', 'planned', 'completed', 'wellness', 'challenges', 'blockedDays', 'raceResults'].forEach(collection => {
       assert.ok(collections.includes(`'${collection}'`), `${collection} is missing from DATA_COLLECTIONS`);
     });
     assert.ok(app.includes('replaceFirestoreData(nextState)'), 'import does not call replaceFirestoreData(nextState)');
@@ -125,12 +128,30 @@ function test(name, fn) {
 
   test('race result UI and settings are wired into production files', () => {
     assert.ok(index.includes('id="completeRaceName"'), 'race result name field is missing');
-    assert.ok(index.includes('id="completeRaceTime"'), 'race result time field is missing');
+    assert.ok(index.includes('id="completeRaceHours"'), 'race result hours field is missing');
+    assert.ok(index.includes('id="completeRaceMinutes"'), 'race result minutes field is missing');
+    assert.ok(index.includes('id="completeRaceSeconds"'), 'race result seconds field is missing');
     assert.ok(index.includes('id="insightPersonalBests"'), 'personal best insight element is missing');
     assert.ok(index.includes('id="setupRaceGoal"'), 'race goal setup section is missing');
+    assert.ok(index.includes('id="raceGoalTargetHours"'), 'race goal target hours field is missing');
+    assert.ok(index.includes('id="raceGoalTargetMinutes"'), 'race goal target minutes field is missing');
+    assert.ok(index.includes('id="raceGoalTargetSeconds"'), 'race goal target seconds field is missing');
+    assert.ok(index.includes('id="manualRaceDistance"'), 'manual race result distance field is missing');
+    assert.ok(index.includes('id="manualRaceResultList"'), 'manual race result list is missing');
     assert.ok(app.includes('raceResult: normalizeRaceResult'), 'completed items should normalize raceResult');
+    assert.ok(app.includes('raceResults: normalizeRaceResultEntries(input.raceResults)'), 'app state should normalize manual race results');
+    assert.ok(app.includes("fsSet('raceResults'"), 'manual race results should be written to Firestore');
+    assert.ok(app.includes("fsDelete('raceResults'"), 'manual race results should be deletable from Firestore');
+    assert.ok(app.includes('personalBestSummary(items, state.raceResults)'), 'personal bests should include manual race results');
     assert.ok(app.includes('state.settings.raceGoal = normalizeRaceGoal'), 'race goal should be saved through normalized settings');
     assert.ok(app.includes('renderRaceInsights(today)'), 'insights should render race insights');
+  });
+
+  test('mobile race forms avoid horizontal overflow patterns', () => {
+    const styles = read('styles.css');
+    assert.ok(styles.includes('overflow-x: hidden'), 'styles should guard against horizontal page/modal overflow');
+    assert.ok(styles.includes('minmax(0, 1fr)'), 'two-column grids should allow inputs to shrink on mobile');
+    assert.ok(styles.includes('.modal *'), 'modal children should be allowed to shrink inside the viewport');
   });
 
   test('race time parsing and formatting supports common race inputs', () => {
@@ -160,6 +181,35 @@ function test(name, fn) {
     const twoKm = summary.entries.find(entry => entry.key === '2k');
     assert.strictEqual(twoKm.best.name, '2 km sommer');
     assert.strictEqual(twoKm.best.resultSeconds, 505);
+  });
+
+  test('manual race results normalize safely and count toward personal bests', () => {
+    assert.strictEqual(normalizeRaceResultEntry({ distanceKm: 2 }), null);
+    const manual = normalizeRaceResultEntry({
+      id: 123,
+      date: '2026-04-01',
+      name: 'Gammel 2 km',
+      distanceKm: '2',
+      resultSeconds: 498,
+      course: 'Bane'
+    });
+    assert.strictEqual(manual.id, '123');
+    assert.strictEqual(manual.source, 'manual');
+    assert.strictEqual(manual.resultSeconds, 498);
+    assert.strictEqual(normalizeRaceResultEntries([manual, null, { distanceKm: 5 }]).length, 1);
+
+    const combined = combinedRaceResults(
+      [{ id: 'logged', date: '2026-05-01', raceResult: { name: 'Logget 2 km', distanceKm: 2, resultSeconds: 520 } }],
+      [manual]
+    );
+    assert.strictEqual(combined.length, 2);
+    const summary = personalBestSummary(
+      [{ id: 'logged', date: '2026-05-01', raceResult: { name: 'Logget 2 km', distanceKm: 2, resultSeconds: 520 } }],
+      [manual]
+    );
+    const twoKm = summary.entries.find(entry => entry.key === '2k');
+    assert.strictEqual(twoKm.best.name, 'Gammel 2 km');
+    assert.strictEqual(twoKm.best.source, 'manual');
   });
 
   test('race goal countdown supports 12 km target race', () => {

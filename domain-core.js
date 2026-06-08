@@ -241,6 +241,7 @@ export function raceResultsFromCompleted(completedItems = []) {
         id: item.id || '',
         date: item.date || '',
         workoutName: item.name || item.templateSnapshot?.name || item.manualName || '',
+        source: 'completed',
         ...raceResult
       };
     })
@@ -248,8 +249,33 @@ export function raceResultsFromCompleted(completedItems = []) {
     .sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')));
 }
 
-export function personalBestSummary(completedItems = [], presets = RACE_DISTANCE_PRESETS) {
-  const raceResults = raceResultsFromCompleted(completedItems)
+export function normalizeRaceResultEntry(value = {}) {
+  const source = value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+  const raceResult = normalizeRaceResult(source);
+  if (!raceResult?.distanceKm || !raceResult?.resultSeconds) return null;
+  return {
+    id: String(source.id || ''),
+    date: String(source.date || '').trim(),
+    source: String(source.source || 'manual').trim() || 'manual',
+    createdAt: source.createdAt || '',
+    updatedAt: source.updatedAt || '',
+    ...raceResult
+  };
+}
+
+export function normalizeRaceResultEntries(items = []) {
+  return Array.isArray(items) ? items.map(normalizeRaceResultEntry).filter(Boolean) : [];
+}
+
+export function combinedRaceResults(completedItems = [], manualRaceResults = []) {
+  return [
+    ...raceResultsFromCompleted(completedItems),
+    ...normalizeRaceResultEntries(manualRaceResults)
+  ].sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')));
+}
+
+export function personalBestSummary(completedItems = [], manualRaceResults = [], presets = RACE_DISTANCE_PRESETS) {
+  const raceResults = combinedRaceResults(completedItems, manualRaceResults)
     .filter(result => result.countsAsPersonalBest !== false);
   const entries = presets.map(preset => {
     const matches = raceResults.filter(result => Math.abs(Number(result.distanceKm) - preset.km) < 0.02);
