@@ -94,8 +94,19 @@ function test(name, fn) {
 
   test('settings include internal structured interval feature flag', () => {
     assert.ok(app.includes('features: {'), 'settings features object is missing');
-    assert.ok(app.includes('structuredIntervals: true'), 'structuredIntervals should be enabled in v104 defaults');
+    assert.ok(app.includes('structuredIntervals: true'), 'structuredIntervals should be enabled in defaults');
     assert.ok(app.includes('features: normalizeFeatures(source.features)'), 'settings should normalize feature flags');
+  });
+
+  test('race role and purpose are available as first-class template metadata', () => {
+    assert.ok(index.includes('<option value="race">Konkurranse / race</option>'), 'race role option is missing');
+    assert.ok(index.includes('<option value="race">Konkurranse / testløp</option>'), 'race purpose option is missing');
+    assert.ok(app.includes("race: 'Konkurranse / race'"), 'race role label is missing');
+    assert.ok(app.includes("race: 'Konkurranse / testløp'"), 'race purpose label is missing');
+    assert.ok(app.includes("name: '2 km race / testløp'"), '2 km race standard template is missing');
+    assert.ok(app.includes("template.role === 'race'"), 'race role should count as hard workout');
+    assert.ok(app.includes("template.purpose === 'race'"), 'race purpose should count as hard workout');
+    assert.ok(app.includes("role === 'race' || purpose === 'race'"), 'race should not be treated as restorative');
   });
 
   test('calendar day modal refreshes after marking planned workout complete', () => {

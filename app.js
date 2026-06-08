@@ -30,7 +30,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       weekPlanDatesInRange as weekPlanDatesInRangeCore
     } from './domain-core.js';
 
-    const APP_VERSION = 'v108';
+    const APP_VERSION = 'v109';
     const APP_CACHE_NAME = `treningsapp-${APP_VERSION}`;
 
     const firebaseConfig = {
@@ -468,6 +468,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       strength: 'Styrke',
       mobility: 'Mobilitet',
       technique: 'Teknikk',
+      race: 'Konkurranse / race',
       other: 'Annet'
     };
 
@@ -631,6 +632,17 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         recommendedWhen: ['fresh_legs', 'bonus'],
         avoidWhen: ['pain'],
         structure: '10-15 min oppvarming\n8-10 x 45-60 sek kontrollert motbakke\nGå/jogg rolig ned som pause\n5-10 min nedjogg\nKun når legg/fot kjennes bra'
+      },
+      {
+        name: '2 km race / testløp',
+        type: 'Løping',
+        intensity: 'Anaerob',
+        role: 'race',
+        purpose: 'race',
+        load: 'high',
+        recommendedWhen: ['fresh_legs', 'bonus'],
+        avoidWhen: ['pain', 'heavy_legs', 'many_hard', 'low_hrv'],
+        structure: '15-20 min rolig oppvarming\n3-5 stigningsløp med god pause\n2 km konkurranse/testløp\n10-15 min rolig nedjogg\nLogg som race, ikke som vanlig intervalløkt'
       },
       {
         name: 'Styrke Vedlikehold',
@@ -1243,7 +1255,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
 
     function sortedTemplatesForSelect() {
       const activityOrder = state.settings.activityTypes || [];
-      const roleOrder = ['main_threshold', 'support_threshold', 'long_easy', 'recovery', 'x_workout', 'strength', 'mobility', 'technique', 'other'];
+      const roleOrder = ['main_threshold', 'support_threshold', 'long_easy', 'recovery', 'x_workout', 'race', 'strength', 'mobility', 'technique', 'other'];
       return [...state.templates].sort((a, b) => {
         const aIndex = activityOrder.indexOf(a.type);
         const bIndex = activityOrder.indexOf(b.type);
@@ -2750,6 +2762,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         muscle_growth: 'Muskelvekst',
         mobility: 'Mobilitet',
         technique: 'Teknikk/ferdighet',
+        race: 'Konkurranse / testløp',
         other: 'Annet formål'
       });
     }
@@ -4578,7 +4591,11 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     function isHardWorkout(completed) {
       const template = getTemplate(completed.templateId);
       const hardIntensities = ['Tempo', 'Terskel', 'Intervall', 'Anaerob'];
-      return hardIntensities.includes(template.intensity) || hasStructuredIntervals(template.structuredWorkout) || Number(completed.rpe || 0) >= 7;
+      return hardIntensities.includes(template.intensity)
+        || template.role === 'race'
+        || template.purpose === 'race'
+        || hasStructuredIntervals(template.structuredWorkout)
+        || Number(completed.rpe || 0) >= 7;
     }
 
     function summarizeCompleted(items) {
@@ -5028,6 +5045,8 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       const type = String(template.type || '').toLowerCase();
       const intensity = String(template.intensity || '').toLowerCase();
       const purpose = String(template.purpose || '').toLowerCase();
+      const role = String(template.role || '').toLowerCase();
+      if (role === 'race' || purpose === 'race') return false;
       return (
         isWalkingCompleted(item) ||
         type.includes('mobilitet') ||

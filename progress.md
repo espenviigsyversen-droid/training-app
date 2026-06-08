@@ -1,5 +1,5 @@
 # Treningsapp — progress.md
-Oppdatert: 2026-05-24 (siste endringer: v75–v108)
+Oppdatert: 2026-06-08 (siste endringer: v75–v109)
 
 ---
 
@@ -27,7 +27,7 @@ Standard Bakken-uke: Hoved-terskel → Støtte-terskel → Lang rolig → Valgfr
 **Hosting:** GitHub Pages.  
 **Backend:** Firebase (prosjekt `home-tasks-app-18de3`) — Firestore + Google Auth.  
 **Frontend:** Vanilla JS + HTML + CSS, single-page app, tab-navigasjon.  
-**Versjon:** v108 (konstant i `app.js`).
+**Versjon:** v109 (konstant i `app.js`).
 
 ### Filer
 
@@ -80,6 +80,7 @@ Treningsapp/
 - **Desktop layout enhancement** (v106): Mobilvisningen er beholdt som baseline, mens brede skjermer fra 900 px får bedre utnyttelse av flaten. `.app` og bottom nav utvides til desktopbredde, Innsikt får 2-kolonne kortflyt, Kalender viser kalender og ukeplan side ved side, Setup-overview bruker 2 kolonner, og Historikk får bredere filter/listeoppsett. Endringen er primært CSS og endrer ikke datalogikk.
 - **Desktop layout finpuss** (v107): Hjem-siden bruker nå desktop-grid der Neste/Dagens økt og Dagsform ligger ved siden av hverandre på brede skjermer, mens Coach-notis og Denne uken fortsatt går full bredde. I Innsikt er Formutvikling gjort full bredde på desktop slik at Garmin-grafene får bedre lesbarhet. Mobilopplevelsen er uendret.
 - **Innsikt uten duplisert coach-notis** (v108): Coach-notis-kortet er fjernet fra Innsikt fordi samme råd allerede ligger på Hjem. Innsikt rendrer nå uten duplisert coachkort, mens `renderInsights()` er null-safe hvis gamle elementer ikke finnes.
+- **Konkurranse/race som øktmetadata** (v109): Øktmaler har nå innebygd `race` som Øktrolle (`Konkurranse / race`) og Coach-formål (`Konkurranse / testløp`). Dette gir en trygg måte å logge faktiske løp/testløp, for eksempel 2 km race, uten fri konfigurasjon som coachen ikke forstår. Race teller som hard/kvalitetsøkt i intern coach-/innsiktslogikk og behandles ikke som restitusjon. Bakken-standardmalene inkluderer nå `2 km race / testløp`.
 - **Fjernet «Foreslå neste økt»** (v92): Kortet er fjernet fra Kalender-fanen. Ukeplanen dekker samme behov bedre og er rollebevisst. `renderWorkoutSuggestion`-kallet er fjernet fra render-løkken for å unngå krasj.
 - **Coach: smertegradering + priority-felt + X-økt** (v91): Tre coach-forbedringer: (1) `bodySignalState` skiller nå mellom mild smerte (1–2/10 → `cooling`, foreslår terskel etter en rolig økt) og bekymringsfull smerte (3+/10 → `caution`, kun recovery). Løser at mild smerte blokkerte terskelforslag for hele neste uke. (2) `priority`-feltet i treningsprofilen er nå aktivt: `performance` foreslår terskel straks det er rom, `injury_free_progression` krever 2 rolige øyer før terskel. (3) X-økt vises alltid som 4. forslag i normaluke når det er rom — sikrer at VO2max/teknikk/styrke alltid er synlig som alternativ.
 - **Hjem: alle økter samme dag** (v90): «Neste økt» / «Dagens økt» viser nå alle planlagte økter på samme dato, ikke bare én. For fremtidige dager grupperes etter første kommende dato (`nextDateItems`). Tittelen skifter til «Dagens økt» automatisk når det finnes økter på dagens dato (eksisterende logikk).
