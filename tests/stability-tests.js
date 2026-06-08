@@ -23,6 +23,7 @@ function test(name, fn) {
 
 (async () => {
   const domain = await import(pathToFileURL(path.join(root, 'domain-core.js')).href);
+  const goals = await import(pathToFileURL(path.join(root, 'domain-goals.js')).href);
   const {
     assessTrafficLight,
     buildStructuredWorkout,
@@ -33,26 +34,13 @@ function test(name, fn) {
     formatClockDuration,
     formatDuration,
     formatPace,
-    formatRaceTime,
     goldenZonePercentages,
     hasStructuredIntervals,
     injuryAdjustedWorkoutAdvice,
     injurySignalSummary,
-    combinedRaceResults,
-    normalizeRaceGoal,
-    normalizeRaceResult,
-    normalizeRaceResultEntry,
-    normalizeRaceResultEntries,
     normalizeStructuredWorkout,
     normalizeTemplate,
     parseNonNegativeInteger,
-    parseRaceTimeToSeconds,
-    personalBestSummary,
-    raceHistoryForDistance,
-    raceDistanceLabel,
-    raceGoalCountdown,
-    raceGoalPlan,
-    raceReadinessSummary,
     structuredIntervalContext,
     structuredIntervalInsights,
     structuredWorkoutBreakdown,
@@ -65,6 +53,21 @@ function test(name, fn) {
     weekPlanDates,
     weekPlanDatesInRange
   } = domain;
+  const {
+    combinedRaceResults,
+    formatRaceTime,
+    normalizeRaceGoal,
+    normalizeRaceResult,
+    normalizeRaceResultEntry,
+    normalizeRaceResultEntries,
+    parseRaceTimeToSeconds,
+    personalBestSummary,
+    raceHistoryForDistance,
+    raceDistanceLabel,
+    raceGoalCountdown,
+    raceGoalPlan,
+    raceReadinessSummary
+  } = goals;
 
   test('app version matches service worker cache version', () => {
     const appVersion = app.match(/APP_VERSION\s*=\s*'([^']+)'/)?.[1];
@@ -96,7 +99,7 @@ function test(name, fn) {
   });
 
   test('service worker caches required app shell files', () => {
-    ['./index.html', './styles.css', './app.js', './domain-core.js', './manifest.json'].forEach(file => {
+    ['./index.html', './styles.css', './app.js', './domain-core.js', './domain-goals.js', './manifest.json'].forEach(file => {
       assert.ok(serviceWorker.includes(file), `${file} is missing from service worker app shell`);
     });
   });

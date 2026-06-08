@@ -1,5 +1,5 @@
 # Treningsapp — progress.md
-Oppdatert: 2026-06-08 (siste endringer: v75–v122)
+Oppdatert: 2026-06-08 (siste endringer: v75–v123)
 
 ---
 
@@ -27,7 +27,7 @@ Standard Bakken-uke: Hoved-terskel → Støtte-terskel → Lang rolig → Valgfr
 **Hosting:** GitHub Pages.  
 **Backend:** Firebase (prosjekt `home-tasks-app-18de3`) — Firestore + Google Auth.  
 **Frontend:** Vanilla JS + HTML + CSS, single-page app, tab-navigasjon.  
-**Versjon:** v122 (konstant i `app.js`).
+**Versjon:** v123 (konstant i `app.js`).
 
 ### Filer
 
@@ -36,6 +36,7 @@ Treningsapp/
 ├── index.html          # App-skall, 5 seksjoner (Hjem, Kalender, Logg, Innsikt, Innstillinger)
 ├── app.js              # App-logikk, Firebase-init, coach-system, sync, state og UI-wrappere.
 ├── domain-core.js      # Rene testbare domenehjelpere uten DOM/Firebase/state.
+├── domain-goals.js     # Rene testbare konkurranse-/mål-hjelpere uten DOM/Firebase/state.
 ├── styles.css          # Design-tokens (oransje #ff4f2e), mobil-først, 2 000+ linjer.
 ├── manifest.json       # PWA-manifest
 ├── service-worker.js   # Offline-cache
@@ -94,6 +95,7 @@ Treningsapp/
 - **Skadejusterte øktvalg** (v120): Dagens råd viser nå en kompakt handlingsboks når skadesignal er aktivt. Den foreslår konkrete lavrisiko alternativer som hvile, rolig sykkel, mobilitet eller 10-20 min svært rolig test. Hvis neste planlagte økt er terskel/intervall/race eller høy belastning, forklarer boksen at økten bør flyttes, gjøres roligere eller byttes ut. Ren regel ligger i `injuryAdjustedWorkoutAdvice()` i `domain-core.js`; appen endrer ikke kalenderen automatisk.
 - **Konkurranseplan mot mål-løp** (v121): `Mål-løp`-kortet viser nå en regelstyrt konkurranseplan med fase (`Basebygging`, `Testfase`, `Spesifikk oppkjøring`, `Taper / rolig siste uke`), uker igjen, fokus neste 2-4 uker, anbefalt neste test og risikomerknad ved aktivt skadesignal. Planen bruker eksisterende mål-løp, race readiness og skadesignal, uten AI og uten å endre kalenderen automatisk.
 - **Mål-fane og Setup i header** (v122): Setup er flyttet ut av bunnnavigasjonen og åpnes nå fra et diskret tannhjul i headeren. Den frigjorte bunnnav-plassen brukes til ny `Mål`-fane som samler `Mål-løp`, `Personlige bestenoteringer` og `Challenges`. Innsikt rendrer dermed mer som analyse/mønstre, mens måloppfølging får egen motivasjonsflate.
+- **Konkurranse-/målmodul** (v123): Ren race- og mål-logikk er flyttet fra `domain-core.js` til ny `domain-goals.js`: race-resultater, manuelle resultater, PB-oppsummering, PB-historikk, mål-løp-nedtelling, race readiness og konkurranseplan. `app.js` importerer mål-funksjonene direkte fra ny modul, mens `domain-core.js` re-eksporterer dem midlertidig for bakoverkompatibilitet. Service worker cacher ny runtimefil, og stabilitetstestene importerer race-/mål-funksjoner direkte fra `domain-goals.js`.
 - **Fjernet «Foreslå neste økt»** (v92): Kortet er fjernet fra Kalender-fanen. Ukeplanen dekker samme behov bedre og er rollebevisst. `renderWorkoutSuggestion`-kallet er fjernet fra render-løkken for å unngå krasj.
 - **Coach: smertegradering + priority-felt + X-økt** (v91): Tre coach-forbedringer: (1) `bodySignalState` skiller nå mellom mild smerte (1–2/10 → `cooling`, foreslår terskel etter en rolig økt) og bekymringsfull smerte (3+/10 → `caution`, kun recovery). Løser at mild smerte blokkerte terskelforslag for hele neste uke. (2) `priority`-feltet i treningsprofilen er nå aktivt: `performance` foreslår terskel straks det er rom, `injury_free_progression` krever 2 rolige øyer før terskel. (3) X-økt vises alltid som 4. forslag i normaluke når det er rom — sikrer at VO2max/teknikk/styrke alltid er synlig som alternativ.
 - **Hjem: alle økter samme dag** (v90): «Neste økt» / «Dagens økt» viser nå alle planlagte økter på samme dato, ikke bare én. For fremtidige dager grupperes etter første kommende dato (`nextDateItems`). Tittelen skifter til «Dagens økt» automatisk når det finnes økter på dagens dato (eksisterende logikk).

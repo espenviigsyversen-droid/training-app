@@ -21,6 +21,7 @@ Get-ChildItem -Force
 node --check app.js
 node --check service-worker.js
 node --check domain-core.js
+node --check domain-goals.js
 node tests\stability-tests.js
 ```
 
@@ -29,6 +30,7 @@ node tests\stability-tests.js
 - `index.html` - app-skall og modaler
 - `app.js` - hovedlogikk, state, Firebase, coach, render
 - `domain-core.js` - rene testbare domenehjelpere
+- `domain-goals.js` - rene testbare konkurranse-/mål-hjelpere
 - `styles.css` - styling
 - `service-worker.js` - PWA-cache
 - `manifest.json` - PWA-manifest
@@ -44,6 +46,7 @@ Etter endringer skal du som minimum kjøre:
 node --check app.js
 node --check service-worker.js
 node --check domain-core.js
+node --check domain-goals.js
 node tests\stability-tests.js
 ```
 
@@ -52,7 +55,7 @@ Hvis `service-worker.js` eller `app.js` endres, vurder om PWA-versjonen må bump
 - `APP_VERSION` i `app.js`
 - `CACHE_NAME` i `service-worker.js`
 
-Disse skal normalt matche, f.eks. `v122` og `treningsapp-v122`.
+Disse skal normalt matche, f.eks. `v123` og `treningsapp-v123`.
 
 Når `APP_VERSION` / `CACHE_NAME` bumpes, skal synlig versjonsinfo i appen også kontrolleres:
 

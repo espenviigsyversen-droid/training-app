@@ -17,20 +17,9 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       formatDuration,
       formatKm,
       formatPace,
-      formatRaceTime,
       goldenZonePercentages,
-      normalizeRaceGoal,
-      normalizeRaceResult,
-      normalizeRaceResultEntry,
-      normalizeRaceResultEntries,
       normalizeTemplate,
       parseNonNegativeInteger,
-      personalBestSummary,
-      raceHistoryForDistance,
-      raceDistanceLabel,
-      raceGoalCountdown,
-      raceGoalPlan,
-      raceReadinessSummary,
       hasStructuredIntervals,
       injuryAdjustedWorkoutAdvice,
       injurySignalSummary,
@@ -43,8 +32,21 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       weekPlanDates as weekPlanDatesCore,
       weekPlanDatesInRange as weekPlanDatesInRangeCore
     } from './domain-core.js';
+    import {
+      formatRaceTime,
+      normalizeRaceGoal,
+      normalizeRaceResult,
+      normalizeRaceResultEntry,
+      normalizeRaceResultEntries,
+      personalBestSummary,
+      raceHistoryForDistance,
+      raceDistanceLabel,
+      raceGoalCountdown,
+      raceGoalPlan,
+      raceReadinessSummary
+    } from './domain-goals.js';
 
-    const APP_VERSION = 'v122';
+    const APP_VERSION = 'v123';
     const APP_CACHE_NAME = `treningsapp-${APP_VERSION}`;
 
     const firebaseConfig = {
@@ -6719,7 +6721,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
           const keys = await caches.keys();
           await Promise.all(keys.filter(key => key.startsWith('treningsapp-')).map(key => caches.delete(key)));
         }
-        await Promise.all(['./index.html', './styles.css', './app.js', './domain-core.js', './service-worker.js'].map(path =>
+        await Promise.all(['./index.html', './styles.css', './app.js', './domain-core.js', './domain-goals.js', './service-worker.js'].map(path =>
           fetch(path, { cache: 'reload' }).catch(() => null)
         ));
       } finally {

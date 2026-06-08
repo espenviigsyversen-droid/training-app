@@ -23,6 +23,7 @@ Treningsapp/
 ├── index.html
 ├── app.js
 ├── domain-core.js
+├── domain-goals.js
 ├── styles.css
 ├── manifest.json
 ├── service-worker.js
@@ -78,6 +79,17 @@ Inneholder rene, testbare hjelpefunksjoner uten DOM, Firebase eller direkte `sta
 
 Filen lastes som ES module fra `app.js` og caches av `service-worker.js`.
 
+### `domain-goals.js`
+
+Inneholder ren konkurranse- og mål-logikk uten DOM, Firebase eller direkte `state`:
+
+- race-/testløp-resultater og normalisering
+- personlige bestenoteringer og historikk per distanse
+- mål-løp-nedtelling, målpace og race readiness
+- enkel konkurranseplan mot prioritert mål-løp
+
+`app.js` importerer race-/mål-funksjoner direkte herfra. `domain-core.js` re-eksporterer dem foreløpig for bakoverkompatibilitet med eldre tester/importmønster.
+
 ### `styles.css`
 
 Inneholder design tokens, layout, komponentstiler og responsive regler.
@@ -92,10 +104,11 @@ Ikke gjør en stor rewrite. Del heller appen gradvis i tydelige soner:
 
 1. `storage` - Firestore, local snapshot, import/export
 2. `domain-core.js` / senere `domain/dates` - datoer, uker, perioder
-3. senere `domain/coach` - coach-context, anbefalinger, Bakken-regler
-4. senere `domain/training` - økter, roller, belastning, intensitet
-5. `ui/render` - render-funksjoner og DOM-hjelpere
-6. `tests` - rene tester for kritiske regler
+3. `domain-goals.js` - konkurranser, personlige rekorder, mål-løp og målplan
+4. senere `domain/coach` - coach-context, anbefalinger, Bakken-regler
+5. senere `domain/training` - økter, roller, belastning, intensitet
+6. `ui/render` - render-funksjoner og DOM-hjelpere
+7. `tests` - rene tester for kritiske regler
 
 Målet er lavere risiko, lettere testing og mindre sjanse for regresjoner.
 
