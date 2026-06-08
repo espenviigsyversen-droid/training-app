@@ -36,6 +36,7 @@ function test(name, fn) {
     formatRaceTime,
     goldenZonePercentages,
     hasStructuredIntervals,
+    injuryAdjustedWorkoutAdvice,
     injurySignalSummary,
     combinedRaceResults,
     normalizeRaceGoal,
@@ -130,11 +131,15 @@ function test(name, fn) {
     assert.ok(app.includes('function improvingPainFollowup'), 'coach context should detect improving pain follow-up');
     assert.ok(app.includes('painImprovingAfterHigh: Boolean(painImproving)'), 'today decision should receive improving pain follow-up');
     assert.ok(index.includes('id="insightInjurySignalCard"'), 'insight injury signal card is missing');
+    assert.ok(index.includes('id="homeInjuryWorkoutAdvice"'), 'dashboard injury workout advice container is missing');
     assert.ok(app.includes('renderInjurySignalInsight(today)'), 'insights should render injury signal summary');
     assert.ok(app.includes('injurySignalSummary(injurySignalEntriesUntil(today, 7))'), 'injury signal insight should use domain summary');
+    assert.ok(app.includes('renderInjuryWorkoutAdvice(buildInjuryWorkoutAdvice(coachCtx, primaryItems))'), 'dashboard should render injury-adjusted workout advice');
+    assert.ok(app.includes('injuryAdjustedWorkoutAdvice(summary, plannedWorkoutAdviceMeta(firstPlanned))'), 'app should use domain injury-adjusted workout advice');
     assert.ok(styles.includes('.injury-checkin-compact'), 'compact injury check-in styling is missing');
     assert.ok(styles.includes('.injury-checkin-card'), 'injury check-in card styling is missing');
     assert.ok(styles.includes('.injury-signal-card'), 'injury signal insight styling is missing');
+    assert.ok(styles.includes('.injury-workout-advice'), 'injury workout advice styling is missing');
   });
 
   test('settings include internal structured interval feature flag', () => {
@@ -666,6 +671,35 @@ function test(name, fn) {
     assert.strictEqual(summary.status, 'worse');
     assert.match(summary.recommendation, /Ikke løp hardt/);
     assert.match(summary.suggestedAction, /hvile|sykkel|gåtur/);
+  });
+
+  test('injury-adjusted workout advice suggests low-risk options', () => {
+    const summary = injurySignalSummary([
+      { date: '2026-06-07', painNow: 5, area: 'Venstre kne' },
+      { date: '2026-06-08', painNow: 3, area: 'Venstre kne', trend: 'better' }
+    ]);
+    const advice = injuryAdjustedWorkoutAdvice(summary, {
+      label: 'Støtteterskel 10x3',
+      intensity: 'Terskel',
+      role: 'support_threshold',
+      purpose: 'threshold',
+      load: 'moderate'
+    });
+    assert.strictEqual(advice.active, true);
+    assert.match(advice.action, /alternativ trening|rolig test/);
+    assert.match(advice.plannedWarning, /Flytt|bytt/);
+    assert.ok(advice.options.includes('10-20 min rolig test'));
+  });
+
+  test('injury-adjusted workout advice blocks worsening pain from quality', () => {
+    const summary = injurySignalSummary([
+      { date: '2026-06-07', painNow: 3, area: 'Venstre kne' },
+      { date: '2026-06-08', painNow: 5, area: 'Venstre kne', trend: 'worse' }
+    ]);
+    const advice = injuryAdjustedWorkoutAdvice(summary, { label: 'Intervall', intensity: 'Intervall', load: 'high' });
+    assert.strictEqual(advice.active, true);
+    assert.match(advice.action, /Hvile|alternativ/);
+    assert.match(advice.plannedWarning, /Ikke gjennomfør/);
   });
 
   test('golden zone percentages match training levels', () => {

@@ -31,6 +31,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       raceGoalCountdown,
       raceReadinessSummary,
       hasStructuredIntervals,
+      injuryAdjustedWorkoutAdvice,
       injurySignalSummary,
       startOfWeek,
       structuredIntervalContext,
@@ -42,7 +43,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       weekPlanDatesInRange as weekPlanDatesInRangeCore
     } from './domain-core.js';
 
-    const APP_VERSION = 'v119';
+    const APP_VERSION = 'v120';
     const APP_CACHE_NAME = `treningsapp-${APP_VERSION}`;
 
     const firebaseConfig = {
@@ -4945,6 +4946,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       const coachCtx = buildCoachContext();
       renderTodayDecision(buildTodayDecision(coachCtx, primaryItems, todayItems));
       document.getElementById('homeCoachNote').textContent = buildCoachNote(coachCtx);
+      renderInjuryWorkoutAdvice(buildInjuryWorkoutAdvice(coachCtx, primaryItems));
       document.getElementById('homeCoachBasis').textContent = buildCoachBasis(coachCtx).join(' · ');
       renderWeekPlan(today, weekSummary, weekItems, last14DaysForSignals, profile, goals, plannedActive);
     }
@@ -4988,6 +4990,42 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         weekSessions: ctx.weekSummary?.sessions || 0,
         weeklyTarget: ctx.goals?.weeklySessionsTarget || 0
       });
+    }
+
+    function plannedWorkoutAdviceMeta(planned) {
+      if (!planned) return {};
+      const template = getTemplate(planned.templateId);
+      return {
+        label: template.name || '',
+        intensity: template.intensity || '',
+        role: template.role || '',
+        purpose: template.purpose || '',
+        load: template.load || ''
+      };
+    }
+
+    function buildInjuryWorkoutAdvice(ctx, primaryItems = []) {
+      const firstPlanned = primaryItems[0] || ctx.nextPlanned || null;
+      const summary = injurySignalSummary(injurySignalEntriesUntil(ctx.today, 7));
+      return injuryAdjustedWorkoutAdvice(summary, plannedWorkoutAdviceMeta(firstPlanned));
+    }
+
+    function renderInjuryWorkoutAdvice(advice) {
+      const el = document.getElementById('homeInjuryWorkoutAdvice');
+      if (!el) return;
+      if (!advice?.active) {
+        el.innerHTML = '';
+        return;
+      }
+      el.innerHTML = `
+        <div class="injury-workout-advice">
+          <span>${escapeHtml(advice.title)}</span>
+          <strong>${escapeHtml(advice.action)}</strong>
+          ${advice.plannedWarning ? `<p>${escapeHtml(advice.plannedWarning)}</p>` : `<p>${escapeHtml(advice.reason)}</p>`}
+          <div class="advice-chip-row">
+            ${advice.options.map(option => `<small>${escapeHtml(option)}</small>`).join('')}
+          </div>
+        </div>`;
     }
 
     function renderTodayDecision(decision) {

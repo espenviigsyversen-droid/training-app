@@ -1944,6 +1944,53 @@
       font-weight: 650;
     }
 
+    .injury-workout-advice {
+      margin-top: 12px;
+      border: 1px solid rgba(245, 158, 11, 0.24);
+      border-radius: var(--radius-sm);
+      background: #fff8e8;
+      padding: 12px;
+      display: grid;
+      gap: 6px;
+    }
+
+    .injury-workout-advice span {
+      color: #9a6a00;
+      font-size: 0.72rem;
+      font-weight: 900;
+      text-transform: uppercase;
+    }
+
+    .injury-workout-advice strong {
+      font-size: 0.96rem;
+      line-height: 1.3;
+    }
+
+    .injury-workout-advice p {
+      margin: 0;
+      color: var(--warm-gray-3);
+      font-size: 0.84rem;
+      line-height: 1.4;
+      font-weight: 700;
+    }
+
+    .advice-chip-row {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin-top: 2px;
+    }
+
+    .advice-chip-row small {
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.8);
+      border: 1px solid rgba(0, 0, 0, 0.07);
+      padding: 5px 8px;
+      color: var(--black);
+      font-size: 0.76rem;
+      font-weight: 850;
+    }
+
     .today-decision {
       margin-bottom: 12px;
       padding: 13px 14px;

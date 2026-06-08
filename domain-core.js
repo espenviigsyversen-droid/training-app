@@ -119,6 +119,74 @@ export function injurySignalSummary(checkins = []) {
   };
 }
 
+export function injuryAdjustedWorkoutAdvice(injurySummary = {}, planned = {}) {
+  if (!injurySummary || !injurySummary.hasSignal) {
+    return { active: false, title: '', action: '', reason: '', options: [], plannedWarning: '' };
+  }
+
+  const label = String(planned.label || '').trim();
+  const intensity = String(planned.intensity || '').toLowerCase();
+  const role = String(planned.role || '').toLowerCase();
+  const purpose = String(planned.purpose || '').toLowerCase();
+  const load = String(planned.load || '').toLowerCase();
+  const text = `${label} ${intensity} ${role} ${purpose} ${load}`.toLowerCase();
+  const plannedQuality = Boolean(label) && (
+    load === 'high' ||
+    intensity.includes('terskel') ||
+    intensity.includes('intervall') ||
+    intensity.includes('tempo') ||
+    role.includes('threshold') ||
+    role.includes('race') ||
+    purpose.includes('threshold') ||
+    purpose.includes('race') ||
+    text.includes('terskel') ||
+    text.includes('intervall') ||
+    text.includes('race')
+  );
+
+  const base = {
+    active: true,
+    title: 'Skadejustert øktvalg',
+    action: injurySummary.suggestedAction || 'Velg lavrisiko trening og sjekk kroppssignalet underveis.',
+    reason: injurySummary.recommendation || 'Aktivt kroppssignal bør styre øktvalg.',
+    options: ['Hvile', 'Rolig sykkel', 'Mobilitet'],
+    plannedWarning: plannedQuality && label ? `Planlagt ${label} bør flyttes eller byttes til lavrisiko alternativ i dag.` : ''
+  };
+
+  if (injurySummary.status === 'worse' || injurySummary.status === 'high') {
+    return {
+      ...base,
+      action: 'Velg hvile eller smertefri alternativ trening.',
+      options: ['Hvile', 'Rolig sykkel', 'Smertefri mobilitet'],
+      plannedWarning: label ? `Ikke gjennomfør ${label} som løpe-/kvalitetsøkt mens signalet er høyt eller forverres.` : base.plannedWarning
+    };
+  }
+
+  if (injurySummary.status === 'improving') {
+    return {
+      ...base,
+      action: 'Velg alternativ trening eller en svært rolig test med stoppregel.',
+      options: ['Rolig sykkel', 'Mobilitet', '10-20 min rolig test'],
+      plannedWarning: plannedQuality && label ? `Flytt ${label}, eller bytt til 10-20 min rolig test uten drag.` : base.plannedWarning
+    };
+  }
+
+  if (injurySummary.status === 'calming') {
+    return {
+      ...base,
+      action: 'Start rolig og bruk første minutter som test.',
+      options: ['Rolig testløp', 'Rolig sykkel', 'Kort mobilitet'],
+      plannedWarning: plannedQuality && label ? `${label} bør bare gjennomføres hvis oppvarmingen er smertefri og kontrollert.` : base.plannedWarning
+    };
+  }
+
+  return {
+    ...base,
+    options: ['Kort rolig økt', 'Rolig sykkel', 'Mobilitet'],
+    plannedWarning: plannedQuality && label ? `Terskel/intervall bør vente. Gjør ${label} roligere, kortere eller flytt den.` : base.plannedWarning
+  };
+}
+
 export function todayDecision(input = {}) {
   const plannedLabel = String(input.plannedWorkoutLabel || '').trim();
   const hasPlannedToday = Boolean(input.hasPlannedToday);
