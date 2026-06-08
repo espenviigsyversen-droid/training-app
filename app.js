@@ -41,7 +41,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       weekPlanDatesInRange as weekPlanDatesInRangeCore
     } from './domain-core.js';
 
-    const APP_VERSION = 'v116';
+    const APP_VERSION = 'v117';
     const APP_CACHE_NAME = `treningsapp-${APP_VERSION}`;
 
     const firebaseConfig = {
@@ -108,6 +108,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     let volumeTrendActivity = 'all';
     let templateCoachFilter = 'all';
     let tlSelections = { sleep: null, energy: null, stairsOk: null };
+    let injuryCheckinExpanded = false;
 
     const COACH_FRAMEWORK = {
       name: 'Bakken-inspirert kontrollert terskel',
@@ -3753,6 +3754,15 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       return `Trend${loc}: ${scores}/10.`;
     }
 
+    function injuryCheckinSummaryText(checkin, latest, recent) {
+      const source = checkin || latest || {};
+      const area = source.area ? `${source.area} ` : '';
+      const pain = source.painNow !== '' && source.painNow !== undefined ? `${source.painNow}/10` : '';
+      const trend = checkin?.trend ? ` · ${injuryTrendLabel(checkin.trend).toLowerCase()}` : '';
+      if (checkin) return `Smerte: ${area}${pain}${trend}`;
+      return injuryFollowupLine(recent) || `Følg opp smerte${area ? `: ${area}` : ''}${pain ? pain : ''}`;
+    }
+
     function renderInjuryCheckinBlock(readiness) {
       const today = todayISO();
       if (!shouldShowInjuryCheckin(today)) return '';
@@ -3769,6 +3779,17 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       const { regionOptions, sideOptions } = injuryAreaOptions(current.areaRegion, current.areaSide);
       const recent = dailyInjuryCheckinsUntil(today, 7);
       const statusLine = injuryFollowupLine(recent) || (latest.painNow ? `Siste smerte: ${latest.painNow}/10${latest.area ? ` i ${latest.area}` : ''}.` : '');
+      if (!injuryCheckinExpanded) {
+        const summary = injuryCheckinSummaryText(checkin, latest, recent);
+        return `
+          <div class="injury-checkin-compact">
+            <div>
+              <strong>Oppfølging av smerte</strong>
+              <span>${escapeHtml(summary)}</span>
+            </div>
+            <button class="btn-soft" onclick="expandInjuryCheckin()">${checkin ? 'Endre' : 'Registrer'}</button>
+          </div>`;
+      }
       return `
         <div class="injury-checkin-card">
           <div class="injury-checkin-top">
@@ -3795,6 +3816,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
           <div class="button-row">
             <button class="btn-primary" onclick="saveInjuryCheckin()">Lagre smerte</button>
             ${checkin ? '<button class="btn-soft" onclick="clearInjuryCheckin()">Tøm</button>' : ''}
+            <button class="btn-soft" onclick="collapseInjuryCheckin()">Lukk</button>
           </div>
         </div>`;
     }
@@ -3809,6 +3831,16 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
 
     window.setTlValue = function(field, value) {
       tlSelections[field] = value;
+      renderTrafficLight();
+    };
+
+    window.expandInjuryCheckin = function() {
+      injuryCheckinExpanded = true;
+      renderTrafficLight();
+    };
+
+    window.collapseInjuryCheckin = function() {
+      injuryCheckinExpanded = false;
       renderTrafficLight();
     };
 
@@ -3866,6 +3898,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
           injuryCheckin
         }
       };
+      injuryCheckinExpanded = false;
       render();
       try {
         await fsSet('settings', 'preferences', state.settings);
@@ -3881,6 +3914,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       if (state.settings.dailyReadiness?.[today]) {
         delete state.settings.dailyReadiness[today].injuryCheckin;
       }
+      injuryCheckinExpanded = false;
       render();
       try {
         await fsSet('settings', 'preferences', state.settings);

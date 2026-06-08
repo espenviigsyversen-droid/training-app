@@ -116,12 +116,17 @@ function test(name, fn) {
     assert.ok(app.includes('injuryCheckin'), 'daily readiness should support injury check-ins');
     assert.ok(app.includes('function renderInjuryCheckinBlock'), 'traffic light should render injury follow-up when relevant');
     assert.ok(app.includes('window.saveInjuryCheckin'), 'injury check-in save handler is missing');
+    assert.ok(app.includes('let injuryCheckinExpanded = false'), 'injury check-in should start collapsed on dashboard');
+    assert.ok(app.includes('class="injury-checkin-compact"'), 'saved injury check-in should render compact summary by default');
+    assert.ok(app.includes('window.expandInjuryCheckin'), 'compact injury check-in should be expandable');
+    assert.ok(app.includes('injuryCheckinExpanded = false;'), 'saving or clearing injury check-in should collapse the form');
     assert.ok(app.includes('const hasTrafficResult = Boolean(readiness?.level && TRAFFIC_LIGHT_CONFIG[readiness.level])'), 'traffic light result should require a valid readiness level');
     assert.ok(app.includes('pruned[today] = { ...(existing[today] || {}), ...data };'), 'saving traffic light should preserve injury check-in for the same date');
     assert.ok(app.includes('[readiness.date]: { ...(state.settings.dailyReadiness?.[readiness.date] || {}), ...readiness }'), 'submitting traffic light should preserve same-day injury check-in');
     assert.ok(app.includes('dailyInjuryAsCompletedItems(today, 14)'), 'coach context should convert daily injury check-ins to signal items');
     assert.ok(app.includes('gradedPainContext(completedAndDailySignals, today)'), 'coach pain context should include daily injury check-ins');
     assert.ok(app.includes('Smerteoppfølging:'), 'coach basis should mention injury follow-up trend');
+    assert.ok(styles.includes('.injury-checkin-compact'), 'compact injury check-in styling is missing');
     assert.ok(styles.includes('.injury-checkin-card'), 'injury check-in card styling is missing');
   });
 
