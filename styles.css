@@ -2016,6 +2016,35 @@
     .traffic-dot-lg.yellow { background: #f59e0b; box-shadow: 0 0 7px #f59e0b66; }
     .traffic-dot-lg.red    { background: #ef4444; box-shadow: 0 0 7px #ef444466; }
 
+    .injury-checkin-card {
+      margin-top: 14px;
+      border: 1px solid rgba(255, 79, 46, 0.22);
+      border-radius: 16px;
+      background: rgba(255, 79, 46, 0.045);
+      padding: 12px;
+      display: grid;
+      gap: 10px;
+    }
+
+    .injury-checkin-top {
+      display: grid;
+      gap: 3px;
+    }
+
+    .injury-checkin-top strong {
+      font-size: 0.95rem;
+    }
+
+    .injury-checkin-top span {
+      color: var(--warm-gray-3);
+      font-size: 0.8rem;
+      font-weight: 700;
+    }
+
+    .injury-checkin-card textarea {
+      min-height: 76px;
+    }
+
     .tl-row {
       display: flex;
       flex-direction: column;
@@ -3003,6 +3032,7 @@
       }
 
       .modal .grid-2,
+      .injury-checkin-card .grid-2,
       .setup-section .grid-2 {
         grid-template-columns: 1fr;
       }

@@ -41,7 +41,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       weekPlanDatesInRange as weekPlanDatesInRangeCore
     } from './domain-core.js';
 
-    const APP_VERSION = 'v115';
+    const APP_VERSION = 'v116';
     const APP_CACHE_NAME = `treningsapp-${APP_VERSION}`;
 
     const firebaseConfig = {
@@ -245,12 +245,66 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       return state.settings?.dailyReadiness?.[todayISO()] || null;
     }
 
+    function injuryTrendLabel(value) {
+      return { better: 'Bedre', same: 'Lik', worse: 'Verre' }[value] || '';
+    }
+
+    function dailyInjuryCheckinsUntil(today = todayISO(), days = 7) {
+      const cutoff = addDays(today, -(days - 1));
+      const entries = Object.entries(state.settings?.dailyReadiness || {})
+        .filter(([date, item]) => date >= cutoff && date <= today && item?.injuryCheckin)
+        .map(([date, item]) => ({ date, ...normalizeInjuryCheckin(item.injuryCheckin), source: 'daily' }))
+        .filter(item => item && item.painNow !== '');
+      return entries.sort((a, b) => a.date.localeCompare(b.date));
+    }
+
+    function dailyInjuryAsCompletedItems(today = todayISO(), days = 7) {
+      return dailyInjuryCheckinsUntil(today, days).map(item => ({
+        id: `injury-${item.date}`,
+        date: item.date,
+        completedAt: '00:00:00.000Z',
+        updatedAt: '00:00:00.000Z',
+        bodyStatus: {
+          painBefore: '',
+          painAfter: item.painNow,
+          areaRegion: item.areaRegion || '',
+          areaSide: item.areaSide || '',
+          area: item.area || '',
+          adaptation: item.painNow >= 3 ? 'easier' : 'none',
+          notes: item.note || ''
+        }
+      }));
+    }
+
+    function latestPainReference(today = todayISO()) {
+      const completedSignals = state.completed
+        .filter(item => item.date <= today && hasPainSignal(item))
+        .map(item => ({
+          date: item.date,
+          painNow: Math.max(numberOrZero(item.bodyStatus?.painBefore), numberOrZero(item.bodyStatus?.painAfter)),
+          areaRegion: item.bodyStatus?.areaRegion || '',
+          areaSide: item.bodyStatus?.areaSide || '',
+          area: item.bodyStatus?.area || '',
+          source: 'completed'
+        }));
+      const all = [...completedSignals, ...dailyInjuryCheckinsUntil(today, 7)]
+        .filter(item => Number(item.painNow) > 0)
+        .sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')));
+      return all[0] || null;
+    }
+
+    function shouldShowInjuryCheckin(today = todayISO()) {
+      const latest = latestPainReference(today);
+      if (!latest) return false;
+      return new Date(`${today}T12:00:00`).getTime() - new Date(`${latest.date}T12:00:00`).getTime() <= 7 * 86400000;
+    }
+
     async function saveDailyReadiness(data) {
       const today = todayISO();
       const cutoff = addDays(today, -6);
       const existing = state.settings.dailyReadiness || {};
       const pruned = Object.fromEntries(Object.entries(existing).filter(([date]) => date >= cutoff));
-      pruned[today] = data;
+      pruned[today] = { ...(existing[today] || {}), ...data };
       state.settings.dailyReadiness = pruned;
       try {
         await fsSet('settings', 'preferences', state.settings);
@@ -420,10 +474,33 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         trainingProfile: normalizeTrainingProfile(source.trainingProfile),
         personProfile: normalizePersonProfile(source.personProfile),
         features: normalizeFeatures(source.features),
-        dailyReadiness: (typeof source.dailyReadiness === 'object' && source.dailyReadiness !== null && !Array.isArray(source.dailyReadiness))
-          ? source.dailyReadiness
-          : {}
+        dailyReadiness: normalizeDailyReadinessMap(source.dailyReadiness)
       };
+    }
+
+    function normalizeInjuryCheckin(value = {}) {
+      const source = value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+      const painNow = source.painNow === '' || source.painNow === null || source.painNow === undefined
+        ? ''
+        : Math.max(0, Math.min(10, parseNonNegativeInteger(source.painNow)));
+      const areaRegion = String(source.areaRegion || '').trim();
+      const areaSide = String(source.areaSide || '').trim();
+      const area = String(source.area || formatAreaLabel(areaRegion, areaSide)).trim();
+      const trend = ['better', 'same', 'worse'].includes(source.trend) ? source.trend : '';
+      const note = String(source.note || '').trim();
+      const hasValue = painNow !== '' || areaRegion || areaSide || area || trend || note;
+      return hasValue ? { painNow, areaRegion, areaSide, area, trend, note } : null;
+    }
+
+    function normalizeDailyReadinessMap(map = {}) {
+      const source = map && typeof map === 'object' && !Array.isArray(map) ? map : {};
+      return Object.fromEntries(Object.entries(source).map(([date, value]) => {
+        const item = value && typeof value === 'object' && !Array.isArray(value) ? { ...value } : {};
+        const injuryCheckin = normalizeInjuryCheckin(item.injuryCheckin);
+        if (injuryCheckin) item.injuryCheckin = injuryCheckin;
+        else delete item.injuryCheckin;
+        return [date, item];
+      }));
     }
 
     function normalizeTemplates(templates = []) {
@@ -3656,11 +3733,78 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         <button class="btn-soft" style="margin-top:10px;font-size:0.82rem;padding:7px 12px;" onclick="resetTrafficLight()">Endre</button>`;
     }
 
+    function injuryAreaOptions(selectedRegion = '', selectedSide = '') {
+      const regionOptions = [
+        '<option value="">Kroppsdel</option>',
+        ...Object.entries(PAIN_AREA_REGIONS).map(([value, label]) => `<option value="${value}" ${value === selectedRegion ? 'selected' : ''}>${escapeHtml(label)}</option>`)
+      ].join('');
+      const sideOptions = [
+        '<option value="">Side</option>',
+        ...Object.entries(PAIN_AREA_SIDES).map(([value, label]) => `<option value="${value}" ${value === selectedSide ? 'selected' : ''}>${escapeHtml(label)}</option>`)
+      ].join('');
+      return { regionOptions, sideOptions };
+    }
+
+    function injuryFollowupLine(checkins) {
+      if (!checkins.length) return '';
+      const scores = checkins.map(item => item.painNow).filter(value => value !== '').join(' -> ');
+      const latest = checkins[checkins.length - 1];
+      const loc = latest.area ? ` i ${latest.area}` : '';
+      return `Trend${loc}: ${scores}/10.`;
+    }
+
+    function renderInjuryCheckinBlock(readiness) {
+      const today = todayISO();
+      if (!shouldShowInjuryCheckin(today)) return '';
+      const latest = latestPainReference(today) || {};
+      const checkin = normalizeInjuryCheckin(readiness?.injuryCheckin) || null;
+      const current = checkin || {
+        painNow: '',
+        areaRegion: latest.areaRegion || '',
+        areaSide: latest.areaSide || '',
+        area: latest.area || '',
+        trend: '',
+        note: ''
+      };
+      const { regionOptions, sideOptions } = injuryAreaOptions(current.areaRegion, current.areaSide);
+      const recent = dailyInjuryCheckinsUntil(today, 7);
+      const statusLine = injuryFollowupLine(recent) || (latest.painNow ? `Siste smerte: ${latest.painNow}/10${latest.area ? ` i ${latest.area}` : ''}.` : '');
+      return `
+        <div class="injury-checkin-card">
+          <div class="injury-checkin-top">
+            <strong>Oppfølging av smerte</strong>
+            ${statusLine ? `<span>${escapeHtml(statusLine)}</span>` : ''}
+          </div>
+          <div class="grid-2">
+            <div><label>Smerte nå</label><input id="injuryPainNow" type="number" min="0" max="10" step="1" inputmode="numeric" placeholder="0-10" value="${escapeHtml(current.painNow)}" /></div>
+            <div>
+              <label>Utvikling</label>
+              <select id="injuryTrend">
+                <option value="">Velg</option>
+                <option value="better" ${current.trend === 'better' ? 'selected' : ''}>Bedre</option>
+                <option value="same" ${current.trend === 'same' ? 'selected' : ''}>Lik</option>
+                <option value="worse" ${current.trend === 'worse' ? 'selected' : ''}>Verre</option>
+              </select>
+            </div>
+          </div>
+          <div class="grid-2">
+            <div><label>Kroppsdel</label><select id="injuryAreaRegion">${regionOptions}</select></div>
+            <div><label>Side</label><select id="injuryAreaSide">${sideOptions}</select></div>
+          </div>
+          <textarea id="injuryNote" placeholder="Kort notat, f.eks. vondt i trapper eller bedre etter hvile">${escapeHtml(current.note)}</textarea>
+          <div class="button-row">
+            <button class="btn-primary" onclick="saveInjuryCheckin()">Lagre smerte</button>
+            ${checkin ? '<button class="btn-soft" onclick="clearInjuryCheckin()">Tøm</button>' : ''}
+          </div>
+        </div>`;
+    }
+
     function renderTrafficLight() {
       const container = document.getElementById('trafficLightContent');
       if (!container) return;
       const readiness = loadDailyReadiness();
-      container.innerHTML = readiness ? renderTrafficLightResult(readiness) : renderTrafficLightForm();
+      const hasTrafficResult = Boolean(readiness?.level && TRAFFIC_LIGHT_CONFIG[readiness.level]);
+      container.innerHTML = `${hasTrafficResult ? renderTrafficLightResult(readiness) : renderTrafficLightForm()}${renderInjuryCheckinBlock(readiness)}`;
     }
 
     window.setTlValue = function(field, value) {
@@ -3677,7 +3821,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       tlSelections = { sleep: null, energy: null, stairsOk: null };
       state.settings.dailyReadiness = {
         ...(state.settings.dailyReadiness || {}),
-        [readiness.date]: readiness
+        [readiness.date]: { ...(state.settings.dailyReadiness?.[readiness.date] || {}), ...readiness }
       };
       renderTrafficLight();
       render();
@@ -3686,12 +3830,63 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
 
     window.resetTrafficLight = async function() {
       const today = todayISO();
-      if (state.settings.dailyReadiness) delete state.settings.dailyReadiness[today];
+      const existingInjury = state.settings.dailyReadiness?.[today]?.injuryCheckin || null;
+      if (state.settings.dailyReadiness) {
+        if (existingInjury) state.settings.dailyReadiness[today] = { date: today, injuryCheckin: existingInjury };
+        else delete state.settings.dailyReadiness[today];
+      }
       tlSelections = { sleep: null, energy: null, stairsOk: null };
       renderTrafficLight();
       render();
       try { await fsSet('settings', 'preferences', state.settings); }
       catch (err) { console.error('Could not reset daily readiness:', err); }
+    };
+
+    window.saveInjuryCheckin = async function() {
+      const today = todayISO();
+      const painNow = document.getElementById('injuryPainNow')?.value ?? '';
+      const areaRegion = document.getElementById('injuryAreaRegion')?.value || '';
+      const areaSide = document.getElementById('injuryAreaSide')?.value || '';
+      const injuryCheckin = normalizeInjuryCheckin({
+        painNow,
+        areaRegion,
+        areaSide,
+        area: formatAreaLabel(areaRegion, areaSide),
+        trend: document.getElementById('injuryTrend')?.value || '',
+        note: document.getElementById('injuryNote')?.value || ''
+      });
+      if (!injuryCheckin || injuryCheckin.painNow === '') {
+        return alert('Legg inn smerte nå fra 0 til 10.');
+      }
+      state.settings.dailyReadiness = {
+        ...(state.settings.dailyReadiness || {}),
+        [today]: {
+          ...(state.settings.dailyReadiness?.[today] || { date: today }),
+          date: today,
+          injuryCheckin
+        }
+      };
+      render();
+      try {
+        await fsSet('settings', 'preferences', state.settings);
+        showToast('Smerteoppfølging lagret');
+      } catch (err) {
+        console.error('Could not save injury check-in:', err);
+        showToast('Kunne ikke lagre smerteoppfølging', 'error');
+      }
+    };
+
+    window.clearInjuryCheckin = async function() {
+      const today = todayISO();
+      if (state.settings.dailyReadiness?.[today]) {
+        delete state.settings.dailyReadiness[today].injuryCheckin;
+      }
+      render();
+      try {
+        await fsSet('settings', 'preferences', state.settings);
+      } catch (err) {
+        console.error('Could not clear injury check-in:', err);
+      }
     };
 
     function renderDashboardWellness() {
@@ -4675,6 +4870,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       const weekSummary = summarizeCompleted(weekItems);
       const last14Start = addDays(today, -13);
       const last14Days = state.completed.filter(c => c.date >= last14Start && c.date <= today);
+      const last14DaysForSignals = [...last14Days, ...dailyInjuryAsCompletedItems(today, 14)];
       const nextDate = upcomingItems[0]?.date;
       const nextDateItems = nextDate ? upcomingItems.filter(p => p.date === nextDate) : [];
       const primaryItems = todayItems.length ? todayItems : nextDateItems;
@@ -4694,7 +4890,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       renderTodayDecision(buildTodayDecision(coachCtx, primaryItems, todayItems));
       document.getElementById('homeCoachNote').textContent = buildCoachNote(coachCtx);
       document.getElementById('homeCoachBasis').textContent = buildCoachBasis(coachCtx).join(' · ');
-      renderWeekPlan(today, weekSummary, weekItems, last14Days, profile, goals, plannedActive);
+      renderWeekPlan(today, weekSummary, weekItems, last14DaysForSignals, profile, goals, plannedActive);
     }
 
     function buildTodayDecision(ctx, primaryItems = [], todayItems = []) {
@@ -5614,6 +5810,10 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       const last28Start = addDays(today, -27);
 
       const completedToDate = state.completed.filter(c => c.date <= today);
+      const injuryCheckins14 = dailyInjuryCheckinsUntil(today, 14);
+      const injurySignalItems = dailyInjuryAsCompletedItems(today, 14);
+      const completedAndDailySignals = [...completedToDate, ...injurySignalItems]
+        .sort((a, b) => workoutSortValue(a).localeCompare(workoutSortValue(b)));
       const thisWeek = completedToDate.filter(c => c.date >= weekStart && c.date <= weekEnd);
       const last7Days = completedToDate.filter(c => c.date >= last7Start);
       const last14Days = completedToDate.filter(c => c.date >= last14Start);
@@ -5640,8 +5840,8 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       const load14 = loadBreakdown(last14Days);
 
       const bodySignals14 = {
-        pain: last14Days.filter(hasPainSignal).length,
-        adaptation: last14Days.filter(hasAdaptationSignal).length
+        pain: last14Days.filter(hasPainSignal).length + injuryCheckins14.filter(item => Number(item.painNow) > 0).length,
+        adaptation: last14Days.filter(hasAdaptationSignal).length + injuryCheckins14.filter(item => Number(item.painNow) >= 3).length
       };
 
       let consecutiveDays = 0;
@@ -5684,7 +5884,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       const hardCount14 = load14.high || 0;
       const easyCount14 = load14.low || 0;
       const intensityRatio14 = last14Days.length >= 3 ? easyCount14 / last14Days.length : null;
-      const gradedPain = gradedPainContext(completedToDate, today);
+      const gradedPain = gradedPainContext(completedAndDailySignals, today);
       const dailyReadiness = loadDailyReadiness();
       const structuredIntervals = structuredIntervalContext(completedWithTemplateContext, today);
 
@@ -5698,7 +5898,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         weekPlanRoles, completedRoles, missingRoles,
         activeChallenge, nextPlanned,
         hardCount7, hardCount14, easyCount14, intensityRatio14,
-        gradedPain, dailyReadiness, structuredIntervals
+        gradedPain, dailyReadiness, structuredIntervals, injuryCheckins14
       };
     }
 
@@ -5816,13 +6016,20 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     function buildCoachBasis(ctx) {
       const { last14Days, load14, bodySignals14, consecutiveDays, daysSinceLast,
               goldenZone, goldenZoneViolations, latestHrv, latestRestingHr,
-              gradedPain, dailyReadiness, structuredIntervals } = ctx;
+              gradedPain, dailyReadiness, structuredIntervals, injuryCheckins14 } = ctx;
       const parts = [];
-      if (dailyReadiness) {
+      if (dailyReadiness?.level && TRAFFIC_LIGHT_CONFIG[dailyReadiness.level]) {
         const cfg = TRAFFIC_LIGHT_CONFIG[dailyReadiness.level];
         const stairsPart = dailyReadiness.stairsOk === true ? ', trapp ✓'
           : dailyReadiness.stairsOk === false ? ', trapp ✗' : '';
         parts.push(`Dagsform: ${cfg.label} (søvn ${dailyReadiness.sleep}/5, energi ${dailyReadiness.energy}/5${stairsPart})`);
+      }
+      if (injuryCheckins14?.length) {
+        const latestCheckin = injuryCheckins14[injuryCheckins14.length - 1];
+        const scores = injuryCheckins14.map(item => item.painNow).filter(value => value !== '').join(' -> ');
+        const trend = injuryTrendLabel(latestCheckin.trend);
+        const loc = latestCheckin.area ? ` (${latestCheckin.area})` : '';
+        parts.push(`Smerteoppfølging: ${scores}/10${loc}${trend ? `, ${trend.toLowerCase()}` : ''}`);
       }
       const total14 = last14Days.length;
       if (total14 > 0) {

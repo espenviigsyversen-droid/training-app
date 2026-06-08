@@ -111,6 +111,20 @@ function test(name, fn) {
     assert.ok(app.includes('todayDecision({'), 'app wrapper should call the domain todayDecision function');
   });
 
+  test('daily injury check-in is preserved and used by coach context', () => {
+    const styles = read('styles.css');
+    assert.ok(app.includes('injuryCheckin'), 'daily readiness should support injury check-ins');
+    assert.ok(app.includes('function renderInjuryCheckinBlock'), 'traffic light should render injury follow-up when relevant');
+    assert.ok(app.includes('window.saveInjuryCheckin'), 'injury check-in save handler is missing');
+    assert.ok(app.includes('const hasTrafficResult = Boolean(readiness?.level && TRAFFIC_LIGHT_CONFIG[readiness.level])'), 'traffic light result should require a valid readiness level');
+    assert.ok(app.includes('pruned[today] = { ...(existing[today] || {}), ...data };'), 'saving traffic light should preserve injury check-in for the same date');
+    assert.ok(app.includes('[readiness.date]: { ...(state.settings.dailyReadiness?.[readiness.date] || {}), ...readiness }'), 'submitting traffic light should preserve same-day injury check-in');
+    assert.ok(app.includes('dailyInjuryAsCompletedItems(today, 14)'), 'coach context should convert daily injury check-ins to signal items');
+    assert.ok(app.includes('gradedPainContext(completedAndDailySignals, today)'), 'coach pain context should include daily injury check-ins');
+    assert.ok(app.includes('Smerteoppfølging:'), 'coach basis should mention injury follow-up trend');
+    assert.ok(styles.includes('.injury-checkin-card'), 'injury check-in card styling is missing');
+  });
+
   test('settings include internal structured interval feature flag', () => {
     assert.ok(app.includes('features: {'), 'settings features object is missing');
     assert.ok(app.includes('structuredIntervals: true'), 'structuredIntervals should be enabled in defaults');
