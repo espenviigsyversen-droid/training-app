@@ -26,11 +26,12 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       structuredIntervalInsights,
       structuredWorkoutBreakdown,
       structuredWorkoutSummary,
+      todayDecision,
       weekPlanDates as weekPlanDatesCore,
       weekPlanDatesInRange as weekPlanDatesInRangeCore
     } from './domain-core.js';
 
-    const APP_VERSION = 'v109';
+    const APP_VERSION = 'v110';
     const APP_CACHE_NAME = `treningsapp-${APP_VERSION}`;
 
     const firebaseConfig = {
@@ -4476,9 +4477,40 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         ? 'Ukesmålet er nådd. Videre trening bør styres av overskudd og dagsform.'
         : `${Math.max(0, goals.weeklySessionsTarget - weekSummary.sessions)} økt${Math.max(0, goals.weeklySessionsTarget - weekSummary.sessions) === 1 ? '' : 'er'} igjen til ukesmålet.`;
       const coachCtx = buildCoachContext();
+      renderTodayDecision(buildTodayDecision(coachCtx, primaryItems, todayItems));
       document.getElementById('homeCoachNote').textContent = buildCoachNote(coachCtx);
       document.getElementById('homeCoachBasis').textContent = buildCoachBasis(coachCtx).join(' · ');
       renderWeekPlan(today, weekSummary, weekItems, last14Days, profile, goals, plannedActive);
+    }
+
+    function buildTodayDecision(ctx, primaryItems = [], todayItems = []) {
+      const firstPlanned = primaryItems[0] || ctx.nextPlanned || null;
+      const template = firstPlanned ? getTemplate(firstPlanned.templateId) : null;
+      return todayDecision({
+        dailyReadinessLevel: ctx.dailyReadiness?.level || null,
+        highestPainTier: ctx.gradedPain?.highestTier || null,
+        bodySignals14Adaptation: ctx.bodySignals14?.adaptation || 0,
+        plannedWorkoutLabel: template?.name || '',
+        hasPlannedToday: todayItems.length > 0,
+        hasNextPlanned: Boolean(firstPlanned),
+        daysSinceLast: ctx.daysSinceLast,
+        structuredIntervalsLast7Count: ctx.structuredIntervals?.last7?.count || 0,
+        structuredIntervalsCloseQualityDays: Boolean(ctx.structuredIntervals?.closeQualityDays),
+        weekSessions: ctx.weekSummary?.sessions || 0,
+        weeklyTarget: ctx.goals?.weeklySessionsTarget || 0
+      });
+    }
+
+    function renderTodayDecision(decision) {
+      const el = document.getElementById('homeDecision');
+      if (!el || !decision) return;
+      const level = ['green', 'yellow', 'red', 'neutral'].includes(decision.level) ? decision.level : 'neutral';
+      el.className = `today-decision ${level}`;
+      el.innerHTML = `
+        <span>Dagens beslutning</span>
+        <strong>${escapeHtml(decision.title)}</strong>
+        <p>${escapeHtml(decision.action)}</p>
+        <small>${escapeHtml(decision.reason)}</small>`;
     }
 
     function renderHistoryFilterOptions() {

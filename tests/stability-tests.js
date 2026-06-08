@@ -46,6 +46,7 @@ function test(name, fn) {
     structuredWorkoutSummary,
     structuredWorkoutTotalSeconds,
     structuredWorkoutWorkSeconds,
+    todayDecision,
     weekPlanDates,
     weekPlanDatesInRange
   } = domain;
@@ -90,6 +91,12 @@ function test(name, fn) {
     assert.ok(app.includes('const APP_CACHE_NAME = `treningsapp-${APP_VERSION}`'), 'cache display name should be derived from APP_VERSION');
     assert.ok(app.includes('Appversjon: ${APP_VERSION}'), 'visible app version should use APP_VERSION');
     assert.ok(app.includes('Cache: ${APP_CACHE_NAME}'), 'visible cache name should use APP_CACHE_NAME');
+  });
+
+  test('dashboard renders today decision from domain logic', () => {
+    assert.ok(index.includes('id="homeDecision"'), 'dashboard should include visible today decision element');
+    assert.ok(app.includes('renderTodayDecision(buildTodayDecision(coachCtx, primaryItems, todayItems))'), 'dashboard should render today decision from coach context');
+    assert.ok(app.includes('todayDecision({'), 'app wrapper should call the domain todayDecision function');
   });
 
   test('settings include internal structured interval feature flag', () => {
@@ -378,6 +385,51 @@ function test(name, fn) {
     assert.strictEqual(assessTrafficLight(5, 5, null, false), 'red');
     assert.strictEqual(assessTrafficLight(5, 5, 67, true, 60), 'yellow');
     assert.strictEqual(assessTrafficLight(5, 5, 71, true, 60), 'red');
+  });
+
+  test('today decision prioritizes red readiness and body signals', () => {
+    const pain = todayDecision({ highestPainTier: 'high', hasPlannedToday: true, plannedWorkoutLabel: 'Terskel' });
+    assert.strictEqual(pain.level, 'red');
+    assert.match(pain.title, /Hvil|alternativ/);
+
+    const red = todayDecision({ dailyReadinessLevel: 'red', hasPlannedToday: true, plannedWorkoutLabel: 'Rolig tur' });
+    assert.strictEqual(red.level, 'red');
+    assert.match(red.action, /Hvil|rolig/);
+  });
+
+  test('today decision gives actionable planned-workout advice', () => {
+    const green = todayDecision({
+      dailyReadinessLevel: 'green',
+      hasPlannedToday: true,
+      plannedWorkoutLabel: 'Støtteterskel'
+    });
+    assert.strictEqual(green.level, 'green');
+    assert.match(green.title, /Støtteterskel/);
+
+    const yellow = todayDecision({
+      dailyReadinessLevel: 'yellow',
+      hasPlannedToday: true,
+      plannedWorkoutLabel: 'Intervall'
+    });
+    assert.strictEqual(yellow.level, 'yellow');
+    assert.match(yellow.action, /Start kontrollert|lettere/);
+  });
+
+  test('today decision uses recent structured interval load conservatively', () => {
+    const decision = todayDecision({
+      structuredIntervalsLast7Count: 2,
+      hasPlannedToday: true,
+      plannedWorkoutLabel: 'Ny intervall'
+    });
+    assert.strictEqual(decision.level, 'yellow');
+    assert.match(decision.title, /Rolig/);
+    assert.match(decision.reason, /intervallarbeid/);
+  });
+
+  test('today decision falls back safely without training data', () => {
+    const decision = todayDecision({});
+    assert.strictEqual(decision.level, 'neutral');
+    assert.match(decision.title, /Planlegg/);
   });
 
   test('golden zone percentages match training levels', () => {

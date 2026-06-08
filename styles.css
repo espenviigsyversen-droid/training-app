@@ -1615,6 +1615,60 @@
       font-weight: 650;
     }
 
+    .today-decision {
+      margin-bottom: 12px;
+      padding: 13px 14px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,0.72);
+    }
+    .today-decision span {
+      display: block;
+      color: var(--warm-gray-3);
+      font-size: 0.72rem;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: 0;
+      margin-bottom: 4px;
+    }
+    .today-decision strong {
+      display: block;
+      color: var(--black);
+      font-size: 1.02rem;
+      line-height: 1.25;
+      margin-bottom: 5px;
+    }
+    .today-decision p {
+      margin: 0;
+      color: var(--black);
+      font-size: 0.95rem;
+      line-height: 1.4;
+      font-weight: 650;
+    }
+    .today-decision small {
+      display: block;
+      margin-top: 6px;
+      color: var(--warm-gray-3);
+      font-size: 0.82rem;
+      line-height: 1.35;
+    }
+    .today-decision.green {
+      border-color: #b7ead0;
+      background: #f1fff7;
+    }
+    .today-decision.yellow {
+      border-color: #f2d7a6;
+      background: #fff8e8;
+    }
+    .today-decision.red {
+      border-color: #ffb8aa;
+      background: #fff1ee;
+    }
+    .today-decision.neutral {
+      border-color: var(--border);
+      background: var(--warm-gray-1);
+    }
+
     .traffic-light-display {
       display: flex;
       align-items: flex-start;

@@ -24,8 +24,8 @@ Hvis `app.js`, `domain-core.js`, `index.html`, `styles.css` eller `service-worke
 Eksempel:
 
 ```js
-const APP_VERSION = 'v109';
-const CACHE_NAME = "treningsapp-v109";
+const APP_VERSION = 'v110';
+const CACHE_NAME = "treningsapp-v110";
 ```
 
 Kontroller også at synlig versjonsinfo i appen viser samme versjon:

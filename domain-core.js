@@ -30,6 +30,119 @@ export function assessTrafficLight(sleep, energy, restingHR, stairsOk, baselineR
   return 'green';
 }
 
+export function todayDecision(input = {}) {
+  const plannedLabel = String(input.plannedWorkoutLabel || '').trim();
+  const hasPlannedToday = Boolean(input.hasPlannedToday);
+  const hasNextPlanned = Boolean(input.hasNextPlanned || plannedLabel);
+  const readiness = input.dailyReadinessLevel || null;
+  const painTier = input.highestPainTier || null;
+  const adaptationCount = Number(input.bodySignals14Adaptation || 0);
+  const structured7 = Number(input.structuredIntervalsLast7Count || 0);
+  const closeQualityDays = Boolean(input.structuredIntervalsCloseQualityDays);
+  const daysSinceLast = input.daysSinceLast === null || input.daysSinceLast === undefined
+    ? null
+    : Number(input.daysSinceLast);
+  const weekSessions = Number(input.weekSessions || 0);
+  const weeklyTarget = Number(input.weeklyTarget || 0);
+
+  if (painTier === 'high') {
+    return {
+      level: 'red',
+      title: 'Hvil eller velg alternativ trening',
+      action: 'Ikke press gjennom høy smerte i dag.',
+      reason: 'Aktive kroppssignaler skal styre før planen.'
+    };
+  }
+
+  if (readiness === 'red') {
+    return {
+      level: 'red',
+      title: 'Restitusjon først',
+      action: 'Hvil, gå lett eller velg en svært rolig alternativ økt.',
+      reason: 'Dagsformen er rød, så planen bør vike for kroppen.'
+    };
+  }
+
+  if (painTier === 'moderate') {
+    return {
+      level: 'yellow',
+      title: 'Juster ned',
+      action: hasPlannedToday ? 'Gjør planlagt økt roligere, kortere eller flytt den.' : 'Velg rolig bevegelse og kjenn etter.',
+      reason: 'Moderat smerte bør avklares før ny kvalitet.'
+    };
+  }
+
+  if (readiness === 'yellow') {
+    return {
+      level: 'yellow',
+      title: 'Senk terskelen for å justere',
+      action: hasPlannedToday ? 'Start kontrollert og gjør økten lettere hvis kroppen ikke svarer.' : 'Rolig økt eller lett bevegelse passer best.',
+      reason: 'Søvn, energi eller hvilepuls peker mot litt lavere belastning.'
+    };
+  }
+
+  if (adaptationCount > 0) {
+    return {
+      level: 'yellow',
+      title: 'Bekreft at kroppen responderer',
+      action: hasPlannedToday ? 'Hold planlagt økt kontrollert og stopp tidlig ved nye signaler.' : 'Velg en rolig økt før du øker belastningen.',
+      reason: 'Du har nylig tilpasset trening etter kroppssignal.'
+    };
+  }
+
+  if (structured7 >= 2 || closeQualityDays) {
+    return {
+      level: 'yellow',
+      title: 'Rolig rundt kvaliteten',
+      action: 'Prioriter rolig trening eller restitusjon i dag.',
+      reason: 'Nylig strukturert intervallarbeid trenger friske bein for å gi effekt.'
+    };
+  }
+
+  if (hasPlannedToday) {
+    return {
+      level: readiness === 'green' ? 'green' : 'neutral',
+      title: plannedLabel ? `Gjennomfør ${plannedLabel}` : 'Gjennomfør planlagt økt',
+      action: 'Hold deg til planen og juster bare hvis kroppen gir tydelige signaler.',
+      reason: readiness === 'green' ? 'Dagsformen er grønn.' : 'Du har en økt planlagt i dag.'
+    };
+  }
+
+  if (daysSinceLast !== null && daysSinceLast >= 5) {
+    return {
+      level: 'neutral',
+      title: 'Start kontrollert',
+      action: hasNextPlanned ? 'Bruk neste planlagte økt som retning, men hold første steg lett.' : 'Planlegg en gjennomførbar rolig økt.',
+      reason: `Det er ${daysSinceLast} dager siden siste økt.`
+    };
+  }
+
+  if (weeklyTarget > 0 && weekSessions >= weeklyTarget) {
+    return {
+      level: 'green',
+      title: 'Ukemålet er nådd',
+      action: 'Eventuell trening i dag bør være bonus og styrt av overskudd.',
+      reason: 'Kontinuiteten er allerede ivaretatt denne uken.'
+    };
+  }
+
+  if (hasNextPlanned) {
+    return {
+      level: readiness === 'green' ? 'green' : 'neutral',
+      title: plannedLabel ? `Neste: ${plannedLabel}` : 'Følg neste planlagte økt',
+      action: 'Bruk dagen til å møte neste økt med overskudd.',
+      reason: 'Det ligger allerede en plan i kalenderen.'
+    };
+  }
+
+  return {
+    level: 'neutral',
+    title: 'Planlegg én realistisk økt',
+    action: 'Velg noe enkelt nok til at du faktisk får det gjort.',
+    reason: 'Appen mangler en konkret plan for i dag.'
+  };
+}
+
 export function formatKm(km) {
   const value = Number(km) || 0;
   return `${value.toLocaleString('no-NO', { maximumFractionDigits: value < 10 ? 1 : 0 })} km`;
