@@ -666,10 +666,14 @@
         </div>
 
         <div id="setupRaceGoal" class="setup-section hidden">
-        <div class="card">
-          <button class="btn-soft setup-back" onclick="openSetupSection('overview')">Tilbake til Setup</button>
-          <h2 class="section-title">Mål-løp</h2>
-          <p class="small-note">Registrer ett prioritert løp som appen kan telle ned mot i Innsikt.</p>
+        <button class="btn-soft setup-back" onclick="openSetupSection('overview')">Tilbake til Setup</button>
+        <details id="raceGoalPanel" class="card setup-compact-card">
+          <summary>
+            <span>
+              <strong>Mål-løp</strong>
+              <small>Prioritert løp med nedtelling i Innsikt</small>
+            </span>
+          </summary>
           <div class="inline-form">
             <div><label>Navn</label><input id="raceGoalName" placeholder="F.eks. Halv-Birken" /></div>
             <div class="grid-2">
@@ -690,10 +694,14 @@
               <button class="btn-soft" onclick="clearRaceGoal()">Tøm</button>
             </div>
           </div>
-        </div>
-        <div class="card">
-          <h2 class="section-title">Manuelle race-resultater</h2>
-          <p class="small-note">Legg inn gamle konkurranser og testløp som ikke finnes i loggen. Disse brukes i personlige bestenoteringer.</p>
+        </details>
+        <details id="manualRacePanel" class="card setup-compact-card">
+          <summary>
+            <span>
+              <strong>Manuelle race-resultater</strong>
+              <small>Gamle tider som skal telle i personlige bestenoteringer</small>
+            </span>
+          </summary>
           <div class="inline-form">
             <input type="hidden" id="manualRaceEditingId" />
             <div class="grid-2">
@@ -719,7 +727,7 @@
             </div>
           </div>
           <div id="manualRaceResultList" class="settings-list"></div>
-        </div>
+        </details>
         </div>
 
         <div id="setupTrainingProfile" class="setup-section hidden">

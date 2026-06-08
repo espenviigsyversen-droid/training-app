@@ -39,7 +39,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       weekPlanDatesInRange as weekPlanDatesInRangeCore
     } from './domain-core.js';
 
-    const APP_VERSION = 'v112';
+    const APP_VERSION = 'v113';
     const APP_CACHE_NAME = `treningsapp-${APP_VERSION}`;
 
     const firebaseConfig = {
@@ -1257,6 +1257,8 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     window.openManualRaceResultForm = function(distanceKm = '') {
       showTab('settings');
       openSetupSection('raceGoal');
+      const manualPanel = document.getElementById('manualRacePanel');
+      if (manualPanel) manualPanel.open = true;
       if (distanceKm) document.getElementById('manualRaceDistance').value = distanceKm;
       const field = document.getElementById('manualRaceDistance');
       field?.scrollIntoView({ block: 'center', behavior: 'smooth' });

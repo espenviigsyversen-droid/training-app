@@ -152,6 +152,12 @@ function test(name, fn) {
     assert.ok(styles.includes('overflow-x: hidden'), 'styles should guard against horizontal page/modal overflow');
     assert.ok(styles.includes('minmax(0, 1fr)'), 'two-column grids should allow inputs to shrink on mobile');
     assert.ok(styles.includes('.modal *'), 'modal children should be allowed to shrink inside the viewport');
+    assert.ok(styles.includes('#workoutDetailContent .tag'), 'workout detail tags should be constrained inside the modal');
+    assert.ok(styles.includes('.modal .grid-2'), 'modal two-column fields should collapse on small screens');
+    assert.ok(styles.includes('.setup-section .grid-2'), 'setup two-column fields should collapse on small screens');
+    assert.ok(index.includes('id="raceGoalPanel"'), 'race goal setup should use compact accordion panel');
+    assert.ok(index.includes('id="manualRacePanel"'), 'manual race setup should use compact accordion panel');
+    assert.ok(app.includes("document.getElementById('manualRacePanel')"), 'PB edit shortcut should open the manual race panel');
   });
 
   test('race time parsing and formatting supports common race inputs', () => {

@@ -759,7 +759,9 @@
     #workoutDetailContent {
       max-height: 88vh;
       overflow: auto;
+      overflow-x: hidden;
       padding: 18px;
+      max-width: 100%;
     }
 
     .detail-hero {
@@ -767,12 +769,15 @@
       padding: 22px 18px 20px;
       background: linear-gradient(135deg, var(--black) 0%, #2f1a16 100%);
       color: #fff;
+      max-width: calc(100% + 36px);
+      overflow: hidden;
     }
 
     .detail-hero h2 {
       margin: 10px 0 4px;
       font-size: 1.45rem;
       line-height: 1.12;
+      overflow-wrap: anywhere;
     }
 
     .detail-hero p {
@@ -832,10 +837,22 @@
       color: var(--warm-gray-3);
       line-height: 1.42;
       font-size: 0.94rem;
+      overflow-wrap: anywhere;
     }
 
     .detail-section p strong,
     .detail-text strong { color: var(--black); }
+
+    #workoutDetailContent .tag {
+      max-width: 100%;
+      white-space: normal;
+      overflow-wrap: anywhere;
+      line-height: 1.2;
+    }
+
+    #workoutDetailContent .compact-tags > * {
+      min-width: 0;
+    }
 
     .optional-form-section {
       border: 1px solid var(--warm-gray-2);
@@ -2454,6 +2471,61 @@
       box-shadow: none;
     }
 
+    .setup-compact-card {
+      padding: 0;
+      overflow: hidden;
+    }
+
+    .setup-compact-card summary {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 12px;
+      align-items: center;
+      padding: 15px 16px;
+      cursor: pointer;
+      user-select: none;
+      list-style: none;
+    }
+
+    .setup-compact-card summary::-webkit-details-marker {
+      display: none;
+    }
+
+    .setup-compact-card summary::after {
+      content: 'Åpne';
+      color: var(--warm-gray-3);
+      font-size: 0.76rem;
+      font-weight: 900;
+    }
+
+    .setup-compact-card[open] summary::after {
+      content: 'Lukk';
+    }
+
+    .setup-compact-card summary strong,
+    .setup-compact-card summary small {
+      display: block;
+      min-width: 0;
+    }
+
+    .setup-compact-card summary strong {
+      font-size: 1rem;
+      line-height: 1.15;
+    }
+
+    .setup-compact-card summary small {
+      margin-top: 3px;
+      color: var(--warm-gray-3);
+      font-size: 0.78rem;
+      font-weight: 650;
+      line-height: 1.25;
+    }
+
+    .setup-compact-card .inline-form,
+    .setup-compact-card .settings-list {
+      padding: 0 16px 16px;
+    }
+
     .toast {
       position: fixed;
       bottom: 110px;
@@ -2754,6 +2826,19 @@
 
       .modal {
         max-width: calc(100vw - 24px);
+      }
+
+      .modal .grid-2,
+      .setup-section .grid-2 {
+        grid-template-columns: 1fr;
+      }
+
+      .detail-modal {
+        max-width: calc(100vw - 24px);
+      }
+
+      #workoutDetailContent {
+        max-width: 100%;
       }
 
       .race-result-item {
