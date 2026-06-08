@@ -29,6 +29,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       raceHistoryForDistance,
       raceDistanceLabel,
       raceGoalCountdown,
+      raceGoalPlan,
       raceReadinessSummary,
       hasStructuredIntervals,
       injuryAdjustedWorkoutAdvice,
@@ -43,7 +44,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       weekPlanDatesInRange as weekPlanDatesInRangeCore
     } from './domain-core.js';
 
-    const APP_VERSION = 'v120';
+    const APP_VERSION = 'v121';
     const APP_CACHE_NAME = `treningsapp-${APP_VERSION}`;
 
     const firebaseConfig = {
@@ -6434,6 +6435,12 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         countdown.targetTimeSeconds ? `mål ${formatRaceTime(countdown.targetTimeSeconds)}` : ''
       ].filter(Boolean).join(' · ');
       const readiness = raceReadinessSummary(state.settings.raceGoal, completedRaceItems(), state.raceResults, today);
+      const racePlan = raceGoalPlan(
+        state.settings.raceGoal,
+        readiness,
+        injurySignalSummary(injurySignalEntriesUntil(today, 7)),
+        today
+      );
       const latest = readiness.latestRelevant;
       const targetPace = readiness.targetPaceSeconds ? formatRaceTime(readiness.targetPaceSeconds) + ' /km' : '';
       const projected = readiness.projectedTargetSeconds ? formatRaceTime(readiness.projectedTargetSeconds) : '';
@@ -6456,6 +6463,18 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
             <p>${escapeHtml(readiness.note)}</p>
             <p class="race-next-step">${escapeHtml(readiness.nextStep)}</p>
           </div>
+          ${racePlan.hasPlan ? `
+            <div class="race-plan ${escapeHtml(racePlan.phase)}">
+              <div class="race-plan-head">
+                <span>Konkurranseplan</span>
+                <strong>${escapeHtml(racePlan.phaseLabel)}</strong>
+                ${racePlan.weeksLeft !== null ? `<small>${racePlan.weeksLeft} uke${racePlan.weeksLeft === 1 ? '' : 'r'} igjen</small>` : ''}
+              </div>
+              <p><strong>Fokus:</strong> ${escapeHtml(racePlan.focus)}</p>
+              <p><strong>Test:</strong> ${escapeHtml(racePlan.nextTest)}</p>
+              <p><strong>Risiko:</strong> ${escapeHtml(racePlan.risk.replace(/^Risiko: /, ''))}</p>
+              <p class="race-next-step">${escapeHtml(racePlan.nextStep)}</p>
+            </div>` : ''}
         </div>`;
     }
 

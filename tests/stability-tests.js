@@ -51,6 +51,7 @@ function test(name, fn) {
     raceHistoryForDistance,
     raceDistanceLabel,
     raceGoalCountdown,
+    raceGoalPlan,
     raceReadinessSummary,
     structuredIntervalContext,
     structuredIntervalInsights,
@@ -179,6 +180,8 @@ function test(name, fn) {
     assert.ok(app.includes('state.settings.raceGoal = normalizeRaceGoal'), 'race goal should be saved through normalized settings');
     assert.ok(app.includes('renderRaceInsights(today)'), 'insights should render race insights');
     assert.ok(app.includes('raceReadinessSummary(state.settings.raceGoal'), 'race goal insight should render race readiness');
+    assert.ok(app.includes('raceGoalPlan('), 'race goal insight should render race plan');
+    assert.ok(read('styles.css').includes('.race-plan'), 'race plan styles are missing');
   });
 
   test('personal best history modal is wired into production files', () => {
@@ -321,6 +324,26 @@ function test(name, fn) {
     assert.strictEqual(readiness.targetPaceSeconds, 400);
     assert.strictEqual(readiness.projectedTargetSeconds, 5040);
     assert.strictEqual(readiness.paceGapSeconds, 20);
+  });
+
+  test('race goal plan gives phase and next test for target race', () => {
+    const goal = { name: 'Halv-Birken', date: '2027-06-08', distanceKm: 12, targetTimeSeconds: 4800 };
+    const readiness = raceReadinessSummary(goal, [], [], '2027-04-15');
+    const plan = raceGoalPlan(goal, readiness, { hasSignal: false }, '2027-04-15');
+    assert.strictEqual(plan.hasPlan, true);
+    assert.strictEqual(plan.phase, 'test');
+    assert.match(plan.phaseLabel, /Testfase/);
+    assert.match(plan.nextTest, /5 km/);
+    assert.match(plan.nextStep, /testløp|sammenlign/);
+  });
+
+  test('race goal plan enters taper and respects injury risk', () => {
+    const goal = { name: 'Halv-Birken', date: '2027-06-08', distanceKm: 12, targetTimeSeconds: 4800 };
+    const readiness = raceReadinessSummary(goal, [], [], '2027-06-03');
+    const plan = raceGoalPlan(goal, readiness, { hasSignal: true, status: 'improving', statusLabel: 'Bedres' }, '2027-06-03');
+    assert.strictEqual(plan.phase, 'taper');
+    assert.match(plan.nextTest, /Ingen ny test/);
+    assert.match(plan.risk, /aktivt skadesignal/);
   });
 
   test('calendar day modal refreshes after marking planned workout complete', () => {

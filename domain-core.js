@@ -583,6 +583,79 @@ export function raceReadinessSummary(goal = {}, completedItems = [], manualRaceR
   };
 }
 
+export function raceGoalPlan(goal = {}, readiness = {}, injurySummary = {}, todayIso = dateToISO(new Date())) {
+  const countdown = raceGoalCountdown(goal, todayIso);
+  if (!countdown || (!countdown.name && !countdown.date)) {
+    return {
+      hasPlan: false,
+      phase: 'none',
+      phaseLabel: '',
+      weeksLeft: null,
+      nextTest: '',
+      focus: '',
+      risk: '',
+      nextStep: ''
+    };
+  }
+
+  const daysLeft = Number.isFinite(Number(countdown.daysLeft)) ? Number(countdown.daysLeft) : null;
+  const weeksLeft = daysLeft === null ? null : Math.max(0, Math.ceil(daysLeft / 7));
+  const distance = Number(countdown.distanceKm) || 0;
+  const status = readiness?.status || 'needs_test';
+  const injuryActive = Boolean(injurySummary?.hasSignal && !['none', 'calming'].includes(injurySummary.status));
+
+  let phase = 'base';
+  let phaseLabel = 'Basebygging';
+  let focus = 'Bygg kontinuitet og rolig volum. Kvalitet skal være kontrollert og gjentas uten å koste for mye.';
+  let nextTest = distance >= 10 ? 'Neste relevante test: 5 km kontrollert test når kroppen er stabil.' : 'Neste relevante test: 2-3 km kontrollert test.';
+  let nextStep = 'Neste 2-4 uker: prioriter repeterbar uke, rolig mengde og én kontrollert kvalitetsøkt når signalene er grønne.';
+
+  if (daysLeft !== null && daysLeft <= 7) {
+    phase = 'taper';
+    phaseLabel = 'Taper / rolig siste uke';
+    focus = 'Hold beina friske. Reduser volum, behold litt lett fart hvis kroppen er grønn, og unngå nye tester.';
+    nextTest = 'Ingen ny test nå. Bruk dagsform og korte lette stigninger hvis kroppen kjennes bra.';
+    nextStep = 'Neste steg: sov godt, hold øktene korte og møt løpet med overskudd.';
+  } else if (daysLeft !== null && daysLeft <= 28) {
+    phase = 'specific';
+    phaseLabel = 'Spesifikk oppkjøring';
+    focus = distance >= 10
+      ? 'Bygg spesifikk utholdenhet rundt målpace: rolig volum, kontrollert terskel og korte segmenter i konkurransefølelse.'
+      : 'Hold kvaliteten kontrollert og skjerp fart/rytme uten å samle for mye belastning.';
+    nextTest = distance >= 10 ? 'Neste relevante test: 8-10 km kontrollert eller progressiv tur.' : 'Neste relevante test: 2-3 km test før siste rolige uke.';
+    nextStep = 'Neste 2-4 uker: gjør treningen mer løpsspesifikk, men la siste uke bli lettere.';
+  } else if (daysLeft !== null && daysLeft <= 84) {
+    phase = 'test';
+    phaseLabel = 'Testfase';
+    focus = 'Bruk testløp til å kalibrere målpace, men la normaluka fortsatt styre mesteparten av treningen.';
+    nextTest = distance >= 12 ? 'Neste relevante test: 5 km nå, senere 10 km eller 8-10 km kontrollert.' : distance >= 5 ? 'Neste relevante test: 3-5 km.' : 'Neste relevante test: 1-2 km.';
+    nextStep = status === 'needs_test'
+      ? 'Neste steg: få inn ett kontrollert testløp slik at målstatus blir mer presis.'
+      : 'Neste steg: sammenlign neste test med forrige, ikke jag maks hver uke.';
+  }
+
+  if (status === 'behind' && phase !== 'taper') {
+    nextStep = 'Neste 2-4 uker: bygg rolig volum først, legg inn kontrollert terskel, og bruk testløp for å se om målpace nærmer seg.';
+  } else if (status === 'ahead' && phase !== 'taper') {
+    nextStep = 'Neste 2-4 uker: vedlikehold kontinuitet, hold kvalitet kontrollert og unngå å gjøre målet dyrere enn nødvendig.';
+  }
+
+  const risk = injuryActive
+    ? `Risiko: aktivt skadesignal (${injurySummary.statusLabel || 'følg med'}). Utsett testløp og hard kvalitet til smerten er lavere/stabil.`
+    : 'Risiko: ingen aktivt skadesignal i mål-løp-planen akkurat nå.';
+
+  return {
+    hasPlan: true,
+    phase,
+    phaseLabel,
+    weeksLeft,
+    nextTest,
+    focus,
+    risk,
+    nextStep
+  };
+}
+
 export function formatKm(km) {
   const value = Number(km) || 0;
   return `${value.toLocaleString('no-NO', { maximumFractionDigits: value < 10 ? 1 : 0 })} km`;
