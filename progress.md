@@ -1,5 +1,5 @@
 # Treningsapp — progress.md
-Oppdatert: 2026-06-08 (siste endringer: v75–v110)
+Oppdatert: 2026-06-08 (siste endringer: v75–v111)
 
 ---
 
@@ -27,7 +27,7 @@ Standard Bakken-uke: Hoved-terskel → Støtte-terskel → Lang rolig → Valgfr
 **Hosting:** GitHub Pages.  
 **Backend:** Firebase (prosjekt `home-tasks-app-18de3`) — Firestore + Google Auth.  
 **Frontend:** Vanilla JS + HTML + CSS, single-page app, tab-navigasjon.  
-**Versjon:** v110 (konstant i `app.js`).
+**Versjon:** v111 (konstant i `app.js`).
 
 ### Filer
 
@@ -82,6 +82,7 @@ Treningsapp/
 - **Innsikt uten duplisert coach-notis** (v108): Coach-notis-kortet er fjernet fra Innsikt fordi samme råd allerede ligger på Hjem. Innsikt rendrer nå uten duplisert coachkort, mens `renderInsights()` er null-safe hvis gamle elementer ikke finnes.
 - **Konkurranse/race som øktmetadata** (v109): Øktmaler har nå innebygd `race` som Øktrolle (`Konkurranse / race`) og Coach-formål (`Konkurranse / testløp`). Dette gir en trygg måte å logge faktiske løp/testløp, for eksempel 2 km race, uten fri konfigurasjon som coachen ikke forstår. Race teller som hard/kvalitetsøkt i intern coach-/innsiktslogikk og behandles ikke som restitusjon. Bakken-standardmalene inkluderer nå `2 km race / testløp`.
 - **Dagens beslutning på Hjem** (v110): Hjem-kortet for coachråd viser nå en tydelig, regelstyrt `Dagens beslutning` før den forklarende coach-notisen. Ren logikk i `todayDecision()` bruker dagsform, aktive kroppssignaler, nylig strukturert intervallarbeid, dagens/neste planlagte økt, dager siden siste økt og ukemål. Målet er at brukeren raskere ser hva appen anbefaler å gjøre i dag, uten AI og uten endret brukerflyt.
+- **Race/testløp-opplevelse v1** (v111): Fullførte økter kan nå ha valgfri `raceResult` med løpsnavn, distanse, resultattid, løype/sted, PB-flagg og notat. Innsikt har egen seksjon for `Personlige bestenoteringer` på 1 km, 2 km, 3 km, 5 km, 10 km, 12 km, halvmaraton og maraton, beregnet fra registrerte race/testløp. Setup har `Mål-løp` med ett prioritert løp og nedtelling i Innsikt, for eksempel Halv-Birken 12 km. Gamle økter fungerer uendret via trygg normalisering.
 - **Fjernet «Foreslå neste økt»** (v92): Kortet er fjernet fra Kalender-fanen. Ukeplanen dekker samme behov bedre og er rollebevisst. `renderWorkoutSuggestion`-kallet er fjernet fra render-løkken for å unngå krasj.
 - **Coach: smertegradering + priority-felt + X-økt** (v91): Tre coach-forbedringer: (1) `bodySignalState` skiller nå mellom mild smerte (1–2/10 → `cooling`, foreslår terskel etter en rolig økt) og bekymringsfull smerte (3+/10 → `caution`, kun recovery). Løser at mild smerte blokkerte terskelforslag for hele neste uke. (2) `priority`-feltet i treningsprofilen er nå aktivt: `performance` foreslår terskel straks det er rom, `injury_free_progression` krever 2 rolige øyer før terskel. (3) X-økt vises alltid som 4. forslag i normaluke når det er rom — sikrer at VO2max/teknikk/styrke alltid er synlig som alternativ.
 - **Hjem: alle økter samme dag** (v90): «Neste økt» / «Dagens økt» viser nå alle planlagte økter på samme dato, ikke bare én. For fremtidige dager grupperes etter første kommende dato (`nextDateItems`). Tittelen skifter til «Dagens økt» automatisk når det finnes økter på dagens dato (eksisterende logikk).

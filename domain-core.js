@@ -143,6 +143,126 @@ export function todayDecision(input = {}) {
   };
 }
 
+export const RACE_DISTANCE_PRESETS = [
+  { key: '1k', label: '1 km', km: 1 },
+  { key: '2k', label: '2 km', km: 2 },
+  { key: '3k', label: '3 km', km: 3 },
+  { key: '5k', label: '5 km', km: 5 },
+  { key: '10k', label: '10 km', km: 10 },
+  { key: '12k', label: '12 km', km: 12 },
+  { key: 'half_marathon', label: 'Halvmaraton', km: 21.0975 },
+  { key: 'marathon', label: 'Maraton', km: 42.195 }
+];
+
+export function parseRaceTimeToSeconds(value) {
+  if (value === null || value === undefined || value === '') return 0;
+  if (typeof value === 'number') return Number.isFinite(value) && value > 0 ? Math.round(value) : 0;
+  const text = String(value).trim();
+  if (!text) return 0;
+  if (/^\d+$/.test(text)) return parseNonNegativeInteger(text);
+  const parts = text.split(':').map(part => Number.parseInt(part, 10));
+  if (parts.some(part => !Number.isFinite(part) || part < 0)) return 0;
+  if (parts.length === 2) return (parts[0] * 60) + Math.min(parts[1], 59);
+  if (parts.length === 3) return (parts[0] * 3600) + (Math.min(parts[1], 59) * 60) + Math.min(parts[2], 59);
+  return 0;
+}
+
+export function formatRaceTime(seconds) {
+  const total = parseNonNegativeInteger(seconds);
+  if (!total) return '';
+  const hours = Math.floor(total / 3600);
+  const minutes = Math.floor((total % 3600) / 60);
+  const remainingSeconds = total % 60;
+  if (hours) return `${hours}:${String(minutes).padStart(2, '0')}:${String(remainingSeconds).padStart(2, '0')}`;
+  return `${minutes}:${String(remainingSeconds).padStart(2, '0')}`;
+}
+
+export function normalizeRaceResult(value = {}) {
+  const source = value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+  const distanceKm = Number(source.distanceKm) > 0 ? Number(source.distanceKm) : '';
+  const resultSeconds = parseRaceTimeToSeconds(source.resultSeconds || source.resultTime || source.time);
+  const normalized = {
+    name: String(source.name || '').trim(),
+    distanceKm,
+    resultSeconds: resultSeconds || '',
+    course: String(source.course || '').trim(),
+    note: String(source.note || '').trim(),
+    countsAsPersonalBest: source.countsAsPersonalBest === false ? false : true
+  };
+  const hasValue = normalized.name || normalized.distanceKm || normalized.resultSeconds || normalized.course || normalized.note;
+  return hasValue ? normalized : null;
+}
+
+export function raceDistanceLabel(distanceKm) {
+  const value = Number(distanceKm) || 0;
+  if (!value) return '';
+  const preset = RACE_DISTANCE_PRESETS.find(item => Math.abs(item.km - value) < 0.02);
+  if (preset) return preset.label;
+  return `${value.toLocaleString('no-NO', { maximumFractionDigits: value < 10 ? 2 : 1 })} km`;
+}
+
+export function normalizeRaceGoal(value = {}) {
+  const source = value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+  const distanceKm = Number(source.distanceKm) > 0 ? Number(source.distanceKm) : '';
+  return {
+    name: String(source.name || '').trim(),
+    date: String(source.date || '').trim(),
+    distanceKm,
+    targetTimeSeconds: parseRaceTimeToSeconds(source.targetTimeSeconds || source.targetTime || '') || '',
+    note: String(source.note || '').trim()
+  };
+}
+
+export function raceGoalCountdown(goal = {}, todayIso = dateToISO(new Date())) {
+  const normalized = normalizeRaceGoal(goal);
+  if (!normalized.name && !normalized.date) return null;
+  if (!normalized.date) {
+    return { ...normalized, daysLeft: null, status: 'missing_date', label: 'Dato ikke satt' };
+  }
+  const targetMs = new Date(`${normalized.date}T12:00:00`).getTime();
+  const todayMs = new Date(`${todayIso}T12:00:00`).getTime();
+  const daysLeft = Math.round((targetMs - todayMs) / 86400000);
+  const status = daysLeft > 0 ? 'upcoming' : daysLeft === 0 ? 'today' : 'past';
+  const label = status === 'upcoming'
+    ? `${daysLeft} dager igjen`
+    : status === 'today'
+    ? 'I dag'
+    : `${Math.abs(daysLeft)} dager siden`;
+  return { ...normalized, daysLeft, status, label };
+}
+
+export function raceResultsFromCompleted(completedItems = []) {
+  const items = Array.isArray(completedItems) ? completedItems : [];
+  return items
+    .map(item => {
+      const raceResult = normalizeRaceResult(item.raceResult);
+      if (!raceResult?.distanceKm || !raceResult?.resultSeconds) return null;
+      return {
+        id: item.id || '',
+        date: item.date || '',
+        workoutName: item.name || item.templateSnapshot?.name || item.manualName || '',
+        ...raceResult
+      };
+    })
+    .filter(Boolean)
+    .sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')));
+}
+
+export function personalBestSummary(completedItems = [], presets = RACE_DISTANCE_PRESETS) {
+  const raceResults = raceResultsFromCompleted(completedItems)
+    .filter(result => result.countsAsPersonalBest !== false);
+  const entries = presets.map(preset => {
+    const matches = raceResults.filter(result => Math.abs(Number(result.distanceKm) - preset.km) < 0.02);
+    const best = matches.sort((a, b) => Number(a.resultSeconds) - Number(b.resultSeconds))[0] || null;
+    return { ...preset, best };
+  });
+  return {
+    entries,
+    raceResults,
+    latest: raceResults[0] || null
+  };
+}
+
 export function formatKm(km) {
   const value = Number(km) || 0;
   return `${value.toLocaleString('no-NO', { maximumFractionDigits: value < 10 ? 1 : 0 })} km`;

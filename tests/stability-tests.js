@@ -33,11 +33,18 @@ function test(name, fn) {
     formatClockDuration,
     formatDuration,
     formatPace,
+    formatRaceTime,
     goldenZonePercentages,
     hasStructuredIntervals,
+    normalizeRaceGoal,
+    normalizeRaceResult,
     normalizeStructuredWorkout,
     normalizeTemplate,
     parseNonNegativeInteger,
+    parseRaceTimeToSeconds,
+    personalBestSummary,
+    raceDistanceLabel,
+    raceGoalCountdown,
     structuredIntervalContext,
     structuredIntervalInsights,
     structuredWorkoutBreakdown,
@@ -114,6 +121,60 @@ function test(name, fn) {
     assert.ok(app.includes("template.role === 'race'"), 'race role should count as hard workout');
     assert.ok(app.includes("template.purpose === 'race'"), 'race purpose should count as hard workout');
     assert.ok(app.includes("role === 'race' || purpose === 'race'"), 'race should not be treated as restorative');
+  });
+
+  test('race result UI and settings are wired into production files', () => {
+    assert.ok(index.includes('id="completeRaceName"'), 'race result name field is missing');
+    assert.ok(index.includes('id="completeRaceTime"'), 'race result time field is missing');
+    assert.ok(index.includes('id="insightPersonalBests"'), 'personal best insight element is missing');
+    assert.ok(index.includes('id="setupRaceGoal"'), 'race goal setup section is missing');
+    assert.ok(app.includes('raceResult: normalizeRaceResult'), 'completed items should normalize raceResult');
+    assert.ok(app.includes('state.settings.raceGoal = normalizeRaceGoal'), 'race goal should be saved through normalized settings');
+    assert.ok(app.includes('renderRaceInsights(today)'), 'insights should render race insights');
+  });
+
+  test('race time parsing and formatting supports common race inputs', () => {
+    assert.strictEqual(parseRaceTimeToSeconds('8:30'), 510);
+    assert.strictEqual(parseRaceTimeToSeconds('1:05:00'), 3900);
+    assert.strictEqual(formatRaceTime(510), '8:30');
+    assert.strictEqual(formatRaceTime(3900), '1:05:00');
+  });
+
+  test('race results normalize safely and personal bests pick fastest result', () => {
+    assert.strictEqual(normalizeRaceResult(null), null);
+    assert.strictEqual(raceDistanceLabel(12), '12 km');
+    const race = normalizeRaceResult({
+      name: 'Testløp',
+      distanceKm: '2',
+      resultTime: '8:30',
+      course: 'Bane'
+    });
+    assert.strictEqual(race.resultSeconds, 510);
+    assert.strictEqual(race.countsAsPersonalBest, true);
+
+    const summary = personalBestSummary([
+      { id: 'a', date: '2026-05-01', raceResult: { name: '2 km vår', distanceKm: 2, resultSeconds: 520 } },
+      { id: 'b', date: '2026-06-01', raceResult: { name: '2 km sommer', distanceKm: 2, resultSeconds: 505 } },
+      { id: 'c', date: '2026-06-02', raceResult: { name: 'Ikke PB', distanceKm: 2, resultSeconds: 490, countsAsPersonalBest: false } }
+    ]);
+    const twoKm = summary.entries.find(entry => entry.key === '2k');
+    assert.strictEqual(twoKm.best.name, '2 km sommer');
+    assert.strictEqual(twoKm.best.resultSeconds, 505);
+  });
+
+  test('race goal countdown supports 12 km target race', () => {
+    const goal = normalizeRaceGoal({
+      name: 'Halv-Birken',
+      date: '2027-06-08',
+      distanceKm: '12',
+      targetTime: '1:05:00'
+    });
+    const countdown = raceGoalCountdown(goal, '2027-06-01');
+    assert.strictEqual(countdown.name, 'Halv-Birken');
+    assert.strictEqual(countdown.distanceKm, 12);
+    assert.strictEqual(countdown.targetTimeSeconds, 3900);
+    assert.strictEqual(countdown.daysLeft, 7);
+    assert.strictEqual(countdown.label, '7 dager igjen');
   });
 
   test('calendar day modal refreshes after marking planned workout complete', () => {

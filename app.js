@@ -17,9 +17,15 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       formatDuration,
       formatKm,
       formatPace,
+      formatRaceTime,
       goldenZonePercentages,
+      normalizeRaceGoal,
+      normalizeRaceResult,
       normalizeTemplate,
       parseNonNegativeInteger,
+      personalBestSummary,
+      raceDistanceLabel,
+      raceGoalCountdown,
       hasStructuredIntervals,
       startOfWeek,
       structuredIntervalContext,
@@ -31,7 +37,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       weekPlanDatesInRange as weekPlanDatesInRangeCore
     } from './domain-core.js';
 
-    const APP_VERSION = 'v110';
+    const APP_VERSION = 'v111';
     const APP_CACHE_NAME = `treningsapp-${APP_VERSION}`;
 
     const firebaseConfig = {
@@ -63,6 +69,13 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         weeklyStretchSessionsTarget: 4,
         weeklyHoursTarget: '',
         weeklyKmTarget: ''
+      },
+      raceGoal: {
+        name: '',
+        date: '',
+        distanceKm: '',
+        targetTimeSeconds: '',
+        note: ''
       },
       trainingProfile: {
         primaryFocus: 'running',
@@ -399,6 +412,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
           ? source.intensities
           : [...defaultSettings.intensities],
         goals: normalizeGoals(source.goals),
+        raceGoal: normalizeRaceGoal(source.raceGoal),
         trainingProfile: normalizeTrainingProfile(source.trainingProfile),
         personProfile: normalizePersonProfile(source.personProfile),
         features: normalizeFeatures(source.features),
@@ -412,11 +426,22 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       return Array.isArray(templates) ? templates.map(normalizeTemplate).filter(template => template.id) : [];
     }
 
+    function normalizeCompletedItems(items = []) {
+      return Array.isArray(items)
+        ? items
+            .filter(item => item && typeof item === 'object' && !Array.isArray(item))
+            .map(item => ({
+              ...item,
+              raceResult: normalizeRaceResult(item.raceResult)
+            }))
+        : [];
+    }
+
     function normalizeAppState(input = {}) {
       return {
         templates: normalizeTemplates(input.templates),
         planned: Array.isArray(input.planned) ? input.planned : [],
-        completed: Array.isArray(input.completed) ? input.completed : [],
+        completed: normalizeCompletedItems(input.completed),
         wellness: Array.isArray(input.wellness) ? input.wellness : [],
         challenges: Array.isArray(input.challenges) ? input.challenges : [],
         blockedDays: Array.isArray(input.blockedDays) ? input.blockedDays : [],
@@ -1032,6 +1057,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         intensities: document.getElementById('setupIntensities'),
         challenges: document.getElementById('setupChallenges'),
         goals: document.getElementById('setupGoals'),
+        raceGoal: document.getElementById('setupRaceGoal'),
         trainingProfile: document.getElementById('setupTrainingProfile'),
         personProfile: document.getElementById('setupPersonProfile'),
         wellness: document.getElementById('setupWellness'),
@@ -1128,6 +1154,25 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       });
       await saveSettings();
       showToast('Treningsmål lagret');
+    };
+
+    window.saveRaceGoal = async function() {
+      state.settings.raceGoal = normalizeRaceGoal({
+        name: document.getElementById('raceGoalName').value,
+        date: document.getElementById('raceGoalDate').value,
+        distanceKm: document.getElementById('raceGoalDistance').value,
+        targetTime: document.getElementById('raceGoalTargetTime').value,
+        note: document.getElementById('raceGoalNote').value
+      });
+      await saveSettings();
+      showToast('Mål-løp lagret');
+    };
+
+    window.clearRaceGoal = async function() {
+      if (!confirm('Tømme mål-løp?')) return;
+      state.settings.raceGoal = normalizeRaceGoal({});
+      await saveSettings();
+      showToast('Mål-løp tømt');
     };
 
     window.saveTrainingProfile = async function() {
@@ -1714,10 +1759,16 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         'completePainAreaSide',
         'completeAdaptation',
         'completeBodyNotes',
+        'completeRaceName',
+        'completeRaceDistance',
+        'completeRaceTime',
+        'completeRaceCourse',
+        'completeRaceNote',
         'completeNotes'
       ]
         .forEach(id => document.getElementById(id).value = '');
       document.getElementById('completeAdaptation').value = 'none';
+      document.getElementById('completeRaceCountsPb').checked = true;
       updatePacePreview();
     }
 
@@ -1747,6 +1798,14 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       const durationSeconds = getDurationSecondsFromForm();
       const distanceKm = document.getElementById('completeDistance').value || '';
       const pace = calculatePaceMetrics(durationSeconds, distanceKm);
+      const raceResult = normalizeRaceResult({
+        name: document.getElementById('completeRaceName').value,
+        distanceKm: document.getElementById('completeRaceDistance').value,
+        resultTime: document.getElementById('completeRaceTime').value,
+        course: document.getElementById('completeRaceCourse').value,
+        note: document.getElementById('completeRaceNote').value,
+        countsAsPersonalBest: document.getElementById('completeRaceCountsPb').checked
+      });
       return {
         durationSeconds: durationSeconds || '',
         durationDisplay: durationSeconds ? formatDuration(durationSeconds) : '',
@@ -1782,6 +1841,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
           adaptation: document.getElementById('completeAdaptation').value || 'none',
           notes: document.getElementById('completeBodyNotes').value.trim()
         },
+        raceResult,
         notes: document.getElementById('completeNotes').value.trim()
       };
     }
@@ -2462,6 +2522,13 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       document.getElementById('completePainAreaSide').value = completed.bodyStatus?.areaSide || '';
       document.getElementById('completeAdaptation').value = completed.bodyStatus?.adaptation || 'none';
       document.getElementById('completeBodyNotes').value = completed.bodyStatus?.notes || '';
+      const raceResult = normalizeRaceResult(completed.raceResult);
+      document.getElementById('completeRaceName').value = raceResult?.name || '';
+      document.getElementById('completeRaceDistance').value = raceResult?.distanceKm || '';
+      document.getElementById('completeRaceTime').value = raceResult?.resultSeconds ? formatRaceTime(raceResult.resultSeconds) : '';
+      document.getElementById('completeRaceCourse').value = raceResult?.course || '';
+      document.getElementById('completeRaceCountsPb').checked = raceResult?.countsAsPersonalBest !== false;
+      document.getElementById('completeRaceNote').value = raceResult?.note || '';
       document.getElementById('completeNotes').value = completed.notes || '';
       renderCompleteGoldenZoneHint();
       document.getElementById('completeModal').classList.add('active');
@@ -2652,6 +2719,19 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         : '';
     }
 
+    function raceResultDetailHtml(completed) {
+      const race = normalizeRaceResult(completed.raceResult);
+      if (!race) return '';
+      return [
+        detailLine('Løp', race.name || completedTemplate(completed).name),
+        detailLine('Distanse', raceDistanceLabel(race.distanceKm)),
+        detailLine('Resultat', formatRaceTime(race.resultSeconds)),
+        detailLine('Løype/sted', race.course),
+        detailLine('PB', race.countsAsPersonalBest === false ? 'Teller ikke' : 'Teller mot bestenoteringer'),
+        detailLine('Notat', race.note)
+      ].join('');
+    }
+
     function completedDetailHtml(c) {
       const t = completedTemplate(c);
       const personProfile = normalizePersonProfile(state.settings.personProfile);
@@ -2703,6 +2783,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         ${detailSection('Puls', heartRateLines)}
         ${detailSection('Strukturert intervall', structuredWorkoutSummaryHtml(t.structuredWorkout))}
         ${detailSection('Terreng og stigning', terrainLines)}
+        ${detailSection('Konkurranse / testløp', raceResultDetailHtml(c))}
         ${detailSection('Gjennomføring', [
           detailLine('Gjennomføring', execution),
           detailLine('Følelse etter økt', feeling),
@@ -2982,6 +3063,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         durationLabel || null,
         c.distanceKm ? `${c.distanceKm} km` : null,
         pace.paceDisplay ? `${pace.paceDisplay} min/km` : null,
+        c.raceResult?.resultSeconds ? `Race ${formatRaceTime(c.raceResult.resultSeconds)}` : null,
         c.avgHeartRate ? `${c.avgHeartRate} bpm snitt` : null,
         c.rpe ? `RPE ${c.rpe}/10` : null
       ].filter(Boolean).join(' · ');
@@ -2997,6 +3079,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
           </div>
           ${metrics ? `<p class="meta">${escapeHtml(metrics)}</p>` : ''}
           <div class="compact-tags">
+            ${c.raceResult ? '<span class="tag race-tag">Race</span>' : ''}
             ${trainingEffect}
             <span class="tag load-${assessment.level}">${escapeHtml(assessment.label)}</span>
             ${bodySignal ? '<span class="tag body-signal">Kroppssignal</span>' : ''}
@@ -3339,6 +3422,15 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       document.getElementById('weeklyStretchSessionsTarget').value = goals.weeklyStretchSessionsTarget;
       document.getElementById('weeklyHoursTarget').value = goals.weeklyHoursTarget;
       document.getElementById('weeklyKmTarget').value = goals.weeklyKmTarget;
+    }
+
+    function renderRaceGoalSettings() {
+      const goal = normalizeRaceGoal(state.settings.raceGoal);
+      document.getElementById('raceGoalName').value = goal.name;
+      document.getElementById('raceGoalDate').value = goal.date;
+      document.getElementById('raceGoalDistance').value = goal.distanceKm;
+      document.getElementById('raceGoalTargetTime').value = goal.targetTimeSeconds ? formatRaceTime(goal.targetTimeSeconds) : '';
+      document.getElementById('raceGoalNote').value = goal.note;
     }
 
     function renderTrainingProfile() {
@@ -4542,6 +4634,10 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         template.structure,
         completed.manualName,
         completed.notes,
+        completed.raceResult?.name,
+        completed.raceResult?.course,
+        completed.raceResult?.note,
+        completed.raceResult?.resultSeconds ? formatRaceTime(completed.raceResult.resultSeconds) : '',
         completed.bodyStatus?.area,
         completed.bodyStatus?.notes,
         executionLabel(completed.execution),
@@ -5793,6 +5889,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
 
       renderBakkenPatterns();
       renderStructuredIntervalInsights(today);
+      renderRaceInsights(today);
       renderWellnessInsights();
       const coachCtx = buildCoachContext();
       const insightCoachNote = document.getElementById('insightCoachNote');
@@ -5830,6 +5927,67 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       note.textContent = 'Strukturert intervallarbeid hjelper deg å se faktisk kvalitetstid, ikke bare total økttid.';
     }
 
+    function renderRaceInsights(today) {
+      renderRaceGoalInsight(today);
+      renderPersonalBestInsights();
+    }
+
+    function renderRaceGoalInsight(today) {
+      const card = document.getElementById('insightRaceGoalCard');
+      const container = document.getElementById('insightRaceGoal');
+      if (!card || !container) return;
+      const countdown = raceGoalCountdown(state.settings.raceGoal, today);
+      if (!countdown || (!countdown.name && !countdown.date)) {
+        card.style.display = 'none';
+        container.innerHTML = '';
+        return;
+      }
+      card.style.display = '';
+      const meta = [
+        countdown.date ? formatDate(countdown.date) : '',
+        raceDistanceLabel(countdown.distanceKm),
+        countdown.targetTimeSeconds ? `mål ${formatRaceTime(countdown.targetTimeSeconds)}` : ''
+      ].filter(Boolean).join(' · ');
+      container.innerHTML = `
+        <div class="race-goal-main">
+          <span class="tag ${countdown.status === 'past' ? 'tag-warning' : 'race-tag'}">${escapeHtml(countdown.label)}</span>
+          <strong>${escapeHtml(countdown.name || 'Mål-løp')}</strong>
+          ${meta ? `<p>${escapeHtml(meta)}</p>` : ''}
+          ${countdown.note ? `<p class="small-note">${escapeHtml(countdown.note)}</p>` : ''}
+        </div>`;
+    }
+
+    function renderPersonalBestInsights() {
+      const card = document.getElementById('insightPersonalBestsCard');
+      const grid = document.getElementById('insightPersonalBests');
+      const latest = document.getElementById('insightRaceLatest');
+      if (!card || !grid || !latest) return;
+      const items = state.completed.map(item => ({
+        ...item,
+        name: completedTemplate(item).name
+      }));
+      const summary = personalBestSummary(items);
+      if (!summary.raceResults.length) {
+        card.style.display = 'none';
+        grid.innerHTML = '';
+        latest.textContent = '';
+        return;
+      }
+      card.style.display = '';
+      grid.innerHTML = summary.entries.map(entry => {
+        const best = entry.best;
+        return `
+          <div class="personal-best-item ${best ? 'has-best' : 'empty-best'}">
+            <span>${escapeHtml(entry.label)}</span>
+            <strong>${best ? escapeHtml(formatRaceTime(best.resultSeconds)) : '-'}</strong>
+            <small>${best ? escapeHtml(`${formatDate(best.date)} · ${best.name || best.workoutName || 'Race'}`) : 'Ingen registrert'}</small>
+          </div>`;
+      }).join('');
+      latest.textContent = summary.latest
+        ? `Siste race/testløp: ${formatDate(summary.latest.date)} · ${summary.latest.name || summary.latest.workoutName || 'Race'} · ${raceDistanceLabel(summary.latest.distanceKm)} · ${formatRaceTime(summary.latest.resultSeconds)}`
+        : '';
+    }
+
     function renderAppVersionInfo() {
       const el = document.getElementById('appVersionInfo');
       if (!el) return;
@@ -5858,6 +6016,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       renderSettingsList('activityTypes', 'activityTypeList');
       renderSettingsList('intensities', 'intensityList');
       renderTrainingGoals();
+      renderRaceGoalSettings();
       renderTrainingProfile();
       renderPersonProfile();
       renderWellnessList();

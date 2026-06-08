@@ -444,6 +444,16 @@
           <p id="insightStructuredIntervalLatest" class="small-note interval-latest"></p>
           <p id="insightStructuredIntervalNote" class="small-note"></p>
         </div>
+        <div id="insightRaceGoalCard" class="card" style="display:none;">
+          <h2 class="section-title">Mål-løp</h2>
+          <div id="insightRaceGoal" class="race-goal-card"></div>
+        </div>
+        <div id="insightPersonalBestsCard" class="card" style="display:none;">
+          <h2 class="section-title">Personlige bestenoteringer</h2>
+          <div id="insightPersonalBests" class="personal-best-grid"></div>
+          <p id="insightRaceLatest" class="small-note"></p>
+          <p class="small-note">Basert på økter der konkurranse/testløp er registrert og markert som tellende for PB.</p>
+        </div>
         <div class="card">
           <h2 class="section-title">Challenges</h2>
           <p class="small-note">Kortsiktige mål for ekstra motivasjon, for eksempel kilometer, timer eller antall økter i en periode.</p>
@@ -532,6 +542,7 @@
           <div class="setup-menu">
             <button class="setup-menu-item" onclick="openSetupSection('goals')"><span>Treningsmål</span><small>Ukesmål for økter, tid og kilometer</small></button>
             <button class="setup-menu-item" onclick="openSetupSection('trainingProfile')"><span>Treningsprofil</span><small>Fokus, filosofi, nivå og prioritet</small></button>
+            <button class="setup-menu-item" onclick="openSetupSection('raceGoal')"><span>Mål-løp</span><small>Nedtelling mot prioritert konkurranse</small></button>
           </div>
         </div>
         <div class="card">
@@ -647,6 +658,27 @@
               <div><label>Kilometer per uke</label><input id="weeklyKmTarget" type="number" min="0" step="0.1" inputmode="decimal" placeholder="Valgfritt" /></div>
             </div>
             <button class="btn-primary btn-full" onclick="saveTrainingGoals()">Lagre mål</button>
+          </div>
+        </div>
+        </div>
+
+        <div id="setupRaceGoal" class="setup-section hidden">
+        <div class="card">
+          <button class="btn-soft setup-back" onclick="openSetupSection('overview')">Tilbake til Setup</button>
+          <h2 class="section-title">Mål-løp</h2>
+          <p class="small-note">Registrer ett prioritert løp som appen kan telle ned mot i Innsikt.</p>
+          <div class="inline-form">
+            <div><label>Navn</label><input id="raceGoalName" placeholder="F.eks. Halv-Birken" /></div>
+            <div class="grid-2">
+              <div><label>Dato</label><input id="raceGoalDate" type="date" /></div>
+              <div><label>Distanse km</label><input id="raceGoalDistance" type="number" min="0" step="0.01" inputmode="decimal" placeholder="12" /></div>
+            </div>
+            <div><label>Måltid</label><input id="raceGoalTargetTime" placeholder="Valgfritt, f.eks. 1:05:00" /></div>
+            <div><label>Notat</label><textarea id="raceGoalNote" placeholder="Valgfritt mål, fokus eller løypeinfo"></textarea></div>
+            <div class="button-row">
+              <button class="btn-primary" onclick="saveRaceGoal()">Lagre mål-løp</button>
+              <button class="btn-soft" onclick="clearRaceGoal()">Tøm</button>
+            </div>
           </div>
         </div>
         </div>
@@ -992,6 +1024,23 @@
             <span>min/km</span>
           </div>
         </div>
+        <details class="optional-form-section">
+          <summary>Konkurranse / testløp</summary>
+          <p class="small-note">Brukes til personlige bestenoteringer og sammenligning av løp over tid.</p>
+          <div class="grid-2">
+            <div><label>Løpsnavn</label><input id="completeRaceName" placeholder="F.eks. Halv-Birken" /></div>
+            <div><label>Race-distanse km</label><input id="completeRaceDistance" type="number" min="0" step="0.01" inputmode="decimal" placeholder="F.eks. 2 eller 12" /></div>
+          </div>
+          <div class="grid-2">
+            <div><label>Resultattid</label><input id="completeRaceTime" placeholder="F.eks. 8:30 eller 1:05:00" /></div>
+            <div><label>Løype / sted</label><input id="completeRaceCourse" placeholder="Valgfritt" /></div>
+          </div>
+          <label class="checkbox-line">
+            <input id="completeRaceCountsPb" type="checkbox" checked />
+            Tell mot personlige bestenoteringer
+          </label>
+          <textarea id="completeRaceNote" placeholder="Race-notat, vær, løype, dagsform"></textarea>
+        </details>
         <div class="grid-2">
           <div><label>Snittpuls</label><input id="completeAvgHr" type="number" min="0" step="1" /></div>
           <div><label>Makspuls</label><input id="completeMaxHr" type="number" min="0" step="1" /></div>
