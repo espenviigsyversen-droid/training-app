@@ -30,6 +30,95 @@ export function assessTrafficLight(sleep, energy, restingHR, stairsOk, baselineR
   return 'green';
 }
 
+export function injurySignalSummary(checkins = []) {
+  const items = Array.isArray(checkins)
+    ? checkins
+        .filter(item => item && item.date && item.painNow !== '' && item.painNow !== null && item.painNow !== undefined)
+        .map(item => ({
+          date: String(item.date),
+          painNow: Math.max(0, Math.min(10, Number(item.painNow) || 0)),
+          area: String(item.area || '').trim(),
+          trend: String(item.trend || '').trim()
+        }))
+        .sort((a, b) => a.date.localeCompare(b.date))
+    : [];
+
+  if (!items.length) {
+    return {
+      hasSignal: false,
+      status: 'none',
+      statusLabel: 'Ingen aktiv oppfølging',
+      trendText: '',
+      area: '',
+      latestPain: null,
+      recommendation: 'Ingen nylig smerte registrert.',
+      releaseCriteria: 'Coachen slipper signalet når det ikke finnes aktiv smerte å følge opp.',
+      suggestedAction: 'Følg vanlig plan og registrer smerte hvis noe dukker opp.'
+    };
+  }
+
+  const latest = items[items.length - 1];
+  const first = items[0];
+  const prior = items.slice(0, -1);
+  const maxPriorPain = prior.length ? Math.max(...prior.map(item => item.painNow)) : first.painNow;
+  const trendText = items.map(item => `${item.painNow}`).join(' -> ');
+  const area = latest.area || [...items].reverse().find(item => item.area)?.area || '';
+  const latestPain = latest.painNow;
+  const previousPain = prior.length ? prior[prior.length - 1].painNow : null;
+  const improving = latest.trend === 'better' || latestPain < maxPriorPain;
+  const worsening = latest.trend === 'worse' || (previousPain !== null && latestPain > previousPain);
+
+  let status = 'stable';
+  let statusLabel = 'Stabil';
+  let recommendation = 'Hold treningen kontrollert og følg med på om samme område reagerer.';
+  let releaseCriteria = 'Slipp signalet etter smertefri økt eller 0-1/10 i minst én ny innsjekk.';
+  let suggestedAction = 'Velg rolig bevegelse eller en kort test hvis området kjennes trygt.';
+
+  if (latestPain <= 1) {
+    status = 'calming';
+    statusLabel = 'Nesten rolig';
+    recommendation = 'Smerten er lav. Normal trening kan vurderes hvis oppvarming og første minutter kjennes bra.';
+    releaseCriteria = 'Coachen kan slippe signalet etter smertefri økt eller én ny innsjekk på 0-1/10.';
+    suggestedAction = 'Start rolig, stopp hvis smerten øker, og logg responsen etter økten.';
+  } else if (worsening) {
+    status = 'worse';
+    statusLabel = 'Forverres';
+    recommendation = 'Smerten øker. Ikke løp hardt; velg hvile eller smertefri alternativ trening.';
+    releaseCriteria = 'Vent til trenden peker ned og smerten er 0-2/10 før løping bygges opp igjen.';
+    suggestedAction = 'Prioriter hvile, mobilitet uten smerte, rolig sykkel eller gåtur hvis det kjennes bedre.';
+  } else if (improving && latestPain <= 3) {
+    status = 'improving';
+    statusLabel = 'Bedres';
+    recommendation = 'Smerten er bedre, men fortsatt merkbar. Vent med hard løping; bruk rolig test eller alternativ trening.';
+    releaseCriteria = 'Slipp signalet når smerten er 0-1/10 eller en rolig økt er gjennomført uten økning.';
+    suggestedAction = 'Aktuelt nå: hvile, rolig sykkel, mobilitet eller 10-20 min svært rolig test uten drag.';
+  } else if (latestPain >= 5) {
+    status = 'high';
+    statusLabel = 'Høy';
+    recommendation = 'Dette er fortsatt høy smerte. Kroppssignalet bør overstyre planen.';
+    releaseCriteria = 'Vent til smerten er tydelig lavere og stabil før løping vurderes.';
+    suggestedAction = 'Velg hvile eller smertefri alternativ trening. Ikke test hard løping.';
+  } else if (latestPain >= 3) {
+    status = 'caution';
+    statusLabel = 'Følg nøye';
+    recommendation = 'Moderat smerte bør avklares før kvalitet eller lengre løping.';
+    releaseCriteria = 'Slipp signalet etter 0-1/10 eller smertefri rolig økt.';
+    suggestedAction = 'Velg kort, rolig økt eller alternativ trening. Unngå terskel/intervall.';
+  }
+
+  return {
+    hasSignal: true,
+    status,
+    statusLabel,
+    trendText,
+    area,
+    latestPain,
+    recommendation,
+    releaseCriteria,
+    suggestedAction
+  };
+}
+
 export function todayDecision(input = {}) {
   const plannedLabel = String(input.plannedWorkoutLabel || '').trim();
   const hasPlannedToday = Boolean(input.hasPlannedToday);

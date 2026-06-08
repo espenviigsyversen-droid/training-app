@@ -36,6 +36,7 @@ function test(name, fn) {
     formatRaceTime,
     goldenZonePercentages,
     hasStructuredIntervals,
+    injurySignalSummary,
     combinedRaceResults,
     normalizeRaceGoal,
     normalizeRaceResult,
@@ -128,8 +129,12 @@ function test(name, fn) {
     assert.ok(app.includes('Smerteoppfølging:'), 'coach basis should mention injury follow-up trend');
     assert.ok(app.includes('function improvingPainFollowup'), 'coach context should detect improving pain follow-up');
     assert.ok(app.includes('painImprovingAfterHigh: Boolean(painImproving)'), 'today decision should receive improving pain follow-up');
+    assert.ok(index.includes('id="insightInjurySignalCard"'), 'insight injury signal card is missing');
+    assert.ok(app.includes('renderInjurySignalInsight(today)'), 'insights should render injury signal summary');
+    assert.ok(app.includes('injurySignalSummary(injurySignalEntriesUntil(today, 7))'), 'injury signal insight should use domain summary');
     assert.ok(styles.includes('.injury-checkin-compact'), 'compact injury check-in styling is missing');
     assert.ok(styles.includes('.injury-checkin-card'), 'injury check-in card styling is missing');
+    assert.ok(styles.includes('.injury-signal-card'), 'injury signal insight styling is missing');
   });
 
   test('settings include internal structured interval feature flag', () => {
@@ -637,6 +642,30 @@ function test(name, fn) {
     const decision = todayDecision({});
     assert.strictEqual(decision.level, 'neutral');
     assert.match(decision.title, /Planlegg/);
+  });
+
+  test('injury signal summary recognizes improving pain trend', () => {
+    const summary = injurySignalSummary([
+      { date: '2026-06-07', painNow: 5, area: 'Venstre kne' },
+      { date: '2026-06-08', painNow: 3, area: 'Venstre kne', trend: 'better' }
+    ]);
+    assert.strictEqual(summary.hasSignal, true);
+    assert.strictEqual(summary.status, 'improving');
+    assert.strictEqual(summary.statusLabel, 'Bedres');
+    assert.strictEqual(summary.trendText, '5 -> 3');
+    assert.strictEqual(summary.area, 'Venstre kne');
+    assert.match(summary.suggestedAction, /rolig sykkel|svært rolig test/);
+    assert.match(summary.releaseCriteria, /0-1\/10|smertefri/);
+  });
+
+  test('injury signal summary warns on worsening pain trend', () => {
+    const summary = injurySignalSummary([
+      { date: '2026-06-07', painNow: 2, area: 'Venstre kne' },
+      { date: '2026-06-08', painNow: 4, area: 'Venstre kne', trend: 'worse' }
+    ]);
+    assert.strictEqual(summary.status, 'worse');
+    assert.match(summary.recommendation, /Ikke løp hardt/);
+    assert.match(summary.suggestedAction, /hvile|sykkel|gåtur/);
   });
 
   test('golden zone percentages match training levels', () => {

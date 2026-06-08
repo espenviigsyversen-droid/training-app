@@ -2196,6 +2196,59 @@
       margin-bottom: 10px;
     }
 
+    .injury-signal-card {
+      display: grid;
+      gap: 12px;
+    }
+
+    .injury-signal-head {
+      border: 1px solid rgba(255, 79, 46, 0.18);
+      border-radius: 14px;
+      background: rgba(255, 79, 46, 0.045);
+      padding: 12px;
+      display: grid;
+      gap: 4px;
+    }
+
+    .injury-signal-head span {
+      color: var(--red);
+      font-size: 0.78rem;
+      font-weight: 900;
+      text-transform: uppercase;
+    }
+
+    .injury-signal-head strong {
+      font-size: 1.05rem;
+    }
+
+    .injury-signal-head.calming {
+      border-color: rgba(34, 197, 94, 0.22);
+      background: rgba(34, 197, 94, 0.07);
+    }
+
+    .injury-signal-head.calming span {
+      color: #149447;
+    }
+
+    .injury-signal-head.improving {
+      border-color: rgba(245, 158, 11, 0.24);
+      background: #fff8e8;
+    }
+
+    .injury-signal-head.improving span {
+      color: #b77900;
+    }
+
+    .injury-signal-head.worse,
+    .injury-signal-head.high {
+      border-color: rgba(220, 38, 38, 0.22);
+      background: #fff1ee;
+    }
+
+    .injury-signal-grid {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
     .coach-basis {
       margin-top: 10px;
     }
@@ -3075,6 +3128,10 @@
 
       .injury-checkin-compact {
         align-items: flex-start;
+      }
+
+      .injury-signal-grid {
+        grid-template-columns: 1fr;
       }
 
       .detail-modal {

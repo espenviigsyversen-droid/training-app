@@ -31,6 +31,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       raceGoalCountdown,
       raceReadinessSummary,
       hasStructuredIntervals,
+      injurySignalSummary,
       startOfWeek,
       structuredIntervalContext,
       structuredIntervalInsights,
@@ -41,7 +42,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       weekPlanDatesInRange as weekPlanDatesInRangeCore
     } from './domain-core.js';
 
-    const APP_VERSION = 'v118';
+    const APP_VERSION = 'v119';
     const APP_CACHE_NAME = `treningsapp-${APP_VERSION}`;
 
     const firebaseConfig = {
@@ -275,6 +276,27 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
           notes: item.note || ''
         }
       }));
+    }
+
+    function injurySignalEntriesUntil(today = todayISO(), days = 7) {
+      const cutoff = addDays(today, -(days - 1));
+      const completedSignals = state.completed
+        .filter(item => item.date >= cutoff && item.date <= today && hasPainSignal(item))
+        .map(item => ({
+          date: item.date,
+          painNow: Math.max(numberOrZero(item.bodyStatus?.painBefore), numberOrZero(item.bodyStatus?.painAfter)),
+          area: item.bodyStatus?.area || '',
+          trend: '',
+          source: 'completed'
+        }))
+        .filter(item => Number(item.painNow) > 0);
+      return [...completedSignals, ...dailyInjuryCheckinsUntil(today, days)]
+        .sort((a, b) => {
+          const dateSort = String(a.date || '').localeCompare(String(b.date || ''));
+          if (dateSort) return dateSort;
+          const sourceOrder = { completed: 1, daily: 2 };
+          return (sourceOrder[a.source] || 0) - (sourceOrder[b.source] || 0);
+        });
     }
 
     function latestPainReference(today = todayISO()) {
@@ -6280,6 +6302,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
 
       renderBakkenPatterns();
       renderStructuredIntervalInsights(today);
+      renderInjurySignalInsight(today);
       renderRaceInsights(today);
       renderWellnessInsights();
       const coachCtx = buildCoachContext();
@@ -6316,6 +6339,32 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         ? `Siste: ${formatDate(insight.latest.date)} · ${insight.latest.name} · ${insight.latest.summary}`
         : '';
       note.textContent = 'Strukturert intervallarbeid hjelper deg å se faktisk kvalitetstid, ikke bare total økttid.';
+    }
+
+    function renderInjurySignalInsight(today) {
+      const card = document.getElementById('insightInjurySignalCard');
+      const container = document.getElementById('insightInjurySignal');
+      if (!card || !container) return;
+      const summary = injurySignalSummary(injurySignalEntriesUntil(today, 7));
+      if (!summary.hasSignal) {
+        card.style.display = 'none';
+        container.innerHTML = '';
+        return;
+      }
+      card.style.display = '';
+      container.innerHTML = `
+        <div class="injury-signal-head ${escapeHtml(summary.status)}">
+          <span>${escapeHtml(summary.statusLabel)}</span>
+          <strong>${escapeHtml(summary.area || 'Kroppssignal')}</strong>
+        </div>
+        <div class="insight-grid injury-signal-grid">
+          <div class="insight-stat"><strong>${escapeHtml(summary.trendText || '-')}</strong><span>Siste 7 dager</span></div>
+          <div class="insight-stat"><strong>${summary.latestPain ?? '-'}/10</strong><span>Siste smerte</span></div>
+          <div class="insight-stat"><strong>${escapeHtml(summary.statusLabel)}</strong><span>Status</span></div>
+        </div>
+        <p><strong>Anbefaling:</strong> ${escapeHtml(summary.recommendation)}</p>
+        <p><strong>Aktuelt nå:</strong> ${escapeHtml(summary.suggestedAction)}</p>
+        <p class="small-note"><strong>Når slipper coachen signalet:</strong> ${escapeHtml(summary.releaseCriteria)}</p>`;
     }
 
     function renderRaceInsights(today) {
