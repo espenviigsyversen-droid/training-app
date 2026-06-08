@@ -29,6 +29,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       raceHistoryForDistance,
       raceDistanceLabel,
       raceGoalCountdown,
+      raceReadinessSummary,
       hasStructuredIntervals,
       startOfWeek,
       structuredIntervalContext,
@@ -40,7 +41,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       weekPlanDatesInRange as weekPlanDatesInRangeCore
     } from './domain-core.js';
 
-    const APP_VERSION = 'v114';
+    const APP_VERSION = 'v115';
     const APP_CACHE_NAME = `treningsapp-${APP_VERSION}`;
 
     const firebaseConfig = {
@@ -6076,12 +6077,29 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         raceDistanceLabel(countdown.distanceKm),
         countdown.targetTimeSeconds ? `mål ${formatRaceTime(countdown.targetTimeSeconds)}` : ''
       ].filter(Boolean).join(' · ');
+      const readiness = raceReadinessSummary(state.settings.raceGoal, completedRaceItems(), state.raceResults, today);
+      const latest = readiness.latestRelevant;
+      const targetPace = readiness.targetPaceSeconds ? formatRaceTime(readiness.targetPaceSeconds) + ' /km' : '';
+      const projected = readiness.projectedTargetSeconds ? formatRaceTime(readiness.projectedTargetSeconds) : '';
+      const latestText = latest
+        ? `${raceDistanceLabel(latest.distanceKm)} på ${formatRaceTime(latest.resultSeconds)}${latest.name || latest.workoutName ? ` · ${latest.name || latest.workoutName}` : ''}`
+        : 'Ingen relevant test ennå';
       container.innerHTML = `
         <div class="race-goal-main">
           <span class="tag ${countdown.status === 'past' ? 'tag-warning' : 'race-tag'}">${escapeHtml(countdown.label)}</span>
           <strong>${escapeHtml(countdown.name || 'Mål-løp')}</strong>
           ${meta ? `<p>${escapeHtml(meta)}</p>` : ''}
           ${countdown.note ? `<p class="small-note">${escapeHtml(countdown.note)}</p>` : ''}
+          <div class="race-readiness ${readiness.status}">
+            <div class="race-readiness-grid">
+              <span><b>${escapeHtml(targetPace || '-')}</b><small>Målpace</small></span>
+              <span><b>${escapeHtml(latest ? formatRaceTime(latest.resultSeconds) : '-')}</b><small>Siste test</small></span>
+              <span><b>${escapeHtml(projected || '-')}</b><small>Est. mål</small></span>
+            </div>
+            <p><strong>Siste relevante test:</strong> ${escapeHtml(latestText)}</p>
+            <p>${escapeHtml(readiness.note)}</p>
+            <p class="race-next-step">${escapeHtml(readiness.nextStep)}</p>
+          </div>
         </div>`;
     }
 

@@ -323,6 +323,99 @@ export function raceHistoryForDistance(completedItems = [], manualRaceResults = 
   };
 }
 
+export function raceReadinessSummary(goal = {}, completedItems = [], manualRaceResults = [], todayIso = dateToISO(new Date())) {
+  const countdown = raceGoalCountdown(goal, todayIso);
+  if (!countdown || (!countdown.name && !countdown.date)) {
+    return { status: 'no_goal', countdown: null, targetPaceSeconds: null, latestRelevant: null, projectedTargetSeconds: null, paceGapSeconds: null, note: '', nextStep: '' };
+  }
+
+  const targetDistance = Number(countdown.distanceKm) || 0;
+  const targetTime = Number(countdown.targetTimeSeconds) || 0;
+  const targetPaceSeconds = targetDistance && targetTime ? Math.round(targetTime / targetDistance) : null;
+  const allResults = combinedRaceResults(completedItems, manualRaceResults)
+    .filter(result => result.countsAsPersonalBest !== false)
+    .filter(result => Number(result.distanceKm) > 0 && Number(result.resultSeconds) > 0);
+  const relevant = targetDistance
+    ? allResults
+        .filter(result => Number(result.distanceKm) <= targetDistance + 0.02)
+        .sort((a, b) => {
+          const dateDiff = String(b.date || '').localeCompare(String(a.date || ''));
+          if (dateDiff !== 0) return dateDiff;
+          return Number(b.distanceKm) - Number(a.distanceKm);
+        })
+    : allResults;
+  const latestRelevant = relevant[0] || null;
+
+  if (!targetDistance) {
+    return {
+      status: 'missing_distance',
+      countdown,
+      targetPaceSeconds,
+      latestRelevant,
+      projectedTargetSeconds: null,
+      paceGapSeconds: null,
+      note: 'Legg inn distanse på mål-løpet for å få bedre race-status.',
+      nextStep: 'Sett distanse først, så kan appen sammenligne testløp med målet.'
+    };
+  }
+
+  if (!targetPaceSeconds) {
+    return {
+      status: latestRelevant ? 'missing_target_time' : 'needs_test',
+      countdown,
+      targetPaceSeconds,
+      latestRelevant,
+      projectedTargetSeconds: null,
+      paceGapSeconds: null,
+      note: latestRelevant
+        ? `Siste relevante test er ${raceDistanceLabel(latestRelevant.distanceKm)} på ${formatRaceTime(latestRelevant.resultSeconds)}.`
+        : 'Mål-løpet er registrert, men appen mangler relevant testdata og måltid.',
+      nextStep: latestRelevant
+        ? 'Legg inn måltid hvis du vil sammenligne pace mot målet.'
+        : 'Logg et kontrollert testløp på 2-10 km for å få et tydeligere nå-bilde.'
+    };
+  }
+
+  if (!latestRelevant) {
+    return {
+      status: 'needs_test',
+      countdown,
+      targetPaceSeconds,
+      latestRelevant: null,
+      projectedTargetSeconds: null,
+      paceGapSeconds: null,
+      note: 'Målet er satt, men appen mangler relevante testløp å sammenligne mot.',
+      nextStep: 'Planlegg et kontrollert 2-5 km testløp eller legg inn en gammel tid manuelt.'
+    };
+  }
+
+  const resultPace = Math.round(Number(latestRelevant.resultSeconds) / Number(latestRelevant.distanceKm));
+  const projectedTargetSeconds = Math.round(resultPace * targetDistance);
+  const paceGapSeconds = resultPace - targetPaceSeconds;
+  const status = paceGapSeconds <= 0 ? 'ahead' : paceGapSeconds <= 20 ? 'close' : 'behind';
+  const note = status === 'ahead'
+    ? `Siste relevante testpace er raskere enn målpace. Hold kontinuiteten og bygg trygt.`
+    : status === 'close'
+    ? `Siste relevante testpace er nær målpace. Det viktigste blir rolig volum og kontrollert kvalitet.`
+    : `Siste relevante testpace er roligere enn målpace. Målet trenger trolig mer volum, terskel og tid.`;
+  const nextStep = status === 'ahead'
+    ? 'Neste smarte steg: vedlikehold rolig volum og legg inn kontrollert kvalitet uten å jage maks.'
+    : status === 'close'
+    ? 'Neste smarte steg: bygg rolig mengde og bruk en kontrollert 5-10 km test senere.'
+    : 'Neste smarte steg: bygg rolig volum først, og bruk korte testløp for å følge fremgang.';
+
+  return {
+    status,
+    countdown,
+    targetPaceSeconds,
+    latestRelevant,
+    projectedTargetSeconds,
+    paceGapSeconds,
+    note,
+    nextStep
+  };
+}
+
 export function formatKm(km) {
   const value = Number(km) || 0;
   return `${value.toLocaleString('no-NO', { maximumFractionDigits: value < 10 ? 1 : 0 })} km`;

@@ -52,7 +52,7 @@ Hvis `service-worker.js` eller `app.js` endres, vurder om PWA-versjonen må bump
 - `APP_VERSION` i `app.js`
 - `CACHE_NAME` i `service-worker.js`
 
-Disse skal normalt matche, f.eks. `v114` og `treningsapp-v114`.
+Disse skal normalt matche, f.eks. `v115` og `treningsapp-v115`.
 
 Når `APP_VERSION` / `CACHE_NAME` bumpes, skal synlig versjonsinfo i appen også kontrolleres:
 

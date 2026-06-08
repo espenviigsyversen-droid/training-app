@@ -49,6 +49,7 @@ function test(name, fn) {
     raceHistoryForDistance,
     raceDistanceLabel,
     raceGoalCountdown,
+    raceReadinessSummary,
     structuredIntervalContext,
     structuredIntervalInsights,
     structuredWorkoutBreakdown,
@@ -146,6 +147,7 @@ function test(name, fn) {
     assert.ok(app.includes('personalBestSummary(items, state.raceResults)'), 'personal bests should include manual race results');
     assert.ok(app.includes('state.settings.raceGoal = normalizeRaceGoal'), 'race goal should be saved through normalized settings');
     assert.ok(app.includes('renderRaceInsights(today)'), 'insights should render race insights');
+    assert.ok(app.includes('raceReadinessSummary(state.settings.raceGoal'), 'race goal insight should render race readiness');
   });
 
   test('personal best history modal is wired into production files', () => {
@@ -262,6 +264,32 @@ function test(name, fn) {
     assert.strictEqual(countdown.targetTimeSeconds, 3900);
     assert.strictEqual(countdown.daysLeft, 7);
     assert.strictEqual(countdown.label, '7 dager igjen');
+  });
+
+  test('race readiness suggests test when goal has no relevant result', () => {
+    const readiness = raceReadinessSummary(
+      { name: 'Halv-Birken', date: '2027-06-08', distanceKm: 12, targetTimeSeconds: 4800 },
+      [],
+      [],
+      '2027-06-01'
+    );
+    assert.strictEqual(readiness.status, 'needs_test');
+    assert.strictEqual(readiness.targetPaceSeconds, 400);
+    assert.ok(readiness.nextStep.includes('testløp'));
+  });
+
+  test('race readiness compares latest relevant test pace against target pace', () => {
+    const readiness = raceReadinessSummary(
+      { name: 'Halv-Birken', date: '2027-06-08', distanceKm: 12, targetTimeSeconds: 4800 },
+      [{ id: 'ten', date: '2026-06-01', raceResult: { name: '10 km test', distanceKm: 10, resultSeconds: 4200 } }],
+      [],
+      '2027-06-01'
+    );
+    assert.strictEqual(readiness.status, 'close');
+    assert.strictEqual(readiness.latestRelevant.name, '10 km test');
+    assert.strictEqual(readiness.targetPaceSeconds, 400);
+    assert.strictEqual(readiness.projectedTargetSeconds, 5040);
+    assert.strictEqual(readiness.paceGapSeconds, 20);
   });
 
   test('calendar day modal refreshes after marking planned workout complete', () => {
