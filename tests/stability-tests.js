@@ -108,6 +108,18 @@ function test(name, fn) {
     assert.ok(app.includes('Cache: ${APP_CACHE_NAME}'), 'visible cache name should use APP_CACHE_NAME');
   });
 
+  test('goals tab replaces setup in bottom navigation and setup opens from header', () => {
+    assert.ok(index.includes('id="goals" class="tab"'), 'goals tab section is missing');
+    assert.ok(index.includes('data-tab="goals"'), 'goals tab is missing from bottom navigation');
+    assert.ok(index.includes('<span>Mål</span>'), 'goals navigation label is missing');
+    assert.ok(!index.includes('data-tab="settings"'), 'setup should not be in bottom navigation');
+    assert.ok(index.includes('class="header-setup-btn"'), 'header setup button is missing');
+    assert.ok(index.includes('openSetupFromHeader()'), 'header setup button should call openSetupFromHeader');
+    assert.ok(app.includes('window.openSetupFromHeader'), 'openSetupFromHeader handler is missing');
+    assert.ok(app.includes('renderGoals(today)'), 'render loop should render goals content');
+    assert.ok(read('styles.css').includes('#goals.tab.active'), 'desktop goals layout is missing');
+  });
+
   test('dashboard renders today decision from domain logic', () => {
     assert.ok(index.includes('id="homeDecision"'), 'dashboard should include visible today decision element');
     assert.ok(app.includes('renderTodayDecision(buildTodayDecision(coachCtx, primaryItems, todayItems))'), 'dashboard should render today decision from coach context');

@@ -48,6 +48,32 @@
       border-bottom: 1px solid rgba(0,0,0,0.04);
     }
 
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+    }
+
+    .header-setup-btn {
+      width: 40px;
+      height: 40px;
+      border-radius: 20px;
+      border: 1px solid rgba(17,17,17,0.08);
+      background: var(--warm-gray-1);
+      color: var(--black);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+      box-shadow: none;
+    }
+
+    .header-setup-btn svg {
+      width: 19px;
+      height: 19px;
+    }
+
     .title-row {
       display: flex;
       align-items: center;
@@ -3323,6 +3349,21 @@
       #insights .trend-grid,
       #insights .volume-summary {
         grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+
+      #goals.tab.active {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 16px;
+        align-items: start;
+      }
+
+      #goals > .desktop-wide {
+        grid-column: 1 / -1;
+      }
+
+      #goals .personal-best-grid {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
       }
 
       #calendar.tab.active {

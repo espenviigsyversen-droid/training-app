@@ -47,8 +47,14 @@
             <span id="syncLabel">Synkronisert</span>
           </div>
         </div>
-        <div style="display:flex;align-items:center;gap:10px;">
+        <div class="header-actions">
           <span class="pill" id="todayPill">I dag</span>
+          <button class="header-setup-btn" onclick="openSetupFromHeader()" aria-label="Åpne Setup">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.38a2 2 0 0 0-.73-2.73l-.15-.09a2 2 0 0 1-1-1.74v-.51a2 2 0 0 1 1-1.72l.15-.1a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path>
+              <circle cx="12" cy="12" r="3"></circle>
+            </svg>
+          </button>
           <div id="userAvatarBtn"></div>
         </div>
       </div>
@@ -445,24 +451,6 @@
           <p id="insightStructuredIntervalLatest" class="small-note interval-latest"></p>
           <p id="insightStructuredIntervalNote" class="small-note"></p>
         </div>
-        <div id="insightRaceGoalCard" class="card" style="display:none;">
-          <h2 class="section-title">Mål-løp</h2>
-          <div id="insightRaceGoal" class="race-goal-card"></div>
-        </div>
-        <div id="insightPersonalBestsCard" class="card" style="display:none;">
-          <div class="section-title-row">
-            <h2 class="section-title">Personlige bestenoteringer</h2>
-            <button class="btn-soft btn-icon" onclick="openManualRaceResultForm()" aria-label="Legg til manuell bestenotering">✎</button>
-          </div>
-          <div id="insightPersonalBests" class="personal-best-grid"></div>
-          <p id="insightRaceLatest" class="small-note"></p>
-          <p class="small-note">Basert på økter der konkurranse/testløp er registrert og markert som tellende for PB.</p>
-        </div>
-        <div class="card">
-          <h2 class="section-title">Challenges</h2>
-          <p class="small-note">Kortsiktige mål for ekstra motivasjon, for eksempel kilometer, timer eller antall økter i en periode.</p>
-          <div id="challengeList" class="challenge-list"></div>
-        </div>
         <div class="card">
           <h2 class="section-title">Ukestatus</h2>
           <div id="insightWeeklyStatus"></div>
@@ -518,6 +506,31 @@
           <h2 class="section-title">Formutvikling</h2>
           <p class="small-note">Manuelle målinger fra Garmin. Brukes som signaler, ikke som fasit alene.</p>
           <div id="insightWellnessTrend" class="trend-grid"></div>
+        </div>
+      </section>
+
+      <section id="goals" class="tab">
+        <div class="card desktop-wide">
+          <h2 class="section-title">Mål</h2>
+          <p class="small-note">Følg konkurranser, personlige bestenoteringer og kortsiktige mål på ett sted.</p>
+        </div>
+        <div id="insightRaceGoalCard" class="card" style="display:none;">
+          <h2 class="section-title">Mål-løp</h2>
+          <div id="insightRaceGoal" class="race-goal-card"></div>
+        </div>
+        <div id="insightPersonalBestsCard" class="card" style="display:none;">
+          <div class="section-title-row">
+            <h2 class="section-title">Personlige bestenoteringer</h2>
+            <button class="btn-soft btn-icon" onclick="openManualRaceResultForm()" aria-label="Legg til manuell bestenotering">✎</button>
+          </div>
+          <div id="insightPersonalBests" class="personal-best-grid"></div>
+          <p id="insightRaceLatest" class="small-note"></p>
+          <p class="small-note">Basert på økter der konkurranse/testløp er registrert og markert som tellende for PB.</p>
+        </div>
+        <div class="card">
+          <h2 class="section-title">Challenges</h2>
+          <p class="small-note">Kortsiktige mål for ekstra motivasjon, for eksempel kilometer, timer eller antall økter i en periode.</p>
+          <div id="challengeList" class="challenge-list"></div>
         </div>
       </section>
 
@@ -993,12 +1006,11 @@
         </svg>
         <span>Innsikt</span>
       </button>
-      <button data-tab="settings" onclick="showTab('settings', this)" aria-label="Setup">
+      <button data-tab="goals" onclick="showTab('goals', this)" aria-label="Mål">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.38a2 2 0 0 0-.73-2.73l-.15-.09a2 2 0 0 1-1-1.74v-.51a2 2 0 0 1 1-1.72l.15-.1a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path>
-          <circle cx="12" cy="12" r="3"></circle>
+          <path d="M12 3l2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.3 6.4 20.2 7.5 14 3 9.6l6.2-.9L12 3z"></path>
         </svg>
-        <span>Setup</span>
+        <span>Mål</span>
       </button>
     </nav>
   </div>

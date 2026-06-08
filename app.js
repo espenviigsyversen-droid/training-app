@@ -44,7 +44,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       weekPlanDatesInRange as weekPlanDatesInRangeCore
     } from './domain-core.js';
 
-    const APP_VERSION = 'v121';
+    const APP_VERSION = 'v122';
     const APP_CACHE_NAME = `treningsapp-${APP_VERSION}`;
 
     const firebaseConfig = {
@@ -1199,11 +1199,19 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       if (navBtn) {
         document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
         navBtn.classList.add('active');
+      } else if (tabId === 'settings') {
+        document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
       }
       document.getElementById('userMenu').classList.add('hidden');
       if (tabId === 'settings' && btn) openSetupSection('overview');
       render();
       if (isMainNavTab || previousTab === tabId) scrollAppToTop();
+    };
+
+    window.openSetupFromHeader = function() {
+      showTab('settings');
+      openSetupSection('overview');
+      scrollAppToTop();
     };
 
     window.openPlan = function(dateIso = '', allowBlocked = false) {
@@ -6342,7 +6350,6 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       renderBakkenPatterns();
       renderStructuredIntervalInsights(today);
       renderInjurySignalInsight(today);
-      renderRaceInsights(today);
       renderWellnessInsights();
       const coachCtx = buildCoachContext();
       const insightCoachNote = document.getElementById('insightCoachNote');
@@ -6409,6 +6416,10 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     function renderRaceInsights(today) {
       renderRaceGoalInsight(today);
       renderPersonalBestInsights();
+    }
+
+    function renderGoals(today) {
+      renderRaceInsights(today);
     }
 
     function completedRaceItems() {
@@ -6635,6 +6646,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       if (!document.getElementById('challengeStartDate').value || !document.getElementById('challengeEndDate').value) clearChallengeForm();
       renderHistoryFilterOptions();
       renderInsights();
+      renderGoals(today);
       renderChallenges();
 
       const plannedActive = state.planned.filter(p => p.status !== 'done');
