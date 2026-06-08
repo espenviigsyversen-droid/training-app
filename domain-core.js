@@ -36,6 +36,7 @@ export function todayDecision(input = {}) {
   const hasNextPlanned = Boolean(input.hasNextPlanned || plannedLabel);
   const readiness = input.dailyReadinessLevel || null;
   const painTier = input.highestPainTier || null;
+  const painImprovingAfterHigh = Boolean(input.painImprovingAfterHigh);
   const adaptationCount = Number(input.bodySignals14Adaptation || 0);
   const structured7 = Number(input.structuredIntervalsLast7Count || 0);
   const closeQualityDays = Boolean(input.structuredIntervalsCloseQualityDays);
@@ -45,21 +46,30 @@ export function todayDecision(input = {}) {
   const weekSessions = Number(input.weekSessions || 0);
   const weeklyTarget = Number(input.weeklyTarget || 0);
 
-  if (painTier === 'high') {
-    return {
-      level: 'red',
-      title: 'Hvil eller velg alternativ trening',
-      action: 'Ikke press gjennom høy smerte i dag.',
-      reason: 'Aktive kroppssignaler skal styre før planen.'
-    };
-  }
-
   if (readiness === 'red') {
     return {
       level: 'red',
       title: 'Restitusjon først',
       action: 'Hvil, gå lett eller velg en svært rolig alternativ økt.',
       reason: 'Dagsformen er rød, så planen bør vike for kroppen.'
+    };
+  }
+
+  if (painImprovingAfterHigh) {
+    return {
+      level: 'yellow',
+      title: 'Forsiktig oppfølging',
+      action: 'Velg hvile, alternativ trening eller svært rolig test.',
+      reason: 'Smerten er bedre, men fortsatt moderat og skal styre før planen.'
+    };
+  }
+
+  if (painTier === 'high') {
+    return {
+      level: 'red',
+      title: 'Hvil eller velg alternativ trening',
+      action: 'Ikke press gjennom høy smerte i dag.',
+      reason: 'Aktive kroppssignaler skal styre før planen.'
     };
   }
 

@@ -1,5 +1,5 @@
 # Treningsapp — progress.md
-Oppdatert: 2026-06-08 (siste endringer: v75–v117)
+Oppdatert: 2026-06-08 (siste endringer: v75–v118)
 
 ---
 
@@ -27,7 +27,7 @@ Standard Bakken-uke: Hoved-terskel → Støtte-terskel → Lang rolig → Valgfr
 **Hosting:** GitHub Pages.  
 **Backend:** Firebase (prosjekt `home-tasks-app-18de3`) — Firestore + Google Auth.  
 **Frontend:** Vanilla JS + HTML + CSS, single-page app, tab-navigasjon.  
-**Versjon:** v117 (konstant i `app.js`).
+**Versjon:** v118 (konstant i `app.js`).
 
 ### Filer
 
@@ -89,6 +89,7 @@ Treningsapp/
 - **Race-beredskap for mål-løp** (v115): Mål-løp-kortet i Innsikt viser nå en enkel regelstyrt status: målpace, siste relevante test, estimert mål-tid basert på siste testpace, en kort vurdering og neste smarte steg. Beregningen bruker eksisterende mål-løp, loggede race/testløp og manuelle race-resultater, uten AI og uten ny skjerm.
 - **Skadesignal-oppfølging i Dagsform** (v116): Hvis det finnes nylig smerte fra logget økt eller daglig oppfølging, viser Dagsform en diskret oppfølgingsdel der dagens smerte, utvikling, område og notat kan lagres uten å logge en fake økt. Data lagres i `settings.dailyReadiness[date].injuryCheckin`, normaliseres sammen med øvrig dagsformdata og brukes i coach-kontekst/ukeplan som kroppssignal før neste planlagte økt.
 - **Kompakt smerteoppfølging på Hjem** (v117): Smerteoppfølgingen i Dagsform er nå kollapset som standard etter lagring eller når den bare skal følges opp. Hjem viser en kort signalrad med smerte/trend og `Endre`/`Registrer`, mens hele skjemaet åpnes først når brukeren aktivt vil registrere eller endre smerte. Dette holder Hjem-skjermen mer skannbar uten å fjerne funksjonalitet.
+- **Mer presis smertebedring i Dagens råd** (v118): Hvis høy smerte fra tidligere dag følges opp med dagens smerte på 1–3/10 og trend `bedre`, tolker `Dagens råd` dette som forsiktig gul oppfølging i stedet for ren høy-smerte-alarm. Rådet anbefaler fortsatt hvile, alternativ trening eller svært rolig test, men teksten anerkjenner forbedringen og unngår å overstyre dagens innsjekk.
 - **Fjernet «Foreslå neste økt»** (v92): Kortet er fjernet fra Kalender-fanen. Ukeplanen dekker samme behov bedre og er rollebevisst. `renderWorkoutSuggestion`-kallet er fjernet fra render-løkken for å unngå krasj.
 - **Coach: smertegradering + priority-felt + X-økt** (v91): Tre coach-forbedringer: (1) `bodySignalState` skiller nå mellom mild smerte (1–2/10 → `cooling`, foreslår terskel etter en rolig økt) og bekymringsfull smerte (3+/10 → `caution`, kun recovery). Løser at mild smerte blokkerte terskelforslag for hele neste uke. (2) `priority`-feltet i treningsprofilen er nå aktivt: `performance` foreslår terskel straks det er rom, `injury_free_progression` krever 2 rolige øyer før terskel. (3) X-økt vises alltid som 4. forslag i normaluke når det er rom — sikrer at VO2max/teknikk/styrke alltid er synlig som alternativ.
 - **Hjem: alle økter samme dag** (v90): «Neste økt» / «Dagens økt» viser nå alle planlagte økter på samme dato, ikke bare én. For fremtidige dager grupperes etter første kommende dato (`nextDateItems`). Tittelen skifter til «Dagens økt» automatisk når det finnes økter på dagens dato (eksisterende logikk).

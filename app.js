@@ -41,7 +41,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       weekPlanDatesInRange as weekPlanDatesInRangeCore
     } from './domain-core.js';
 
-    const APP_VERSION = 'v117';
+    const APP_VERSION = 'v118';
     const APP_CACHE_NAME = `treningsapp-${APP_VERSION}`;
 
     const firebaseConfig = {
@@ -4927,12 +4927,35 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       renderWeekPlan(today, weekSummary, weekItems, last14DaysForSignals, profile, goals, plannedActive);
     }
 
+    function improvingPainFollowup(ctx) {
+      const latestCheckin = ctx.injuryCheckins14?.[ctx.injuryCheckins14.length - 1] || null;
+      if (!latestCheckin || latestCheckin.trend !== 'better') return null;
+      if (latestCheckin.date !== ctx.today) return null;
+      const currentScore = Number(latestCheckin.painNow);
+      if (!Number.isFinite(currentScore) || currentScore < 1 || currentScore > 3) return null;
+      const area = String(latestCheckin.area || '').trim().toLowerCase();
+      const previousHigh = (ctx.gradedPain?.activePain || []).find(item => {
+        if (item.tier !== 'high' || item.daysAgo <= 0) return false;
+        const itemArea = String(item.area || '').trim().toLowerCase();
+        return !area || !itemArea || area === itemArea;
+      });
+      if (!previousHigh || previousHigh.score <= currentScore) return null;
+      return {
+        area: latestCheckin.area || previousHigh.area || '',
+        previousScore: previousHigh.score,
+        currentScore,
+        daysAgo: previousHigh.daysAgo
+      };
+    }
+
     function buildTodayDecision(ctx, primaryItems = [], todayItems = []) {
       const firstPlanned = primaryItems[0] || ctx.nextPlanned || null;
       const template = firstPlanned ? getTemplate(firstPlanned.templateId) : null;
+      const painImproving = improvingPainFollowup(ctx);
       return todayDecision({
         dailyReadinessLevel: ctx.dailyReadiness?.level || null,
         highestPainTier: ctx.gradedPain?.highestTier || null,
+        painImprovingAfterHigh: Boolean(painImproving),
         bodySignals14Adaptation: ctx.bodySignals14?.adaptation || 0,
         plannedWorkoutLabel: template?.name || '',
         hasPlannedToday: todayItems.length > 0,
@@ -5941,10 +5964,15 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
               bodySignals14, consecutiveDays, daysSinceLast, lastWorkout,
               goldenZone, goldenZoneViolations,
               hardCount14, easyCount14, intensityRatio14, last14Days,
-              gradedPain, dailyReadiness, structuredIntervals } = ctx;
+              gradedPain, dailyReadiness, structuredIntervals, injuryCheckins14 } = ctx;
 
       // 1. Smerte — gradert respons etter alvorlighetsgrad (Bakken: body_signals_first)
       const { activePain, resolvedRecently, highestTier } = gradedPain;
+      const painImproving = improvingPainFollowup({ ...ctx, injuryCheckins14 });
+      if (painImproving) {
+        const loc = painImproving.area ? ` i ${painImproving.area}` : '';
+        return `Smerten${loc} er bedre: ${painImproving.previousScore}/10 tidligere, ${painImproving.currentScore}/10 i dag. Det er positivt, men fortsatt moderat. Velg hvile, alternativ trening eller svært rolig test — ikke hard løping før smerten er lavere eller stabil. ${coachPrincipleLine(['body_signals_first'])}`;
+      }
       if (highestTier === 'high') {
         const p = activePain.find(p => p.tier === 'high');
         const loc = p?.area ? ` i ${p.area}` : '';

@@ -126,6 +126,8 @@ function test(name, fn) {
     assert.ok(app.includes('dailyInjuryAsCompletedItems(today, 14)'), 'coach context should convert daily injury check-ins to signal items');
     assert.ok(app.includes('gradedPainContext(completedAndDailySignals, today)'), 'coach pain context should include daily injury check-ins');
     assert.ok(app.includes('Smerteoppfølging:'), 'coach basis should mention injury follow-up trend');
+    assert.ok(app.includes('function improvingPainFollowup'), 'coach context should detect improving pain follow-up');
+    assert.ok(app.includes('painImprovingAfterHigh: Boolean(painImproving)'), 'today decision should receive improving pain follow-up');
     assert.ok(styles.includes('.injury-checkin-compact'), 'compact injury check-in styling is missing');
     assert.ok(styles.includes('.injury-checkin-card'), 'injury check-in card styling is missing');
   });
@@ -586,6 +588,16 @@ function test(name, fn) {
     const pain = todayDecision({ highestPainTier: 'high', hasPlannedToday: true, plannedWorkoutLabel: 'Terskel' });
     assert.strictEqual(pain.level, 'red');
     assert.match(pain.title, /Hvil|alternativ/);
+
+    const improvingPain = todayDecision({
+      highestPainTier: 'high',
+      painImprovingAfterHigh: true,
+      hasPlannedToday: true,
+      plannedWorkoutLabel: 'Rolig tur'
+    });
+    assert.strictEqual(improvingPain.level, 'yellow');
+    assert.match(improvingPain.title, /Forsiktig/);
+    assert.match(improvingPain.reason, /bedre/);
 
     const red = todayDecision({ dailyReadinessLevel: 'red', hasPlannedToday: true, plannedWorkoutLabel: 'Rolig tur' });
     assert.strictEqual(red.level, 'red');
