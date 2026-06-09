@@ -34,6 +34,19 @@ Anbefalt løsning er derfor:
 
 Hvis vi senere ønsker en enklere personlig testløsning, kan vi lage en midlertidig manuell token-modus, men den bør merkes som usikker/test-only og ikke være standard.
 
+## Beslutninger for v1
+
+Avklart 2026-06-09:
+
+- Backend: Firebase Cloud Functions.
+- Hosting: GitHub Pages kan beholdes teknisk, men Firebase Hosting er en naturlig senere flytting siden appen også kan få OpenAI/AI-backend.
+- Firebase-prosjekt: bruk samme Firebase-prosjekt som appen allerede bruker, med mindre det senere dukker opp en tydelig grunn til å skille det ut.
+- Strava scope: `activity:read_all`, fordi brukeren forventer en del private/Only Me-økter.
+- Import: alltid brukerbekreftelse før Strava-økt opprettes eller kobles til planlagt økt.
+- Overskriving: Strava-import skal ikke automatisk overskrive manuelle felt.
+- Første/senere sync-vindu: hent siste 14 dager som standard.
+- Garmin-/subjektive data: legges fortsatt inn manuelt når Strava ikke leverer feltet.
+
 ## Anbefalt arkitektur
 
 ### Frontend/PWA
@@ -55,12 +68,11 @@ Frontend skal ikke eie:
 
 ### Backend
 
-Backend kan være en av:
+Backend i v1 skal være:
 
 - Firebase Cloud Functions
-- Cloudflare Worker
-- Vercel Function
-- annen liten HTTPS-endepunktløsning
+
+Andre alternativer, som Cloudflare Worker eller Vercel Function, holdes ute av v1 for å redusere kompleksitet.
 
 Backend skal eie:
 
@@ -103,13 +115,15 @@ Hvis `domain-strava.js` brukes i runtime, må den legges i `APP_SHELL` i `servic
 
 ## Scopes
 
-Start konservativt:
+Start med:
 
-- `activity:read`
+- `activity:read_all`
 
-Vurder senere:
+Begrunnelse:
 
-- `activity:read_all` hvis brukeren vil importere private/Only Me-økter.
+- brukeren forventer en del private/Only Me-økter
+- hovedformålet er komplett treningslogg, ikke bare offentlige Strava-økter
+- appen bør hente øktene brukeren faktisk trenger å logge
 
 Ikke be om:
 
@@ -131,7 +145,7 @@ Foreslått UI:
 - Knapp: `Koble til Strava`
 - Knapp: `Hent siste økter`
 - Knapp: `Koble fra`
-- Valg: `Importer private økter` hvis `activity:read_all` er aktivert
+- Scopeinfo: `Private økter kan importeres` når `activity:read_all` er aktivert
 
 Hvis vi senere tillater manuell test-token:
 
@@ -275,7 +289,7 @@ For aktiviteter uten Strava-id skal appen bruke svakere duplikatsjekk:
 ## Importflyt v1
 
 1. Bruker trykker `Hent siste økter`.
-2. Backend henter siste 30 dager eller siste N aktiviteter.
+2. Backend henter siste 14 dager eller siste N aktiviteter innenfor 14 dager.
 3. Frontend viser importliste:
    - ny
    - matcher planlagt økt
@@ -284,6 +298,14 @@ For aktiviteter uten Strava-id skal appen bruke svakere duplikatsjekk:
 4. Bruker velger hva som skal importeres.
 5. Appen oppretter/oppdaterer `completed`.
 6. Bruker kan etterpå fylle ut manuelle felt.
+
+Importen skal alltid kreve bekreftelse i v1. Selv når appen finner en sannsynlig match mot en planlagt økt, skal brukeren velge om økten skal:
+
+- kobles til planlagt økt
+- importeres som ny loggført økt
+- hoppes over
+
+Strava-data skal bare fylle tomme felter eller objektive Strava-felter som er trygge å sette ved første import. Manuelle felt skal ikke overskrives automatisk.
 
 ## Import-preview
 
@@ -363,9 +385,11 @@ Ved frakobling:
 
 ### v127 - Backend OAuth
 
-- Opprett backend-endepunkter for OAuth og token refresh
+- Opprett Firebase Cloud Functions for OAuth og token refresh
 - Lag Strava app i Strava Developer Dashboard
+- Bruk `activity:read_all`
 - Lag trygg tokenlagring per Firebase-bruker
+- Frontend kan fortsatt ligge på GitHub Pages, men Firebase Hosting kan vurderes som egen migreringsrunde
 
 ### v128 - Ekte sync
 
@@ -384,8 +408,8 @@ Ved frakobling:
 
 Før faktisk API-bygging bør vi avklare:
 
-1. Hvilken backend skal brukes: Firebase Cloud Functions, Cloudflare Worker, Vercel eller annet?
-2. Skal private Strava-økter importeres, eller holder `activity:read`?
-3. Skal import automatisk opprette fullførte økter, eller alltid kreve bekreftelse?
-4. Skal importerte Strava-økter kunne overskrive manuelle felt senere?
-5. Hvor lenge skal appen hente bakover første gang: 30 dager, 90 dager eller manuelt valgt periode?
+1. Skal Firebase Hosting-migrering gjøres før eller etter første Strava-backend?
+2. Hvilken region skal Firebase Cloud Functions bruke?
+3. Skal Strava-token lagres i Firestore med ekstra kryptering eller i en Secret Manager-/backend-kontrollert løsning?
+4. Skal første import-preview vise alle siste 14 dager, eller bare Strava-økter som ikke allerede finnes i appen?
+5. Skal Strava-import også prøve å oppdage race/testløp automatisk basert på navn, distanse eller Strava race-tag senere?
