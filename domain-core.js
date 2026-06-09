@@ -314,6 +314,7 @@ export {
   RACE_DISTANCE_PRESETS,
   combinedRaceResults,
   formatRaceTime,
+  goalMotivationSummary,
   normalizeRaceGoal,
   normalizeRaceResult,
   normalizeRaceResultEntries,

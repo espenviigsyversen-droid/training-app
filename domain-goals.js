@@ -353,3 +353,101 @@ export function raceGoalPlan(goal = {}, readiness = {}, injurySummary = {}, toda
     nextStep
   };
 }
+
+function goalScoreItem(label, status, detail) {
+  const value = status === 'good' ? 2 : status === 'watch' ? 1 : 0;
+  return { label, status, detail, value };
+}
+
+export function goalMotivationSummary(input = {}, todayIso = dateToISO(new Date())) {
+  const goal = normalizeRaceGoal(input.goal || {});
+  const readiness = input.readiness || raceReadinessSummary(goal, input.completedItems || [], input.manualRaceResults || [], todayIso);
+  const countdown = readiness?.countdown || raceGoalCountdown(goal, todayIso);
+  const injurySummary = input.injurySummary || {};
+  const plan = input.plan || raceGoalPlan(goal, readiness, injurySummary, todayIso);
+  const last7 = input.last7 || {};
+  const last28 = input.last28 || {};
+
+  if (!countdown || (!countdown.name && !countdown.date)) {
+    return {
+      hasGoal: false,
+      title: 'Velg et mål å jobbe mot',
+      subtitle: 'Et konkret mål gjør øktene lettere å prioritere.',
+      action: 'Legg inn et mål-løp eller bruk challenges som kortsiktig retning.',
+      motivation: 'Når målet er tydelig, kan appen gjøre rådene mer konkrete.',
+      metrics: [],
+      score: { label: 'Mål ikke satt', status: 'neutral', items: [] }
+    };
+  }
+
+  const injuryActive = Boolean(injurySummary?.hasSignal && !['none', 'calming'].includes(injurySummary.status));
+  const targetPace = readiness?.targetPaceSeconds ? `${formatRaceTime(readiness.targetPaceSeconds)} /km` : '';
+  const latest = readiness?.latestRelevant || null;
+  const latestLabel = latest
+    ? `${raceDistanceLabel(latest.distanceKm)} på ${formatRaceTime(latest.resultSeconds)}`
+    : 'Trenger test';
+  const phaseLabel = plan?.phaseLabel || 'Målperiode';
+  const title = countdown.status === 'today'
+    ? `${countdown.name || 'Mål-løp'} er i dag`
+    : countdown.status === 'past'
+    ? `${countdown.name || 'Mål-løp'} er passert`
+    : `${countdown.name || 'Mål-løp'}: ${countdown.label}`;
+  const subtitleParts = [
+    phaseLabel,
+    countdown.distanceKm ? raceDistanceLabel(countdown.distanceKm) : '',
+    countdown.targetTimeSeconds ? `mål ${formatRaceTime(countdown.targetTimeSeconds)}` : ''
+  ].filter(Boolean);
+  const action = injuryActive
+    ? `Skadesignal er aktivt (${injurySummary.statusLabel || 'følg med'}). Hold testløp og hard kvalitet igjen til signalet er lavere/stabilt.`
+    : plan?.nextStep || readiness?.nextStep || 'Bygg kontinuitet og bruk testløp til å følge fremgang.';
+
+  const continuityStatus = Number(last28.sessions || 0) >= 8 ? 'good' : Number(last7.sessions || 0) >= 1 ? 'watch' : 'neutral';
+  const qualityStatus = Number(last7.hard || 0) <= 1 ? 'good' : Number(last7.hard || 0) === 2 ? 'watch' : 'neutral';
+  const injuryStatus = injuryActive ? 'watch' : 'good';
+  const raceStatus = ['ahead', 'close'].includes(readiness?.status)
+    ? 'good'
+    : ['behind', 'needs_test', 'missing_target_time'].includes(readiness?.status)
+    ? 'watch'
+    : 'neutral';
+  const volumeStatus = Number(last28.km || 0) > 0 || Number(last28.seconds || 0) > 0 ? 'good' : 'watch';
+
+  const items = [
+    goalScoreItem('Kontinuitet', continuityStatus, Number(last28.sessions || 0) ? `${last28.sessions} økter siste 28 dager` : 'Bygg første repeterbare uke'),
+    goalScoreItem('Rolig grunnlag', volumeStatus, Number(last28.km || 0) ? `${Math.round(last28.km)} km siste 28 dager` : 'Få inn rolig volum over tid'),
+    goalScoreItem('Kvalitet', qualityStatus, Number(last7.hard || 0) ? `${last7.hard} harde økter siste 7 dager` : 'Ingen hard økt siste 7 dager'),
+    goalScoreItem('Skadesignal', injuryStatus, injuryActive ? injurySummary.statusLabel || 'Følg med' : 'Ingen aktivt signal i målstatus'),
+    goalScoreItem('Race-status', raceStatus, readiness?.note || 'Mangler nok race-/testdata')
+  ];
+  const scoreValue = items.reduce((sum, item) => sum + item.value, 0);
+  const scoreStatus = scoreValue >= 8 ? 'good' : scoreValue >= 5 ? 'watch' : 'neutral';
+  const scoreLabel = scoreStatus === 'good' ? 'God retning' : scoreStatus === 'watch' ? 'Følg med' : 'Bygg grunnlag';
+
+  const motivation = injuryActive
+    ? 'Målet står, men akkurat nå er beste investering å komme skadefritt tilbake.'
+    : readiness?.status === 'ahead'
+    ? 'Du ligger godt an. Den største gevinsten er å holde kontinuiteten uten å overdrive.'
+    : readiness?.status === 'close'
+    ? 'Du er nær nok til at smarte, repeterbare uker kan flytte målet mye.'
+    : readiness?.status === 'behind'
+    ? 'Avstanden til målpace er nyttig informasjon, ikke dom. Bygg rolig volum og test på nytt senere.'
+    : 'Du bygger grunnlaget. Første verdi kommer fra kontinuitet og et kontrollert testløp.';
+
+  return {
+    hasGoal: true,
+    title,
+    subtitle: subtitleParts.join(' · '),
+    action,
+    motivation,
+    metrics: [
+      { label: 'Fase', value: phaseLabel },
+      { label: 'Målpace', value: targetPace || '-' },
+      { label: 'Siste test', value: latestLabel },
+      { label: 'Status', value: scoreLabel }
+    ],
+    score: {
+      label: scoreLabel,
+      status: scoreStatus,
+      items
+    }
+  };
+}

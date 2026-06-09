@@ -87,6 +87,7 @@ Inneholder ren konkurranse- og mål-logikk uten DOM, Firebase eller direkte `sta
 - personlige bestenoteringer og historikk per distanse
 - mål-løp-nedtelling, målpace og race readiness
 - enkel konkurranseplan mot prioritert mål-løp
+- handlingsorientert målstatus for Mål-fanen
 
 `app.js` importerer race-/mål-funksjoner direkte herfra. `domain-core.js` re-eksporterer dem foreløpig for bakoverkompatibilitet med eldre tester/importmønster.
 

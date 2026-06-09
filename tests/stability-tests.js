@@ -56,6 +56,7 @@ function test(name, fn) {
   const {
     combinedRaceResults,
     formatRaceTime,
+    goalMotivationSummary,
     normalizeRaceGoal,
     normalizeRaceResult,
     normalizeRaceResultEntry,
@@ -113,6 +114,7 @@ function test(name, fn) {
 
   test('goals tab replaces setup in bottom navigation and setup opens from header', () => {
     assert.ok(index.includes('id="goals" class="tab"'), 'goals tab section is missing');
+    assert.ok(index.includes('id="goalsOverview"'), 'goals overview container is missing');
     assert.ok(index.includes('data-tab="goals"'), 'goals tab is missing from bottom navigation');
     assert.ok(index.includes('<span>Mål</span>'), 'goals navigation label is missing');
     assert.ok(!index.includes('data-tab="settings"'), 'setup should not be in bottom navigation');
@@ -120,7 +122,9 @@ function test(name, fn) {
     assert.ok(index.includes('openSetupFromHeader()'), 'header setup button should call openSetupFromHeader');
     assert.ok(app.includes('window.openSetupFromHeader'), 'openSetupFromHeader handler is missing');
     assert.ok(app.includes('renderGoals(today)'), 'render loop should render goals content');
+    assert.ok(app.includes('goalMotivationSummary({'), 'goals overview should use domain goal motivation summary');
     assert.ok(read('styles.css').includes('#goals.tab.active'), 'desktop goals layout is missing');
+    assert.ok(read('styles.css').includes('.goals-overview'), 'goals overview styling is missing');
   });
 
   test('dashboard renders today decision from domain logic', () => {
@@ -359,6 +363,48 @@ function test(name, fn) {
     assert.strictEqual(plan.phase, 'taper');
     assert.match(plan.nextTest, /Ingen ny test/);
     assert.match(plan.risk, /aktivt skadesignal/);
+  });
+
+  test('goal motivation summary gives actionable target-race overview', () => {
+    const goal = { name: 'Halv-Birken', date: '2027-06-08', distanceKm: 12, targetTimeSeconds: 4800 };
+    const readiness = raceReadinessSummary(
+      goal,
+      [{ id: 'ten', date: '2026-06-01', raceResult: { name: '10 km test', distanceKm: 10, resultSeconds: 4200 } }],
+      [],
+      '2027-04-15'
+    );
+    const plan = raceGoalPlan(goal, readiness, { hasSignal: false }, '2027-04-15');
+    const summary = goalMotivationSummary({
+      goal,
+      readiness,
+      plan,
+      injurySummary: { hasSignal: false },
+      last7: { sessions: 2, km: 18, hard: 1 },
+      last28: { sessions: 9, km: 72, hard: 3 }
+    }, '2027-04-15');
+    assert.strictEqual(summary.hasGoal, true);
+    assert.match(summary.title, /Halv-Birken/);
+    assert.match(summary.subtitle, /Testfase|Spesifikk|Basebygging/);
+    assert.ok(summary.metrics.some(metric => metric.label === 'Målpace' && metric.value === '6:40 /km'));
+    assert.ok(summary.score.items.some(item => item.label === 'Kontinuitet' && item.status === 'good'));
+    assert.match(summary.action, /Neste/);
+  });
+
+  test('goal motivation summary respects active injury signal', () => {
+    const goal = { name: 'Halv-Birken', date: '2027-06-08', distanceKm: 12, targetTimeSeconds: 4800 };
+    const readiness = raceReadinessSummary(goal, [], [], '2027-04-15');
+    const plan = raceGoalPlan(goal, readiness, { hasSignal: true, status: 'improving', statusLabel: 'Bedres' }, '2027-04-15');
+    const summary = goalMotivationSummary({
+      goal,
+      readiness,
+      plan,
+      injurySummary: { hasSignal: true, status: 'improving', statusLabel: 'Bedres' },
+      last7: { sessions: 0, km: 0, hard: 0 },
+      last28: { sessions: 2, km: 12, hard: 0 }
+    }, '2027-04-15');
+    assert.match(summary.action, /Skadesignal/);
+    assert.match(summary.motivation, /skadefritt/);
+    assert.ok(summary.score.items.some(item => item.label === 'Skadesignal' && item.status === 'watch'));
   });
 
   test('calendar day modal refreshes after marking planned workout complete', () => {

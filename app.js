@@ -34,6 +34,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     } from './domain-core.js';
     import {
       formatRaceTime,
+      goalMotivationSummary,
       normalizeRaceGoal,
       normalizeRaceResult,
       normalizeRaceResultEntry,
@@ -46,7 +47,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       raceReadinessSummary
     } from './domain-goals.js';
 
-    const APP_VERSION = 'v123';
+    const APP_VERSION = 'v124';
     const APP_CACHE_NAME = `treningsapp-${APP_VERSION}`;
 
     const firebaseConfig = {
@@ -6421,7 +6422,59 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     }
 
     function renderGoals(today) {
+      renderGoalsOverview(today);
       renderRaceInsights(today);
+    }
+
+    function renderGoalsOverview(today) {
+      const container = document.getElementById('goalsOverview');
+      if (!container) return;
+      const completedToDate = state.completed.filter(item => item.date <= today);
+      const last7Start = addDays(today, -6);
+      const last28Start = addDays(today, -27);
+      const last7 = summarizeCompleted(completedToDate.filter(item => item.date >= last7Start));
+      const last28 = summarizeCompleted(completedToDate.filter(item => item.date >= last28Start));
+      const injurySummary = injurySignalSummary(injurySignalEntriesUntil(today, 7));
+      const readiness = raceReadinessSummary(state.settings.raceGoal, completedRaceItems(), state.raceResults, today);
+      const plan = raceGoalPlan(state.settings.raceGoal, readiness, injurySummary, today);
+      const summary = goalMotivationSummary({
+        goal: state.settings.raceGoal,
+        readiness,
+        plan,
+        injurySummary,
+        last7,
+        last28
+      }, today);
+      const metrics = summary.metrics?.length
+        ? `<div class="goals-overview-metrics">${summary.metrics.map(metric => `
+            <div class="goals-overview-stat">
+              <strong>${escapeHtml(metric.value || '-')}</strong>
+              <span>${escapeHtml(metric.label || '')}</span>
+            </div>`).join('')}</div>`
+        : '';
+      const scoreItems = summary.score?.items?.length
+        ? `<div class="goal-score-list">${summary.score.items.map(item => `
+            <div class="goal-score-item ${escapeHtml(item.status)}">
+              <span></span>
+              <div>
+                <strong>${escapeHtml(item.label)}</strong>
+                <small>${escapeHtml(item.detail)}</small>
+              </div>
+            </div>`).join('')}</div>`
+        : '';
+      container.innerHTML = `
+        <div class="goals-overview-head ${escapeHtml(summary.score?.status || 'neutral')}">
+          <span>${escapeHtml(summary.score?.label || 'Målstatus')}</span>
+          <h3>${escapeHtml(summary.title)}</h3>
+          ${summary.subtitle ? `<p>${escapeHtml(summary.subtitle)}</p>` : ''}
+        </div>
+        ${metrics}
+        <div class="goals-next-action">
+          <span>Neste smarte steg</span>
+          <strong>${escapeHtml(summary.action)}</strong>
+          <p>${escapeHtml(summary.motivation)}</p>
+        </div>
+        ${scoreItems}`;
     }
 
     function completedRaceItems() {
