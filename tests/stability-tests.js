@@ -37,6 +37,7 @@ function test(name, fn) {
     goldenZonePercentages,
     hasStructuredIntervals,
     injuryAdjustedWorkoutAdvice,
+    injuryRecoveryGuidance,
     injurySignalSummary,
     normalizeStructuredWorkout,
     normalizeTemplate,
@@ -56,6 +57,7 @@ function test(name, fn) {
   const {
     combinedRaceResults,
     formatRaceTime,
+    goalMilestones,
     goalMotivationSummary,
     normalizeRaceGoal,
     normalizeRaceResult,
@@ -67,6 +69,7 @@ function test(name, fn) {
     raceDistanceLabel,
     raceGoalCountdown,
     raceGoalPlan,
+    raceTestRecommendation,
     raceReadinessSummary
   } = goals;
 
@@ -123,8 +126,12 @@ function test(name, fn) {
     assert.ok(app.includes('window.openSetupFromHeader'), 'openSetupFromHeader handler is missing');
     assert.ok(app.includes('renderGoals(today)'), 'render loop should render goals content');
     assert.ok(app.includes('goalMotivationSummary({'), 'goals overview should use domain goal motivation summary');
+    assert.ok(app.includes('goalMilestones({'), 'goals overview should render milestone data from domain-goals');
+    assert.ok(app.includes('raceTestRecommendation({'), 'goals overview should render race test recommendation');
     assert.ok(read('styles.css').includes('#goals.tab.active'), 'desktop goals layout is missing');
     assert.ok(read('styles.css').includes('.goals-overview'), 'goals overview styling is missing');
+    assert.ok(read('styles.css').includes('.goal-milestones'), 'goal milestones styling is missing');
+    assert.ok(read('styles.css').includes('.race-test-recommendation'), 'race test recommendation styling is missing');
   });
 
   test('dashboard renders today decision from domain logic', () => {
@@ -154,11 +161,13 @@ function test(name, fn) {
     assert.ok(index.includes('id="homeInjuryWorkoutAdvice"'), 'dashboard injury workout advice container is missing');
     assert.ok(app.includes('renderInjurySignalInsight(today)'), 'insights should render injury signal summary');
     assert.ok(app.includes('injurySignalSummary(injurySignalEntriesUntil(today, 7))'), 'injury signal insight should use domain summary');
+    assert.ok(app.includes('injuryRecoveryGuidance(entries)'), 'injury signal insight should render recovery guidance');
     assert.ok(app.includes('renderInjuryWorkoutAdvice(buildInjuryWorkoutAdvice(coachCtx, primaryItems))'), 'dashboard should render injury-adjusted workout advice');
     assert.ok(app.includes('injuryAdjustedWorkoutAdvice(summary, plannedWorkoutAdviceMeta(firstPlanned))'), 'app should use domain injury-adjusted workout advice');
     assert.ok(styles.includes('.injury-checkin-compact'), 'compact injury check-in styling is missing');
     assert.ok(styles.includes('.injury-checkin-card'), 'injury check-in card styling is missing');
     assert.ok(styles.includes('.injury-signal-card'), 'injury signal insight styling is missing');
+    assert.ok(styles.includes('.injury-release-card'), 'injury recovery guidance styling is missing');
     assert.ok(styles.includes('.injury-workout-advice'), 'injury workout advice styling is missing');
   });
 
@@ -405,6 +414,60 @@ function test(name, fn) {
     assert.match(summary.action, /Skadesignal/);
     assert.match(summary.motivation, /skadefritt/);
     assert.ok(summary.score.items.some(item => item.label === 'Skadesignal' && item.status === 'watch'));
+  });
+
+  test('goal milestones create concrete steps and respect injury signal', () => {
+    const goal = { name: 'Halv-Birken', date: '2027-06-08', distanceKm: 12, targetTimeSeconds: 4800 };
+    const readiness = raceReadinessSummary(goal, [], [], '2027-04-15');
+    const plan = raceGoalPlan(goal, readiness, { hasSignal: true, status: 'improving', statusLabel: 'Bedres' }, '2027-04-15');
+    const milestones = goalMilestones({
+      goal,
+      readiness,
+      plan,
+      injurySummary: { hasSignal: true, status: 'improving', statusLabel: 'Bedres' },
+      last7: { sessions: 0, km: 0, hard: 0 },
+      last28: { sessions: 2, km: 12, hard: 0 }
+    }, '2027-04-15');
+    assert.ok(milestones.length >= 3);
+    assert.ok(milestones.length <= 5);
+    assert.ok(milestones.some(item => item.id === 'injury-stable' && item.status === 'current'));
+    assert.ok(milestones.some(item => item.id === 'short-test' && item.status === 'blocked'));
+    assert.ok(milestones.some(item => item.id === 'stable-volume'));
+  });
+
+  test('race test recommendation suggests controlled test when useful', () => {
+    const goal = { name: 'Halv-Birken', date: '2027-06-08', distanceKm: 12, targetTimeSeconds: 4800 };
+    const readiness = raceReadinessSummary(goal, [], [], '2027-04-15');
+    const plan = raceGoalPlan(goal, readiness, { hasSignal: false }, '2027-04-15');
+    const recommendation = raceTestRecommendation({
+      goal,
+      readiness,
+      plan,
+      injurySummary: { hasSignal: false },
+      last7: { sessions: 2, km: 18, hard: 0 },
+      last28: { sessions: 8, km: 60, hard: 2 }
+    }, '2027-04-15');
+    assert.strictEqual(recommendation.shouldTest, true);
+    assert.strictEqual(recommendation.distanceKm, 5);
+    assert.match(recommendation.label, /5 km/);
+    assert.match(recommendation.intensity, /Kontrollert/);
+  });
+
+  test('race test recommendation blocks testing with active injury signal', () => {
+    const goal = { name: 'Halv-Birken', date: '2027-06-08', distanceKm: 12, targetTimeSeconds: 4800 };
+    const readiness = raceReadinessSummary(goal, [], [], '2027-04-15');
+    const plan = raceGoalPlan(goal, readiness, { hasSignal: true, status: 'improving', statusLabel: 'Bedres' }, '2027-04-15');
+    const recommendation = raceTestRecommendation({
+      goal,
+      readiness,
+      plan,
+      injurySummary: { hasSignal: true, status: 'improving', statusLabel: 'Bedres' },
+      last7: { sessions: 1, km: 8, hard: 0 },
+      last28: { sessions: 6, km: 42, hard: 1 }
+    }, '2027-04-15');
+    assert.strictEqual(recommendation.shouldTest, false);
+    assert.strictEqual(recommendation.status, 'blocked');
+    assert.match(recommendation.reason, /Skadesignal/);
   });
 
   test('calendar day modal refreshes after marking planned workout complete', () => {
@@ -784,6 +847,29 @@ function test(name, fn) {
     assert.strictEqual(advice.active, true);
     assert.match(advice.action, /Hvile|alternativ/);
     assert.match(advice.plannedWarning, /Ikke gjennomfør/);
+  });
+
+  test('injury recovery guidance releases only after stable low pain', () => {
+    const guidance = injuryRecoveryGuidance([
+      { date: '2026-06-07', painNow: 5, area: 'Venstre kne' },
+      { date: '2026-06-08', painNow: 1, area: 'Venstre kne', trend: 'better' },
+      { date: '2026-06-09', painNow: 1, area: 'Venstre kne', trend: 'same' }
+    ]);
+    assert.strictEqual(guidance.active, true);
+    assert.strictEqual(guidance.releaseStatus, 'release');
+    assert.strictEqual(guidance.stableLowDays, 2);
+    assert.match(guidance.nextSafeWorkout, /Rolig løpetur|kontrollert test/);
+    assert.match(guidance.qualityGate, /Vent med terskel/);
+  });
+
+  test('injury recovery guidance holds back worsening pain', () => {
+    const guidance = injuryRecoveryGuidance([
+      { date: '2026-06-07', painNow: 2, area: 'Venstre kne' },
+      { date: '2026-06-08', painNow: 4, area: 'Venstre kne', trend: 'worse' }
+    ]);
+    assert.strictEqual(guidance.releaseStatus, 'hold');
+    assert.match(guidance.nextSafeWorkout, /Hvile|rolig sykkel|mobilitet/);
+    assert.match(guidance.qualityGate, /utsettes/);
   });
 
   test('golden zone percentages match training levels', () => {
