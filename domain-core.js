@@ -415,6 +415,8 @@ export {
   normalizeRaceResultEntry,
   parseRaceTimeToSeconds,
   personalBestSummary,
+  personalBestTrendLabel,
+  personalBestTrendSummary,
   raceDistanceLabel,
   raceGoalCountdown,
   raceGoalPlan,

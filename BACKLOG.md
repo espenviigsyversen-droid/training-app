@@ -24,7 +24,7 @@ Prioritert backlog for videre utvikling av Treningsapp.
    - Vis om brukeren beveger seg i riktig retning fra uke til uke.
    - Dimensjoner: kontinuitet, rolig volum, kontrollert kvalitet, skadefrihet og race-status.
 
-6. **PB-historikk v2**
+6. **PB-historikk v2** - Bygget v130
    - Gjør PB-kortene mer levende.
    - Vis siste, beste, forbedring fra første, nær PB og tydeligere graf/akser.
 
@@ -46,9 +46,9 @@ Prioritert backlog for videre utvikling av Treningsapp.
 
 ## Anbefalt neste steg
 
-Neste anbefalte backlogpunkt er **PB-historikk v2**.
+Neste anbefalte backlogpunkt er **Dagens råd koblet tydeligere til Mål**.
 
 Begrunnelse:
-- bygger videre på race-/testdata som allerede finnes
-- gjør personlige rekorder og utvikling mer motiverende
-- kan gjøres med lav risiko uten ny datamodell
+- bygger videre på mål-score, ukeplan og konkurransefase
+- gjør Hjem-rådet mer personlig uten AI
+- gir høy daglig verdi når appen åpnes ofte

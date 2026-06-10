@@ -42,6 +42,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       normalizeRaceResultEntry,
       normalizeRaceResultEntries,
       personalBestSummary,
+      personalBestTrendLabel,
       raceHistoryForDistance,
       raceDistanceLabel,
       raceGoalCountdown,
@@ -51,7 +52,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       raceReadinessSummary
     } from './domain-goals.js';
 
-    const APP_VERSION = 'v129';
+    const APP_VERSION = 'v130';
     const APP_CACHE_NAME = `treningsapp-${APP_VERSION}`;
 
     const firebaseConfig = {
@@ -6714,14 +6715,29 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       card.style.display = '';
       grid.innerHTML = summary.entries.map(entry => {
         const best = entry.best;
+        const history = entry.history || {};
+        const trend = history.trend || entry.trend || {};
+        const latestResult = history.latest || null;
+        const cardStatus = best ? (trend.status || 'has-best') : 'empty-best';
+        const latestLine = latestResult
+          ? `${formatRaceTime(latestResult.resultSeconds)} siste · ${trend.statusLabel || ''}`.trim()
+          : 'Ingen registrert';
+        const changeLine = trend.count >= 2
+          ? `${personalBestTrendLabel(trend.trendSeconds)}${trend.improvementPercent !== null ? ` · ${trend.improvementPercent > 0 ? '+' : ''}${trend.improvementPercent}%` : ''}`
+          : 'Legg til flere resultater for trend';
         return `
-          <div class="personal-best-item ${best ? 'has-best' : 'empty-best'}" role="button" tabindex="0" onclick="openPersonalBestHistory('${entry.km}')" onkeydown="if(event.key === 'Enter' || event.key === ' ') { event.preventDefault(); openPersonalBestHistory('${entry.km}'); }">
+          <div class="personal-best-item ${best ? 'has-best' : 'empty-best'} ${escapeHtml(cardStatus)}" role="button" tabindex="0" onclick="openPersonalBestHistory('${entry.km}')" onkeydown="if(event.key === 'Enter' || event.key === ' ') { event.preventDefault(); openPersonalBestHistory('${entry.km}'); }">
             <div class="pb-title-row">
               <span>${escapeHtml(entry.label)}</span>
               <button class="btn-soft btn-icon" onclick="event.stopPropagation(); openManualRaceResultForm('${entry.km}')" aria-label="Legg til resultat for ${escapeHtml(entry.label)}">✎</button>
             </div>
             <strong>${best ? escapeHtml(formatRaceTime(best.resultSeconds)) : '-'}</strong>
             <small>${best ? escapeHtml(`${formatDate(best.date)} · ${best.name || best.workoutName || 'Race'}`) : 'Ingen registrert'}</small>
+            <div class="pb-card-meta">
+              <span>${escapeHtml(latestLine)}</span>
+              <span>${escapeHtml(`${trend.count || 0} resultat${trend.count === 1 ? '' : 'er'}`)}</span>
+            </div>
+            <small class="pb-card-trend ${escapeHtml(trend.status || 'empty')}">${escapeHtml(changeLine)}</small>
           </div>`;
       }).join('');
       latest.textContent = summary.latest
@@ -6732,8 +6748,8 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     function personalBestHistoryChart(results) {
       if (!results.length) return '';
       const width = 320;
-      const height = 130;
-      const pad = 18;
+      const height = 150;
+      const pad = 28;
       const values = results.map(item => Number(item.resultSeconds) || 0).filter(Boolean);
       const min = Math.min(...values);
       const max = Math.max(...values);
@@ -6744,13 +6760,24 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       const dots = results.map((item, index) => {
         const x = xFor(index).toFixed(1);
         const y = yFor(item.resultSeconds).toFixed(1);
-        return `<circle cx="${x}" cy="${y}" r="4"><title>${escapeHtml(formatDate(item.date))}: ${escapeHtml(formatRaceTime(item.resultSeconds))}</title></circle>`;
+        const isLatest = index === results.length - 1;
+        return `<circle class="${isLatest ? 'latest' : ''}" cx="${x}" cy="${y}" r="${isLatest ? 5 : 4}"><title>${escapeHtml(formatDate(item.date))}: ${escapeHtml(formatRaceTime(item.resultSeconds))}</title></circle>`;
       }).join('');
+      const firstLabel = results[0]?.date ? formatDate(results[0].date).replace('.', '') : '';
+      const latestLabel = results[results.length - 1]?.date ? formatDate(results[results.length - 1].date).replace('.', '') : '';
       return `
         <div class="pb-history-chart">
+          <div class="pb-history-chart-head">
+            <span>Raskest ${escapeHtml(formatRaceTime(min))}</span>
+            <span>Tregest ${escapeHtml(formatRaceTime(max))}</span>
+          </div>
           <svg viewBox="0 0 ${width} ${height}" role="img" aria-label="Utvikling i resultattid">
             <line x1="${pad}" y1="${height - pad}" x2="${width - pad}" y2="${height - pad}"></line>
             <line x1="${pad}" y1="${pad}" x2="${pad}" y2="${height - pad}"></line>
+            <text x="${pad}" y="${pad - 8}">${escapeHtml(formatRaceTime(min))}</text>
+            <text x="${pad}" y="${height - pad + 13}">${escapeHtml(formatRaceTime(max))}</text>
+            ${firstLabel ? `<text class="x-label" x="${pad}" y="${height - 5}" text-anchor="start">${escapeHtml(firstLabel)}</text>` : ''}
+            ${latestLabel ? `<text class="x-label" x="${width - pad}" y="${height - 5}" text-anchor="end">${escapeHtml(latestLabel)}</text>` : ''}
             ${results.length > 1 ? `<polyline points="${points}"></polyline>` : ''}
             ${dots}
           </svg>
@@ -6758,17 +6785,22 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     }
 
     function trendLabel(history) {
-      if (history.trendSeconds === null) return 'Trenger minst to resultater';
-      if (history.trendSeconds === 0) return 'Stabilt fra første til siste';
-      return history.trendSeconds < 0
-        ? `${formatRaceTime(Math.abs(history.trendSeconds))} raskere fra første til siste`
-        : `${formatRaceTime(history.trendSeconds)} saktere fra første til siste`;
+      return personalBestTrendLabel(history.trendSeconds);
     }
 
     function personalBestHistoryHtml(distanceKm) {
       const history = raceHistoryForDistance(completedRaceItems(), state.raceResults, distanceKm);
       const rows = history.results.slice().reverse();
       const bestId = history.best ? `${history.best.source || ''}-${history.best.id || ''}-${history.best.date || ''}` : '';
+      const trend = history.trend || {};
+      const gapText = trend.bestGapSeconds === null || trend.bestGapSeconds === undefined
+        ? 'Ingen avstand beregnet'
+        : trend.bestGapSeconds === 0
+        ? 'Siste resultat er PB'
+        : `${formatRaceTime(trend.bestGapSeconds)} bak PB${trend.bestGapPercent !== null ? ` · ${trend.bestGapPercent}%` : ''}`;
+      const improvementText = trend.improvementPercent === null || trend.improvementPercent === undefined
+        ? trend.trendLabel || trendLabel(history)
+        : `${trend.trendLabel || trendLabel(history)} · ${trend.improvementPercent > 0 ? '+' : ''}${trend.improvementPercent}%`;
       const rowHtml = rows.length
         ? rows.map(item => {
           const rowId = `${item.source || ''}-${item.id || ''}-${item.date || ''}`;
@@ -6793,8 +6825,12 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
           <div><strong>${history.best ? escapeHtml(formatRaceTime(history.best.resultSeconds)) : '-'}</strong><span>Beste</span></div>
           <div><strong>${history.latest ? escapeHtml(formatRaceTime(history.latest.resultSeconds)) : '-'}</strong><span>Siste</span></div>
           <div><strong>${history.results.length}</strong><span>Resultater</span></div>
+          <div><strong>${escapeHtml(trend.statusLabel || 'Ingen trend')}</strong><span>Status</span></div>
         </div>
-        <p class="small-note">${escapeHtml(trendLabel(history))}</p>
+        <div class="pb-history-trend-card ${escapeHtml(trend.status || 'empty')}">
+          <strong>${escapeHtml(improvementText)}</strong>
+          <span>${escapeHtml(gapText)}</span>
+        </div>
         ${personalBestHistoryChart(history.results)}
         <div class="pb-history-list">${rowHtml}</div>
         <div class="button-row">

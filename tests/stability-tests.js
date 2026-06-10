@@ -66,6 +66,8 @@ function test(name, fn) {
     normalizeRaceResultEntries,
     parseRaceTimeToSeconds,
     personalBestSummary,
+    personalBestTrendLabel,
+    personalBestTrendSummary,
     raceHistoryForDistance,
     raceDistanceLabel,
     raceGoalCountdown,
@@ -227,8 +229,12 @@ function test(name, fn) {
     assert.ok(index.includes('id="personalBestHistoryContent"'), 'PB history content container is missing');
     assert.ok(app.includes('openPersonalBestHistory'), 'PB cards should open history modal');
     assert.ok(app.includes('raceHistoryForDistance(completedRaceItems(), state.raceResults'), 'PB history should use combined production race data');
+    assert.ok(app.includes('trend.statusLabel'), 'PB history should render trend status');
+    assert.ok(app.includes('pb-card-meta'), 'PB cards should render best/latest metadata');
     assert.ok(app.includes('personalBestHistoryChart'), 'PB history chart renderer is missing');
     assert.ok(styles.includes('.pb-history-chart'), 'PB history chart styles are missing');
+    assert.ok(styles.includes('.pb-history-trend-card'), 'PB history trend card style is missing');
+    assert.ok(styles.includes('.pb-card-meta'), 'PB card metadata style is missing');
     assert.ok(styles.includes('.pb-history-row.best'), 'PB best row style is missing');
   });
 
@@ -320,6 +326,28 @@ function test(name, fn) {
     assert.strictEqual(history.latest.name, '2 km sommer');
     assert.strictEqual(history.best.name, '2 km sommer');
     assert.strictEqual(history.trendSeconds, -25);
+    assert.strictEqual(history.trend.status, 'pb');
+    assert.strictEqual(history.trend.statusLabel, 'Siste er PB');
+    assert.match(personalBestTrendLabel(history.trendSeconds), /raskere/);
+  });
+
+  test('personal best trend summary recognizes near PB and regression', () => {
+    const near = personalBestTrendSummary([
+      { date: '2026-04-01', resultSeconds: 500 },
+      { date: '2026-05-01', resultSeconds: 490 },
+      { date: '2026-06-01', resultSeconds: 498 }
+    ]);
+    assert.strictEqual(near.status, 'near');
+    assert.strictEqual(near.bestGapSeconds, 8);
+    assert.match(near.statusLabel, /Nær PB/);
+
+    const regression = personalBestTrendSummary([
+      { date: '2026-04-01', resultSeconds: 500 },
+      { date: '2026-05-01', resultSeconds: 530 }
+    ]);
+    assert.strictEqual(regression.status, 'regression');
+    assert.strictEqual(regression.trendSeconds, 30);
+    assert.match(regression.trendLabel, /saktere/);
   });
 
   test('race goal countdown supports 12 km target race', () => {

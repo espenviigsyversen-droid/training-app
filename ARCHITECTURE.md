@@ -92,6 +92,7 @@ Inneholder ren konkurranse- og mål-logikk uten DOM, Firebase eller direkte `sta
 - anbefaling av neste relevante race-/testløp
 - race-aware ukeplan-kontekst som lar ukeplanen prioritere base, test, spesifikk oppkjøring eller taper uten AI
 - mål-score/progresjon som summerer kontinuitet, rolig volum, kontrollert kvalitet, skadefrihet og race-/teststatus
+- PB-historikk og trendanalyse for beste/siste/nær PB/tilbakegang per distanse
 
 `app.js` importerer race-/mål-funksjoner direkte herfra. `domain-core.js` re-eksporterer dem foreløpig for bakoverkompatibilitet med eldre tester/importmønster.
 

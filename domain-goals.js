@@ -143,14 +143,82 @@ export function personalBestSummary(completedItems = [], manualRaceResults = [],
   const raceResults = combinedRaceResults(completedItems, manualRaceResults)
     .filter(result => result.countsAsPersonalBest !== false);
   const entries = presets.map(preset => {
-    const matches = raceResults.filter(result => Math.abs(Number(result.distanceKm) - preset.km) < 0.02);
-    const best = matches.sort((a, b) => Number(a.resultSeconds) - Number(b.resultSeconds))[0] || null;
-    return { ...preset, best };
+    const history = raceHistoryForDistance(completedItems, manualRaceResults, preset.km);
+    return { ...preset, best: history.best, history, trend: history.trend };
   });
   return {
     entries,
     raceResults,
     latest: raceResults[0] || null
+  };
+}
+
+export function personalBestTrendLabel(trendSeconds = null) {
+  if (trendSeconds === null || trendSeconds === undefined) return 'Trenger minst to resultater';
+  if (Number(trendSeconds) === 0) return 'Stabilt fra første til siste';
+  return Number(trendSeconds) < 0
+    ? `${formatRaceTime(Math.abs(Number(trendSeconds)))} raskere fra første til siste`
+    : `${formatRaceTime(Number(trendSeconds))} saktere fra første til siste`;
+}
+
+export function personalBestTrendSummary(results = []) {
+  const sorted = Array.isArray(results)
+    ? results
+        .filter(result => Number(result.resultSeconds) > 0)
+        .slice()
+        .sort((a, b) => String(a.date || '').localeCompare(String(b.date || '')))
+    : [];
+  const best = sorted.slice().sort((a, b) => Number(a.resultSeconds) - Number(b.resultSeconds))[0] || null;
+  const first = sorted[0] || null;
+  const latest = sorted[sorted.length - 1] || null;
+  const trendSeconds = first && latest && first !== latest
+    ? Number(latest.resultSeconds) - Number(first.resultSeconds)
+    : null;
+  const bestGapSeconds = best && latest ? Number(latest.resultSeconds) - Number(best.resultSeconds) : null;
+  const bestGapPercent = best && latest && Number(best.resultSeconds) > 0
+    ? Math.round((bestGapSeconds / Number(best.resultSeconds)) * 1000) / 10
+    : null;
+  const latestIsBest = Boolean(best && latest && Number(latest.resultSeconds) === Number(best.resultSeconds));
+  const nearBest = Boolean(!latestIsBest && bestGapSeconds !== null && bestGapSeconds <= Math.max(10, Number(best.resultSeconds) * 0.03));
+  const status = !latest
+    ? 'empty'
+    : latestIsBest
+    ? 'pb'
+    : nearBest
+    ? 'near'
+    : trendSeconds !== null && trendSeconds < 0
+    ? 'improving'
+    : trendSeconds !== null && trendSeconds > 0
+    ? 'regression'
+    : 'stable';
+  const statusLabel = status === 'pb'
+    ? 'Siste er PB'
+    : status === 'near'
+    ? 'Nær PB'
+    : status === 'improving'
+    ? 'Bedre trend'
+    : status === 'regression'
+    ? 'Siste tregere'
+    : status === 'stable'
+    ? 'Stabilt'
+    : 'Ingen registrert';
+  const improvementPercent = first && latest && Number(first.resultSeconds) > 0
+    ? Math.round(((Number(first.resultSeconds) - Number(latest.resultSeconds)) / Number(first.resultSeconds)) * 1000) / 10
+    : null;
+  return {
+    count: sorted.length,
+    best,
+    first,
+    latest,
+    trendSeconds,
+    trendLabel: personalBestTrendLabel(trendSeconds),
+    bestGapSeconds,
+    bestGapPercent,
+    latestIsBest,
+    nearBest,
+    status,
+    statusLabel,
+    improvementPercent
   };
 }
 
@@ -164,7 +232,8 @@ export function raceHistoryForDistance(completedItems = [], manualRaceResults = 
       best: null,
       latest: null,
       first: null,
-      trendSeconds: null
+      trendSeconds: null,
+      trend: personalBestTrendSummary([])
     };
   }
   const results = combinedRaceResults(completedItems, manualRaceResults)
@@ -184,7 +253,8 @@ export function raceHistoryForDistance(completedItems = [], manualRaceResults = 
     best,
     latest,
     first,
-    trendSeconds
+    trendSeconds,
+    trend: personalBestTrendSummary(results)
   };
 }
 
