@@ -402,6 +402,91 @@ export function todayDecision(input = {}) {
   };
 }
 
+function plannedWorkoutIsQuality(planned = {}) {
+  const text = [
+    planned.label,
+    planned.intensity,
+    planned.role,
+    planned.purpose,
+    planned.load
+  ].filter(Boolean).join(' ').toLowerCase();
+  return Boolean(
+    text.includes('terskel') ||
+    text.includes('intervall') ||
+    text.includes('tempo') ||
+    text.includes('anaerob') ||
+    text.includes('race') ||
+    text.includes('threshold') ||
+    text.includes('high')
+  );
+}
+
+export function dailyCoachSupport(input = {}) {
+  const decision = input.decision || {};
+  const planned = input.planned || {};
+  const hasPlannedToday = Boolean(input.hasPlannedToday);
+  const injuryActive = Boolean(input.injuryActive);
+  const injuryStatus = String(input.injuryStatus || '').toLowerCase();
+  const readiness = input.dailyReadinessLevel || '';
+  const quality = plannedWorkoutIsQuality(planned);
+  const goalScorePercent = Number(input.goalScorePercent || 0);
+  const goalScoreLabel = String(input.goalScoreLabel || '').trim();
+  const racePhaseLabel = String(input.racePhaseLabel || '').trim();
+  const weekSessions = Number(input.weekSessions || 0);
+  const weeklyTarget = Number(input.weeklyTarget || 0);
+  const plannedLabel = String(planned.label || '').trim();
+
+  let adjustment = '';
+  let support = '';
+  let motivation = '';
+
+  if (decision.level === 'red' || injuryStatus === 'worse' || injuryStatus === 'high') {
+    adjustment = plannedLabel
+      ? `Bytt ${plannedLabel} til hvile, mobilitet eller smertefri alternativ trening.`
+      : 'Velg hvile, mobilitet eller smertefri alternativ trening.';
+    support = 'Ikke bruk smerte som test i dag. Spis normalt, drikk godt og prioriter søvn.';
+    motivation = 'Dette er ikke et steg bort fra målet; det er slik du beskytter kontinuiteten.';
+  } else if (injuryActive) {
+    adjustment = quality
+      ? 'Hold hard løping igjen. Velg rolig sykkel, mobilitet eller svært rolig test med stoppregel.'
+      : hasPlannedToday ? 'Gjør økten kortere og roligere, og stopp ved økende smerte.' : 'Velg lavrisiko bevegelse og oppdater smerte etterpå.';
+    support = 'Følg trend og dagsform. Målet nå er stabil respons, ikke å bevise form.';
+    motivation = 'Skadefri kontinuitet gir mer verdi enn én presset økt.';
+  } else if (decision.level === 'yellow') {
+    adjustment = quality
+      ? 'Start kontrollert, kutt drag/intensitet ved tunge bein, og la økten bli kortere om nødvendig.'
+      : hasPlannedToday ? 'Gjennomfør rolig og kort nok til at du avslutter med overskudd.' : 'Velg en enkel rolig økt eller lett bevegelse.';
+    support = quality
+      ? 'Fyll på med karbohydrater før økta, drikk godt og bruk oppvarmingen som sjekkpunkt.'
+      : 'Drikk godt og spis normalt. En rolig dag kan være det som gjør neste kvalitetsøkt bedre.';
+    motivation = 'Gul dag betyr ikke stopp, men smart justering.';
+  } else if (quality && (decision.level === 'green' || readiness === 'green')) {
+    adjustment = plannedLabel
+      ? `Gjennomfør ${plannedLabel}, men hold kvaliteten kontrollert.`
+      : 'Gjennomfør kvalitetsøkten kontrollert.';
+    support = 'Spis karbohydrater før økta, drikk godt, varm opp rolig og fyll på med protein/karbohydrater etterpå.';
+    motivation = racePhaseLabel ? `Dette passer som kontrollert kvalitet i ${racePhaseLabel.toLowerCase()}.` : 'Kontrollert kvalitet virker best når den kan repeteres.';
+  } else if (hasPlannedToday) {
+    adjustment = plannedLabel ? `Gjennomfør ${plannedLabel} som planlagt.` : 'Gjennomfør planlagt økt.';
+    support = 'Hold rolig økt rolig. Drikk godt og avslutt med følelsen av at du kunne gjort litt mer.';
+    motivation = weeklyTarget && weekSessions < weeklyTarget
+      ? `Dette bygger kontinuitet mot ukesmålet (${weekSessions}/${weeklyTarget}).`
+      : 'Dette bygger en repeterbar uke.';
+  } else {
+    adjustment = 'Velg én realistisk handling: rolig økt, mobilitet eller planlegg neste økt.';
+    support = 'Gjør terskelen lav. Litt bevegelse og god restitusjon er bedre enn å vente på perfekt dag.';
+    motivation = goalScorePercent && goalScorePercent < 60
+      ? `Mål-score (${goalScorePercent}/100${goalScoreLabel ? `, ${goalScoreLabel}` : ''}) flyttes mest av repeterbare uker.`
+      : 'Små, repeterbare valg bygger formen.';
+  }
+
+  return {
+    adjustment,
+    support,
+    motivation
+  };
+}
+
 export {
   RACE_DISTANCE_PRESETS,
   combinedRaceResults,

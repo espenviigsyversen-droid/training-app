@@ -1,6 +1,6 @@
 # DEVELOPMENT_ROADMAP.md
 
-Strategisk utviklingsroadmap for Treningsapp etter v130.
+Strategisk utviklingsroadmap for Treningsapp etter v131.
 
 Oppdatert: 2026-06-10
 
@@ -80,7 +80,7 @@ Dette betyr at appen bør prioritere:
   - søvn/restitusjon
   - rolig aktivitet ved skadesignal
 
-## Nåværende appstatus etter v130
+## Nåværende appstatus etter v131
 
 Appen har allerede:
 
@@ -103,6 +103,7 @@ Appen har allerede:
 - Mål-score.
 - Race/testløp-anbefaler.
 - Race-aware ukeplan.
+- Dagens råd v2 med konkret handling, støttepåminnelse og motivasjon.
 - Challenges.
 - Garmin-relaterte manuelle data.
 - Gylne soner og pulsbasert innsikt.
@@ -180,11 +181,18 @@ AI skal ikke automatisk endre kalender eller data uten bekreftelse.
 
 ## Anbefalt utviklingsrekkefølge
 
-## v131 - Dagens råd v2
+## v131 - Dagens råd v2 - Bygget
 
 ### Mål
 
 Gjør Hjem-skjermen til appens viktigste daglige coachflate.
+
+Status etter v131:
+
+- Dagens råd viser nå `Gjør nå`, `Støtte` og `Hvorfor`.
+- Rådet bruker dagsform, planlagt økt, skadesignal, mål-score, racefase og ukestatus.
+- Støttepåminnelser om drikke, karbohydrater, protein, søvn og restitusjon vises når relevant.
+- Ren logikk ligger i `dailyCoachSupport()` i `domain-core.js`.
 
 Når brukeren åpner appen, bør "Dagens råd" gi:
 
@@ -585,9 +593,9 @@ Hvis svaret er ja på flere av disse, bør ideen prioriteres.
 
 ### Neste 3 runder
 
-1. v131 - Dagens råd v2
-2. v132 - Coach-grunnlag v2
-3. v133 - Forklaringsmodus for råd
+1. v132 - Coach-grunnlag v2
+2. v133 - Forklaringsmodus for råd
+3. v134 - Ernæring, væske og restitusjonsnotater videre
 
 ### Neste 10 runder
 
@@ -691,4 +699,3 @@ Anbefalt neste utviklingsrunde:
 > v131 - Dagens råd v2
 
 Den bør gjøre appen mer nyttig hver morgen ved å gi et konkret, datadrevet, begrunnet råd for dagen.
-

@@ -1,5 +1,5 @@
 # Treningsapp — progress.md
-Oppdatert: 2026-06-10 (siste endringer: v75–v130)
+Oppdatert: 2026-06-10 (siste endringer: v75–v131)
 
 ---
 
@@ -27,7 +27,7 @@ Standard Bakken-uke: Hoved-terskel → Støtte-terskel → Lang rolig → Valgfr
 **Hosting:** GitHub Pages.  
 **Backend:** Firebase (prosjekt `home-tasks-app-18de3`) — Firestore + Google Auth.  
 **Frontend:** Vanilla JS + HTML + CSS, single-page app, tab-navigasjon.  
-**Versjon:** v130 (konstant i `app.js`).
+**Versjon:** v131 (konstant i `app.js`).
 
 ### Filer
 
@@ -103,6 +103,7 @@ Treningsapp/
 - **Ukeplan smartere mot mål-løp** (v128): Hjem -> Ukeplan bruker nå mål-løp, konkurransefase, race/testløp-anbefaling og skadesignal som støtteinformasjon. Ukeplanen viser en kompakt forklaringsboks for hvorfor den prioriterer rolig base, kontrollert test, spesifikk oppkjøring eller taper. Race/testløp foreslås bare når `raceWeekPlanContext()` vurderer det som nyttig og trygt; aktivt skadesignal eller taper holder race/hard kvalitet igjen.
 - **Mål-score med tydelig utvikling** (v129): Mål-fanen viser nå en 0-100 mål-score med trend mot forrige uke og neste viktigste forbedring. Scoren beregnes fra eksisterende data: kontinuitet, rolig volum, kontrollert kvalitet, skadefrihet og race-/teststatus. Ren logikk ligger i `goalProgressScore()` i `domain-goals.js`; appen lagrer ikke nye scorefelter.
 - **PB-historikk v2** (v130): Personlige bestenoteringer viser nå mer levende kort med beste, siste, antall resultater og trendstatus som PB, nær PB, bedre trend eller tregere siste. Historikkmodalen viser forbedring fra første til siste, avstand til PB, tydeligere grafetiketter og status. Ren analyse ligger i `personalBestTrendSummary()` og `personalBestTrendLabel()` i `domain-goals.js`.
+- **Dagens råd v2** (v131): Hjem -> Dagens råd viser nå mer konkret daglig støtte under hovedbeslutningen: `Gjør nå`, `Støtte` og `Hvorfor`. Rådet bruker eksisterende dagsform, planlagt økt, skadesignal, mål-score, racefase og ukestatus til å foreslå justering, lavrisiko-alternativ eller kontrollert gjennomføring. Små støttepåminnelser om drikke, karbohydrater, protein, søvn og restitusjon vises når relevant. Ren støttefunksjon ligger i `dailyCoachSupport()` i `domain-core.js`; ingen nye datafelter lagres.
 - **Fjernet «Foreslå neste økt»** (v92): Kortet er fjernet fra Kalender-fanen. Ukeplanen dekker samme behov bedre og er rollebevisst. `renderWorkoutSuggestion`-kallet er fjernet fra render-løkken for å unngå krasj.
 - **Coach: smertegradering + priority-felt + X-økt** (v91): Tre coach-forbedringer: (1) `bodySignalState` skiller nå mellom mild smerte (1–2/10 → `cooling`, foreslår terskel etter en rolig økt) og bekymringsfull smerte (3+/10 → `caution`, kun recovery). Løser at mild smerte blokkerte terskelforslag for hele neste uke. (2) `priority`-feltet i treningsprofilen er nå aktivt: `performance` foreslår terskel straks det er rom, `injury_free_progression` krever 2 rolige øyer før terskel. (3) X-økt vises alltid som 4. forslag i normaluke når det er rom — sikrer at VO2max/teknikk/styrke alltid er synlig som alternativ.
 - **Hjem: alle økter samme dag** (v90): «Neste økt» / «Dagens økt» viser nå alle planlagte økter på samme dato, ikke bare én. For fremtidige dager grupperes etter første kommende dato (`nextDateItems`). Tittelen skifter til «Dagens økt» automatisk når det finnes økter på dagens dato (eksisterende logikk).

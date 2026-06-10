@@ -31,6 +31,7 @@ function test(name, fn) {
     completedDurationSeconds,
     challengeProgress,
     challengeRemainingLabel,
+    dailyCoachSupport,
     formatClockDuration,
     formatDuration,
     formatPace,
@@ -149,6 +150,9 @@ function test(name, fn) {
     assert.ok(index.includes('id="homeDecision"'), 'dashboard should include visible today decision element');
     assert.ok(app.includes('renderTodayDecision(buildTodayDecision(coachCtx, primaryItems, todayItems))'), 'dashboard should render today decision from coach context');
     assert.ok(app.includes('todayDecision({'), 'app wrapper should call the domain todayDecision function');
+    assert.ok(app.includes('dailyCoachSupport({'), 'dashboard should enrich today decision with daily coach support');
+    assert.ok(app.includes('today-support-grid'), 'today decision should render support details');
+    assert.ok(read('styles.css').includes('.today-support-grid'), 'today support styling is missing');
   });
 
   test('daily injury check-in is preserved and used by coach context', () => {
@@ -888,6 +892,32 @@ function test(name, fn) {
     });
     assert.strictEqual(yellow.level, 'yellow');
     assert.match(yellow.action, /Start kontrollert|lettere/);
+  });
+
+  test('daily coach support adds nutrition and adjustment for quality workout', () => {
+    const support = dailyCoachSupport({
+      decision: { level: 'green', action: 'Gjennomfør planlagt økt.' },
+      planned: { label: 'Støtteterskel 10x3', intensity: 'Terskel', role: 'support_threshold', load: 'moderate' },
+      hasPlannedToday: true,
+      dailyReadinessLevel: 'green',
+      racePhaseLabel: 'Basebygging'
+    });
+    assert.match(support.adjustment, /Støtteterskel|kontrollert/);
+    assert.match(support.support, /karbohydrater|protein|drikk/i);
+    assert.match(support.motivation, /basebygging|kontrollert/i);
+  });
+
+  test('daily coach support prioritizes low-risk choice with active injury', () => {
+    const support = dailyCoachSupport({
+      decision: { level: 'red', action: 'Ikke press gjennom høy smerte.' },
+      planned: { label: 'Intervall', intensity: 'Intervall', role: 'race', load: 'high' },
+      hasPlannedToday: true,
+      injuryActive: true,
+      injuryStatus: 'high'
+    });
+    assert.match(support.adjustment, /hvile|alternativ/i);
+    assert.match(support.support, /Ikke bruk smerte som test/);
+    assert.match(support.motivation, /kontinuiteten/);
   });
 
   test('today decision uses recent structured interval load conservatively', () => {

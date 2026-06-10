@@ -28,7 +28,7 @@ Prioritert backlog for videre utvikling av Treningsapp.
    - Gjør PB-kortene mer levende.
    - Vis siste, beste, forbedring fra første, nær PB og tydeligere graf/akser.
 
-7. **Dagens råd koblet tydeligere til Mål**
+7. **Dagens råd koblet tydeligere til Mål / Dagens råd v2** - Bygget v131
    - Knytt Hjem-rådet tydeligere til mål-løp og fase.
    - Eksempel: "Fordi du er i basebygging mot Halv-Birken, er dagens beste valg rolig volum."
 
@@ -46,9 +46,9 @@ Prioritert backlog for videre utvikling av Treningsapp.
 
 ## Anbefalt neste steg
 
-Neste anbefalte backlogpunkt er **Dagens råd koblet tydeligere til Mål**.
+Neste anbefalte backlogpunkt er **Coach-grunnlag v2**.
 
 Begrunnelse:
-- bygger videre på mål-score, ukeplan og konkurransefase
-- gjør Hjem-rådet mer personlig uten AI
-- gir høy daglig verdi når appen åpnes ofte
+- bygger videre på Dagens råd v2
+- gjør "Grunnlag" mer presist og gjenbrukbart
+- blir et trygt fundament for senere AI-chat

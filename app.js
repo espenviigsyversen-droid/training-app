@@ -20,6 +20,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       goldenZonePercentages,
       normalizeTemplate,
       parseNonNegativeInteger,
+      dailyCoachSupport,
       hasStructuredIntervals,
       injuryAdjustedWorkoutAdvice,
       injuryRecoveryGuidance,
@@ -37,6 +38,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       formatRaceTime,
       goalMilestones,
       goalMotivationSummary,
+      goalProgressScore,
       normalizeRaceGoal,
       normalizeRaceResult,
       normalizeRaceResultEntry,
@@ -52,7 +54,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       raceReadinessSummary
     } from './domain-goals.js';
 
-    const APP_VERSION = 'v130';
+    const APP_VERSION = 'v131';
     const APP_CACHE_NAME = `treningsapp-${APP_VERSION}`;
 
     const firebaseConfig = {
@@ -5063,7 +5065,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       const firstPlanned = primaryItems[0] || ctx.nextPlanned || null;
       const template = firstPlanned ? getTemplate(firstPlanned.templateId) : null;
       const painImproving = improvingPainFollowup(ctx);
-      return todayDecision({
+      const decision = todayDecision({
         dailyReadinessLevel: ctx.dailyReadiness?.level || null,
         highestPainTier: ctx.gradedPain?.highestTier || null,
         painImprovingAfterHigh: Boolean(painImproving),
@@ -5077,6 +5079,22 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         weekSessions: ctx.weekSummary?.sessions || 0,
         weeklyTarget: ctx.goals?.weeklySessionsTarget || 0
       });
+      return {
+        ...decision,
+        support: dailyCoachSupport({
+          decision,
+          planned: plannedWorkoutAdviceMeta(firstPlanned),
+          hasPlannedToday: todayItems.length > 0,
+          dailyReadinessLevel: ctx.dailyReadiness?.level || null,
+          injuryActive: Boolean(ctx.injurySummary7?.hasSignal),
+          injuryStatus: ctx.injurySummary7?.status || '',
+          goalScorePercent: ctx.goalScore?.percent || 0,
+          goalScoreLabel: ctx.goalScore?.label || '',
+          racePhaseLabel: ctx.racePlan?.phaseLabel || '',
+          weekSessions: ctx.weekSummary?.sessions || 0,
+          weeklyTarget: ctx.goals?.weeklySessionsTarget || 0
+        })
+      };
     }
 
     function plannedWorkoutAdviceMeta(planned) {
@@ -5119,12 +5137,19 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       const el = document.getElementById('homeDecision');
       if (!el || !decision) return;
       const level = ['green', 'yellow', 'red', 'neutral'].includes(decision.level) ? decision.level : 'neutral';
+      const support = decision.support || {};
       el.className = `today-decision ${level}`;
       el.innerHTML = `
         <span>Dagens beslutning</span>
         <strong>${escapeHtml(decision.title)}</strong>
         <p>${escapeHtml(decision.action)}</p>
-        <small>${escapeHtml(decision.reason)}</small>`;
+        <small>${escapeHtml(decision.reason)}</small>
+        ${support.adjustment || support.support || support.motivation ? `
+          <div class="today-support-grid">
+            ${support.adjustment ? `<div><span>Gjør nå</span><p>${escapeHtml(support.adjustment)}</p></div>` : ''}
+            ${support.support ? `<div><span>Støtte</span><p>${escapeHtml(support.support)}</p></div>` : ''}
+            ${support.motivation ? `<div><span>Hvorfor</span><p>${escapeHtml(support.motivation)}</p></div>` : ''}
+          </div>` : ''}`;
     }
 
     function renderHistoryFilterOptions() {
@@ -6091,6 +6116,15 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       const gradedPain = gradedPainContext(completedAndDailySignals, today);
       const dailyReadiness = loadDailyReadiness();
       const structuredIntervals = structuredIntervalContext(completedWithTemplateContext, today);
+      const injurySummary7 = injurySignalSummary(injurySignalEntriesUntil(today, 7));
+      const raceReadiness = raceReadinessSummary(state.settings.raceGoal, completedRaceItems(), state.raceResults, today);
+      const racePlan = raceGoalPlan(state.settings.raceGoal, raceReadiness, injurySummary7, today);
+      const goalScore = goalProgressScore({
+        readiness: raceReadiness,
+        injurySummary: injurySummary7,
+        last7: summarizeCompleted(last7Days),
+        last28: summarizeCompleted(last28Days)
+      });
 
       return {
         today, goals, trainingProfile, personProfile, isRunningBakken,
@@ -6102,7 +6136,8 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         weekPlanRoles, completedRoles, missingRoles,
         activeChallenge, nextPlanned,
         hardCount7, hardCount14, easyCount14, intensityRatio14,
-        gradedPain, dailyReadiness, structuredIntervals, injuryCheckins14
+        gradedPain, dailyReadiness, structuredIntervals, injuryCheckins14,
+        injurySummary7, raceReadiness, racePlan, goalScore
       };
     }
 
