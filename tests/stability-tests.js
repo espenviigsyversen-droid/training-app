@@ -59,6 +59,7 @@ function test(name, fn) {
     formatRaceTime,
     goalMilestones,
     goalMotivationSummary,
+    goalProgressScore,
     normalizeRaceGoal,
     normalizeRaceResult,
     normalizeRaceResultEntry,
@@ -127,6 +128,8 @@ function test(name, fn) {
     assert.ok(app.includes('window.openSetupFromHeader'), 'openSetupFromHeader handler is missing');
     assert.ok(app.includes('renderGoals(today)'), 'render loop should render goals content');
     assert.ok(app.includes('goalMotivationSummary({'), 'goals overview should use domain goal motivation summary');
+    assert.ok(app.includes('previous7 = summarizeCompleted'), 'goals overview should compare against previous week');
+    assert.ok(app.includes('class="goal-progress-score'), 'goals overview should render visible goal score');
     assert.ok(app.includes('goalMilestones({'), 'goals overview should render milestone data from domain-goals');
     assert.ok(app.includes('raceTestRecommendation({'), 'goals overview should render race test recommendation');
     assert.ok(app.includes('buildRaceWeekPlanContext(today)'), 'week plan should build race-aware context');
@@ -134,6 +137,7 @@ function test(name, fn) {
     assert.ok(app.includes('applyRaceContextToSuggestionMix'), 'week plan should apply race context to suggestions');
     assert.ok(read('styles.css').includes('#goals.tab.active'), 'desktop goals layout is missing');
     assert.ok(read('styles.css').includes('.goals-overview'), 'goals overview styling is missing');
+    assert.ok(read('styles.css').includes('.goal-progress-score'), 'goal progress score styling is missing');
     assert.ok(read('styles.css').includes('.goal-milestones'), 'goal milestones styling is missing');
     assert.ok(read('styles.css').includes('.race-test-recommendation'), 'race test recommendation styling is missing');
     assert.ok(read('styles.css').includes('.week-race-context'), 'race-aware week plan context styling is missing');
@@ -418,7 +422,35 @@ function test(name, fn) {
     }, '2027-04-15');
     assert.match(summary.action, /Skadesignal/);
     assert.match(summary.motivation, /skadefritt/);
-    assert.ok(summary.score.items.some(item => item.label === 'Skadesignal' && item.status === 'watch'));
+    assert.ok(summary.score.items.some(item => item.label === 'Skadefrihet' && item.status === 'watch'));
+  });
+
+  test('goal progress score gives numeric score and positive weekly trend', () => {
+    const score = goalProgressScore({
+      readiness: { status: 'close', note: 'Siste testpace er nær målpace.' },
+      injurySummary: { hasSignal: false },
+      last7: { sessions: 3, km: 22, hard: 1 },
+      last28: { sessions: 10, km: 70, seconds: 10 * 3600, hard: 3 },
+      previous7: { sessions: 1, km: 8, hard: 0 },
+      previous28: { sessions: 4, km: 22, seconds: 4 * 3600, hard: 1 }
+    });
+    assert.ok(score.percent >= 80);
+    assert.strictEqual(score.status, 'good');
+    assert.ok(score.trend.delta > 0);
+    assert.match(score.trend.label, /\+/);
+    assert.ok(score.items.some(item => item.label === 'Race/test-status' && item.status === 'good'));
+  });
+
+  test('goal progress score prioritizes injury stability when signal is active', () => {
+    const score = goalProgressScore({
+      readiness: { status: 'behind', note: 'Siste testpace er roligere enn målpace.' },
+      injurySummary: { hasSignal: true, status: 'improving', statusLabel: 'Bedres' },
+      last7: { sessions: 2, km: 12, hard: 1 },
+      last28: { sessions: 6, km: 36, seconds: 6 * 3600, hard: 2 }
+    });
+    assert.ok(score.percent < 80);
+    assert.ok(score.items.some(item => item.label === 'Skadefrihet' && item.status === 'watch'));
+    assert.match(score.nextImprovement, /skadesignalet|testløp|volum|repeterbar/);
   });
 
   test('goal milestones create concrete steps and respect injury signal', () => {

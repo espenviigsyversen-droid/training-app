@@ -359,6 +359,87 @@ function goalScoreItem(label, status, detail) {
   return { label, status, detail, value };
 }
 
+export function goalProgressScore(input = {}) {
+  const readiness = input.readiness || {};
+  const injurySummary = input.injurySummary || {};
+  const last7 = input.last7 || {};
+  const last28 = input.last28 || {};
+  const previous7 = input.previous7 || null;
+  const previous28 = input.previous28 || null;
+  const injuryActive = Boolean(injurySummary?.hasSignal && !['none', 'calming'].includes(injurySummary.status));
+
+  const continuityStatus = Number(last28.sessions || 0) >= 8 ? 'good' : Number(last7.sessions || 0) >= 1 ? 'watch' : 'neutral';
+  const qualityStatus = Number(last7.hard || 0) <= 1 ? 'good' : Number(last7.hard || 0) === 2 ? 'watch' : 'neutral';
+  const injuryStatus = injuryActive ? 'watch' : 'good';
+  const raceStatus = ['ahead', 'close'].includes(readiness?.status)
+    ? 'good'
+    : ['behind', 'needs_test', 'missing_target_time'].includes(readiness?.status)
+    ? 'watch'
+    : 'neutral';
+  const volumeStatus = Number(last28.km || 0) >= 40 || Number(last28.seconds || 0) >= 8 * 3600
+    ? 'good'
+    : Number(last28.km || 0) > 0 || Number(last28.seconds || 0) > 0
+    ? 'watch'
+    : 'neutral';
+
+  const items = [
+    goalScoreItem('Kontinuitet', continuityStatus, Number(last28.sessions || 0) ? `${last28.sessions} økter siste 28 dager` : 'Bygg første repeterbare uke'),
+    goalScoreItem('Rolig grunnlag', volumeStatus, Number(last28.km || 0) ? `${Math.round(last28.km)} km siste 28 dager` : 'Få inn rolig volum over tid'),
+    goalScoreItem('Kontrollert kvalitet', qualityStatus, Number(last7.hard || 0) ? `${last7.hard} harde økter siste 7 dager` : 'Ingen hard økt siste 7 dager'),
+    goalScoreItem('Skadefrihet', injuryStatus, injuryActive ? injurySummary.statusLabel || 'Følg med' : 'Ingen aktivt signal i målstatus'),
+    goalScoreItem('Race/test-status', raceStatus, readiness?.note || 'Mangler nok race-/testdata')
+  ];
+
+  const value = items.reduce((sum, item) => sum + item.value, 0);
+  const max = items.length * 2;
+  const percent = max ? Math.round((value / max) * 100) : 0;
+  const status = percent >= 80 ? 'good' : percent >= 50 ? 'watch' : 'neutral';
+  const label = status === 'good' ? 'God retning' : status === 'watch' ? 'På vei' : 'Bygg grunnlag';
+
+  let previousPercent = null;
+  let trend = null;
+  if (previous7 || previous28) {
+    const previous = goalProgressScore({
+      readiness,
+      injurySummary: { hasSignal: false },
+      last7: previous7 || {},
+      last28: previous28 || {}
+    });
+    previousPercent = previous.percent;
+    const delta = percent - previous.percent;
+    trend = {
+      delta,
+      label: delta > 0 ? `+${delta} fra forrige uke` : delta < 0 ? `${delta} fra forrige uke` : 'Uendret fra forrige uke',
+      status: delta > 0 ? 'good' : delta < 0 ? 'watch' : 'neutral'
+    };
+  }
+
+  const weakest = items.slice().sort((a, b) => a.value - b.value)[0] || null;
+  const nextImprovement = weakest
+    ? weakest.label === 'Skadefrihet'
+      ? 'Få skadesignalet lavere/stabilt før hard kvalitet.'
+      : weakest.label === 'Race/test-status'
+      ? 'Bruk et kontrollert testløp når dagsform og kroppssignaler er ok.'
+      : weakest.label === 'Kontrollert kvalitet'
+      ? 'Hold kvaliteten kontrollert, og la rolig volum bære resten av uka.'
+      : weakest.label === 'Rolig grunnlag'
+      ? 'Bygg rolig volum før du jager mer fart.'
+      : 'Bygg en repeterbar uke med nok økter.'
+    : 'Fortsett med repeterbare uker og juster etter kroppen.';
+
+  return {
+    percent,
+    value,
+    max,
+    label,
+    status,
+    previousPercent,
+    trend,
+    nextImprovement,
+    items
+  };
+}
+
 export function goalMotivationSummary(input = {}, todayIso = dateToISO(new Date())) {
   const goal = normalizeRaceGoal(input.goal || {});
   const readiness = input.readiness || raceReadinessSummary(goal, input.completedItems || [], input.manualRaceResults || [], todayIso);
@@ -376,7 +457,7 @@ export function goalMotivationSummary(input = {}, todayIso = dateToISO(new Date(
       action: 'Legg inn et mål-løp eller bruk challenges som kortsiktig retning.',
       motivation: 'Når målet er tydelig, kan appen gjøre rådene mer konkrete.',
       metrics: [],
-      score: { label: 'Mål ikke satt', status: 'neutral', items: [] }
+      score: { label: 'Mål ikke satt', status: 'neutral', percent: 0, items: [] }
     };
   }
 
@@ -401,26 +482,14 @@ export function goalMotivationSummary(input = {}, todayIso = dateToISO(new Date(
     ? `Skadesignal er aktivt (${injurySummary.statusLabel || 'følg med'}). Hold testløp og hard kvalitet igjen til signalet er lavere/stabilt.`
     : plan?.nextStep || readiness?.nextStep || 'Bygg kontinuitet og bruk testløp til å følge fremgang.';
 
-  const continuityStatus = Number(last28.sessions || 0) >= 8 ? 'good' : Number(last7.sessions || 0) >= 1 ? 'watch' : 'neutral';
-  const qualityStatus = Number(last7.hard || 0) <= 1 ? 'good' : Number(last7.hard || 0) === 2 ? 'watch' : 'neutral';
-  const injuryStatus = injuryActive ? 'watch' : 'good';
-  const raceStatus = ['ahead', 'close'].includes(readiness?.status)
-    ? 'good'
-    : ['behind', 'needs_test', 'missing_target_time'].includes(readiness?.status)
-    ? 'watch'
-    : 'neutral';
-  const volumeStatus = Number(last28.km || 0) > 0 || Number(last28.seconds || 0) > 0 ? 'good' : 'watch';
-
-  const items = [
-    goalScoreItem('Kontinuitet', continuityStatus, Number(last28.sessions || 0) ? `${last28.sessions} økter siste 28 dager` : 'Bygg første repeterbare uke'),
-    goalScoreItem('Rolig grunnlag', volumeStatus, Number(last28.km || 0) ? `${Math.round(last28.km)} km siste 28 dager` : 'Få inn rolig volum over tid'),
-    goalScoreItem('Kvalitet', qualityStatus, Number(last7.hard || 0) ? `${last7.hard} harde økter siste 7 dager` : 'Ingen hard økt siste 7 dager'),
-    goalScoreItem('Skadesignal', injuryStatus, injuryActive ? injurySummary.statusLabel || 'Følg med' : 'Ingen aktivt signal i målstatus'),
-    goalScoreItem('Race-status', raceStatus, readiness?.note || 'Mangler nok race-/testdata')
-  ];
-  const scoreValue = items.reduce((sum, item) => sum + item.value, 0);
-  const scoreStatus = scoreValue >= 8 ? 'good' : scoreValue >= 5 ? 'watch' : 'neutral';
-  const scoreLabel = scoreStatus === 'good' ? 'God retning' : scoreStatus === 'watch' ? 'Følg med' : 'Bygg grunnlag';
+  const score = goalProgressScore({
+    readiness,
+    injurySummary,
+    last7,
+    last28,
+    previous7: input.previous7,
+    previous28: input.previous28
+  });
 
   const motivation = injuryActive
     ? 'Målet står, men akkurat nå er beste investering å komme skadefritt tilbake.'
@@ -442,13 +511,9 @@ export function goalMotivationSummary(input = {}, todayIso = dateToISO(new Date(
       { label: 'Fase', value: phaseLabel },
       { label: 'Målpace', value: targetPace || '-' },
       { label: 'Siste test', value: latestLabel },
-      { label: 'Status', value: scoreLabel }
+      { label: 'Status', value: score.label }
     ],
-    score: {
-      label: scoreLabel,
-      status: scoreStatus,
-      items
-    }
+    score
   };
 }
 

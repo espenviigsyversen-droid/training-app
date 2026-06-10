@@ -408,6 +408,7 @@ export {
   formatRaceTime,
   goalMilestones,
   goalMotivationSummary,
+  goalProgressScore,
   normalizeRaceGoal,
   normalizeRaceResult,
   normalizeRaceResultEntries,

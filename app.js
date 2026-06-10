@@ -51,7 +51,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       raceReadinessSummary
     } from './domain-goals.js';
 
-    const APP_VERSION = 'v128';
+    const APP_VERSION = 'v129';
     const APP_CACHE_NAME = `treningsapp-${APP_VERSION}`;
 
     const firebaseConfig = {
@@ -6514,8 +6514,14 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       const completedToDate = state.completed.filter(item => item.date <= today);
       const last7Start = addDays(today, -6);
       const last28Start = addDays(today, -27);
+      const previous7Start = addDays(today, -13);
+      const previous7End = addDays(today, -7);
+      const previous28Start = addDays(today, -34);
+      const previous28End = addDays(today, -7);
       const last7 = summarizeCompleted(completedToDate.filter(item => item.date >= last7Start));
       const last28 = summarizeCompleted(completedToDate.filter(item => item.date >= last28Start));
+      const previous7 = summarizeCompleted(completedToDate.filter(item => item.date >= previous7Start && item.date <= previous7End));
+      const previous28 = summarizeCompleted(completedToDate.filter(item => item.date >= previous28Start && item.date <= previous28End));
       const injurySummary = injurySignalSummary(injurySignalEntriesUntil(today, 7));
       const readiness = raceReadinessSummary(state.settings.raceGoal, completedRaceItems(), state.raceResults, today);
       const plan = raceGoalPlan(state.settings.raceGoal, readiness, injurySummary, today);
@@ -6525,7 +6531,9 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         plan,
         injurySummary,
         last7,
-        last28
+        last28,
+        previous7,
+        previous28
       }, today);
       const milestones = goalMilestones({
         goal: state.settings.raceGoal,
@@ -6543,12 +6551,27 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         last7,
         last28
       }, today);
+      const score = summary.score || {};
       const metrics = summary.metrics?.length
         ? `<div class="goals-overview-metrics">${summary.metrics.map(metric => `
             <div class="goals-overview-stat">
               <strong>${escapeHtml(metric.value || '-')}</strong>
               <span>${escapeHtml(metric.label || '')}</span>
             </div>`).join('')}</div>`
+        : '';
+      const scoreTrend = score.trend
+        ? `<small class="goal-progress-trend ${escapeHtml(score.trend.status || 'neutral')}">${escapeHtml(score.trend.label)}</small>`
+        : '';
+      const scoreCard = summary.hasGoal
+        ? `<div class="goal-progress-score ${escapeHtml(score.status || 'neutral')}">
+            <div class="goal-progress-score-main">
+              <span>Mål-score</span>
+              <strong>${Number(score.percent || 0)}/100</strong>
+              ${scoreTrend}
+            </div>
+            <div class="goal-progress-score-bar"><span style="width:${Math.max(0, Math.min(100, Number(score.percent || 0)))}%"></span></div>
+            <p><strong>Neste viktigste forbedring:</strong> ${escapeHtml(score.nextImprovement || summary.action || '')}</p>
+          </div>`
         : '';
       const scoreItems = summary.score?.items?.length
         ? `<div class="goal-score-list">${summary.score.items.map(item => `
@@ -6597,6 +6620,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
           ${summary.subtitle ? `<p>${escapeHtml(summary.subtitle)}</p>` : ''}
         </div>
         ${metrics}
+        ${scoreCard}
         <div class="goals-next-action">
           <span>Neste smarte steg</span>
           <strong>${escapeHtml(summary.action)}</strong>

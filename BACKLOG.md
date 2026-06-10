@@ -20,7 +20,7 @@ Prioritert backlog for videre utvikling av Treningsapp.
    - La ukeplanen forstå fase mot mål-løp: base, testfase, spesifikk oppkjøring og taper.
    - Foreslå riktigere roller uten AI.
 
-5. **Mål-score med tydelig utvikling**
+5. **Mål-score med tydelig utvikling** - Bygget v129
    - Vis om brukeren beveger seg i riktig retning fra uke til uke.
    - Dimensjoner: kontinuitet, rolig volum, kontrollert kvalitet, skadefrihet og race-status.
 
@@ -46,9 +46,9 @@ Prioritert backlog for videre utvikling av Treningsapp.
 
 ## Anbefalt neste steg
 
-Neste anbefalte backlogpunkt er **Mål-score med tydelig utvikling**.
+Neste anbefalte backlogpunkt er **PB-historikk v2**.
 
 Begrunnelse:
-- bygger videre på mål-løp, fase, milepæler og ukeplan
-- viser om retningen faktisk blir bedre fra uke til uke
-- gir mer motivasjon uten å kreve AI eller ny datainnsamling
+- bygger videre på race-/testdata som allerede finnes
+- gjør personlige rekorder og utvikling mer motiverende
+- kan gjøres med lav risiko uten ny datamodell
