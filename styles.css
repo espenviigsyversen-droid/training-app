@@ -2825,6 +2825,53 @@
       margin-bottom: 10px;
     }
 
+    .week-race-context {
+      display: grid;
+      gap: 8px;
+      margin: 10px 0 12px;
+      padding: 10px 12px;
+      border: 1px solid rgba(255,79,46,0.18);
+      border-radius: 12px;
+      background: rgba(255,79,46,0.06);
+    }
+
+    .week-race-context span {
+      display: block;
+      color: var(--warm-gray-3);
+      font-size: 0.72rem;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: 0.02em;
+    }
+
+    .week-race-context strong {
+      display: block;
+      margin-top: 3px;
+      font-size: 1rem;
+      line-height: 1.2;
+    }
+
+    .week-race-context small {
+      display: block;
+      margin-top: 2px;
+      color: var(--warm-gray-3);
+      font-weight: 800;
+      line-height: 1.25;
+    }
+
+    .week-plan-card .week-race-context p {
+      margin: 0;
+      color: var(--black);
+      font-size: 0.84rem;
+      font-weight: 750;
+      line-height: 1.35;
+    }
+
+    .week-race-context.taper {
+      background: rgba(245,158,11,0.08);
+      border-color: rgba(245,158,11,0.22);
+    }
+
     .week-role-grid {
       display: grid;
       grid-template-columns: repeat(4, minmax(0, 1fr));

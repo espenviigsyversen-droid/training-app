@@ -16,7 +16,7 @@ Prioritert backlog for videre utvikling av Treningsapp.
    - Foreslå riktig test nå: 1 km, 2 km, 5 km, 10 km eller ingen test.
    - Bruk mål-løp, skadesignal, siste test og treningsgrunnlag.
 
-4. **Ukeplan smartere mot mål-løp**
+4. **Ukeplan smartere mot mål-løp** - Bygget v128
    - La ukeplanen forstå fase mot mål-løp: base, testfase, spesifikk oppkjøring og taper.
    - Foreslå riktigere roller uten AI.
 
@@ -46,9 +46,9 @@ Prioritert backlog for videre utvikling av Treningsapp.
 
 ## Anbefalt neste steg
 
-Neste anbefalte backlogpunkt er **Ukeplan smartere mot mål-løp**.
+Neste anbefalte backlogpunkt er **Mål-score med tydelig utvikling**.
 
 Begrunnelse:
-- bygger videre på mål-løp, fase og testanbefaling
-- gjør planforslagene mer relevante uten AI
-- kan gjøres regelstyrt og lavrisiko
+- bygger videre på mål-løp, fase, milepæler og ukeplan
+- viser om retningen faktisk blir bedre fra uke til uke
+- gir mer motivasjon uten å kreve AI eller ny datainnsamling

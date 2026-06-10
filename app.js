@@ -47,10 +47,11 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       raceGoalCountdown,
       raceGoalPlan,
       raceTestRecommendation,
+      raceWeekPlanContext,
       raceReadinessSummary
     } from './domain-goals.js';
 
-    const APP_VERSION = 'v127';
+    const APP_VERSION = 'v128';
     const APP_CACHE_NAME = `treningsapp-${APP_VERSION}`;
 
     const firebaseConfig = {
@@ -4750,14 +4751,78 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         </div>`;
     }
 
-    function buildWeekPlanSuggestions(today, weekEnd, plannedThisWeek, weekSummary, weekItems, last14Days, profile, remainingAfterPlanned) {
+    function raceTestWeekSuggestion(raceContext) {
+      if (!raceContext?.allowRaceTest || !raceContext.testSuggestion) return null;
+      const distanceLabel = raceDistanceLabel(raceContext.testSuggestion.distanceKm);
+      const keywords = ['race', 'testløp', 'konkurranse', 'kontrollert', 'tempo'];
+      if (distanceLabel) keywords.push(distanceLabel.toLowerCase());
+      return {
+        title: raceContext.testSuggestion.title || 'Kontrollert testløp',
+        detail: raceContext.testSuggestion.detail || 'Kontrollert test · juster etter dagsform',
+        note: raceContext.testSuggestion.note || raceContext.note || 'Bruk testløp som datapunkt, ikke som maksimal belastning.',
+        principleIds: ['controlled_threshold', 'body_signals_first'],
+        types: ['Løping'],
+        intensities: ['Tempo', 'Terskel', 'Intervall'],
+        roles: ['race'],
+        purposes: ['race'],
+        loads: ['moderate'],
+        recommendedWhen: ['normal', 'fresh_legs'],
+        avoidTemplateWhen: ['pain', 'heavy_legs', 'many_hard', 'low_hrv'],
+        keywords
+      };
+    }
+
+    function applyRaceContextToSuggestionMix(suggestions, raceContext, count) {
+      const target = Math.max(0, Number(count) || 0);
+      if (!raceContext?.active || target <= 0) return suggestions.slice(0, target);
+      const avoidRoles = new Set(asArray(raceContext.avoidRoles));
+      let next = suggestions.filter(suggestion => !asArray(suggestion.roles).some(role => avoidRoles.has(role)));
+      const testSuggestion = raceTestWeekSuggestion(raceContext);
+      const hasRaceSuggestion = next.some(suggestion => asArray(suggestion.roles).includes('race') || asArray(suggestion.purposes).includes('race'));
+      if (testSuggestion && !hasRaceSuggestion) {
+        next = [testSuggestion, ...next];
+      }
+      while (next.length < target) {
+        next.push(gentleBaseSuggestion('Mål-løpet ligger i bakgrunnen, men planen bør først sikre rolig kontinuitet og friske bein.'));
+      }
+      return next.slice(0, target);
+    }
+
+    function buildRaceWeekPlanContext(today) {
+      const goal = state.settings.raceGoal;
+      const last7Start = addDays(today, -6);
+      const last28Start = addDays(today, -27);
+      const last7 = summarizeCompleted(state.completed.filter(item => item.date >= last7Start && item.date <= today));
+      const last28 = summarizeCompleted(state.completed.filter(item => item.date >= last28Start && item.date <= today));
+      const injurySummary = injurySignalSummary(injurySignalEntriesUntil(today, 7));
+      const readiness = raceReadinessSummary(goal, completedRaceItems(), state.raceResults, today);
+      const plan = raceGoalPlan(goal, readiness, injurySummary, today);
+      const testRecommendation = raceTestRecommendation({ goal, readiness, plan, injurySummary, last7, last28 }, today);
+      return raceWeekPlanContext({ goal, readiness, plan, testRecommendation, injurySummary, last7, last28 }, today);
+    }
+
+    function raceWeekPlanContextHtml(raceContext) {
+      if (!raceContext?.active) return '';
+      return `
+        <div class="week-race-context ${escapeHtml(raceContext.phase || 'base')}">
+          <div>
+            <span>Mål-løp i ukeplan</span>
+            <strong>${escapeHtml(raceContext.title || 'Mål-løp')}</strong>
+            <small>${escapeHtml(raceContext.summary || '')}</small>
+          </div>
+          <p>${escapeHtml(raceContext.note || '')}</p>
+        </div>`;
+    }
+
+    function buildWeekPlanSuggestions(today, weekEnd, plannedThisWeek, weekSummary, weekItems, last14Days, profile, remainingAfterPlanned, raceContext = null) {
       if (remainingAfterPlanned <= 0) return [];
       const mainSuggestion = buildWorkoutSuggestion(today, weekSummary, weekItems, last14Days, profile);
       const bodyState = bodySignalState(last14Days);
       const runningBakkenFocus = profile.primaryFocus === 'running' && profile.philosophy === 'bakken_threshold';
-      const suggestionMix = runningBakkenFocus
+      const baseMix = runningBakkenFocus
         ? roleAwareSuggestions(remainingAfterPlanned, bodyState, weekSummary, weekItems, profile, normalizeGoals(state.settings.goals), weekItems, plannedThisWeek)
         : weekPlanSuggestionMix(mainSuggestion, remainingAfterPlanned, profile);
+      const suggestionMix = applyRaceContextToSuggestionMix(baseMix, raceContext, remainingAfterPlanned);
       const suggestionDates = weekPlanDates(today, weekEnd, plannedThisWeek, suggestionMix.length);
       const usedTemplateIds = [];
       return suggestionMix.map((suggestion, index) => {
@@ -4767,16 +4832,17 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       }).filter(item => item.date);
     }
 
-    function buildNextWeekPlanSuggestions(nextWeekStart, nextWeekEnd, plannedNextWeek, weekSummary, weekItems, last14Days, profile, goals) {
+    function buildNextWeekPlanSuggestions(nextWeekStart, nextWeekEnd, plannedNextWeek, weekSummary, weekItems, last14Days, profile, goals, raceContext = null) {
       const target = Math.max(1, Number(goals.weeklySessionsTarget) || 3);
       const remaining = Math.max(0, target - plannedNextWeek.length);
       if (remaining <= 0) return [];
       const mainSuggestion = buildWorkoutSuggestion(todayISO(), weekSummary, weekItems, last14Days, profile);
       const bodyState = bodySignalState(last14Days);
       const runningBakkenFocus = profile.primaryFocus === 'running' && profile.philosophy === 'bakken_threshold';
-      const suggestionMix = runningBakkenFocus
+      const baseMix = runningBakkenFocus
         ? roleAwareSuggestions(remaining, bodyState, weekSummary, weekItems, profile, goals, [], plannedNextWeek)
         : weekPlanSuggestionMix(mainSuggestion, remaining, profile);
+      const suggestionMix = applyRaceContextToSuggestionMix(baseMix, raceContext, remaining);
       const suggestionDates = weekPlanDatesInRange(nextWeekStart, nextWeekEnd, plannedNextWeek, suggestionMix.length);
       const usedTemplateIds = [];
       return suggestionMix.map((suggestion, index) => {
@@ -4819,8 +4885,12 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       const remainingAfterPlanned = Math.max(0, goals.weeklySessionsTarget - completedCount - plannedCount);
       const status = weeklyTrainingStatus(weekItems, weekSummary, goals, profile);
       const bodyState = bodySignalState(last14Days);
-      const suggestedItems = buildWeekPlanSuggestions(today, weekEnd, plannedThisWeek, weekSummary, weekItems, last14Days, profile, remainingAfterPlanned);
-      const suggestedNextWeek = buildNextWeekPlanSuggestions(nextWeekStart, nextWeekEnd, plannedNextWeek, weekSummary, weekItems, last14Days, profile, goals);
+      const raceContext = buildRaceWeekPlanContext(today);
+      const nextRaceContext = raceContext?.active && remainingAfterPlanned > 0
+        ? { ...raceContext, allowRaceTest: false, testSuggestion: null }
+        : raceContext;
+      const suggestedItems = buildWeekPlanSuggestions(today, weekEnd, plannedThisWeek, weekSummary, weekItems, last14Days, profile, remainingAfterPlanned, raceContext);
+      const suggestedNextWeek = buildNextWeekPlanSuggestions(nextWeekStart, nextWeekEnd, plannedNextWeek, weekSummary, weekItems, last14Days, profile, goals, nextRaceContext);
       const rolePlan = normalWeekRoles(profile, goals);
       const currentRoleCoverage = roleCoverage(rolePlan, weekItems, plannedThisWeek);
       const nextRoleCoverage = roleCoverage(rolePlan, [], plannedNextWeek);
@@ -4868,6 +4938,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
           </div>
           <div class="week-plan-action-line">${escapeHtml(actionLine)}</div>
           <p>${escapeHtml(planSummary)}</p>
+          ${raceWeekPlanContextHtml(raceContext)}
           <p class="week-plan-role-summary">${escapeHtml(roleSummary)}</p>
           ${weekRoleStatusHtml(currentRoleCoverage)}
           <div class="week-plan-list">

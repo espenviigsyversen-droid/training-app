@@ -90,6 +90,7 @@ Inneholder ren konkurranse- og mål-logikk uten DOM, Firebase eller direkte `sta
 - handlingsorientert målstatus for Mål-fanen
 - delmål og milepæler mot prioritert mål-løp
 - anbefaling av neste relevante race-/testløp
+- race-aware ukeplan-kontekst som lar ukeplanen prioritere base, test, spesifikk oppkjøring eller taper uten AI
 
 `app.js` importerer race-/mål-funksjoner direkte herfra. `domain-core.js` re-eksporterer dem foreløpig for bakoverkompatibilitet med eldre tester/importmønster.
 

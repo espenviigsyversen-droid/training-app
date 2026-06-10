@@ -70,6 +70,7 @@ function test(name, fn) {
     raceGoalCountdown,
     raceGoalPlan,
     raceTestRecommendation,
+    raceWeekPlanContext,
     raceReadinessSummary
   } = goals;
 
@@ -128,10 +129,14 @@ function test(name, fn) {
     assert.ok(app.includes('goalMotivationSummary({'), 'goals overview should use domain goal motivation summary');
     assert.ok(app.includes('goalMilestones({'), 'goals overview should render milestone data from domain-goals');
     assert.ok(app.includes('raceTestRecommendation({'), 'goals overview should render race test recommendation');
+    assert.ok(app.includes('buildRaceWeekPlanContext(today)'), 'week plan should build race-aware context');
+    assert.ok(app.includes('raceWeekPlanContext({'), 'app wrapper should call domain race week plan context');
+    assert.ok(app.includes('applyRaceContextToSuggestionMix'), 'week plan should apply race context to suggestions');
     assert.ok(read('styles.css').includes('#goals.tab.active'), 'desktop goals layout is missing');
     assert.ok(read('styles.css').includes('.goals-overview'), 'goals overview styling is missing');
     assert.ok(read('styles.css').includes('.goal-milestones'), 'goal milestones styling is missing');
     assert.ok(read('styles.css').includes('.race-test-recommendation'), 'race test recommendation styling is missing');
+    assert.ok(read('styles.css').includes('.week-race-context'), 'race-aware week plan context styling is missing');
   });
 
   test('dashboard renders today decision from domain logic', () => {
@@ -468,6 +473,52 @@ function test(name, fn) {
     assert.strictEqual(recommendation.shouldTest, false);
     assert.strictEqual(recommendation.status, 'blocked');
     assert.match(recommendation.reason, /Skadesignal/);
+  });
+
+  test('race week plan context allows controlled race test when useful', () => {
+    const goal = { name: 'Halv-Birken', date: '2027-06-08', distanceKm: 12, targetTimeSeconds: 4800 };
+    const readiness = raceReadinessSummary(goal, [], [], '2027-04-15');
+    const plan = raceGoalPlan(goal, readiness, { hasSignal: false }, '2027-04-15');
+    const testRecommendation = raceTestRecommendation({
+      goal,
+      readiness,
+      plan,
+      injurySummary: { hasSignal: false },
+      last7: { sessions: 2, km: 18, hard: 0 },
+      last28: { sessions: 8, km: 60, hard: 2 }
+    }, '2027-04-15');
+    const context = raceWeekPlanContext({
+      goal,
+      readiness,
+      plan,
+      testRecommendation,
+      injurySummary: { hasSignal: false },
+      last7: { sessions: 2, km: 18, hard: 0 },
+      last28: { sessions: 8, km: 60, hard: 2 }
+    }, '2027-04-15');
+    assert.strictEqual(context.active, true);
+    assert.strictEqual(context.allowRaceTest, true);
+    assert.ok(context.preferredRoles.includes('race'));
+    assert.match(context.testSuggestion.title, /5 km/);
+  });
+
+  test('race week plan context blocks race suggestions with active injury signal', () => {
+    const goal = { name: 'Halv-Birken', date: '2027-06-08', distanceKm: 12, targetTimeSeconds: 4800 };
+    const readiness = raceReadinessSummary(goal, [], [], '2027-04-15');
+    const plan = raceGoalPlan(goal, readiness, { hasSignal: true, status: 'improving', statusLabel: 'Bedres' }, '2027-04-15');
+    const context = raceWeekPlanContext({
+      goal,
+      readiness,
+      plan,
+      injurySummary: { hasSignal: true, status: 'improving', statusLabel: 'Bedres' },
+      last7: { sessions: 1, km: 8, hard: 0 },
+      last28: { sessions: 6, km: 42, hard: 1 }
+    }, '2027-04-15');
+    assert.strictEqual(context.active, true);
+    assert.strictEqual(context.allowRaceTest, false);
+    assert.ok(context.avoidRoles.includes('race'));
+    assert.ok(context.preferredRoles.includes('recovery'));
+    assert.match(context.note, /Skadesignal/);
   });
 
   test('calendar day modal refreshes after marking planned workout complete', () => {

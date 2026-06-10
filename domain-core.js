@@ -419,6 +419,7 @@ export {
   raceGoalPlan,
   raceHistoryForDistance,
   raceTestRecommendation,
+  raceWeekPlanContext,
   raceReadinessSummary,
   raceResultsFromCompleted
 } from './domain-goals.js';

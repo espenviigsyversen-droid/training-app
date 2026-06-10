@@ -661,3 +661,101 @@ export function raceTestRecommendation(input = {}, todayIso = dateToISO(new Date
     status
   };
 }
+
+export function raceWeekPlanContext(input = {}, todayIso = dateToISO(new Date())) {
+  const goal = normalizeRaceGoal(input.goal || {});
+  const readiness = input.readiness || raceReadinessSummary(goal, input.completedItems || [], input.manualRaceResults || [], todayIso);
+  const countdown = readiness?.countdown || raceGoalCountdown(goal, todayIso);
+  const injurySummary = input.injurySummary || {};
+  const plan = input.plan || raceGoalPlan(goal, readiness, injurySummary, todayIso);
+  const testRecommendation = input.testRecommendation || raceTestRecommendation({ goal, readiness, plan, injurySummary, last7: input.last7, last28: input.last28 }, todayIso);
+  const injuryActive = Boolean(injurySummary?.hasSignal && !['none', 'calming'].includes(injurySummary.status));
+
+  if (!countdown || (!countdown.name && !countdown.date)) {
+    return {
+      active: false,
+      phase: 'none',
+      phaseLabel: '',
+      title: '',
+      summary: '',
+      note: '',
+      allowRaceTest: false,
+      preferredRoles: [],
+      avoidRoles: [],
+      testSuggestion: null
+    };
+  }
+
+  const phase = plan?.phase || 'base';
+  const phaseLabel = plan?.phaseLabel || 'Mål-løp';
+  const name = countdown.name || 'mål-løpet';
+  const weeksLeft = Number.isFinite(Number(plan?.weeksLeft)) ? Number(plan.weeksLeft) : null;
+  const distanceLabel = raceDistanceLabel(countdown.distanceKm);
+  const title = `${name}${distanceLabel ? ` · ${distanceLabel}` : ''}`;
+  const phaseText = weeksLeft === null
+    ? phaseLabel
+    : `${phaseLabel} · ${weeksLeft} uke${weeksLeft === 1 ? '' : 'r'} igjen`;
+
+  if (injuryActive) {
+    return {
+      active: true,
+      phase,
+      phaseLabel,
+      title,
+      summary: phaseText,
+      note: `Skadesignal er aktivt (${injurySummary.statusLabel || 'følg med'}). Ukeplanen bør prioritere rolig/alternativ trening og vente med testløp eller hard kvalitet.`,
+      allowRaceTest: false,
+      preferredRoles: ['recovery', 'long_easy', 'mobility'],
+      avoidRoles: ['race', 'main_threshold', 'support_threshold', 'x_workout'],
+      testSuggestion: null
+    };
+  }
+
+  if (phase === 'taper') {
+    return {
+      active: true,
+      phase,
+      phaseLabel,
+      title,
+      summary: phaseText,
+      note: 'Taperfase: hold beina friske. Ukeplanen bør bruke rolig løp, lett rytme og minst mulig ny belastning.',
+      allowRaceTest: false,
+      preferredRoles: ['recovery', 'long_easy'],
+      avoidRoles: ['race', 'main_threshold', 'support_threshold', 'x_workout'],
+      testSuggestion: null
+    };
+  }
+
+  const shouldTest = Boolean(testRecommendation?.shouldTest);
+  const preferredRoles = phase === 'specific'
+    ? ['long_easy', 'support_threshold', 'race']
+    : phase === 'test'
+    ? ['support_threshold', 'race', 'long_easy']
+    : ['long_easy', 'support_threshold', 'recovery'];
+  const avoidRoles = shouldTest ? [] : ['race'];
+  const testSuggestion = shouldTest
+    ? {
+        title: testRecommendation.label || 'Kontrollert testløp',
+        detail: `${testRecommendation.intensity || 'Kontrollert'} · ${testRecommendation.timing || 'når dagsform er grønn/gul'}`,
+        note: testRecommendation.reason || 'Bruk testløp som kalibrering, ikke som maksimal belastning.',
+        distanceKm: testRecommendation.distanceKm || null
+      }
+    : null;
+
+  const note = shouldTest
+    ? `${testRecommendation.label} kan legges inn som kontrollert test hvis dagsform og kroppssignaler er ok. Ikke jag maks, bruk testen som datapunkt.`
+    : `${plan?.focus || 'Bygg kontinuitet og rolig volum.'} ${testRecommendation?.reason || ''}`.trim();
+
+  return {
+    active: true,
+    phase,
+    phaseLabel,
+    title,
+    summary: phaseText,
+    note,
+    allowRaceTest: shouldTest,
+    preferredRoles,
+    avoidRoles,
+    testSuggestion
+  };
+}
