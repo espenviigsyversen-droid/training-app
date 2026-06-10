@@ -12,6 +12,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       challengeProgress as challengeProgressCore,
       challengeRemainingLabel,
       challengeValueLabel,
+      coachDecisionBasis,
       dateToISO,
       formatClockDuration,
       formatDuration,
@@ -55,7 +56,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       raceReadinessSummary
     } from './domain-goals.js';
 
-    const APP_VERSION = 'v132';
+    const APP_VERSION = 'v133';
     const APP_CACHE_NAME = `treningsapp-${APP_VERSION}`;
 
     const firebaseConfig = {
@@ -5034,11 +5035,16 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         ? 'Ukesmålet er nådd. Videre trening bør styres av overskudd og dagsform.'
         : `${Math.max(0, goals.weeklySessionsTarget - weekSummary.sessions)} økt${Math.max(0, goals.weeklySessionsTarget - weekSummary.sessions) === 1 ? '' : 'er'} igjen til ukesmålet.`;
       const coachCtx = buildCoachContext();
-      renderTodayDecision(buildTodayDecision(coachCtx, primaryItems, todayItems));
+      const todayDecisionResult = buildTodayDecision(coachCtx, primaryItems, todayItems);
+      renderTodayDecision(todayDecisionResult);
       document.getElementById('homeCoachNote').textContent = buildCoachNote(coachCtx);
       renderInjuryWorkoutAdvice(buildInjuryWorkoutAdvice(coachCtx, primaryItems));
-      document.getElementById('homeCoachBasis').textContent = buildCoachBasis(coachCtx).join(' · ');
+      renderHomeCoachBasis(buildHomeCoachBasis(coachCtx, todayDecisionResult, firstPlannedFromPrimary(primaryItems)));
       renderWeekPlan(today, weekSummary, weekItems, last14DaysForSignals, profile, goals, plannedActive);
+    }
+
+    function firstPlannedFromPrimary(primaryItems = []) {
+      return primaryItems[0] || null;
     }
 
     function improvingPainFollowup(ctx) {
@@ -5206,6 +5212,90 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
             ${support.support ? `<div><span>Støtte</span><p>${escapeHtml(support.support)}</p></div>` : ''}
             ${support.motivation ? `<div><span>Hvorfor</span><p>${escapeHtml(support.motivation)}</p></div>` : ''}
           </div>` : ''}`;
+    }
+
+    function buildHomeCoachBasis(ctx, decision, primaryPlanned = null) {
+      const completedToday = ctx.completedToday?.[ctx.completedToday.length - 1] || null;
+      const completedMeta = completedToday ? completedWorkoutAdviceMeta(completedToday) : null;
+      const planned = primaryPlanned || ctx.nextPlanned || null;
+      const plannedTemplate = planned ? getTemplate(planned.templateId) : null;
+      const readinessConfig = ctx.dailyReadiness?.level ? TRAFFIC_LIGHT_CONFIG[ctx.dailyReadiness.level] : null;
+      const injury = ctx.injurySummary7?.hasSignal ? ctx.injurySummary7 : null;
+      const weekSessions = ctx.weekSummary?.sessions || 0;
+      const weeklyTarget = ctx.goals?.weeklySessionsTarget || 0;
+      const weekStatus = weeklyTarget && weekSessions >= weeklyTarget ? 'green' : weekSessions > 0 ? 'neutral' : 'yellow';
+      const metricParts = [
+        ctx.latestHrv?.hrv7d ? `HRV ${ctx.latestHrv.hrv7d} ms` : '',
+        ctx.latestRestingHr?.restingHeartRate7d ? `hvilepuls ${ctx.latestRestingHr.restingHeartRate7d} bpm` : '',
+        ctx.goldenZone ? `gylne sonen ${ctx.goldenZone.low}-${ctx.goldenZone.high} bpm` : ''
+      ].filter(Boolean);
+
+      return coachDecisionBasis({
+        decision,
+        completedToday: completedMeta ? {
+          label: completedMeta.label,
+          loadLabel: completedMeta.loadLabel,
+          painText: completedMeta.painBefore || completedMeta.painAfter
+            ? `Smerte ${completedMeta.painBefore || 0} -> ${completedMeta.painAfter || 0}${completedMeta.painArea ? ` (${completedMeta.painArea})` : ''}`
+            : completedMeta.loadLabel,
+          status: decision?.level || completedMeta.loadLevel || 'neutral'
+        } : null,
+        planned: plannedTemplate ? {
+          label: plannedTemplate.name,
+          hasPlannedToday: planned?.date === ctx.today,
+          detail: [
+            plannedTemplate.type,
+            plannedTemplate.intensity,
+            planned?.date && planned.date !== ctx.today ? formatDate(planned.date) : ''
+          ].filter(Boolean).join(' · '),
+          status: planned?.date === ctx.today ? 'green' : 'neutral'
+        } : null,
+        dailyReadiness: readinessConfig ? {
+          label: readinessConfig.label,
+          sleep: ctx.dailyReadiness?.sleep || '',
+          energy: ctx.dailyReadiness?.energy || '',
+          stairs: ctx.dailyReadiness?.stairsOk === true ? 'trapp ok' : ctx.dailyReadiness?.stairsOk === false ? 'trapp stopp' : '',
+          status: ctx.dailyReadiness?.level || 'neutral'
+        } : null,
+        injury: injury ? {
+          active: true,
+          label: `${injury.statusLabel}${injury.area ? `: ${injury.area}` : ''}`,
+          detail: injury.trendText ? `${injury.trendText}/10. ${injury.suggestedAction}` : injury.suggestedAction,
+          status: ['worse', 'high'].includes(injury.status) ? 'red' : ['improving', 'caution'].includes(injury.status) ? 'yellow' : 'green'
+        } : null,
+        week: {
+          label: `${weekSessions}/${weeklyTarget || '-'} økter`,
+          detail: `${formatClockDuration(ctx.weekSummary?.seconds || 0)} · ${formatKm(ctx.weekSummary?.km || 0)} denne uken`,
+          status: weekStatus
+        },
+        race: ctx.racePlan?.phaseLabel || ctx.goalScore?.percent ? {
+          label: ctx.racePlan?.phaseLabel || `Mål-score ${ctx.goalScore.percent}/100`,
+          detail: ctx.goalScore?.percent ? `Mål-score ${ctx.goalScore.percent}/100${ctx.goalScore.label ? ` (${ctx.goalScore.label})` : ''}` : '',
+          status: ctx.goalScore?.status || 'neutral'
+        } : null,
+        intervals: ctx.structuredIntervals?.last14?.count ? {
+          label: `${ctx.structuredIntervals.last14.count} strukturerte intervalløkter siste 14 dager`,
+          detail: `${formatDuration(ctx.structuredIntervals.last14.totalWorkSeconds)} arbeid${ctx.structuredIntervals.latest?.date ? `, siste ${formatDate(ctx.structuredIntervals.latest.date)}` : ''}`,
+          status: ctx.structuredIntervals.last7?.count >= 2 ? 'yellow' : 'neutral'
+        } : null,
+        metrics: metricParts.length ? {
+          label: metricParts.join(' · '),
+          detail: ctx.goldenZoneViolations ? `${ctx.goldenZoneViolations} brudd på gylne sone siste 7 dager` : '',
+          status: ctx.goldenZoneViolations ? 'yellow' : 'neutral'
+        } : null
+      });
+    }
+
+    function renderHomeCoachBasis(items = []) {
+      const el = document.getElementById('homeCoachBasis');
+      if (!el) return;
+      const safeItems = Array.isArray(items) ? items : [];
+      el.innerHTML = safeItems.map(item => `
+        <div class="coach-basis-item ${['green', 'yellow', 'red', 'neutral'].includes(item.status) ? item.status : 'neutral'}">
+          <span>${escapeHtml(item.label)}</span>
+          <strong>${escapeHtml(item.value)}</strong>
+          ${item.detail ? `<p>${escapeHtml(item.detail)}</p>` : ''}
+        </div>`).join('');
     }
 
     function renderHistoryFilterOptions() {

@@ -37,9 +37,10 @@ Prioritert backlog for videre utvikling av Treningsapp.
    - Koble challenges til hovedmål.
    - Eksempel: "85 km i juni støtter Halv-Birken-basebygging" eller "for hardt nå ved skadesignal".
 
-9. **Coach-grunnlag v2**
+9. **Coach-grunnlag v2** - Bygget v133
    - Utvid forklaringsgrunnlaget bak råd.
    - Inkluder mål-løp, fase, skadesignal, siste test, siste 7/28 dager og kommende økter.
+   - Viser nå strukturert grunnlag under Dagens råd på Hjem.
 
 10. **Mobil polish og mikro-UX**
     - Små forbedringer som gjør appen mer behagelig i daglig bruk.
@@ -47,9 +48,9 @@ Prioritert backlog for videre utvikling av Treningsapp.
 
 ## Anbefalt neste steg
 
-Neste anbefalte backlogpunkt er **Coach-grunnlag v2**.
+Neste anbefalte backlogpunkt er **Challenges som delmål**.
 
 Begrunnelse:
-- bygger videre på Dagens råd v2
-- gjør "Grunnlag" mer presist og gjenbrukbart
-- blir et trygt fundament for senere AI-chat
+- bygger videre på Mål-fanen og konkurranseplanen
+- gjør månedlige challenges mer motiverende og målrettede
+- kan koble volum-/kontinuitetsmål direkte til Halv-Birken og generell form

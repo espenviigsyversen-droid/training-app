@@ -587,6 +587,73 @@ export function todayCompletedWorkoutFeedback(input = {}) {
   };
 }
 
+export function coachDecisionBasis(input = {}) {
+  const items = [];
+  const add = (label, value, detail = '', status = 'neutral') => {
+    const safeLabel = String(label || '').trim();
+    const safeValue = String(value || '').trim();
+    const safeDetail = String(detail || '').trim();
+    if (!safeLabel || (!safeValue && !safeDetail)) return;
+    items.push({ label: safeLabel, value: safeValue, detail: safeDetail, status: String(status || 'neutral') });
+  };
+
+  const decision = input.decision || {};
+  const completedToday = input.completedToday || null;
+  const planned = input.planned || null;
+  const dailyReadiness = input.dailyReadiness || null;
+  const injury = input.injury || null;
+  const week = input.week || null;
+  const race = input.race || null;
+  const intervals = input.intervals || null;
+  const metrics = input.metrics || null;
+
+  if (decision.title) {
+    add('Beslutning', decision.title, decision.reason || '', decision.level || 'neutral');
+  }
+
+  if (completedToday?.label) {
+    const response = completedToday.painText || completedToday.loadLabel || '';
+    add('I dag', `Fullført: ${completedToday.label}`, response, completedToday.status || 'green');
+  } else if (planned?.label) {
+    add('Plan', planned.hasPlannedToday ? `Planlagt i dag: ${planned.label}` : `Neste plan: ${planned.label}`, planned.detail || '', planned.status || 'neutral');
+  }
+
+  if (dailyReadiness?.label) {
+    const parts = [
+      dailyReadiness.sleep ? `søvn ${dailyReadiness.sleep}/5` : '',
+      dailyReadiness.energy ? `energi ${dailyReadiness.energy}/5` : '',
+      dailyReadiness.stairs
+    ].filter(Boolean);
+    add('Dagsform', dailyReadiness.label, parts.join(', '), dailyReadiness.status || 'neutral');
+  }
+
+  if (injury?.active) {
+    add('Kroppssignal', injury.label || 'Aktivt signal', injury.detail || injury.action || '', injury.status || 'yellow');
+  }
+
+  if (week?.label) {
+    add('Uke', week.label, week.detail || '', week.status || 'neutral');
+  }
+
+  if (race?.label) {
+    add('Mål', race.label, race.detail || '', race.status || 'neutral');
+  }
+
+  if (intervals?.label) {
+    add('Kvalitet', intervals.label, intervals.detail || '', intervals.status || 'neutral');
+  }
+
+  if (metrics?.label) {
+    add('Signaldata', metrics.label, metrics.detail || '', metrics.status || 'neutral');
+  }
+
+  if (!items.length) {
+    add('Grunnlag', 'Ikke nok data ennå', 'Logg økter, dagsform og kroppssignaler for mer presise råd.');
+  }
+
+  return items.slice(0, 8);
+}
+
 export {
   RACE_DISTANCE_PRESETS,
   combinedRaceResults,

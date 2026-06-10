@@ -1,5 +1,5 @@
 # Treningsapp — progress.md
-Oppdatert: 2026-06-10 (siste endringer: v75–v132)
+Oppdatert: 2026-06-10 (siste endringer: v75–v133)
 
 ---
 
@@ -27,7 +27,7 @@ Standard Bakken-uke: Hoved-terskel → Støtte-terskel → Lang rolig → Valgfr
 **Hosting:** GitHub Pages.  
 **Backend:** Firebase (prosjekt `home-tasks-app-18de3`) — Firestore + Google Auth.  
 **Frontend:** Vanilla JS + HTML + CSS, single-page app, tab-navigasjon.  
-**Versjon:** v132 (konstant i `app.js`).
+**Versjon:** v133 (konstant i `app.js`).
 
 ### Filer
 
@@ -105,6 +105,7 @@ Treningsapp/
 - **PB-historikk v2** (v130): Personlige bestenoteringer viser nå mer levende kort med beste, siste, antall resultater og trendstatus som PB, nær PB, bedre trend eller tregere siste. Historikkmodalen viser forbedring fra første til siste, avstand til PB, tydeligere grafetiketter og status. Ren analyse ligger i `personalBestTrendSummary()` og `personalBestTrendLabel()` i `domain-goals.js`.
 - **Dagens råd v2** (v131): Hjem -> Dagens råd viser nå mer konkret daglig støtte under hovedbeslutningen: `Gjør nå`, `Støtte` og `Hvorfor`. Rådet bruker eksisterende dagsform, planlagt økt, skadesignal, mål-score, racefase og ukestatus til å foreslå justering, lavrisiko-alternativ eller kontrollert gjennomføring. Små støttepåminnelser om drikke, karbohydrater, protein, søvn og restitusjon vises når relevant. Ren støttefunksjon ligger i `dailyCoachSupport()` i `domain-core.js`; ingen nye datafelter lagres.
 - **Dagens råd etter gjennomført økt** (v132): Når en økt er fullført samme dag, skifter Hjem-rådet fra før-økt-anbefaling til etter-økt-vurdering. Ny ren `todayCompletedWorkoutFeedback()` vurderer siste fullførte økt i dag mot belastning, RPE, gjennomføring og smerte før/etter. Rolig økt med lav smerterespons gir "Bra justert økt", mens smerteøkning etter økt gir tydelig varsel og anbefaling om hvile/alternativ trening. Rådet bruker samme støttefelter for væske, mat, restitusjon og neste smertesjekk.
+- **Coach-grunnlag v2** (v133): "Grunnlag" under Dagens råd er nå en strukturert, scannbar liste i stedet for én lang tekstlinje. Ny ren `coachDecisionBasis()` i `domain-core.js` lager forklaringspunkter som Beslutning, I dag, Plan, Dagsform, Kroppssignal, Uke, Mål, Kvalitet og Signaldata. `app.js` mapper eksisterende coach-context inn i denne funksjonen og renderer korte rader med statusfarge. Dette gjør rådet mer forståelig og gir et bedre fremtidig grunnlag for AI-chat uten å endre datamodell.
 - **Fjernet «Foreslå neste økt»** (v92): Kortet er fjernet fra Kalender-fanen. Ukeplanen dekker samme behov bedre og er rollebevisst. `renderWorkoutSuggestion`-kallet er fjernet fra render-løkken for å unngå krasj.
 - **Coach: smertegradering + priority-felt + X-økt** (v91): Tre coach-forbedringer: (1) `bodySignalState` skiller nå mellom mild smerte (1–2/10 → `cooling`, foreslår terskel etter en rolig økt) og bekymringsfull smerte (3+/10 → `caution`, kun recovery). Løser at mild smerte blokkerte terskelforslag for hele neste uke. (2) `priority`-feltet i treningsprofilen er nå aktivt: `performance` foreslår terskel straks det er rom, `injury_free_progression` krever 2 rolige øyer før terskel. (3) X-økt vises alltid som 4. forslag i normaluke når det er rom — sikrer at VO2max/teknikk/styrke alltid er synlig som alternativ.
 - **Hjem: alle økter samme dag** (v90): «Neste økt» / «Dagens økt» viser nå alle planlagte økter på samme dato, ikke bare én. For fremtidige dager grupperes etter første kommende dato (`nextDateItems`). Tittelen skifter til «Dagens økt» automatisk når det finnes økter på dagens dato (eksisterende logikk).

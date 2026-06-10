@@ -1,6 +1,6 @@
 # DEVELOPMENT_ROADMAP.md
 
-Strategisk utviklingsroadmap for Treningsapp etter v132.
+Strategisk utviklingsroadmap for Treningsapp etter v133.
 
 Oppdatert: 2026-06-10
 
@@ -74,6 +74,7 @@ Dette betyr at appen bør prioritere:
 
 - Det viktigste for å åpne appen ofte er et tydelig dagens råd som endrer seg med data.
 - Etter v132 skal Dagens råd også endre modus når dagens økt er fullført: fra "hva bør jeg gjøre?" til "hvordan responderte kroppen på det jeg gjorde?".
+- Etter v133 skal "Grunnlag" under Dagens råd vise korte, strukturerte forklaringspunkter i stedet for én lang tekstlinje.
 - Rådene kan gjerne inkludere små støttepåminnelser om:
   - drikke/væske
   - karbohydrater før/etter økt
@@ -281,7 +282,7 @@ Ikke bygg AI.
 Ikke bygg ny stor UI.
 Ikke endre datamodell med mindre nødvendig.
 
-## v132 - Coach-grunnlag v2
+## v132/v133 - Coach-grunnlag v2 og forklaringsmodus - Bygget
 
 ### Mål
 
@@ -330,7 +331,7 @@ Den bør åpne en kompakt forklaring:
 Dette er ikke AI.
 Dette er intern regel- og forklaringsstruktur.
 
-## v133 - Dagens råd forklaringsmodus
+## v133 - Dagens råd forklaringsmodus - Bygget
 
 ### Mål
 
@@ -594,22 +595,22 @@ Hvis svaret er ja på flere av disse, bør ideen prioriteres.
 
 ### Neste 3 runder
 
-1. v132 - Coach-grunnlag v2
-2. v133 - Forklaringsmodus for råd
-3. v134 - Ernæring, væske og restitusjonsnotater videre
+1. v134 - Challenges som delmål mot mål-løp
+2. v135 - Ernæring, væske og restitusjonsnotater videre
+3. v136 - AI-chat design
 
 ### Neste 10 runder
 
-1. Dagens råd v2
-2. Coach-grunnlag v2
-3. Forklaringsmodus for råd
-4. Ernæring/væske/restitusjonsnotater
-5. AI-chat design
-6. AI-chat MVP
-7. Mål-fane videre: "Du er her nå"
-8. Challenges som delmål
-9. Andre treningsformer v1
-10. Strava/Garmin-forberedelse eller import-MVP
+1. Challenges som delmål
+2. Ernæring/væske/restitusjonsnotater
+3. AI-chat design
+4. AI-chat MVP
+5. Mål-fane videre: "Du er her nå"
+6. Andre treningsformer v1
+7. Coach-grunnlag v3 med enda mer forklarbar prioritering
+8. Strava/Garmin-forberedelse eller import-MVP
+9. Mobil polish og mikro-UX
+10. Styrke som støtte- og skadeforebyggende modul
 
 ## Hva vi bør vente med
 

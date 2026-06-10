@@ -2927,11 +2927,54 @@
       color: #fff;
       border-color: var(--black);
     }
-    .coach-basis p {
+    .coach-basis > p {
       margin: 6px 0 0;
       font-size: 0.8rem;
       color: var(--warm-gray-3);
       line-height: 1.55;
+    }
+
+    .coach-basis-list {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .coach-basis-item {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 10px 12px;
+      background: #fff;
+    }
+
+    .coach-basis-item.green { border-color: rgba(0, 166, 81, 0.22); background: rgba(0, 166, 81, 0.055); }
+    .coach-basis-item.yellow { border-color: rgba(255, 167, 38, 0.28); background: rgba(255, 167, 38, 0.08); }
+    .coach-basis-item.red { border-color: rgba(255, 79, 46, 0.28); background: rgba(255, 79, 46, 0.08); }
+
+    .coach-basis-item span {
+      display: block;
+      color: var(--warm-gray-3);
+      font-size: 0.68rem;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      margin-bottom: 3px;
+    }
+
+    .coach-basis-item strong {
+      display: block;
+      color: var(--black);
+      font-size: 0.86rem;
+      line-height: 1.25;
+    }
+
+    .coach-basis-item p {
+      margin: 4px 0 0;
+      color: var(--warm-gray-3);
+      font-size: 0.78rem;
+      font-weight: 700;
+      line-height: 1.35;
     }
 
     .suggestion-card {

@@ -32,6 +32,7 @@ function test(name, fn) {
     challengeProgress,
     challengeRemainingLabel,
     dailyCoachSupport,
+    coachDecisionBasis,
     formatClockDuration,
     formatDuration,
     formatPace,
@@ -149,16 +150,21 @@ function test(name, fn) {
 
   test('dashboard renders today decision from domain logic', () => {
     assert.ok(index.includes('id="homeDecision"'), 'dashboard should include visible today decision element');
-    assert.ok(app.includes('renderTodayDecision(buildTodayDecision(coachCtx, primaryItems, todayItems))'), 'dashboard should render today decision from coach context');
+    assert.ok(app.includes('const todayDecisionResult = buildTodayDecision(coachCtx, primaryItems, todayItems)'), 'dashboard should build today decision from coach context');
+    assert.ok(app.includes('renderTodayDecision(todayDecisionResult)'), 'dashboard should render today decision result');
     assert.ok(app.includes('todayDecision({'), 'app wrapper should call the domain todayDecision function');
     assert.ok(app.includes('dailyCoachSupport({'), 'dashboard should enrich today decision with daily coach support');
     assert.ok(app.includes('completedToday'), 'coach context should expose workouts completed today');
     assert.ok(app.includes('todayCompletedWorkoutFeedback({'), 'dashboard should switch to post-workout feedback after a completed workout');
     assert.ok(app.includes('function buildCompletedTodayCoachNote'), 'coach note should have a post-workout mode');
     assert.ok(app.includes('const completedTodayNote = buildCompletedTodayCoachNote(ctx);'), 'coach note should prioritize today completed workout feedback');
+    assert.ok(index.includes('class="coach-basis-list"'), 'dashboard should render structured coach basis list');
+    assert.ok(app.includes('renderHomeCoachBasis(buildHomeCoachBasis(coachCtx, todayDecisionResult'), 'dashboard should render structured coach basis');
+    assert.ok(app.includes('coachDecisionBasis({'), 'app wrapper should use domain coach basis function');
     assert.ok(app.includes("decision.kicker || 'Dagens beslutning'"), 'today decision should support a post-workout kicker');
     assert.ok(app.includes('today-support-grid'), 'today decision should render support details');
     assert.ok(read('styles.css').includes('.today-support-grid'), 'today support styling is missing');
+    assert.ok(read('styles.css').includes('.coach-basis-item'), 'structured coach basis styling is missing');
   });
 
   test('daily injury check-in is preserved and used by coach context', () => {
@@ -971,6 +977,30 @@ function test(name, fn) {
     assert.match(feedback.title, /smerterespons/);
     assert.match(feedback.action, /Hold igjen|hvile/);
     assert.match(feedback.support.adjustment, /ikke bruk neste økt|Vent/i);
+  });
+
+  test('coach decision basis summarizes the most important decision inputs', () => {
+    const basis = coachDecisionBasis({
+      decision: { level: 'green', title: 'Bra justert økt', reason: 'Rolig økt med lav smerterespons.' },
+      completedToday: { label: 'Rolig Kort Tur', painText: 'Smerte 0 -> 1 (Begge kne)', status: 'green' },
+      dailyReadiness: { label: 'Gult lys', sleep: 4, energy: 3, stairs: 'trapp ok', status: 'yellow' },
+      injury: { active: true, label: 'Bedres: Begge kne', detail: '5 -> 1/10', status: 'yellow' },
+      week: { label: '1/3 økter', detail: '30:05 · 3,4 km denne uken', status: 'neutral' },
+      race: { label: 'Basebygging', detail: 'Mål-score 62/100', status: 'neutral' }
+    });
+
+    assert.ok(basis.length >= 5);
+    assert.deepStrictEqual(basis[0].label, 'Beslutning');
+    assert.ok(basis.some(item => item.label === 'I dag' && item.value.includes('Rolig Kort Tur')));
+    assert.ok(basis.some(item => item.label === 'Kroppssignal' && item.detail.includes('5 -> 1')));
+    assert.ok(basis.some(item => item.label === 'Mål' && item.value.includes('Basebygging')));
+  });
+
+  test('coach decision basis falls back safely without data', () => {
+    const basis = coachDecisionBasis({});
+    assert.strictEqual(basis.length, 1);
+    assert.strictEqual(basis[0].label, 'Grunnlag');
+    assert.match(basis[0].value, /Ikke nok data/);
   });
 
   test('today decision uses recent structured interval load conservatively', () => {
