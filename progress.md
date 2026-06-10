@@ -1,5 +1,5 @@
 # Treningsapp — progress.md
-Oppdatert: 2026-06-09 (siste endringer: v75–v124)
+Oppdatert: 2026-06-10 (siste endringer: v75–v127)
 
 ---
 
@@ -27,7 +27,7 @@ Standard Bakken-uke: Hoved-terskel → Støtte-terskel → Lang rolig → Valgfr
 **Hosting:** GitHub Pages.  
 **Backend:** Firebase (prosjekt `home-tasks-app-18de3`) — Firestore + Google Auth.  
 **Frontend:** Vanilla JS + HTML + CSS, single-page app, tab-navigasjon.  
-**Versjon:** v124 (konstant i `app.js`).
+**Versjon:** v127 (konstant i `app.js`).
 
 ### Filer
 
@@ -97,6 +97,9 @@ Treningsapp/
 - **Mål-fane og Setup i header** (v122): Setup er flyttet ut av bunnnavigasjonen og åpnes nå fra et diskret tannhjul i headeren. Den frigjorte bunnnav-plassen brukes til ny `Mål`-fane som samler `Mål-løp`, `Personlige bestenoteringer` og `Challenges`. Innsikt rendrer dermed mer som analyse/mønstre, mens måloppfølging får egen motivasjonsflate.
 - **Konkurranse-/målmodul** (v123): Ren race- og mål-logikk er flyttet fra `domain-core.js` til ny `domain-goals.js`: race-resultater, manuelle resultater, PB-oppsummering, PB-historikk, mål-løp-nedtelling, race readiness og konkurranseplan. `app.js` importerer mål-funksjonene direkte fra ny modul, mens `domain-core.js` re-eksporterer dem midlertidig for bakoverkompatibilitet. Service worker cacher ny runtimefil, og stabilitetstestene importerer race-/mål-funksjoner direkte fra `domain-goals.js`.
 - **Mål-fane v2** (v124): Mål-fanen har nå et handlingsorientert toppsammendrag som viser aktivt mål, fase, målpace, siste relevante test, status og neste smarte steg. Oppsummeringen tar hensyn til siste 7/28 dager og aktivt skadesignal, slik at testløp/hard kvalitet tones ned når kroppen varsler. Ren vurderingslogikk ligger i `goalMotivationSummary()` i `domain-goals.js`; UI-et er kun en kompakt visning i eksisterende Mål-fane.
+- **Mål-fane v3: Delmål og milepæler** (v125): Mål-fanen viser nå 3-5 konkrete delmål mot prioritert mål-løp, for eksempel skadefri/stabil uke, stabil 4-ukers base, kontrollert kort test, lengre relevant test og spesifikk oppkjøring/taper. Milepælene tar hensyn til siste 7/28 dager, mål-løp, race readiness og aktivt skadesignal. Ren logikk ligger i `goalMilestones()` i `domain-goals.js`.
+- **Skadeoppfølging v2: Trend og frislipp** (v126): Skadesignal-kortet viser nå tydeligere frislipp-vurdering: trend, neste trygge økt, kriterier før løping/kvalitet og om hard kvalitet bør holdes igjen. Ren logikk ligger i `injuryRecoveryGuidance()` i `domain-core.js` og bruker samme smertehistorikk som dagsform/logg.
+- **Race/testløp-anbefaler** (v127): Mål-fanen viser nå en regelstyrt anbefaling for om brukeren bør teste nå, hvilken distanse som er mest relevant og hvorfor. Anbefalingen bruker mål-løp, fase, siste relevante test, siste 7/28 dager, nylig hard belastning og aktivt skadesignal. Ren logikk ligger i `raceTestRecommendation()` i `domain-goals.js`; appen endrer ikke kalenderen automatisk.
 - **Fjernet «Foreslå neste økt»** (v92): Kortet er fjernet fra Kalender-fanen. Ukeplanen dekker samme behov bedre og er rollebevisst. `renderWorkoutSuggestion`-kallet er fjernet fra render-løkken for å unngå krasj.
 - **Coach: smertegradering + priority-felt + X-økt** (v91): Tre coach-forbedringer: (1) `bodySignalState` skiller nå mellom mild smerte (1–2/10 → `cooling`, foreslår terskel etter en rolig økt) og bekymringsfull smerte (3+/10 → `caution`, kun recovery). Løser at mild smerte blokkerte terskelforslag for hele neste uke. (2) `priority`-feltet i treningsprofilen er nå aktivt: `performance` foreslår terskel straks det er rom, `injury_free_progression` krever 2 rolige øyer før terskel. (3) X-økt vises alltid som 4. forslag i normaluke når det er rom — sikrer at VO2max/teknikk/styrke alltid er synlig som alternativ.
 - **Hjem: alle økter samme dag** (v90): «Neste økt» / «Dagens økt» viser nå alle planlagte økter på samme dato, ikke bare én. For fremtidige dager grupperes etter første kommende dato (`nextDateItems`). Tittelen skifter til «Dagens økt» automatisk når det finnes økter på dagens dato (eksisterende logikk).

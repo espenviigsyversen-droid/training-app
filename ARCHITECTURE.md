@@ -88,6 +88,8 @@ Inneholder ren konkurranse- og mål-logikk uten DOM, Firebase eller direkte `sta
 - mål-løp-nedtelling, målpace og race readiness
 - enkel konkurranseplan mot prioritert mål-løp
 - handlingsorientert målstatus for Mål-fanen
+- delmål og milepæler mot prioritert mål-løp
+- anbefaling av neste relevante race-/testløp
 
 `app.js` importerer race-/mål-funksjoner direkte herfra. `domain-core.js` re-eksporterer dem foreløpig for bakoverkompatibilitet med eldre tester/importmønster.
 

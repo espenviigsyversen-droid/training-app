@@ -451,3 +451,213 @@ export function goalMotivationSummary(input = {}, todayIso = dateToISO(new Date(
     }
   };
 }
+
+function milestone(id, title, detail, status = 'upcoming', tag = '') {
+  return { id, title, detail, status, tag };
+}
+
+export function goalMilestones(input = {}, todayIso = dateToISO(new Date())) {
+  const goal = normalizeRaceGoal(input.goal || {});
+  const readiness = input.readiness || raceReadinessSummary(goal, input.completedItems || [], input.manualRaceResults || [], todayIso);
+  const countdown = readiness?.countdown || raceGoalCountdown(goal, todayIso);
+  const injurySummary = input.injurySummary || {};
+  const plan = input.plan || raceGoalPlan(goal, readiness, injurySummary, todayIso);
+  const last7 = input.last7 || {};
+  const last28 = input.last28 || {};
+  const injuryActive = Boolean(injurySummary?.hasSignal && !['none', 'calming'].includes(injurySummary.status));
+  const distance = Number(countdown?.distanceKm || goal.distanceKm) || 0;
+  const milestones = [];
+
+  if (!countdown || (!countdown.name && !countdown.date)) {
+    return [
+      milestone('set-goal', 'Sett et prioritert mål', 'Legg inn mål-løp eller et konkret treningsmål før appen bygger milepæler.', 'current', 'Start')
+    ];
+  }
+
+  milestones.push(milestone(
+    'injury-stable',
+    'Skadefri/stabil uke',
+    injuryActive
+      ? `Vent med hard test til skadesignalet er lavere/stabilt (${injurySummary.statusLabel || 'følg med'}).`
+      : 'Ingen aktivt skadesignal i målstatusen nå. Fortsett å bruke dagsform før kvalitet.',
+    injuryActive ? 'current' : 'done',
+    injuryActive ? 'Nå' : 'OK'
+  ));
+
+  const sessions28 = Number(last28.sessions || 0);
+  const km28 = Number(last28.km || 0);
+  const stableVolumeReached = sessions28 >= 8 || km28 >= Math.max(40, distance * 3);
+  milestones.push(milestone(
+    'stable-volume',
+    'Stabil 4-ukers base',
+    stableVolumeReached
+      ? `${sessions28} økter${km28 ? ` og ${Math.round(km28)} km` : ''} siste 28 dager gir et brukbart grunnlag.`
+      : 'Bygg repeterbare uker før du jager mer fart. Målet er stabilitet først.',
+    stableVolumeReached ? 'done' : 'current',
+    'Base'
+  ));
+
+  const needsTest = ['needs_test', 'missing_target_time', 'behind'].includes(readiness?.status);
+  const shortTestDistance = distance >= 10 ? '5 km' : distance >= 5 ? '3 km' : '1-2 km';
+  milestones.push(milestone(
+    'short-test',
+    `${shortTestDistance} kontrollert test`,
+    injuryActive
+      ? 'Utsett testløp til kroppen er stabil. Bruk rolig trening eller alternativ økt først.'
+      : needsTest
+      ? 'Bruk en kontrollert test til å kalibrere målpace uten å gjøre det til maksjakt.'
+      : 'Du har relevant testdata. Neste test kan vente til ny treningsblokk er gjennomført.',
+    injuryActive ? 'blocked' : needsTest ? 'current' : 'done',
+    'Test'
+  ));
+
+  if (distance >= 10) {
+    const longTestTitle = distance >= 12 ? '10-12 km relevant test' : '8-10 km relevant test';
+    const hasLongRelevant = readiness?.latestRelevant && Number(readiness.latestRelevant.distanceKm) >= Math.min(10, distance * 0.75);
+    milestones.push(milestone(
+      'long-test',
+      longTestTitle,
+      hasLongRelevant
+        ? 'Du har en lengre relevant test. Bruk den som referanse for målpace.'
+        : 'Når basen er stabil, bruk en lengre kontrollert test for å se om målpace holder over tid.',
+      hasLongRelevant ? 'done' : plan?.phase === 'specific' || plan?.phase === 'test' ? 'current' : 'upcoming',
+      'Spesifikk'
+    ));
+  }
+
+  const daysLeft = Number(countdown.daysLeft);
+  const taperSoon = Number.isFinite(daysLeft) && daysLeft <= 14;
+  milestones.push(milestone(
+    'specific-or-taper',
+    taperSoon ? 'Friske bein inn mot løp' : 'Spesifikk oppkjøring',
+    taperSoon
+      ? 'Reduser volum, behold lett rytme og prioriter overskudd.'
+      : plan?.phase === 'specific'
+      ? 'Bygg løpsspesifikk utholdenhet uten å gjøre hver uke for hard.'
+      : 'Denne kommer senere når grunnlag og testdata er mer på plass.',
+    taperSoon || plan?.phase === 'specific' || plan?.phase === 'taper' ? 'current' : 'upcoming',
+    taperSoon ? 'Taper' : 'Senere'
+  ));
+
+  return milestones.slice(0, 5);
+}
+
+export function raceTestRecommendation(input = {}, todayIso = dateToISO(new Date())) {
+  const goal = normalizeRaceGoal(input.goal || {});
+  const readiness = input.readiness || raceReadinessSummary(goal, input.completedItems || [], input.manualRaceResults || [], todayIso);
+  const countdown = readiness?.countdown || raceGoalCountdown(goal, todayIso);
+  const injurySummary = input.injurySummary || {};
+  const plan = input.plan || raceGoalPlan(goal, readiness, injurySummary, todayIso);
+  const last7 = input.last7 || {};
+  const last28 = input.last28 || {};
+  const injuryActive = Boolean(injurySummary?.hasSignal && !['none', 'calming'].includes(injurySummary.status));
+
+  if (!countdown || (!countdown.name && !countdown.date)) {
+    return {
+      shouldTest: false,
+      distanceKm: null,
+      label: 'Ikke test nå',
+      intensity: 'Ingen',
+      timing: 'Sett et mål først',
+      reason: 'Appen trenger mål-løp eller et tydelig mål før testanbefalingen blir nyttig.',
+      status: 'neutral'
+    };
+  }
+
+  if (injuryActive) {
+    return {
+      shouldTest: false,
+      distanceKm: null,
+      label: 'Ikke test nå',
+      intensity: 'Ingen hard test',
+      timing: 'Når smerte er lav/stabil og rolig økt tolereres',
+      reason: `Skadesignal er aktivt (${injurySummary.statusLabel || 'følg med'}). Testløp bør vente til kroppen tåler rolig belastning.`,
+      status: 'blocked'
+    };
+  }
+
+  const daysLeft = Number(countdown.daysLeft);
+  if (Number.isFinite(daysLeft) && daysLeft <= 7) {
+    return {
+      shouldTest: false,
+      distanceKm: null,
+      label: 'Ikke test nå',
+      intensity: 'Bevar overskudd',
+      timing: 'Etter mål-løpet',
+      reason: 'Mål-løpet er for nært. Nå er friske bein viktigere enn ny test.',
+      status: 'hold'
+    };
+  }
+
+  const hard7 = Number(last7.hard || 0);
+  if (hard7 >= 2) {
+    return {
+      shouldTest: false,
+      distanceKm: null,
+      label: 'Ikke test denne uken',
+      intensity: 'Rolig uke',
+      timing: 'Vurder igjen etter roligere dager',
+      reason: `${hard7} harde økter siste 7 dager gjør ny test mindre nyttig og mer risikabel.`,
+      status: 'hold'
+    };
+  }
+
+  const targetDistance = Number(countdown.distanceKm) || 0;
+  const sessions28 = Number(last28.sessions || 0);
+  const latest = readiness?.latestRelevant || null;
+  const latestDistance = Number(latest?.distanceKm || 0);
+  let distanceKm = targetDistance >= 12 ? 5 : targetDistance >= 10 ? 5 : targetDistance >= 5 ? 3 : targetDistance >= 2 ? 2 : 1;
+  let label = `${raceDistanceLabel(distanceKm)} kontrollert test`;
+  let intensity = 'Kontrollert, ikke maks';
+  let timing = 'Når dagsform er grønn/gul og beina kjennes friske';
+  let reason = 'En kort kontrollert test gir bedre retning uten å koste for mye.';
+  let status = 'ready';
+
+  if (sessions28 < 4) {
+    return {
+      shouldTest: false,
+      distanceKm: null,
+      label: 'Bygg grunnlag først',
+      intensity: 'Rolig kontinuitet',
+      timing: 'Etter flere repeterbare uker',
+      reason: 'Det er for lite nylig treningsgrunnlag til at testløp er førsteprioritet.',
+      status: 'hold'
+    };
+  }
+
+  if (!latest) {
+    reason = targetDistance >= 10
+      ? 'Målet er langt nok til at en 5 km kontrollert test gir et første relevant pace-bilde.'
+      : 'Appen mangler testdata. Start med kort kontrollert test for å kalibrere nivå.';
+  } else if (targetDistance >= 10 && latestDistance < 5) {
+    distanceKm = 5;
+    label = '5 km kontrollert test';
+    reason = `Siste relevante test er ${raceDistanceLabel(latestDistance)}. For et ${raceDistanceLabel(targetDistance)}-mål trenger du etter hvert en lengre referanse.`;
+  } else if (targetDistance >= 12 && latestDistance >= 5 && latestDistance < 10 && ['specific', 'test'].includes(plan?.phase)) {
+    distanceKm = 10;
+    label = '10 km kontrollert test';
+    intensity = 'Kontrollert/progressiv';
+    reason = 'Du har kortere testdata. En lengre kontrollert test kan vise om målpace holder over tid.';
+  } else if (readiness?.status === 'behind') {
+    distanceKm = targetDistance >= 10 ? 5 : distanceKm;
+    label = `${raceDistanceLabel(distanceKm)} kontrollert retest`;
+    reason = 'Siste testpace er roligere enn målpace. Bruk en kontrollert retest etter mer rolig volum.';
+    status = 'watch';
+  } else if (readiness?.status === 'ahead' || readiness?.status === 'close') {
+    label = 'Ingen hast med ny test';
+    intensity = 'Vedlikehold kontroll';
+    timing = 'Etter neste treningsblokk';
+    reason = 'Du har relevant testdata som allerede gir god retning. Treningskontinuitet er viktigere akkurat nå.';
+    return { shouldTest: false, distanceKm: null, label, intensity, timing, reason, status: 'watch' };
+  }
+
+  return {
+    shouldTest: true,
+    distanceKm,
+    label,
+    intensity,
+    timing,
+    reason,
+    status
+  };
+}

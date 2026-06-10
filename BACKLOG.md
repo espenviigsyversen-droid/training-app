@@ -4,15 +4,15 @@ Prioritert backlog for videre utvikling av Treningsapp.
 
 ## Mål, konkurranse og motivasjon
 
-1. **Mål-fane v3: Delmål og milepæler**
+1. **Mål-fane v3: Delmål og milepæler** - Bygget v125
    - Vis 3-5 konkrete delmål mot hovedløpet.
    - Eksempler: skadefri uke, 5 km test, 10 km test, stabil 4-ukers volum, spesifikk oppkjøring.
 
-2. **Skadeoppfølging v2: Trend og frislipp**
+2. **Skadeoppfølging v2: Trend og frislipp** - Bygget v126
    - Vis enkel skadehistorikk over tid.
    - Eksempel: smerte 5 -> 3 -> 1, dager stabil, og tydelig kriterium for når løping/kvalitet kan gjenopptas.
 
-3. **Race/testløp-anbefaler**
+3. **Race/testløp-anbefaler** - Bygget v127
    - Foreslå riktig test nå: 1 km, 2 km, 5 km, 10 km eller ingen test.
    - Bruk mål-løp, skadesignal, siste test og treningsgrunnlag.
 
@@ -46,10 +46,9 @@ Prioritert backlog for videre utvikling av Treningsapp.
 
 ## Anbefalt neste steg
 
-Start med **Mål-fane v3: Delmål og milepæler** når mål-/konkurransesporet tas opp igjen.
+Neste anbefalte backlogpunkt er **Ukeplan smartere mot mål-løp**.
 
 Begrunnelse:
-- bygger direkte på v124
-- gir høy motivasjon
-- krever lite ny datamodell
-- passer godt med eksisterende `domain-goals.js`
+- bygger videre på mål-løp, fase og testanbefaling
+- gjør planforslagene mer relevante uten AI
+- kan gjøres regelstyrt og lavrisiko

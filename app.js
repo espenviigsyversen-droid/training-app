@@ -22,6 +22,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       parseNonNegativeInteger,
       hasStructuredIntervals,
       injuryAdjustedWorkoutAdvice,
+      injuryRecoveryGuidance,
       injurySignalSummary,
       startOfWeek,
       structuredIntervalContext,
@@ -34,6 +35,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     } from './domain-core.js';
     import {
       formatRaceTime,
+      goalMilestones,
       goalMotivationSummary,
       normalizeRaceGoal,
       normalizeRaceResult,
@@ -44,10 +46,11 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       raceDistanceLabel,
       raceGoalCountdown,
       raceGoalPlan,
+      raceTestRecommendation,
       raceReadinessSummary
     } from './domain-goals.js';
 
-    const APP_VERSION = 'v124';
+    const APP_VERSION = 'v127';
     const APP_CACHE_NAME = `treningsapp-${APP_VERSION}`;
 
     const firebaseConfig = {
@@ -6394,7 +6397,9 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       const card = document.getElementById('insightInjurySignalCard');
       const container = document.getElementById('insightInjurySignal');
       if (!card || !container) return;
-      const summary = injurySignalSummary(injurySignalEntriesUntil(today, 7));
+      const entries = injurySignalEntriesUntil(today, 7);
+      const summary = injurySignalSummary(entries);
+      const recovery = injuryRecoveryGuidance(entries);
       if (!summary.hasSignal) {
         card.style.display = 'none';
         container.innerHTML = '';
@@ -6413,7 +6418,13 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         </div>
         <p><strong>Anbefaling:</strong> ${escapeHtml(summary.recommendation)}</p>
         <p><strong>Aktuelt nå:</strong> ${escapeHtml(summary.suggestedAction)}</p>
-        <p class="small-note"><strong>Når slipper coachen signalet:</strong> ${escapeHtml(summary.releaseCriteria)}</p>`;
+        <div class="injury-release-card ${escapeHtml(recovery.releaseStatus)}">
+          <span>${escapeHtml(recovery.releaseLabel)}</span>
+          <strong>${escapeHtml(recovery.nextSafeWorkout)}</strong>
+          <p>${escapeHtml(recovery.releaseCriteria)}</p>
+          <p class="small-note">${escapeHtml(recovery.qualityGate)}</p>
+        </div>
+        <p class="small-note"><strong>Trend/frislipp:</strong> ${escapeHtml(recovery.trendText || summary.trendText || '-')} · ${escapeHtml(recovery.note)}</p>`;
     }
 
     function renderRaceInsights(today) {
@@ -6445,6 +6456,22 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         last7,
         last28
       }, today);
+      const milestones = goalMilestones({
+        goal: state.settings.raceGoal,
+        readiness,
+        plan,
+        injurySummary,
+        last7,
+        last28
+      }, today);
+      const testRecommendation = raceTestRecommendation({
+        goal: state.settings.raceGoal,
+        readiness,
+        plan,
+        injurySummary,
+        last7,
+        last28
+      }, today);
       const metrics = summary.metrics?.length
         ? `<div class="goals-overview-metrics">${summary.metrics.map(metric => `
             <div class="goals-overview-stat">
@@ -6462,6 +6489,36 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
               </div>
             </div>`).join('')}</div>`
         : '';
+      const milestoneItems = milestones?.length
+        ? `<div class="goal-milestones">
+            <div class="goal-milestones-head">
+              <strong>Delmål mot løpet</strong>
+              <span>${milestones.length} steg</span>
+            </div>
+            ${milestones.map(item => `
+              <div class="goal-milestone-item ${escapeHtml(item.status)}">
+                <span class="goal-milestone-dot"></span>
+                <div>
+                  <div class="goal-milestone-title">
+                    <strong>${escapeHtml(item.title)}</strong>
+                    ${item.tag ? `<small>${escapeHtml(item.tag)}</small>` : ''}
+                  </div>
+                  <p>${escapeHtml(item.detail)}</p>
+                </div>
+              </div>`).join('')}
+          </div>`
+        : '';
+      const testRecommendationHtml = testRecommendation
+        ? `<div class="race-test-recommendation ${escapeHtml(testRecommendation.status || 'neutral')}">
+            <span>${testRecommendation.shouldTest ? 'Neste test' : 'Testvurdering'}</span>
+            <strong>${escapeHtml(testRecommendation.label)}</strong>
+            <div class="race-test-meta">
+              <small>${escapeHtml(testRecommendation.intensity || '')}</small>
+              <small>${escapeHtml(testRecommendation.timing || '')}</small>
+            </div>
+            <p>${escapeHtml(testRecommendation.reason || '')}</p>
+          </div>`
+        : '';
       container.innerHTML = `
         <div class="goals-overview-head ${escapeHtml(summary.score?.status || 'neutral')}">
           <span>${escapeHtml(summary.score?.label || 'Målstatus')}</span>
@@ -6474,6 +6531,8 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
           <strong>${escapeHtml(summary.action)}</strong>
           <p>${escapeHtml(summary.motivation)}</p>
         </div>
+        ${milestoneItems}
+        ${testRecommendationHtml}
         ${scoreItems}`;
     }
 

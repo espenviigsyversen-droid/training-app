@@ -119,6 +119,98 @@ export function injurySignalSummary(checkins = []) {
   };
 }
 
+export function injuryRecoveryGuidance(checkins = []) {
+  const items = Array.isArray(checkins)
+    ? checkins
+        .filter(item => item && item.date && item.painNow !== '' && item.painNow !== null && item.painNow !== undefined)
+        .map(item => ({
+          date: String(item.date),
+          painNow: Math.max(0, Math.min(10, Number(item.painNow) || 0)),
+          area: String(item.area || '').trim(),
+          trend: String(item.trend || '').trim()
+        }))
+        .sort((a, b) => a.date.localeCompare(b.date))
+    : [];
+
+  if (!items.length) {
+    return {
+      active: false,
+      title: 'Ingen aktiv skadeoppfølging',
+      trendText: '',
+      stableLowDays: 0,
+      releaseStatus: 'none',
+      releaseLabel: 'Ingen aktiv oppfølging',
+      releaseCriteria: 'Registrer smerte hvis et kroppssignal dukker opp.',
+      nextSafeWorkout: 'Følg vanlig plan og dagsform.',
+      qualityGate: 'Kvalitet styres av vanlig dagsform.',
+      note: 'Ingen nylig smerte registrert.'
+    };
+  }
+
+  const latest = items[items.length - 1];
+  const scores = items.map(item => item.painNow);
+  const trendText = scores.join(' -> ');
+  let stableLowDays = 0;
+  for (let i = items.length - 1; i >= 0; i -= 1) {
+    if (items[i].painNow <= 1) stableLowDays += 1;
+    else break;
+  }
+  const previous = items.length > 1 ? items[items.length - 2] : null;
+  const improving = previous ? latest.painNow < previous.painNow : latest.trend === 'better';
+  const worsening = previous ? latest.painNow > previous.painNow : latest.trend === 'worse';
+
+  let releaseStatus = 'watch';
+  let releaseLabel = 'Følg med';
+  let releaseCriteria = 'Vent med terskel, intervall og race til smerten er 0-1/10 og stabil.';
+  let nextSafeWorkout = 'Velg hvile, mobilitet eller smertefri alternativ trening.';
+  let qualityGate = 'Ikke gjør hard kvalitet ennå.';
+
+  if (latest.painNow >= 5 || worsening) {
+    releaseStatus = 'hold';
+    releaseLabel = 'Hold igjen';
+    releaseCriteria = 'Vent til smerten er tydelig lavere og ikke øker fra dag til dag.';
+    nextSafeWorkout = 'Hvile, rolig sykkel eller mobilitet. Ikke test løping hvis smerten øker.';
+    qualityGate = 'Terskel, intervall og race bør utsettes.';
+  } else if (latest.painNow >= 3) {
+    releaseStatus = improving ? 'cautious' : 'hold';
+    releaseLabel = improving ? 'Bedres, men test forsiktig' : 'Vent litt';
+    releaseCriteria = 'Rolig test først når smerten er lavere/stabil og ikke øker gjennom dagen.';
+    nextSafeWorkout = improving
+      ? '10-20 min svært rolig test eller rolig alternativ trening.'
+      : 'Smertefri alternativ trening eller hvile.';
+    qualityGate = 'Hard kvalitet venter til rolig test tolereres.';
+  } else if (latest.painNow <= 1 && stableLowDays >= 2) {
+    releaseStatus = 'release';
+    releaseLabel = 'Klar for rolig retur';
+    releaseCriteria = 'Smerte 0-1/10 i minst to registreringer. Start med rolig økt før kvalitet.';
+    nextSafeWorkout = 'Rolig løpetur eller 20-30 min kontrollert test, stopp hvis smerte øker.';
+    qualityGate = 'Vent med terskel/intervall til rolig økt er tolerert uten økning.';
+  } else if (latest.painNow <= 2) {
+    releaseStatus = 'easy';
+    releaseLabel = 'Lav smerte';
+    releaseCriteria = 'Hold smerten 0-2/10 og stabil før du øker belastningen.';
+    nextSafeWorkout = 'Kort rolig økt eller alternativ trening. Stopp hvis smerten øker.';
+    qualityGate = 'Kvalitet kan vurderes først etter stabil rolig toleranse.';
+  }
+
+  return {
+    active: true,
+    title: latest.area ? `Oppfølging: ${latest.area}` : 'Skadeoppfølging',
+    trendText,
+    stableLowDays,
+    releaseStatus,
+    releaseLabel,
+    releaseCriteria,
+    nextSafeWorkout,
+    qualityGate,
+    note: improving
+      ? 'Trenden går riktig vei, men progresjon bør fortsatt være kontrollert.'
+      : worsening
+      ? 'Trenden går feil vei. Reduser belastning og følg signalet tett.'
+      : 'Bruk neste økt til å bekrefte stabil respons.'
+  };
+}
+
 export function injuryAdjustedWorkoutAdvice(injurySummary = {}, planned = {}) {
   if (!injurySummary || !injurySummary.hasSignal) {
     return { active: false, title: '', action: '', reason: '', options: [], plannedWarning: '' };
@@ -314,6 +406,7 @@ export {
   RACE_DISTANCE_PRESETS,
   combinedRaceResults,
   formatRaceTime,
+  goalMilestones,
   goalMotivationSummary,
   normalizeRaceGoal,
   normalizeRaceResult,
@@ -325,6 +418,7 @@ export {
   raceGoalCountdown,
   raceGoalPlan,
   raceHistoryForDistance,
+  raceTestRecommendation,
   raceReadinessSummary,
   raceResultsFromCompleted
 } from './domain-goals.js';
