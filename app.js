@@ -30,6 +30,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       structuredIntervalInsights,
       structuredWorkoutBreakdown,
       structuredWorkoutSummary,
+      todayCompletedWorkoutFeedback,
       todayDecision,
       weekPlanDates as weekPlanDatesCore,
       weekPlanDatesInRange as weekPlanDatesInRangeCore
@@ -54,7 +55,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       raceReadinessSummary
     } from './domain-goals.js';
 
-    const APP_VERSION = 'v131';
+    const APP_VERSION = 'v132';
     const APP_CACHE_NAME = `treningsapp-${APP_VERSION}`;
 
     const firebaseConfig = {
@@ -5079,7 +5080,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         weekSessions: ctx.weekSummary?.sessions || 0,
         weeklyTarget: ctx.goals?.weeklySessionsTarget || 0
       });
-      return {
+      const enrichedDecision = {
         ...decision,
         support: dailyCoachSupport({
           decision,
@@ -5094,6 +5095,60 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
           weekSessions: ctx.weekSummary?.sessions || 0,
           weeklyTarget: ctx.goals?.weeklySessionsTarget || 0
         })
+      };
+      const latestTodayCompleted = ctx.completedToday?.[ctx.completedToday.length - 1] || null;
+      const completedFeedback = latestTodayCompleted
+        ? todayCompletedWorkoutFeedback({
+            completed: completedWorkoutAdviceMeta(latestTodayCompleted),
+            decision: enrichedDecision,
+            injurySummary: ctx.injurySummary7,
+            dailyReadinessLevel: ctx.dailyReadiness?.level || null
+          })
+        : null;
+      return completedFeedback || enrichedDecision;
+    }
+
+    function buildCompletedTodayCoachNote(ctx) {
+      const completed = ctx.completedToday?.[ctx.completedToday.length - 1] || null;
+      if (!completed) return '';
+      const meta = completedWorkoutAdviceMeta(completed);
+      const feedback = todayCompletedWorkoutFeedback({ completed: meta });
+      if (!feedback) return '';
+      const painBefore = numberOrZero(meta.painBefore);
+      const painAfter = numberOrZero(meta.painAfter);
+      const painPart = painBefore || painAfter
+        ? ` Smerte gikk fra ${painBefore}/10 før til ${painAfter}/10 etter${meta.painArea ? ` i ${meta.painArea}` : ''}.`
+        : '';
+      if (feedback.level === 'red') {
+        return `Du har allerede gjennomført ${meta.label} i dag, men responsen krever forsiktighet.${painPart} Resten av dagen bør handle om ro, mat/drikke og ny smertevurdering i morgen. ${coachPrincipleLine(['body_signals_first', 'recovery_is_training'])}`;
+      }
+      if (painAfter > 0 || painBefore > 0) {
+        return `Du har allerede gjennomført ${meta.label} i dag, og responsen ser kontrollert ut.${painPart} Det er positivt, men bruk resten av dagen til restitusjon og følg med på om smerten holder seg lav. ${coachPrincipleLine(['body_signals_first'])}`;
+      }
+      return `Du har allerede gjennomført ${meta.label} i dag. Vurderingen nå er ikke om du bør trene mer, men om økten støtter kontinuiteten: fyll på mat/drikke, la kroppen hente seg inn og bruk neste økt som neste datapunkt. ${coachPrincipleLine(['recovery_is_training', 'repeatable_week'])}`;
+    }
+
+    function completedWorkoutAdviceMeta(completed) {
+      if (!completed) return null;
+      const template = completedTemplate(completed);
+      const assessment = completedLoadAssessment(completed);
+      return {
+        label: template.name || completed.manualName || 'dagens økt',
+        type: template.type || '',
+        intensity: template.intensity || '',
+        role: template.role || '',
+        purpose: template.purpose || '',
+        load: template.load || '',
+        loadLevel: assessment.level || '',
+        loadLabel: assessment.label || '',
+        durationSeconds: completedDurationSeconds(completed),
+        distanceKm: completed.distanceKm || '',
+        rpe: completed.rpe || '',
+        execution: executionLabel(completed.execution),
+        painBefore: completed.bodyStatus?.painBefore || 0,
+        painAfter: completed.bodyStatus?.painAfter || 0,
+        painArea: completed.bodyStatus?.area || '',
+        adaptation: completed.bodyStatus?.adaptation || ''
       };
     }
 
@@ -5138,9 +5193,10 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       if (!el || !decision) return;
       const level = ['green', 'yellow', 'red', 'neutral'].includes(decision.level) ? decision.level : 'neutral';
       const support = decision.support || {};
+      const kicker = decision.kicker || 'Dagens beslutning';
       el.className = `today-decision ${level}`;
       el.innerHTML = `
-        <span>Dagens beslutning</span>
+        <span>${escapeHtml(kicker)}</span>
         <strong>${escapeHtml(decision.title)}</strong>
         <p>${escapeHtml(decision.action)}</p>
         <small>${escapeHtml(decision.reason)}</small>
@@ -6047,6 +6103,9 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       const last7Days = completedToDate.filter(c => c.date >= last7Start);
       const last14Days = completedToDate.filter(c => c.date >= last14Start);
       const last28Days = completedToDate.filter(c => c.date >= last28Start);
+      const completedToday = completedToDate
+        .filter(c => c.date === today)
+        .sort((a, b) => workoutSortValue(a).localeCompare(workoutSortValue(b)));
       const completedWithTemplateContext = completedToDate.map(c => {
         const template = completedTemplate(c);
         return {
@@ -6128,7 +6187,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
 
       return {
         today, goals, trainingProfile, personProfile, isRunningBakken,
-        thisWeek, last7Days, last14Days, last28Days,
+        thisWeek, last7Days, last14Days, last28Days, completedToday,
         weekSummary, load7, load14,
         bodySignals14, consecutiveDays, daysSinceLast, lastWorkout,
         latestHrv, latestRestingHr,
@@ -6142,6 +6201,9 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     }
 
     function buildCoachNote(ctx) {
+      const completedTodayNote = buildCompletedTodayCoachNote(ctx);
+      if (completedTodayNote) return completedTodayNote;
+
       const { goals, trainingProfile, isRunningBakken, weekSummary, load7,
               bodySignals14, consecutiveDays, daysSinceLast, lastWorkout,
               goldenZone, goldenZoneViolations,

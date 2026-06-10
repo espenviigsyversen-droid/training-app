@@ -51,6 +51,7 @@ function test(name, fn) {
     structuredWorkoutSummary,
     structuredWorkoutTotalSeconds,
     structuredWorkoutWorkSeconds,
+    todayCompletedWorkoutFeedback,
     todayDecision,
     weekPlanDates,
     weekPlanDatesInRange
@@ -151,6 +152,11 @@ function test(name, fn) {
     assert.ok(app.includes('renderTodayDecision(buildTodayDecision(coachCtx, primaryItems, todayItems))'), 'dashboard should render today decision from coach context');
     assert.ok(app.includes('todayDecision({'), 'app wrapper should call the domain todayDecision function');
     assert.ok(app.includes('dailyCoachSupport({'), 'dashboard should enrich today decision with daily coach support');
+    assert.ok(app.includes('completedToday'), 'coach context should expose workouts completed today');
+    assert.ok(app.includes('todayCompletedWorkoutFeedback({'), 'dashboard should switch to post-workout feedback after a completed workout');
+    assert.ok(app.includes('function buildCompletedTodayCoachNote'), 'coach note should have a post-workout mode');
+    assert.ok(app.includes('const completedTodayNote = buildCompletedTodayCoachNote(ctx);'), 'coach note should prioritize today completed workout feedback');
+    assert.ok(app.includes("decision.kicker || 'Dagens beslutning'"), 'today decision should support a post-workout kicker');
     assert.ok(app.includes('today-support-grid'), 'today decision should render support details');
     assert.ok(read('styles.css').includes('.today-support-grid'), 'today support styling is missing');
   });
@@ -918,6 +924,53 @@ function test(name, fn) {
     assert.match(support.adjustment, /hvile|alternativ/i);
     assert.match(support.support, /Ikke bruk smerte som test/);
     assert.match(support.motivation, /kontinuiteten/);
+  });
+
+  test('completed workout feedback replaces pre-workout advice after a controlled easy session', () => {
+    const feedback = todayCompletedWorkoutFeedback({
+      completed: {
+        label: 'Rolig Kort Tur',
+        intensity: 'Restitusjon',
+        role: 'recovery',
+        loadLevel: 'low',
+        loadLabel: 'Lav belastning',
+        durationSeconds: 1805,
+        distanceKm: 3.37,
+        rpe: 5,
+        execution: 'Som planlagt',
+        painBefore: 0,
+        painAfter: 1,
+        painArea: 'Begge kne'
+      }
+    });
+
+    assert.strictEqual(feedback.mode, 'post_workout');
+    assert.strictEqual(feedback.kicker, 'Dagens vurdering');
+    assert.strictEqual(feedback.level, 'green');
+    assert.match(feedback.title, /Bra justert/);
+    assert.match(feedback.reason, /Rolig Kort Tur/);
+    assert.match(feedback.support.support, /karbohydrater|protein|Drikk|drikk/);
+  });
+
+  test('completed workout feedback warns when pain increases after workout', () => {
+    const feedback = todayCompletedWorkoutFeedback({
+      completed: {
+        label: 'Terskel',
+        intensity: 'Terskel',
+        loadLevel: 'moderate',
+        durationSeconds: 2400,
+        rpe: 7,
+        painBefore: 1,
+        painAfter: 5,
+        painArea: 'Venstre kne'
+      }
+    });
+
+    assert.strictEqual(feedback.mode, 'post_workout');
+    assert.strictEqual(feedback.level, 'red');
+    assert.match(feedback.title, /smerterespons/);
+    assert.match(feedback.action, /Hold igjen|hvile/);
+    assert.match(feedback.support.adjustment, /ikke bruk neste økt|Vent/i);
   });
 
   test('today decision uses recent structured interval load conservatively', () => {

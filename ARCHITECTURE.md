@@ -74,6 +74,7 @@ Inneholder rene, testbare hjelpefunksjoner uten DOM, Firebase eller direkte `sta
 - dato- og ukeplanlegging
 - trafikklys/dagsform-regler
 - daglig coach-støtte for konkret justering, støttepåminnelse og motivasjon
+- etter-økt-vurdering for Dagens råd når en økt er fullført samme dag
 - gylne sone-prosenter
 - varighet, tempo og enkle treningsberegninger
 - challenge-progress og etiketter

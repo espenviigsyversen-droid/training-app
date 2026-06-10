@@ -1,6 +1,6 @@
 # DEVELOPMENT_ROADMAP.md
 
-Strategisk utviklingsroadmap for Treningsapp etter v131.
+Strategisk utviklingsroadmap for Treningsapp etter v132.
 
 Oppdatert: 2026-06-10
 
@@ -73,6 +73,7 @@ Dette betyr at appen bør prioritere:
 ### Daglig motivasjon
 
 - Det viktigste for å åpne appen ofte er et tydelig dagens råd som endrer seg med data.
+- Etter v132 skal Dagens råd også endre modus når dagens økt er fullført: fra "hva bør jeg gjøre?" til "hvordan responderte kroppen på det jeg gjorde?".
 - Rådene kan gjerne inkludere små støttepåminnelser om:
   - drikke/væske
   - karbohydrater før/etter økt

@@ -487,6 +487,106 @@ export function dailyCoachSupport(input = {}) {
   };
 }
 
+export function todayCompletedWorkoutFeedback(input = {}) {
+  const completed = input.completed || null;
+  if (!completed) return null;
+
+  const label = String(completed.label || 'dagens økt').trim();
+  const loadLevel = String(completed.loadLevel || '').toLowerCase();
+  const loadLabel = String(completed.loadLabel || '').trim();
+  const intensity = String(completed.intensity || '').trim();
+  const role = String(completed.role || '').trim();
+  const purpose = String(completed.purpose || '').trim();
+  const execution = String(completed.execution || '').trim();
+  const rpe = Number(completed.rpe || 0);
+  const painBefore = Number(completed.painBefore || 0);
+  const painAfter = Number(completed.painAfter || 0);
+  const painArea = String(completed.painArea || '').trim();
+  const minutes = Number(completed.durationSeconds || 0) ? Math.round(Number(completed.durationSeconds) / 60) : 0;
+  const distanceKm = Number(completed.distanceKm || 0);
+  const painText = painAfter || painBefore
+    ? `Smerte ${painBefore}/10 før og ${painAfter}/10 etter${painArea ? ` i ${painArea}` : ''}.`
+    : 'Ingen tydelig smerterespons er logget etter økten.';
+  const labelText = label.toLowerCase();
+  const contextText = [labelText, intensity, role, purpose, loadLabel, loadLevel].join(' ').toLowerCase();
+  const isLowLoad = loadLevel === 'low' || /rolig|restitusjon|base|low|lav/.test(contextText);
+  const isQuality = /terskel|intervall|tempo|anaerob|race|konkurranse|threshold|high/.test(contextText) || rpe >= 7;
+  const painIncreased = painAfter > painBefore + 1;
+  const highPainResponse = painAfter >= 4 || painIncreased;
+  const mildPainResponse = painAfter > 0 || painBefore > 0;
+  const completedSummary = [
+    minutes ? `${minutes} min` : '',
+    distanceKm ? `${distanceKm.toLocaleString('no-NO', { maximumFractionDigits: 2 })} km` : '',
+    rpe ? `RPE ${rpe}/10` : '',
+    loadLabel || ''
+  ].filter(Boolean).join(' · ');
+
+  if (highPainResponse) {
+    return {
+      mode: 'post_workout',
+      kicker: 'Dagens vurdering',
+      level: 'red',
+      title: 'Økten ga for mye smerterespons',
+      action: 'Hold igjen resten av dagen og velg hvile eller smertefri alternativ trening neste gang.',
+      reason: `${label} er logget. ${painText}`,
+      support: {
+        adjustment: 'Ikke bruk neste økt til å teste formen. Vent til smerten er lavere eller stabil.',
+        support: 'Fyll på mat og drikke, prioriter søvn og registrer smerte igjen i morgen.',
+        motivation: 'Det viktigste datapunktet nå er om kroppen roer seg etter belastningen.'
+      }
+    };
+  }
+
+  if (mildPainResponse) {
+    const stableOrBetter = painAfter <= Math.max(2, painBefore);
+    return {
+      mode: 'post_workout',
+      kicker: 'Dagens vurdering',
+      level: stableOrBetter && isLowLoad ? 'green' : 'yellow',
+      title: stableOrBetter ? 'Bra justert økt' : 'Følg med på responsen',
+      action: stableOrBetter
+        ? 'Resten av dagen handler om restitusjon og å bekrefte at smerten holder seg lav.'
+        : 'Hold neste treningsvalg rolig til du ser at kroppen responderer stabilt.',
+      reason: `${label} er gjennomført${completedSummary ? ` (${completedSummary})` : ''}. ${painText}`,
+      support: {
+        adjustment: stableOrBetter ? 'Planen bør nå vurderes ut fra responsen i kveld og i morgen.' : 'Ikke legg inn hard løping før smerteresponsen er stabil.',
+        support: 'Drikk godt og spis nok karbohydrater/protein etter økten. Logg smerteoppfølging i morgen.',
+        motivation: stableOrBetter ? 'Dette er akkurat verdien av kontrollert testing: du får data uten å jage form.' : 'En rolig justering nå kan spare deg for flere tapte treningsdager.'
+      }
+    };
+  }
+
+  if (isQuality) {
+    return {
+      mode: 'post_workout',
+      kicker: 'Dagens vurdering',
+      level: 'yellow',
+      title: 'Kvalitet er gjennomført',
+      action: 'La resten av dagen og neste økt støtte effekten av arbeidet.',
+      reason: `${label} er logget${completedSummary ? ` (${completedSummary})` : ''}.`,
+      support: {
+        adjustment: 'Neste valg bør være rolig, restitusjon eller lett styrke hvis kroppen er fin.',
+        support: 'Fyll på væske, karbohydrater og protein. Kvalitetsøkter virker best når restitusjonen sitter.',
+        motivation: 'Du har allerede gjort dagens viktigste treningsbidrag.'
+      }
+    };
+  }
+
+  return {
+    mode: 'post_workout',
+    kicker: 'Dagens vurdering',
+    level: isLowLoad ? 'green' : 'neutral',
+    title: isLowLoad ? 'Bra gjennomført rolig økt' : 'Økt gjennomført',
+    action: 'Bruk resten av dagen til å hente ut effekten av økten.',
+    reason: `${label} er logget${completedSummary ? ` (${completedSummary})` : ''}.${execution ? ` Gjennomføring: ${execution}.` : ''}`,
+    support: {
+      adjustment: 'Ikke jag mer trening i dag med mindre det er planlagt som lett bonus.',
+      support: 'Drikk godt og spis nok etter økten, spesielt hvis du trener igjen innen 24-48 timer.',
+      motivation: 'Dette bygger kontinuitet: én gjennomført økt teller mer enn en perfekt plan.'
+    }
+  };
+}
+
 export {
   RACE_DISTANCE_PRESETS,
   combinedRaceResults,

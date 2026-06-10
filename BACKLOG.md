@@ -31,6 +31,7 @@ Prioritert backlog for videre utvikling av Treningsapp.
 7. **Dagens råd koblet tydeligere til Mål / Dagens råd v2** - Bygget v131
    - Knytt Hjem-rådet tydeligere til mål-løp og fase.
    - Eksempel: "Fordi du er i basebygging mot Halv-Birken, er dagens beste valg rolig volum."
+   - Utvidet v132: når dagens økt er logget, skifter rådet til etter-økt-vurdering av belastning og smerterespons.
 
 8. **Challenges som delmål**
    - Koble challenges til hovedmål.
