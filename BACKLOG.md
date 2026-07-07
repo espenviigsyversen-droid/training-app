@@ -11,7 +11,7 @@ Prioritert backlog for videre utvikling av Treningsapp.
 2. **Dashboard motivasjonskort** - Bygget v135
    - Løft mål-løp, mål-score, kontinuitet og siste høydepunkt inn på Hjem.
 
-3. **Denne uken og challenge-status v2**
+3. **Denne uken og challenge-status v2** - Bygget v136
    - Vis ukeprogresjon med ring, kilometer, dagsstolper og challenge-takt.
 
 4. **Dashboard fargesystem og desktop polish**
@@ -61,10 +61,9 @@ Prioritert backlog for videre utvikling av Treningsapp.
 
 ## Anbefalt neste steg
 
-Neste anbefalte backlogpunkt er **Denne uken og challenge-status v2**.
+Neste anbefalte backlogpunkt er **Dashboard fargesystem og desktop polish**.
 
 Begrunnelse:
-- bygger videre på nytt heltekort
-- gjør ukeprogresjon og månedens challenge mer visuelt motiverende
-- bruker eksisterende challenge-progress og ukesammendrag
-- krever ingen ny datamodell
+- bygger videre på ny dashboardstruktur
+- gjør statusfargene mer profesjonelle og konsistente
+- kan gjøres lavrisiko med primært CSS og små UI-justeringer

@@ -1,6 +1,6 @@
 # DEVELOPMENT_ROADMAP.md
 
-Strategisk utviklingsroadmap for Treningsapp etter v135.
+Strategisk utviklingsroadmap for Treningsapp etter v136.
 
 Oppdatert: 2026-06-10
 
@@ -424,7 +424,7 @@ Løft de mest motiverende eksisterende elementene opp på Hjem.
 - `Siste høydepunkt` viser ny PB/testløp eller siste registrerte race/test.
 - Løsningen gjenbruker eksisterende mål-, PB- og kontinuitetslogikk uten ny datamodell.
 
-## v136 - Denne uken og challenge-status v2
+## v136 - Denne uken og challenge-status v2 - Bygget
 
 ### Mål
 
@@ -436,6 +436,13 @@ Gjør ukestatus og månedens challenge mer visuelt og motiverende.
 - Challenge-kort med forventet takt-markør og tydelig `i rute / bak takt`.
 - Kilometer vises på Hjem sammen med økter og tid.
 - Bruk eksisterende challenge-progress og ukesammendrag.
+
+### Status etter v136
+
+- `Denne uken` på Hjem viser nå øktring, tid, kilometer, belastning og dagsstolper.
+- Ukeprogresjonen bruker eksisterende ukesammendrag og ukemål.
+- Aktiv challenge viser faktisk progresjon mot forventet takt med markør og `I rute` / `Bak takt`.
+- Endringen introduserer ingen ny datamodell.
 
 ## v137 - Dashboard fargesystem og desktop polish
 
@@ -679,9 +686,9 @@ Hvis svaret er ja på flere av disse, bør ideen prioriteres.
 
 ### Neste 3 runder
 
-1. v136 - Denne uken og challenge-status v2
-2. v137 - Dashboard fargesystem og desktop polish
-3. v138 - Ernæring, væske og restitusjonsnotater
+1. v137 - Dashboard fargesystem og desktop polish
+2. v138 - Ernæring, væske og restitusjonsnotater
+3. v139 - AI-chat design
 
 ### Neste 10 runder
 
@@ -785,6 +792,6 @@ Neste store verdiøkning er en bedre daglig coach.
 
 Anbefalt neste utviklingsrunde:
 
-> v136 - Denne uken og challenge-status v2
+> v137 - Dashboard fargesystem og desktop polish
 
-Den bør gjøre Hjem enda mer motiverende ved å løfte ukeprogresjon, kilometer og challenge-takt tydeligere inn i dashboardet.
+Den bør gjøre dashboardet mer profesjonelt ved å stramme inn statusfarger, tallhierarki og desktop-polish uten ny datamodell.

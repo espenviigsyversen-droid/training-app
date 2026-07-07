@@ -56,7 +56,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       raceReadinessSummary
     } from './domain-goals.js';
 
-    const APP_VERSION = 'v135';
+    const APP_VERSION = 'v136';
     const APP_CACHE_NAME = `treningsapp-${APP_VERSION}`;
 
     const firebaseConfig = {
@@ -5242,6 +5242,53 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       renderHomeHighlightCard();
     }
 
+    function renderHomeWeekStatus(today, weekStart, weekSummary, weekItems, goals, profile) {
+      const ring = document.getElementById('homeWeekRing');
+      const days = document.getElementById('homeWeekDays');
+      const sessionsEl = document.getElementById('homeWeekSessions');
+      const timeEl = document.getElementById('homeWeekTime');
+      const kmEl = document.getElementById('homeWeekKm');
+      const loadEl = document.getElementById('homeWeekLoad');
+      const noteEl = document.getElementById('homeWeekNote');
+      const target = Math.max(1, Number(goals.weeklySessionsTarget) || 1);
+      const sessionPercent = Math.max(0, Math.min(100, (weekSummary.sessions / target) * 100));
+      const remaining = Math.max(0, target - weekSummary.sessions);
+      const ringStatus = weekSummary.sessions >= target ? 'done' : weekSummary.sessions > 0 ? 'partial' : 'empty';
+
+      if (ring) {
+        ring.className = `home-week-ring ${ringStatus}`;
+        ring.style.setProperty('--week-ring-percent', `${sessionPercent * 3.6}deg`);
+        ring.innerHTML = `<strong>${weekSummary.sessions}/${target}</strong><span>økter</span>`;
+      }
+      if (sessionsEl) sessionsEl.textContent = `${weekSummary.sessions}/${target}`;
+      if (timeEl) timeEl.textContent = formatClockDuration(weekSummary.seconds);
+      if (kmEl) kmEl.textContent = formatKm(weekSummary.km);
+      if (loadEl) loadEl.textContent = homeLoadLabel(weekItems, profile);
+      if (noteEl) {
+        noteEl.textContent = weekSummary.sessions >= target
+          ? 'Ukesmålet er nådd. Videre trening bør styres av overskudd og dagsform.'
+          : `${remaining} økt${remaining === 1 ? '' : 'er'} igjen til ukesmålet.`;
+      }
+      if (days) {
+        const maxDaySeconds = Math.max(1, ...Array.from({ length: 7 }, (_, index) => {
+          const date = addDays(weekStart, index);
+          return summarizeCompleted(weekItems.filter(item => item.date === date)).seconds;
+        }));
+        days.innerHTML = Array.from({ length: 7 }, (_, index) => {
+          const date = addDays(weekStart, index);
+          const daySummary = summarizeCompleted(weekItems.filter(item => item.date === date));
+          const height = daySummary.sessions ? Math.max(24, Math.round((daySummary.seconds / maxDaySeconds) * 58)) : 8;
+          const isToday = date === today;
+          const label = ['m', 't', 'o', 't', 'f', 'l', 's'][index];
+          return `
+            <div class="home-week-day ${daySummary.sessions ? 'active' : 'empty'} ${isToday ? 'today' : ''}" title="${escapeHtml(formatDate(date))}: ${daySummary.sessions} økt${daySummary.sessions === 1 ? '' : 'er'}">
+              <span class="home-week-day-bar" style="height:${height}px"></span>
+              <small>${escapeHtml(label)}</small>
+            </div>`;
+        }).join('');
+      }
+    }
+
     function renderDashboardSummary(today, todayItems, upcomingItems, plannedActive = []) {
       const goals = normalizeGoals(state.settings.goals);
       const profile = normalizeTrainingProfile(state.settings.trainingProfile);
@@ -5256,12 +5303,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       const nextDateItems = nextDate ? upcomingItems.filter(p => p.date === nextDate) : [];
       const primaryItems = todayItems.length ? todayItems : nextDateItems;
 
-      document.getElementById('homeWeekSessions').textContent = `${weekSummary.sessions}/${goals.weeklySessionsTarget}`;
-      document.getElementById('homeWeekTime').textContent = formatClockDuration(weekSummary.seconds);
-      document.getElementById('homeWeekLoad').textContent = homeLoadLabel(weekItems, profile);
-      document.getElementById('homeWeekNote').textContent = weekSummary.sessions >= goals.weeklySessionsTarget
-        ? 'Ukesmålet er nådd. Videre trening bør styres av overskudd og dagsform.'
-        : `${Math.max(0, goals.weeklySessionsTarget - weekSummary.sessions)} økt${Math.max(0, goals.weeklySessionsTarget - weekSummary.sessions) === 1 ? '' : 'er'} igjen til ukesmålet.`;
+      renderHomeWeekStatus(today, weekStart, weekSummary, weekItems, goals, profile);
       const coachCtx = buildCoachContext();
       const todayDecisionResult = buildTodayDecision(coachCtx, primaryItems, todayItems);
       renderHomeHero(coachCtx, primaryItems, todayItems, todayDecisionResult);
@@ -5692,6 +5734,31 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       return 'Aktiv';
     }
 
+    function challengePaceInfo(challenge, progress, today = todayISO()) {
+      const start = new Date(`${challenge.startDate}T12:00:00`);
+      const end = new Date(`${challenge.endDate}T12:00:00`);
+      const now = new Date(`${today}T12:00:00`);
+      const totalDays = Math.max(1, Math.round((end - start) / 86400000) + 1);
+      const elapsedDays = now < start ? 0 : now > end ? totalDays : Math.round((now - start) / 86400000) + 1;
+      const expectedPercent = Math.max(0, Math.min(100, (elapsedDays / totalDays) * 100));
+      const expectedCurrent = (Number(progress.target) || 0) * expectedPercent / 100;
+      const gap = (Number(progress.current) || 0) - expectedCurrent;
+      const status = progress.done
+        ? 'done'
+        : progress.expired
+        ? 'behind'
+        : progress.percent + 2 >= expectedPercent
+        ? 'on-track'
+        : 'behind';
+      const label = status === 'done' ? 'Mål nådd' : status === 'on-track' ? 'I rute' : 'Bak takt';
+      const note = status === 'done'
+        ? 'Challenge fullført.'
+        : status === 'on-track'
+        ? `Forventet nå: ${challengeValueLabel(expectedCurrent, challenge.metric)}.`
+        : `${challengeValueLabel(Math.abs(gap), challenge.metric)} bak forventet takt.`;
+      return { expectedPercent, expectedCurrent, gap, status, label, note };
+    }
+
     function challengeCard(challenge, compact = false) {
       const progress = challengeProgress(challenge);
       const activity = challenge.activity === 'all' ? 'Alle aktiviteter' : challenge.activity;
@@ -5747,21 +5814,31 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         return challenge.status !== 'paused' && !progress.done && !progress.expired;
       });
 
-      // Mini progress bar under "Denne uken" på hjem
       const mini = document.getElementById('homeChallengeMini');
       if (mini) {
         if (active.length) {
           const c = active[0];
           const p = challengeProgress(c);
           const fillClass = p.done ? 'done' : p.current > 0 ? 'partial' : 'empty';
+          const pace = challengePaceInfo(c, p);
           mini.innerHTML = `
             <div class="challenge-mini">
               <div class="challenge-mini-top">
-                <span>${escapeHtml(c.name)}</span>
-                <span>${Math.round(p.percent)}%</span>
+                <div>
+                  <span>${escapeHtml(c.name)}</span>
+                  <small>${escapeHtml(challengeMetricLabel(c.metric))} · ${escapeHtml(c.activity === 'all' ? 'Alle aktiviteter' : c.activity)}</small>
+                </div>
+                <strong>${Math.round(p.percent)}%</strong>
               </div>
-              <div class="progress-track"><div class="progress-fill ${fillClass}" style="width:${p.percent}%;"></div></div>
-              <span class="small-note">${escapeHtml(challengeValueLabel(p.current, c.metric))} / ${escapeHtml(challengeValueLabel(p.target, c.metric))} · ${escapeHtml(challengeRemainingLabel(p, c.metric))} · ${p.daysLeft} dager igjen</span>
+              <div class="challenge-mini-track">
+                <div class="progress-track"><div class="progress-fill ${fillClass}" style="width:${p.percent}%;"></div></div>
+                <span class="challenge-expected-marker" style="left:${pace.expectedPercent}%"></span>
+              </div>
+              <div class="challenge-mini-meta">
+                <span>${escapeHtml(challengeValueLabel(p.current, c.metric))} / ${escapeHtml(challengeValueLabel(p.target, c.metric))} · ${escapeHtml(challengeRemainingLabel(p, c.metric))}</span>
+                <strong class="challenge-pace ${pace.status}">${escapeHtml(pace.label)}</strong>
+              </div>
+              <p class="small-note">${escapeHtml(pace.note)} ${p.daysLeft ? `${p.daysLeft} dager igjen.` : ''}</p>
             </div>`;
         } else {
           mini.innerHTML = '';
