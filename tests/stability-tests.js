@@ -169,6 +169,7 @@ function test(name, fn) {
     assert.ok(app.includes('renderHomeWeekStatus(today, weekStart, weekSummary, weekItems, goals, profile)'), 'dashboard should render upgraded weekly status');
     assert.ok(app.includes('function challengePaceInfo'), 'dashboard challenge mini should calculate expected pace');
     assert.ok(app.includes('challenge-expected-marker'), 'dashboard challenge mini should render expected pace marker');
+    assert.ok(app.includes("const fillClass = p.done ? 'done' : p.current > 0 ? pace.status : 'empty'"), 'challenge mini fill should follow pace status');
     assert.ok(app.includes('goalMotivationSummary({'), 'home goal card should reuse domain goal motivation summary');
     assert.ok(app.includes('calculateWeeklyStreak(weekStart, target)'), 'home continuity card should reuse continuity streak logic');
     assert.ok(app.includes('personalBestSummary(completedRaceItems(), state.raceResults)'), 'home highlight card should reuse personal best summary');
@@ -193,6 +194,10 @@ function test(name, fn) {
     assert.ok(read('styles.css').includes('.home-week-ring'), 'home week ring styling is missing');
     assert.ok(read('styles.css').includes('.home-week-days'), 'home week day bar styling is missing');
     assert.ok(read('styles.css').includes('.challenge-pace'), 'challenge pace status styling is missing');
+    assert.ok(read('styles.css').includes('.progress-fill.on-track'), 'on-track progress styling is missing');
+    assert.ok(read('styles.css').includes('.progress-fill.behind'), 'behind progress styling is missing');
+    assert.ok(read('styles.css').includes('.tag.planned { background: var(--status-neutral-bg);'), 'planned status should be visually neutral');
+    assert.ok(read('styles.css').includes('.calendar-entry.planned { color: var(--dashboard-quality); }'), 'planned calendar entries should be neutral');
     assert.ok(read('styles.css').includes('.readiness-chip'), 'readiness chip styling is missing');
     assert.ok(read('styles.css').includes('.hero-intensity-track'), 'hero intensity strip styling is missing');
   });
