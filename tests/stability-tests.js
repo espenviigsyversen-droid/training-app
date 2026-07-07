@@ -150,7 +150,15 @@ function test(name, fn) {
 
   test('dashboard renders today decision from domain logic', () => {
     assert.ok(index.includes('id="homeDecision"'), 'dashboard should include visible today decision element');
+    assert.ok(index.includes('dashboard-hero-card'), 'dashboard should use merged hero card');
+    assert.ok(index.includes('id="homeReadinessChip"'), 'dashboard hero should include readiness chip');
+    assert.ok(index.includes('id="homeHeroMain"'), 'dashboard hero should include main decision/workout area');
+    assert.ok(index.includes('id="homeHeroActions"'), 'dashboard hero should include primary actions');
+    assert.ok(index.includes('id="homeHeroIntensity"'), 'dashboard hero should include intensity balance strip');
+    assert.ok(index.includes('id="homeHeroPreparation"'), 'dashboard hero should include preparation details');
+    assert.ok(!index.includes('id="homePrimaryTitle"'), 'dashboard should not duplicate next workout heading outside hero');
     assert.ok(app.includes('const todayDecisionResult = buildTodayDecision(coachCtx, primaryItems, todayItems)'), 'dashboard should build today decision from coach context');
+    assert.ok(app.includes('renderHomeHero(coachCtx, primaryItems, todayItems, todayDecisionResult)'), 'dashboard should render merged hero card');
     assert.ok(app.includes('renderTodayDecision(todayDecisionResult)'), 'dashboard should render today decision result');
     assert.ok(app.includes('todayDecision({'), 'app wrapper should call the domain todayDecision function');
     assert.ok(app.includes('dailyCoachSupport({'), 'dashboard should enrich today decision with daily coach support');
@@ -165,6 +173,9 @@ function test(name, fn) {
     assert.ok(app.includes('today-support-grid'), 'today decision should render support details');
     assert.ok(read('styles.css').includes('.today-support-grid'), 'today support styling is missing');
     assert.ok(read('styles.css').includes('.coach-basis-item'), 'structured coach basis styling is missing');
+    assert.ok(read('styles.css').includes('.dashboard-hero-card'), 'dashboard hero styling is missing');
+    assert.ok(read('styles.css').includes('.readiness-chip'), 'readiness chip styling is missing');
+    assert.ok(read('styles.css').includes('.hero-intensity-track'), 'hero intensity strip styling is missing');
   });
 
   test('daily injury check-in is preserved and used by coach context', () => {
