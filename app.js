@@ -56,7 +56,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       raceReadinessSummary
     } from './domain-goals.js';
 
-    const APP_VERSION = 'v136';
+    const APP_VERSION = 'v137';
     const APP_CACHE_NAME = `treningsapp-${APP_VERSION}`;
 
     const firebaseConfig = {
@@ -5819,8 +5819,8 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         if (active.length) {
           const c = active[0];
           const p = challengeProgress(c);
-          const fillClass = p.done ? 'done' : p.current > 0 ? 'partial' : 'empty';
           const pace = challengePaceInfo(c, p);
+          const fillClass = p.done ? 'done' : p.current > 0 ? pace.status : 'empty';
           mini.innerHTML = `
             <div class="challenge-mini">
               <div class="challenge-mini-top">

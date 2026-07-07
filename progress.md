@@ -1,5 +1,5 @@
 # Treningsapp — progress.md
-Oppdatert: 2026-07-07 (siste endringer: v75–v136)
+Oppdatert: 2026-07-07 (siste endringer: v75–v137)
 
 ---
 
@@ -27,7 +27,7 @@ Standard Bakken-uke: Hoved-terskel → Støtte-terskel → Lang rolig → Valgfr
 **Hosting:** GitHub Pages.  
 **Backend:** Firebase (prosjekt `home-tasks-app-18de3`) — Firestore + Google Auth.  
 **Frontend:** Vanilla JS + HTML + CSS, single-page app, tab-navigasjon.  
-**Versjon:** v136 (konstant i `app.js`).
+**Versjon:** v137 (konstant i `app.js`).
 
 ### Filer
 
@@ -109,6 +109,7 @@ Treningsapp/
 - **Dashboard heltekort** (v134): Hjem-toppen er slått sammen fra tre separate kort (`Neste økt`, `Dagsform`, `Dagens råd`) til ett heltekort. Dagsform vises som statuschip, dagens/neste økt eller fullført økt vises som hovedbudskap, og én kort anbefaling står synlig. Øktdetaljer, forberedelse og grunnlag ligger bak utvidbare rader. Eksisterende coach-logikk, dagsformskjema, skadeoppfølging, fullføring og grunnlagsvisning gjenbrukes uten ny datamodell. Heltekortet inkluderer også en enkel intensitetsstripe for 14 dager som første steg mot mer visuelt dashboard.
 - **Dashboard motivasjonskort** (v135): Hjem har nå tre kompakte motivasjonskort under heltekortet: `Mål-løp` med aktivt mål, uker/nedtelling, mål-score og fase; `Kontinuitet` med streak og 8-ukers minigrid; og `Siste høydepunkt` med ny PB/testløp eller siste registrerte race/test. Kortene gjenbruker eksisterende mål-, PB- og kontinuitetslogikk uten ny datamodell.
 - **Denne uken og challenge-status v2** (v136): Hjem-kortet `Denne uken` viser nå øktring, tid, kilometer, belastning og dagsstolper for ukeprogresjon. Aktiv challenge har fått forventet takt-markør og tydelig status som `I rute` eller `Bak takt`, basert på eksisterende challenge-progress, periode og dagens dato. Endringen er kun visuell/regelstyrt og introduserer ingen ny datamodell.
+- **Dashboard fargesystem og desktop polish** (v137): Dashboardets statusfarger er strammet inn: planlagt er nøytralt, `I rute`/progresjon er grønt, `Bak takt`/obs er gult og rødt holdes til stopp/avvik/kroppssignal. Ukestolper og ukekortet på Hjem er gjort roligere og mer desktop-vennlige, mens oransje i større grad er beholdt som merkevare- og handlingsfarge.
 - **Fjernet «Foreslå neste økt»** (v92): Kortet er fjernet fra Kalender-fanen. Ukeplanen dekker samme behov bedre og er rollebevisst. `renderWorkoutSuggestion`-kallet er fjernet fra render-løkken for å unngå krasj.
 - **Coach: smertegradering + priority-felt + X-økt** (v91): Tre coach-forbedringer: (1) `bodySignalState` skiller nå mellom mild smerte (1–2/10 → `cooling`, foreslår terskel etter en rolig økt) og bekymringsfull smerte (3+/10 → `caution`, kun recovery). Løser at mild smerte blokkerte terskelforslag for hele neste uke. (2) `priority`-feltet i treningsprofilen er nå aktivt: `performance` foreslår terskel straks det er rom, `injury_free_progression` krever 2 rolige øyer før terskel. (3) X-økt vises alltid som 4. forslag i normaluke når det er rom — sikrer at VO2max/teknikk/styrke alltid er synlig som alternativ.
 - **Hjem: alle økter samme dag** (v90): «Neste økt» / «Dagens økt» viser nå alle planlagte økter på samme dato, ikke bare én. For fremtidige dager grupperes etter første kommende dato (`nextDateItems`). Tittelen skifter til «Dagens økt» automatisk når det finnes økter på dagens dato (eksisterende logikk).

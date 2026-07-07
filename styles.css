@@ -13,6 +13,12 @@
       --warm-gray-3: #80766f;
       --success: #159947;
       --warning: #f07a16;
+      --status-green-bg: rgba(31,157,85,0.12);
+      --status-yellow-bg: rgba(245,158,11,0.16);
+      --status-red-bg: rgba(225,29,72,0.12);
+      --status-neutral-bg: rgba(238,233,227,0.86);
+      --dashboard-progress: #22a878;
+      --dashboard-quality: #6f6259;
       --shadow: 0 10px 26px rgba(17,17,17,0.07);
       --radius: 18px;
     }
@@ -324,19 +330,25 @@
       white-space: nowrap;
     }
 
-    .tag.done { background: rgba(31,157,85,0.12); color: var(--success); }
-    .tag.planned { background: var(--primary-soft); color: var(--burgundy); }
-    .tag.effect-low { background: rgba(31,157,85,0.12); color: var(--success); }
-    .tag.effect-high { background: rgba(217,119,6,0.14); color: var(--warning); }
+    .tag.done { background: var(--status-green-bg); color: var(--success); }
+    .tag.planned { background: var(--status-neutral-bg); color: var(--dashboard-quality); }
+    .tag.effect-low { background: var(--status-green-bg); color: var(--success); }
+    .tag.effect-high { background: var(--status-yellow-bg); color: #9a5b00; }
     .tag.effect-anaerobic { background: rgba(118,81,255,0.14); color: var(--purple); }
-    .tag.load-low { background: rgba(31,157,85,0.12); color: var(--success); }
-    .tag.load-moderate { background: rgba(217,119,6,0.14); color: var(--warning); }
-    .tag.load-high { background: rgba(225,29,72,0.12); color: var(--red); }
-    .tag.body-signal { background: rgba(225,29,72,0.1); color: var(--red); }
+    .tag.load-low { background: var(--status-green-bg); color: var(--success); }
+    .tag.load-moderate { background: var(--status-yellow-bg); color: #9a5b00; }
+    .tag.load-high { background: var(--status-red-bg); color: var(--red); }
+    .tag.body-signal { background: var(--status-red-bg); color: var(--red); }
 
     .dashboard-hero-card {
       display: grid;
       gap: 12px;
+      box-shadow: 0 12px 34px rgba(17,17,17,0.055);
+    }
+
+    .dashboard-wide-card {
+      overflow: hidden;
+      box-shadow: 0 12px 34px rgba(17,17,17,0.055);
     }
 
     .dashboard-motivation-grid {
@@ -420,7 +432,7 @@
     }
 
     .home-goal-score.watch strong {
-      color: var(--primary);
+      color: #9a5b00;
     }
 
     .home-goal-score-bar {
@@ -471,12 +483,12 @@
 
     .home-continuity-dot.done {
       border-color: rgba(31,157,85,0.25);
-      background: rgba(31,157,85,0.28);
+      background: rgba(31,157,85,0.26);
     }
 
     .home-continuity-dot.partial {
-      border-color: rgba(255,79,46,0.18);
-      background: rgba(255,79,46,0.22);
+      border-color: rgba(245,158,11,0.22);
+      background: rgba(245,158,11,0.18);
     }
 
     .home-continuity-dot.current {
@@ -501,7 +513,7 @@
       position: relative;
       background:
         radial-gradient(circle at center, #fff 58%, transparent 59%),
-        conic-gradient(var(--primary) var(--week-ring-percent), var(--warm-gray-1) 0);
+        conic-gradient(var(--dashboard-progress) var(--week-ring-percent), var(--warm-gray-1) 0);
     }
 
     .home-week-ring.done {
@@ -524,7 +536,7 @@
 
     .home-week-ring strong {
       color: var(--black);
-      font-size: 1.15rem;
+      font-size: 1.2rem;
       line-height: 1;
     }
 
@@ -543,13 +555,23 @@
       min-width: 0;
     }
 
+    .home-week-stats .insight-stat {
+      min-height: 68px;
+      align-content: center;
+    }
+
+    .home-week-stats .insight-stat strong {
+      font-size: 1.16rem;
+      letter-spacing: 0;
+    }
+
     .home-week-days {
       display: grid;
       grid-template-columns: repeat(7, minmax(0, 1fr));
-      gap: 6px;
+      gap: 8px;
       align-items: end;
       margin-top: 12px;
-      padding: 10px 0 2px;
+      padding: 12px 0 2px;
       border-top: 1px solid rgba(17,17,17,0.06);
     }
 
@@ -558,29 +580,34 @@
       display: grid;
       justify-items: center;
       align-items: end;
-      gap: 5px;
+      gap: 6px;
       color: var(--warm-gray-3);
       font-size: 0.68rem;
       font-weight: 900;
+      min-height: 86px;
     }
 
     .home-week-day-bar {
       display: block;
-      width: min(28px, 72%);
+      width: min(22px, 48%);
       min-height: 8px;
-      border-radius: 7px 7px 4px 4px;
-      background: var(--warm-gray-1);
+      border-radius: 999px 999px 7px 7px;
+      background: rgba(238,233,227,0.72);
       border: 1px solid rgba(17,17,17,0.05);
     }
 
     .home-week-day.active .home-week-day-bar {
-      background: var(--primary);
-      border-color: rgba(255,79,46,0.22);
+      background: var(--dashboard-progress);
+      border-color: rgba(31,157,85,0.24);
     }
 
     .home-week-day.today .home-week-day-bar {
-      outline: 2px solid rgba(17,17,17,0.16);
+      outline: 2px solid rgba(17,17,17,0.14);
       outline-offset: 2px;
+    }
+
+    .home-week-day.empty .home-week-day-bar {
+      height: 8px !important;
     }
 
     .home-hero-top {
@@ -789,7 +816,7 @@
     }
 
     .hero-intensity-track .hard {
-      background: var(--primary);
+      background: #d69d47;
       min-width: 2px;
     }
 
@@ -2397,11 +2424,13 @@
       height: 100%;
       width: 0;
       border-radius: inherit;
-      background: linear-gradient(90deg, var(--primary), var(--warning));
+      background: var(--dashboard-progress);
     }
 
     .progress-fill.done { background: var(--success); }
-    .progress-fill.partial { background: linear-gradient(90deg, var(--primary), var(--warning)); }
+    .progress-fill.partial,
+    .progress-fill.on-track { background: var(--dashboard-progress); }
+    .progress-fill.behind { background: #d69d47; }
     .progress-fill.empty { background: var(--warm-gray-2); }
 
     .challenge-form {
@@ -2502,8 +2531,8 @@
     }
 
     .challenge-pace.behind {
-      color: var(--burgundy);
-      background: var(--primary-soft);
+      color: #8a5400;
+      background: var(--status-yellow-bg);
     }
 
     .challenge-card {
@@ -2514,8 +2543,8 @@
     }
 
     .challenge-card.active {
-      border-color: rgba(255,79,46,0.2);
-      background: linear-gradient(160deg, #fff 0%, rgba(255,79,46,0.06) 100%);
+      border-color: rgba(17,17,17,0.08);
+      background: linear-gradient(160deg, #fff 0%, rgba(238,233,227,0.42) 100%);
     }
 
     .challenge-card.done {
@@ -2551,7 +2580,7 @@
     }
 
     .challenge-top strong {
-      color: var(--primary);
+      color: var(--black);
       font-size: 1.05rem;
       line-height: 1;
     }
@@ -2642,8 +2671,8 @@
     }
 
     .week-row.partial {
-      border-color: rgba(255,79,46,0.24);
-      background: #fff9f6;
+      border-color: rgba(245,158,11,0.22);
+      background: #fffaf0;
     }
 
     .week-row.empty { background: var(--warm-gray-1); }
@@ -2684,8 +2713,8 @@
     }
 
     .week-status.partial {
-      background: var(--primary-soft);
-      color: var(--burgundy);
+      background: var(--status-yellow-bg);
+      color: #8a5400;
     }
 
     .week-row-metrics {
@@ -4247,7 +4276,7 @@
       word-break: break-word;
     }
 
-    .calendar-entry.planned { color: var(--primary); }
+    .calendar-entry.planned { color: var(--dashboard-quality); }
     .calendar-entry.done { color: var(--success); }
     .calendar-entry.blocked { color: var(--warm-gray-3); }
 
@@ -4497,6 +4526,21 @@
 
       #dashboard .home-week-stats {
         grid-template-columns: repeat(4, minmax(0, 1fr));
+      }
+
+      #dashboard .home-week-days {
+        gap: 10px;
+      }
+
+      #dashboard .home-week-day {
+        min-height: 80px;
+        border-radius: 14px;
+        background: rgba(238,233,227,0.34);
+        padding: 10px 4px 8px;
+      }
+
+      #dashboard .home-week-day.active {
+        background: rgba(31,157,85,0.07);
       }
 
       #dashboard > .dashboard-motivation-grid {

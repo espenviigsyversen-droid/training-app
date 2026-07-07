@@ -1,6 +1,6 @@
 # DEVELOPMENT_ROADMAP.md
 
-Strategisk utviklingsroadmap for Treningsapp etter v136.
+Strategisk utviklingsroadmap for Treningsapp etter v137.
 
 Oppdatert: 2026-06-10
 
@@ -444,7 +444,7 @@ Gjør ukestatus og månedens challenge mer visuelt og motiverende.
 - Aktiv challenge viser faktisk progresjon mot forventet takt med markør og `I rute` / `Bak takt`.
 - Endringen introduserer ingen ny datamodell.
 
-## v137 - Dashboard fargesystem og desktop polish
+## v137 - Dashboard fargesystem og desktop polish - Bygget
 
 ### Mål
 
@@ -459,6 +459,14 @@ Profesjonalisere den visuelle tydeligheten etter at ny Hjem-struktur er på plas
 - Orange = merkevare og primærhandling, ikke generell status.
 - Desktop bruker bredde bedre med dashboard-grid.
 - Tall på Hjem gjøres større og mer lesbare.
+
+### Status etter v137
+
+- Planlagt-status er gjort visuelt nøytral i tags og kalender.
+- Progresjon som er `I rute` bruker grønn status, mens `Bak takt` bruker gul/obs.
+- Rødt er fortsatt forbeholdt stopp, høy belastning, kroppssignal eller avvik.
+- Ukestolper og ukekort på Hjem er gjort roligere og mer desktop-vennlige.
+- Oransje brukes mer som merkevare-/handlingsfarge enn generell status.
 
 ## v138 - Ernæring, væske og restitusjonsnotater
 
@@ -686,9 +694,9 @@ Hvis svaret er ja på flere av disse, bør ideen prioriteres.
 
 ### Neste 3 runder
 
-1. v137 - Dashboard fargesystem og desktop polish
-2. v138 - Ernæring, væske og restitusjonsnotater
-3. v139 - AI-chat design
+1. v138 - Ernæring, væske og restitusjonsnotater
+2. v139 - AI-chat design
+3. v140 - AI-chat MVP
 
 ### Neste 10 runder
 
@@ -792,6 +800,6 @@ Neste store verdiøkning er en bedre daglig coach.
 
 Anbefalt neste utviklingsrunde:
 
-> v137 - Dashboard fargesystem og desktop polish
+> v138 - Ernæring, væske og restitusjonsnotater
 
-Den bør gjøre dashboardet mer profesjonelt ved å stramme inn statusfarger, tallhierarki og desktop-polish uten ny datamodell.
+Den bør gi mer praktisk verdi i Dagens råd ved å legge inn enkle støttepåminnelser for drikke, karbohydrater, protein og restitusjon.

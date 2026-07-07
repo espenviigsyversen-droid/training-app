@@ -14,7 +14,7 @@ Prioritert backlog for videre utvikling av Treningsapp.
 3. **Denne uken og challenge-status v2** - Bygget v136
    - Vis ukeprogresjon med ring, kilometer, dagsstolper og challenge-takt.
 
-4. **Dashboard fargesystem og desktop polish**
+4. **Dashboard fargesystem og desktop polish** - Bygget v137
    - Gjør statusfargene konsekvente og utnytt desktop-bredden bedre.
 
 5. **Mål-fane v3: Delmål og milepæler** - Bygget v125
@@ -61,9 +61,9 @@ Prioritert backlog for videre utvikling av Treningsapp.
 
 ## Anbefalt neste steg
 
-Neste anbefalte backlogpunkt er **Dashboard fargesystem og desktop polish**.
+Neste anbefalte backlogpunkt er **Ernæring, væske og restitusjonsnotater**.
 
 Begrunnelse:
-- bygger videre på ny dashboardstruktur
-- gjør statusfargene mer profesjonelle og konsistente
-- kan gjøres lavrisiko med primært CSS og små UI-justeringer
+- bygger direkte videre på Dagens råd og heltekortet
+- gir praktisk verdi rundt kvalitet, langtur og restitusjon
+- kan gjøres som regelstyrte støttepåminnelser uten ny stor datamodell
