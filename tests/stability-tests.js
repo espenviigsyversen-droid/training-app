@@ -159,10 +159,16 @@ function test(name, fn) {
     assert.ok(index.includes('id="homeGoalCard"'), 'dashboard should include goal motivation card');
     assert.ok(index.includes('id="homeContinuityCard"'), 'dashboard should include continuity motivation card');
     assert.ok(index.includes('id="homeHighlightCard"'), 'dashboard should include highlight motivation card');
+    assert.ok(index.includes('id="homeWeekRing"'), 'dashboard week card should include progress ring');
+    assert.ok(index.includes('id="homeWeekKm"'), 'dashboard week card should show kilometers');
+    assert.ok(index.includes('id="homeWeekDays"'), 'dashboard week card should include day bars');
     assert.ok(!index.includes('id="homePrimaryTitle"'), 'dashboard should not duplicate next workout heading outside hero');
     assert.ok(app.includes('const todayDecisionResult = buildTodayDecision(coachCtx, primaryItems, todayItems)'), 'dashboard should build today decision from coach context');
     assert.ok(app.includes('renderHomeHero(coachCtx, primaryItems, todayItems, todayDecisionResult)'), 'dashboard should render merged hero card');
     assert.ok(app.includes('renderHomeMotivation(coachCtx, weekStart, weekSummary)'), 'dashboard should render motivation cards from coach context');
+    assert.ok(app.includes('renderHomeWeekStatus(today, weekStart, weekSummary, weekItems, goals, profile)'), 'dashboard should render upgraded weekly status');
+    assert.ok(app.includes('function challengePaceInfo'), 'dashboard challenge mini should calculate expected pace');
+    assert.ok(app.includes('challenge-expected-marker'), 'dashboard challenge mini should render expected pace marker');
     assert.ok(app.includes('goalMotivationSummary({'), 'home goal card should reuse domain goal motivation summary');
     assert.ok(app.includes('calculateWeeklyStreak(weekStart, target)'), 'home continuity card should reuse continuity streak logic');
     assert.ok(app.includes('personalBestSummary(completedRaceItems(), state.raceResults)'), 'home highlight card should reuse personal best summary');
@@ -184,6 +190,9 @@ function test(name, fn) {
     assert.ok(read('styles.css').includes('.dashboard-motivation-grid'), 'dashboard motivation grid styling is missing');
     assert.ok(read('styles.css').includes('.home-goal-score'), 'home goal score styling is missing');
     assert.ok(read('styles.css').includes('.home-continuity-strip'), 'home continuity strip styling is missing');
+    assert.ok(read('styles.css').includes('.home-week-ring'), 'home week ring styling is missing');
+    assert.ok(read('styles.css').includes('.home-week-days'), 'home week day bar styling is missing');
+    assert.ok(read('styles.css').includes('.challenge-pace'), 'challenge pace status styling is missing');
     assert.ok(read('styles.css').includes('.readiness-chip'), 'readiness chip styling is missing');
     assert.ok(read('styles.css').includes('.hero-intensity-track'), 'hero intensity strip styling is missing');
   });
