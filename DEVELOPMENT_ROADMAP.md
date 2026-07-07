@@ -1,6 +1,6 @@
 # DEVELOPMENT_ROADMAP.md
 
-Strategisk utviklingsroadmap for Treningsapp etter v133.
+Strategisk utviklingsroadmap for Treningsapp etter v134.
 
 Oppdatert: 2026-06-10
 
@@ -75,6 +75,7 @@ Dette betyr at appen bør prioritere:
 - Det viktigste for å åpne appen ofte er et tydelig dagens råd som endrer seg med data.
 - Etter v132 skal Dagens råd også endre modus når dagens økt er fullført: fra "hva bør jeg gjøre?" til "hvordan responderte kroppen på det jeg gjorde?".
 - Etter v133 skal "Grunnlag" under Dagens råd vise korte, strukturerte forklaringspunkter i stedet for én lang tekstlinje.
+- Etter dashboard-spesifikasjonen i juli 2026 skal Hjem gradvis gå fra teksttung kortsamling til et mer visuelt daglig beslutningsdashboard.
 - Rådene kan gjerne inkludere små støttepåminnelser om:
   - drikke/væske
   - karbohydrater før/etter økt
@@ -369,11 +370,86 @@ Bytt terskel til rolig/alternativ trening i dag.
 - Ingen ny datamodell.
 - Tester bør sjekke at forklaringspunkter produseres i riktige scenarioer.
 
-## v134 - Ernæring, væske og restitusjonsnotater
+## v134 - Dashboard heltekort - Bygget
 
 ### Mål
 
-Legg til en liten, smart støttepåminnelse i Dagens råd.
+Slå sammen `Dagsform`, `Neste økt` og `Dagens råd` til ett tydelig heltekort på Hjem.
+
+Dette skal redusere repetisjon og gjøre Hjem mer umiddelbart: brukeren skal raskt se status, anbefalt handling og neste økt uten å lese tre separate kort.
+
+### Scope
+
+- Dagsform vises som grønn/gul/rød statuschip øverst i heltekortet.
+- Neste/dagens økt vises med tittel, dato og én kort begrunnelse.
+- `Øktdetaljer`, `Forberedelse` og `Grunnlag` legges bak utvidbare rader.
+- Primærhandlingene `Marker utført` og `Endre dato` beholdes.
+- Eksisterende coach-logikk, dagsformlogikk og fullføringsflyt beholdes.
+- Ingen ny datamodell.
+
+### Viktig
+
+- Mobil skal fortsatt være førsteprioritet.
+- Første skjerm skal svare på "Hva skal jeg gjøre nå?" uten tung tekst.
+- Etter fullført økt skal heltekortet bruke etter-økt-vurderingen fra v132.
+- Dette er en UI-sammenslåing, ikke ny coach-motor.
+
+### Status etter v134
+
+- Hjem-toppen er nå ett heltekort.
+- Dagsform vises som statuschip.
+- Hovedbudskapet viser dagens/neste økt eller fullført økt.
+- Øktdetaljer, forberedelse og grunnlag ligger bak utvidbare rader.
+- Eksisterende dagsformskjema, skadeoppfølging og coach-grunnlag er beholdt.
+
+## v135 - Dashboard motivasjonskort
+
+### Mål
+
+Løft de mest motiverende eksisterende elementene opp på Hjem.
+
+### Scope
+
+- Kompakt mål-kort med mål-løp, nedtelling/uker igjen, mål-score og fase.
+- Kontinuitetskort med streak og minigrid fra Innsikt.
+- Siste høydepunkt fra PB/testløp eller nylig forbedring.
+- Gjenbruk eksisterende `goalScore`, `racePlan`, PB-historikk og kontinuitetslogikk.
+- Ingen ny datamodell.
+
+## v136 - Denne uken og challenge-status v2
+
+### Mål
+
+Gjør ukestatus og månedens challenge mer visuelt og motiverende.
+
+### Scope
+
+- Ukestatus med ring for økter, tid, kilometer og små dagsstolper.
+- Challenge-kort med forventet takt-markør og tydelig `i rute / bak takt`.
+- Kilometer vises på Hjem sammen med økter og tid.
+- Bruk eksisterende challenge-progress og ukesammendrag.
+
+## v137 - Dashboard fargesystem og desktop polish
+
+### Mål
+
+Profesjonalisere den visuelle tydeligheten etter at ny Hjem-struktur er på plass.
+
+### Scope
+
+- Planlagt økt skal være nøytral, ikke rød/orange alarm.
+- Grønn = utført/i rute/grønt lys.
+- Gul = obs/nær grense.
+- Rød = stopp/avvik.
+- Orange = merkevare og primærhandling, ikke generell status.
+- Desktop bruker bredde bedre med dashboard-grid.
+- Tall på Hjem gjøres større og mer lesbare.
+
+## v138 - Ernæring, væske og restitusjonsnotater
+
+### Mål
+
+Legg til små, smarte støttepåminnelser i Dagens råd og heltekortets forberedelsesrad.
 
 Dette skal ikke bli en full ernæringsapp.
 
@@ -405,7 +481,7 @@ Ved skadesignal:
 - Ren funksjon som tar dagens beslutning og planlagt økt som input.
 - Ingen logging av ernæring i første versjon.
 
-## v135 - AI-chat design og sikkerhetsramme
+## v139 - AI-chat design og sikkerhetsramme
 
 ### Mål
 
@@ -451,7 +527,7 @@ AI-chat skal ikke:
 - Sannsynligvis backend via Firebase Cloud Functions senere.
 - Ikke eksponer OpenAI API-nøkkel i frontend.
 
-## v136 - AI-chat MVP
+## v140 - AI-chat MVP
 
 ### Mål
 
@@ -473,7 +549,7 @@ Bør vente til:
 - AI-design er dokumentert.
 - Backendvalg er bestemt.
 
-## v137 - Mål-fane videre: Du er her nå
+## v141 - Mål-fane videre: Du er her nå
 
 ### Mål
 
@@ -513,7 +589,7 @@ Neste relevante test:
 5 km kontrollert test når kneet er stabilt.
 ```
 
-## v138 - Challenges som delmål
+## v142 - Challenges som delmål
 
 ### Mål
 
@@ -531,7 +607,7 @@ Challenges er motiverende, men kan også gi feil press hvis kroppen signaliserer
 
 Appen bør balansere motivasjon og trygg progresjon.
 
-## v139 - Andre treningsformer v1
+## v143 - Andre treningsformer v1
 
 ### Mål
 
@@ -556,7 +632,7 @@ Andre treningsformer bør brukes til:
 - sykling/ski som alternativ ved skade
 - coach-råd som sier "velg sykkel" ved smerte
 
-## v140 - Strava/Garmin-forberedelse
+## v144 - Strava/Garmin-forberedelse
 
 ### Mål
 
@@ -595,22 +671,22 @@ Hvis svaret er ja på flere av disse, bør ideen prioriteres.
 
 ### Neste 3 runder
 
-1. v134 - Challenges som delmål mot mål-løp
-2. v135 - Ernæring, væske og restitusjonsnotater videre
-3. v136 - AI-chat design
+1. v135 - Dashboard motivasjonskort
+2. v136 - Denne uken og challenge-status v2
+3. v137 - Dashboard fargesystem og desktop polish
 
 ### Neste 10 runder
 
-1. Challenges som delmål
-2. Ernæring/væske/restitusjonsnotater
-3. AI-chat design
-4. AI-chat MVP
-5. Mål-fane videre: "Du er her nå"
-6. Andre treningsformer v1
-7. Coach-grunnlag v3 med enda mer forklarbar prioritering
-8. Strava/Garmin-forberedelse eller import-MVP
-9. Mobil polish og mikro-UX
-10. Styrke som støtte- og skadeforebyggende modul
+1. Dashboard heltekort
+2. Dashboard motivasjonskort
+3. Denne uken og challenge-status v2
+4. Dashboard fargesystem og desktop polish
+5. Ernæring/væske/restitusjonsnotater
+6. AI-chat design
+7. AI-chat MVP
+8. Mål-fane videre: "Du er her nå"
+9. Challenges som delmål
+10. Andre treningsformer v1
 
 ## Hva vi bør vente med
 
@@ -628,9 +704,12 @@ Start med AI-chat som rådgiver når coach-context er klar.
 
 ### Stor redesign
 
-Appen fungerer nå godt nok visuelt.
+Ikke gjør alt på én gang. Dashboard-spesifikasjonen skal gjennomføres som små, testbare runder:
 
-Videre UI-forbedringer bør være målrettede, spesielt Hjem og Mål.
+- først heltekort
+- deretter motivasjonskort
+- deretter ukestatus/challenge
+- til slutt fargesystem og desktop-polish
 
 ### Full styrkecoach
 
@@ -698,6 +777,6 @@ Neste store verdiøkning er en bedre daglig coach.
 
 Anbefalt neste utviklingsrunde:
 
-> v131 - Dagens råd v2
+> v135 - Dashboard motivasjonskort
 
-Den bør gjøre appen mer nyttig hver morgen ved å gi et konkret, datadrevet, begrunnet råd for dagen.
+Den bør gjøre Hjem mer motiverende ved å løfte mål-løp, mål-score, kontinuitet og siste høydepunkt inn på dashboardet.

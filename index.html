@@ -68,21 +68,28 @@
 
     <main>
       <section id="dashboard" class="tab active">
-        <div class="card dashboard-primary-card">
-          <h2 class="section-title" id="homePrimaryTitle">Dagens økt</h2>
-          <div id="homePrimaryWorkout"></div>
-        </div>
-        <div class="card dashboard-readiness-card">
-          <h2 class="section-title">Dagsform</h2>
-          <div id="trafficLightContent"></div>
-        </div>
-        <div class="card dashboard-wide-card">
-          <h2 class="section-title">Dagens råd</h2>
-          <div id="homeDecision" class="today-decision neutral"></div>
-          <p id="homeCoachNote" class="coach-note"></p>
-          <div id="homeInjuryWorkoutAdvice"></div>
-          <details class="coach-basis">
+        <div class="card dashboard-hero-card">
+          <div class="home-hero-top">
+            <div id="homeReadinessChip" class="readiness-chip neutral">Dagsform</div>
+            <span id="homeHeroDate" class="home-hero-date"></span>
+          </div>
+          <div id="homeHeroMain" class="home-hero-main"></div>
+          <div id="homeHeroIntensity" class="home-hero-intensity"></div>
+          <div id="homeHeroActions" class="home-hero-actions"></div>
+          <details class="home-hero-detail">
+            <summary>Øktdetaljer</summary>
+            <div id="homePrimaryWorkout"></div>
+          </details>
+          <details class="home-hero-detail">
+            <summary>Forberedelse</summary>
+            <div id="homeHeroPreparation"></div>
+            <div id="trafficLightContent"></div>
+            <p id="homeCoachNote" class="coach-note"></p>
+            <div id="homeInjuryWorkoutAdvice"></div>
+          </details>
+          <details class="home-hero-detail coach-basis">
             <summary>Grunnlag</summary>
+            <div id="homeDecision" class="today-decision neutral"></div>
             <div id="homeCoachBasis" class="coach-basis-list"></div>
           </details>
         </div>

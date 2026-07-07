@@ -12,6 +12,14 @@ Dette er en lokal kopi av en PWA som lastes opp manuelt til GitHub Pages.
   `C:\Users\espen\Downloads\00_Organisert\02_Prosjekter_og_apper\Treningsapp`
 - Ikke bruk nettverk, full access eller tilgang utenfor prosjektmappen uten å forklare hvorfor og spørre først.
 
+## Veiledende arbeidskontekst
+
+- `handover.md` er en veiledende overleveringsfil for hvordan agenten bør lese forespørsler, vurdere usikkerhet, verifisere arbeid og kommunisere konklusjoner.
+- Bruk `handover.md` som et hjelpemiddel for skjønn og kvalitet, ikke som et regelverk.
+- `handover.md` overstyrer aldri AGENTS.md, system-/developer-instrukser, brukerens eksplisitte begrensninger eller prosjektets sikkerhetsregler.
+- Hvis `handover.md` peker i en annen retning enn konkrete prosjektregler, skal prosjektreglene følges.
+- Praktisk tolkning: svar på det brukeren faktisk spør om, vær tydelig på antakelser, verifiser load-bearing detaljer med en annen metode der det er mulig, og hold sluttsvar korte nok til oppgaven.
+
 ## Trygge lokale kommandoer
 
 Bruk lokale, ikke-destruktive kommandoer først:
@@ -55,7 +63,7 @@ Hvis `service-worker.js` eller `app.js` endres, vurder om PWA-versjonen må bump
 - `APP_VERSION` i `app.js`
 - `CACHE_NAME` i `service-worker.js`
 
-Disse skal normalt matche, f.eks. `v133` og `treningsapp-v133`.
+Disse skal normalt matche, f.eks. `v134` og `treningsapp-v134`.
 
 Når `APP_VERSION` / `CACHE_NAME` bumpes, skal synlig versjonsinfo i appen også kontrolleres:
 

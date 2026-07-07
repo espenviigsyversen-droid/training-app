@@ -56,7 +56,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       raceReadinessSummary
     } from './domain-goals.js';
 
-    const APP_VERSION = 'v133';
+    const APP_VERSION = 'v134';
     const APP_CACHE_NAME = `treningsapp-${APP_VERSION}`;
 
     const firebaseConfig = {
@@ -5009,6 +5009,114 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       });
     };
 
+    function readinessChipHtml(readiness) {
+      const level = readiness?.level && TRAFFIC_LIGHT_CONFIG[readiness.level] ? readiness.level : 'neutral';
+      const label = level === 'neutral' ? 'Sjekk dagsform' : TRAFFIC_LIGHT_CONFIG[level].label;
+      return `<span class="readiness-dot ${level}"></span>${escapeHtml(label)}`;
+    }
+
+    function heroIntensityHtml(ctx) {
+      const load = ctx.load14 || {};
+      const low = Number(load.low || 0);
+      const moderateHard = Number(load.moderate || 0) + Number(load.high || 0);
+      const total = low + moderateHard;
+      if (!total) return '';
+      const lowPct = Math.round((low / total) * 100);
+      const hardPct = 100 - lowPct;
+      const status = hardPct >= 65 ? 'yellow' : 'green';
+      const label = status === 'yellow' ? 'Litt lite rolig' : 'I balanse';
+      return `
+        <div class="hero-intensity-top">
+          <span>Intensitetsbalanse · 14 dager</span>
+          <strong class="${status}">${escapeHtml(label)}</strong>
+        </div>
+        <div class="hero-intensity-track" aria-label="Intensitetsbalanse siste 14 dager">
+          <div class="easy" style="width:${lowPct}%;"></div>
+          <div class="hard" style="width:${hardPct}%;"></div>
+        </div>
+        <div class="hero-intensity-labels">
+          <span>Rolig ${lowPct}%</span>
+          <span>Moderat/hard ${hardPct}%</span>
+        </div>`;
+    }
+
+    function heroWorkoutDetailHtml(primaryItems = [], completedToday = null) {
+      if (completedToday) return completedDetailMiniHtml(completedToday);
+      if (!primaryItems.length) return `<div class="empty">Ingen økter planlagt. Gå til Kalender for å legge inn neste økt.</div>`;
+      return primaryItems.map(p => workoutCard(p)).join('');
+    }
+
+    function completedDetailMiniHtml(completed) {
+      const template = completedTemplate(completed);
+      const duration = completedDurationLabel(completed);
+      const pace = completedPaceMetrics(completed);
+      const metrics = [
+        duration,
+        completed.distanceKm ? `${completed.distanceKm} km` : '',
+        pace.paceDisplay ? `${pace.paceDisplay} min/km` : '',
+        completed.rpe ? `RPE ${completed.rpe}/10` : ''
+      ].filter(Boolean).join(' · ');
+      return `
+        <div class="hero-completed-mini">
+          <span class="tag done">Utført</span>
+          <strong>${escapeHtml(template.name || completed.manualName || 'Økt')}</strong>
+          ${metrics ? `<p>${escapeHtml(metrics)}</p>` : ''}
+          <button class="btn-soft" onclick="openWorkoutDetail('${completed.id}')">Se detaljer</button>
+        </div>`;
+    }
+
+    function renderHomeHero(ctx, primaryItems, todayItems, decision) {
+      const readinessChip = document.getElementById('homeReadinessChip');
+      const heroDate = document.getElementById('homeHeroDate');
+      const heroMain = document.getElementById('homeHeroMain');
+      const heroActions = document.getElementById('homeHeroActions');
+      const heroIntensity = document.getElementById('homeHeroIntensity');
+      const heroPreparation = document.getElementById('homeHeroPreparation');
+      const primaryWorkout = document.getElementById('homePrimaryWorkout');
+      if (!heroMain || !heroActions || !primaryWorkout) return;
+
+      const completedToday = ctx.completedToday?.[ctx.completedToday.length - 1] || null;
+      const firstPlanned = primaryItems[0] || null;
+      const template = firstPlanned ? getTemplate(firstPlanned.templateId) : null;
+      const isPostWorkout = Boolean(completedToday && decision?.mode === 'post_workout');
+      const completedMeta = completedToday ? completedWorkoutAdviceMeta(completedToday) : null;
+      const title = isPostWorkout
+        ? completedMeta.label
+        : template?.name || 'Planlegg én realistisk økt';
+      const eyebrow = isPostWorkout
+        ? `Fullført i dag · ${completedMeta.type || 'Økt'}`
+        : firstPlanned
+          ? `${todayItems.length ? 'Dagens økt' : 'Neste økt'} · ${formatDate(firstPlanned.date)}${template?.type ? ` · ${template.type}` : ''}`
+          : 'Ingen økt planlagt';
+      const reason = decision?.action || decision?.reason || 'Velg neste steg ut fra dagsform og plan.';
+
+      if (readinessChip) {
+        const level = ctx.dailyReadiness?.level && TRAFFIC_LIGHT_CONFIG[ctx.dailyReadiness.level] ? ctx.dailyReadiness.level : 'neutral';
+        readinessChip.className = `readiness-chip ${level}`;
+        readinessChip.innerHTML = readinessChipHtml(ctx.dailyReadiness);
+      }
+      if (heroDate) heroDate.textContent = formatDate(ctx.today);
+      heroMain.innerHTML = `
+        <span>${escapeHtml(eyebrow)}</span>
+        <h2>${escapeHtml(title)}</h2>
+        <p>${escapeHtml(reason)}</p>`;
+
+      heroActions.innerHTML = isPostWorkout
+        ? `<button class="btn-success" onclick="openWorkoutDetail('${completedToday.id}')">Se økten</button>`
+        : firstPlanned
+          ? `<button class="btn-success" onclick="openCompleteModal('${firstPlanned.id}')">Marker utført</button>
+             <button class="btn-soft" onclick="openRescheduleModal('${firstPlanned.id}')">Endre dato</button>`
+          : `<button class="btn-primary" onclick="showTab('plan')">Planlegg økt</button>`;
+
+      heroIntensity.innerHTML = heroIntensityHtml(ctx);
+      heroPreparation.innerHTML = `
+        <div class="hero-prep-note">
+          <strong>${escapeHtml(decision?.support?.adjustment || decision?.title || 'Forberedelse')}</strong>
+          <p>${escapeHtml(decision?.support?.support || decision?.reason || 'Sjekk dagsform og juster ved kroppssignal.')}</p>
+        </div>`;
+      primaryWorkout.innerHTML = heroWorkoutDetailHtml(primaryItems, isPostWorkout ? completedToday : null);
+    }
+
     function renderDashboardSummary(today, todayItems, upcomingItems, plannedActive = []) {
       const goals = normalizeGoals(state.settings.goals);
       const profile = normalizeTrainingProfile(state.settings.trainingProfile);
@@ -5023,11 +5131,6 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       const nextDateItems = nextDate ? upcomingItems.filter(p => p.date === nextDate) : [];
       const primaryItems = todayItems.length ? todayItems : nextDateItems;
 
-      document.getElementById('homePrimaryTitle').textContent = todayItems.length ? 'Dagens økt' : 'Neste økt';
-      document.getElementById('homePrimaryWorkout').innerHTML = primaryItems.length
-        ? primaryItems.map(p => workoutCard(p)).join('')
-        : `<div class="empty">Ingen økter planlagt. Gå til Planlegg for å legge inn neste økt.</div>`;
-
       document.getElementById('homeWeekSessions').textContent = `${weekSummary.sessions}/${goals.weeklySessionsTarget}`;
       document.getElementById('homeWeekTime').textContent = formatClockDuration(weekSummary.seconds);
       document.getElementById('homeWeekLoad').textContent = homeLoadLabel(weekItems, profile);
@@ -5036,6 +5139,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         : `${Math.max(0, goals.weeklySessionsTarget - weekSummary.sessions)} økt${Math.max(0, goals.weeklySessionsTarget - weekSummary.sessions) === 1 ? '' : 'er'} igjen til ukesmålet.`;
       const coachCtx = buildCoachContext();
       const todayDecisionResult = buildTodayDecision(coachCtx, primaryItems, todayItems);
+      renderHomeHero(coachCtx, primaryItems, todayItems, todayDecisionResult);
       renderTodayDecision(todayDecisionResult);
       document.getElementById('homeCoachNote').textContent = buildCoachNote(coachCtx);
       renderInjuryWorkoutAdvice(buildInjuryWorkoutAdvice(coachCtx, primaryItems));
