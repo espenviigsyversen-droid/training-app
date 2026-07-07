@@ -8,7 +8,7 @@ Prioritert backlog for videre utvikling av Treningsapp.
    - Slått sammen Dagsform, Neste økt og Dagens råd til ett toppkort på Hjem.
    - Detaljer ligger bak utvidbare rader for Øktdetaljer, Forberedelse og Grunnlag.
 
-2. **Dashboard motivasjonskort**
+2. **Dashboard motivasjonskort** - Bygget v135
    - Løft mål-løp, mål-score, kontinuitet og siste høydepunkt inn på Hjem.
 
 3. **Denne uken og challenge-status v2**
@@ -61,9 +61,10 @@ Prioritert backlog for videre utvikling av Treningsapp.
 
 ## Anbefalt neste steg
 
-Neste anbefalte backlogpunkt er **Dashboard motivasjonskort**.
+Neste anbefalte backlogpunkt er **Denne uken og challenge-status v2**.
 
 Begrunnelse:
 - bygger videre på nytt heltekort
-- henter allerede eksisterende mål-score, mål-løp, kontinuitet og PB-høydepunkt inn på Hjem
-- gir mer motivasjon uten ny datamodell
+- gjør ukeprogresjon og månedens challenge mer visuelt motiverende
+- bruker eksisterende challenge-progress og ukesammendrag
+- krever ingen ny datamodell

@@ -339,6 +339,151 @@
       gap: 12px;
     }
 
+    .dashboard-motivation-grid {
+      display: grid;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+
+    .dashboard-motivation-grid .card {
+      margin-bottom: 0;
+    }
+
+    .dashboard-motivation-card {
+      display: grid;
+      gap: 9px;
+      align-content: start;
+      min-width: 0;
+    }
+
+    .dashboard-mini-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      color: var(--warm-gray-3);
+      font-size: 0.72rem;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .dashboard-mini-head .btn-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 11px;
+      font-size: 1.15rem;
+      line-height: 1;
+    }
+
+    .dashboard-mini-title {
+      display: block;
+      color: var(--black);
+      font-size: 1.05rem;
+      line-height: 1.18;
+      overflow-wrap: anywhere;
+    }
+
+    .dashboard-mini-note {
+      margin: 0;
+      color: var(--warm-gray-3);
+      font-size: 0.82rem;
+      line-height: 1.35;
+      font-weight: 700;
+    }
+
+    .dashboard-mini-note strong {
+      color: var(--black);
+    }
+
+    .home-goal-score {
+      display: flex;
+      align-items: baseline;
+      gap: 4px;
+      margin-top: 2px;
+      color: var(--black);
+    }
+
+    .home-goal-score strong {
+      font-size: 1.75rem;
+      line-height: 1;
+    }
+
+    .home-goal-score span {
+      color: var(--warm-gray-3);
+      font-size: 0.78rem;
+      font-weight: 850;
+    }
+
+    .home-goal-score.good strong {
+      color: var(--success);
+    }
+
+    .home-goal-score.watch strong {
+      color: var(--primary);
+    }
+
+    .home-goal-score-bar {
+      height: 8px;
+      overflow: hidden;
+      border-radius: 999px;
+      background: var(--warm-gray-1);
+    }
+
+    .home-goal-score-bar span {
+      display: block;
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, #28a980, var(--success));
+    }
+
+    .home-continuity-main {
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+      color: var(--black);
+    }
+
+    .home-continuity-main strong {
+      font-size: 1.8rem;
+      line-height: 1;
+    }
+
+    .home-continuity-main span {
+      color: var(--warm-gray-3);
+      font-size: 0.84rem;
+      font-weight: 850;
+    }
+
+    .home-continuity-strip {
+      display: grid;
+      grid-template-columns: repeat(8, minmax(0, 1fr));
+      gap: 6px;
+    }
+
+    .home-continuity-dot {
+      display: block;
+      height: 14px;
+      border: 1px solid rgba(17,17,17,0.08);
+      border-radius: 5px;
+      background: var(--warm-gray-1);
+    }
+
+    .home-continuity-dot.done {
+      border-color: rgba(31,157,85,0.25);
+      background: rgba(31,157,85,0.28);
+    }
+
+    .home-continuity-dot.partial {
+      border-color: rgba(255,79,46,0.18);
+      background: rgba(255,79,46,0.22);
+    }
+
+    .home-continuity-dot.current {
+      outline: 2px solid rgba(17,17,17,0.18);
+      outline-offset: 2px;
+    }
+
     .home-hero-top {
       display: flex;
       align-items: center;
@@ -4167,6 +4312,11 @@
 
       #dashboard > .dashboard-wide-card {
         grid-column: 1 / -1;
+      }
+
+      #dashboard > .dashboard-motivation-grid {
+        grid-template-columns: minmax(0, 1fr);
+        margin-bottom: 0;
       }
 
       #dashboard .dashboard-readiness-card {

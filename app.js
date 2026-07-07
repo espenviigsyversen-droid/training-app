@@ -56,7 +56,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       raceReadinessSummary
     } from './domain-goals.js';
 
-    const APP_VERSION = 'v134';
+    const APP_VERSION = 'v135';
     const APP_CACHE_NAME = `treningsapp-${APP_VERSION}`;
 
     const firebaseConfig = {
@@ -5117,6 +5117,131 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       primaryWorkout.innerHTML = heroWorkoutDetailHtml(primaryItems, isPostWorkout ? completedToday : null);
     }
 
+    function renderHomeGoalCard(ctx) {
+      const el = document.getElementById('homeGoalCard');
+      if (!el) return;
+      const last7 = summarizeCompleted(ctx.last7Days || []);
+      const last28 = summarizeCompleted(ctx.last28Days || []);
+      const summary = goalMotivationSummary({
+        goal: state.settings.raceGoal,
+        readiness: ctx.raceReadiness,
+        plan: ctx.racePlan,
+        injurySummary: ctx.injurySummary7,
+        last7,
+        last28
+      }, ctx.today);
+      const score = summary.score || {};
+      const countdown = ctx.raceReadiness?.countdown || raceGoalCountdown(state.settings.raceGoal, ctx.today);
+      if (!summary.hasGoal || !countdown) {
+        el.innerHTML = `
+          <div class="dashboard-mini-head"><span>Mål-løp</span></div>
+          <strong class="dashboard-mini-title">Sett et løpsmål</strong>
+          <p class="dashboard-mini-note">Et konkret mål gjør rådene og testløpene mer motiverende.</p>
+          <button class="btn-soft btn-full" onclick="showTab('goals')">Åpne mål</button>`;
+        return;
+      }
+
+      const meta = [
+        raceDistanceLabel(countdown.distanceKm),
+        countdown.targetTimeSeconds ? `mål ${formatRaceTime(countdown.targetTimeSeconds)}` : ''
+      ].filter(Boolean).join(' · ');
+      const percent = Math.max(0, Math.min(100, Number(score.percent || 0)));
+      const weeksLeft = ctx.racePlan?.weeksLeft !== null && ctx.racePlan?.weeksLeft !== undefined
+        ? `${ctx.racePlan.weeksLeft} uke${ctx.racePlan.weeksLeft === 1 ? '' : 'r'} igjen`
+        : countdown.label;
+      el.innerHTML = `
+        <div class="dashboard-mini-head">
+          <span>Mål-løp</span>
+          <button class="btn-soft btn-icon" onclick="showTab('goals')" aria-label="Åpne mål">›</button>
+        </div>
+        <strong class="dashboard-mini-title">${escapeHtml(countdown.name || 'Mål-løp')}</strong>
+        <p class="dashboard-mini-note">${escapeHtml([weeksLeft, meta].filter(Boolean).join(' · '))}</p>
+        <div class="home-goal-score ${escapeHtml(score.status || 'neutral')}">
+          <strong>${percent}</strong><span>/100 mål-score</span>
+        </div>
+        <div class="home-goal-score-bar"><span style="width:${percent}%"></span></div>
+        <p class="dashboard-mini-note"><strong>${escapeHtml(ctx.racePlan?.phaseLabel || score.label || 'Målperiode')}</strong>${score.trend?.label ? ` · ${escapeHtml(score.trend.label)}` : ''}</p>`;
+    }
+
+    function renderHomeContinuityCard(ctx, weekStart, weekSummary) {
+      const el = document.getElementById('homeContinuityCard');
+      if (!el) return;
+      const target = Math.max(1, Number(ctx.goals?.weeklySessionsTarget || 1));
+      const streak = calculateWeeklyStreak(weekStart, target);
+      const remaining = Math.max(0, target - (weekSummary.sessions || 0));
+      const weeks = buildContinuityWeeks(weekStart);
+      const chips = weeks.map((week, index) => {
+        const sessions = week.summary.sessions || 0;
+        const status = sessions >= target ? 'done' : sessions > 0 ? 'partial' : 'empty';
+        const isCurrent = index === weeks.length - 1;
+        return `<span class="home-continuity-dot ${status} ${isCurrent ? 'current' : ''}" title="${escapeHtml(formatWeekRange(week.start, week.end))}: ${sessions}/${target}"></span>`;
+      }).join('');
+      const note = remaining === 0
+        ? 'Denne uken teller. Videre trening er bonus og bør styres av overskudd.'
+        : `${remaining} økt${remaining === 1 ? '' : 'er'} igjen for at denne uken skal telle.`;
+      el.innerHTML = `
+        <div class="dashboard-mini-head"><span>Kontinuitet</span></div>
+        <div class="home-continuity-main"><strong>${streak}</strong><span>uker på rad</span></div>
+        <div class="home-continuity-strip">${chips}</div>
+        <p class="dashboard-mini-note">${escapeHtml(note)}</p>`;
+    }
+
+    function homeRaceHighlight() {
+      const summary = personalBestSummary(completedRaceItems(), state.raceResults);
+      if (!summary.raceResults.length) return null;
+      const improving = summary.entries
+        .map(entry => ({ ...entry, trend: entry.history?.trend || entry.trend || {} }))
+        .filter(entry => entry.history?.latest && entry.trend?.latestIsBest && Number(entry.trend.trendSeconds) < 0)
+        .sort((a, b) => Math.abs(Number(b.trend.trendSeconds || 0)) - Math.abs(Number(a.trend.trendSeconds || 0)))[0] || null;
+      if (improving) {
+        const latest = improving.history.latest;
+        return {
+          kicker: 'Siste høydepunkt',
+          title: `Ny ${improving.label} PB: ${formatRaceTime(latest.resultSeconds)}`,
+          meta: `${formatDate(latest.date)} · ${latest.name || latest.workoutName || 'Race'}`,
+          note: `${formatRaceTime(Math.abs(Number(improving.trend.trendSeconds)))} raskere fra første til siste registrerte resultat.`
+        };
+      }
+
+      const latest = summary.latest;
+      const entry = summary.entries.find(item => Math.abs(Number(item.km) - Number(latest.distanceKm)) < 0.02);
+      const latestIsBest = Boolean(entry?.best && Number(entry.best.resultSeconds) === Number(latest.resultSeconds));
+      return {
+        kicker: 'Siste høydepunkt',
+        title: `${latestIsBest ? 'PB' : 'Siste test'} ${raceDistanceLabel(latest.distanceKm)}: ${formatRaceTime(latest.resultSeconds)}`,
+        meta: `${formatDate(latest.date)} · ${latest.name || latest.workoutName || 'Race'}`,
+        note: latestIsBest ? 'Dette er beste registrerte tid på distansen.' : 'Flere resultater gjør utviklingen tydeligere over tid.'
+      };
+    }
+
+    function renderHomeHighlightCard() {
+      const el = document.getElementById('homeHighlightCard');
+      if (!el) return;
+      const highlight = homeRaceHighlight();
+      if (!highlight) {
+        el.innerHTML = `
+          <div class="dashboard-mini-head"><span>Siste høydepunkt</span></div>
+          <strong class="dashboard-mini-title">Ingen race/test ennå</strong>
+          <p class="dashboard-mini-note">Når du logger testløp eller PB, vises fremgangen her.</p>
+          <button class="btn-soft btn-full" onclick="showTab('goals')">Legg til resultat</button>`;
+        return;
+      }
+      el.innerHTML = `
+        <div class="dashboard-mini-head">
+          <span>${escapeHtml(highlight.kicker)}</span>
+          <button class="btn-soft btn-icon" onclick="showTab('goals')" aria-label="Åpne mål">›</button>
+        </div>
+        <strong class="dashboard-mini-title">${escapeHtml(highlight.title)}</strong>
+        <p class="dashboard-mini-note">${escapeHtml(highlight.meta)}</p>
+        <p class="dashboard-mini-note">${escapeHtml(highlight.note)}</p>`;
+    }
+
+    function renderHomeMotivation(ctx, weekStart, weekSummary) {
+      renderHomeGoalCard(ctx);
+      renderHomeContinuityCard(ctx, weekStart, weekSummary);
+      renderHomeHighlightCard();
+    }
+
     function renderDashboardSummary(today, todayItems, upcomingItems, plannedActive = []) {
       const goals = normalizeGoals(state.settings.goals);
       const profile = normalizeTrainingProfile(state.settings.trainingProfile);
@@ -5140,6 +5265,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       const coachCtx = buildCoachContext();
       const todayDecisionResult = buildTodayDecision(coachCtx, primaryItems, todayItems);
       renderHomeHero(coachCtx, primaryItems, todayItems, todayDecisionResult);
+      renderHomeMotivation(coachCtx, weekStart, weekSummary);
       renderTodayDecision(todayDecisionResult);
       document.getElementById('homeCoachNote').textContent = buildCoachNote(coachCtx);
       renderInjuryWorkoutAdvice(buildInjuryWorkoutAdvice(coachCtx, primaryItems));

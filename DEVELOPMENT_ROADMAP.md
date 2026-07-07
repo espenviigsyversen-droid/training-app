@@ -1,6 +1,6 @@
 # DEVELOPMENT_ROADMAP.md
 
-Strategisk utviklingsroadmap for Treningsapp etter v134.
+Strategisk utviklingsroadmap for Treningsapp etter v135.
 
 Oppdatert: 2026-06-10
 
@@ -402,7 +402,7 @@ Dette skal redusere repetisjon og gjøre Hjem mer umiddelbart: brukeren skal ras
 - Øktdetaljer, forberedelse og grunnlag ligger bak utvidbare rader.
 - Eksisterende dagsformskjema, skadeoppfølging og coach-grunnlag er beholdt.
 
-## v135 - Dashboard motivasjonskort
+## v135 - Dashboard motivasjonskort - Bygget
 
 ### Mål
 
@@ -415,6 +415,14 @@ Løft de mest motiverende eksisterende elementene opp på Hjem.
 - Siste høydepunkt fra PB/testløp eller nylig forbedring.
 - Gjenbruk eksisterende `goalScore`, `racePlan`, PB-historikk og kontinuitetslogikk.
 - Ingen ny datamodell.
+
+### Status etter v135
+
+- Hjem har nå tre kompakte motivasjonskort under heltekortet.
+- `Mål-løp` viser aktivt løpsmål, uker/nedtelling, mål-score og fase.
+- `Kontinuitet` viser antall uker på rad og en enkel 8-ukers minigrid.
+- `Siste høydepunkt` viser ny PB/testløp eller siste registrerte race/test.
+- Løsningen gjenbruker eksisterende mål-, PB- og kontinuitetslogikk uten ny datamodell.
 
 ## v136 - Denne uken og challenge-status v2
 
@@ -671,9 +679,9 @@ Hvis svaret er ja på flere av disse, bør ideen prioriteres.
 
 ### Neste 3 runder
 
-1. v135 - Dashboard motivasjonskort
-2. v136 - Denne uken og challenge-status v2
-3. v137 - Dashboard fargesystem og desktop polish
+1. v136 - Denne uken og challenge-status v2
+2. v137 - Dashboard fargesystem og desktop polish
+3. v138 - Ernæring, væske og restitusjonsnotater
 
 ### Neste 10 runder
 
@@ -777,6 +785,6 @@ Neste store verdiøkning er en bedre daglig coach.
 
 Anbefalt neste utviklingsrunde:
 
-> v135 - Dashboard motivasjonskort
+> v136 - Denne uken og challenge-status v2
 
-Den bør gjøre Hjem mer motiverende ved å løfte mål-løp, mål-score, kontinuitet og siste høydepunkt inn på dashboardet.
+Den bør gjøre Hjem enda mer motiverende ved å løfte ukeprogresjon, kilometer og challenge-takt tydeligere inn i dashboardet.

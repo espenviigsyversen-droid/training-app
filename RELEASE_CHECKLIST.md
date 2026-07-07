@@ -10,6 +10,7 @@ Kjør:
 node --check app.js
 node --check service-worker.js
 node --check domain-core.js
+node --check domain-goals.js
 node tests\stability-tests.js
 ```
 
@@ -24,8 +25,8 @@ Hvis `app.js`, `domain-core.js`, `index.html`, `styles.css` eller `service-worke
 Eksempel:
 
 ```js
-const APP_VERSION = 'v134';
-const CACHE_NAME = "treningsapp-v134";
+const APP_VERSION = 'v135';
+const CACHE_NAME = "treningsapp-v135";
 ```
 
 Kontroller også at synlig versjonsinfo i appen viser samme versjon:
