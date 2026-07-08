@@ -58,7 +58,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       raceReadinessSummary
     } from './domain-goals.js';
 
-    const APP_VERSION = 'v139b';
+    const APP_VERSION = 'v139c';
     const APP_CACHE_NAME = `treningsapp-${APP_VERSION}`;
 
     const firebaseConfig = {
@@ -7217,6 +7217,52 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       renderRaceInsights(today);
     }
 
+    function goalScoreStatusText(status) {
+      if (status === 'good') return 'God';
+      if (status === 'watch') return 'Følg med';
+      return 'Ikke nok data';
+    }
+
+    function goalScoreBasisHtml(score = {}, fallbackAction = '') {
+      const items = Array.isArray(score.items) ? score.items : [];
+      const rows = items.length
+        ? items.map(item => {
+            const value = Math.max(0, Math.min(2, Number(item.value || 0)));
+            const status = item.status || 'neutral';
+            return `
+              <div class="goal-score-item ${escapeHtml(status)}">
+                <span></span>
+                <div>
+                  <div class="goal-score-item-head">
+                    <strong>${escapeHtml(item.label || 'Scorepunkt')}</strong>
+                    <small class="goal-score-item-points">${value}/2 · ${escapeHtml(goalScoreStatusText(status))}</small>
+                  </div>
+                  <small>${escapeHtml(item.detail || 'Mangler nok data ennå')}</small>
+                </div>
+              </div>`;
+          }).join('')
+        : '<div class="goal-score-empty">Scoregrunnlag kommer når appen har nok mål- og treningsdata.</div>';
+      const nextImprovement = score.nextImprovement || fallbackAction || 'Fortsett å bygge repeterbare uker og oppdater måldata når du tester.';
+      return `
+        <details class="goal-score-basis">
+          <summary>
+            <span>Vis scoregrunnlag</span>
+            <small>Hva betyr dette?</small>
+          </summary>
+          <div class="goal-score-basis-content">
+            <div class="goal-score-basis-head">
+              <strong>Scoregrunnlag</strong>
+              <span>${items.length ? `${items.length} komponenter` : 'Ingen komponenter ennå'}</span>
+            </div>
+            <div class="goal-score-list">${rows}</div>
+            <div class="goal-score-next-improvement">
+              <span>Neste viktigste forbedring</span>
+              <strong>${escapeHtml(nextImprovement)}</strong>
+            </div>
+          </div>
+        </details>`;
+    }
+
     function renderGoalsOverview(today) {
       const container = document.getElementById('goalsOverview');
       if (!container) return;
@@ -7279,18 +7325,9 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
               ${scoreTrend}
             </div>
             <div class="goal-progress-score-bar"><span style="width:${Math.max(0, Math.min(100, Number(score.percent || 0)))}%"></span></div>
-            <p><strong>Neste viktigste forbedring:</strong> ${escapeHtml(score.nextImprovement || summary.action || '')}</p>
+            <p>Scoren samler kontinuitet, rolig grunnlag, kontrollert kvalitet, skadefrihet og race/test-status.</p>
+            ${goalScoreBasisHtml(score, summary.action)}
           </div>`
-        : '';
-      const scoreItems = summary.score?.items?.length
-        ? `<div class="goal-score-list">${summary.score.items.map(item => `
-            <div class="goal-score-item ${escapeHtml(item.status)}">
-              <span></span>
-              <div>
-                <strong>${escapeHtml(item.label)}</strong>
-                <small>${escapeHtml(item.detail)}</small>
-              </div>
-            </div>`).join('')}</div>`
         : '';
       const milestoneItems = milestones?.length
         ? `<div class="goal-milestones">
@@ -7336,8 +7373,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
           <p>${escapeHtml(summary.motivation)}</p>
         </div>
         ${milestoneItems}
-        ${testRecommendationHtml}
-        ${scoreItems}`;
+        ${testRecommendationHtml}`;
     }
 
     function completedRaceItems() {

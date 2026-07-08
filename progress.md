@@ -1,5 +1,5 @@
 # Treningsapp — progress.md
-Oppdatert: 2026-07-08 (siste endringer: v75–v139b)
+Oppdatert: 2026-07-08 (siste endringer: v75–v139c)
 
 ---
 
@@ -27,7 +27,7 @@ Standard Bakken-uke: Hoved-terskel → Støtte-terskel → Lang rolig → Valgfr
 **Hosting:** GitHub Pages.  
 **Backend:** Firebase (prosjekt `home-tasks-app-18de3`) — Firestore + Google Auth.  
 **Frontend:** Vanilla JS + HTML + CSS, single-page app, tab-navigasjon.  
-**Versjon:** v139b (konstant i `app.js`).
+**Versjon:** v139c (konstant i `app.js`).
 
 ### Filer
 
@@ -116,6 +116,7 @@ Treningsapp/
 - **Base med høy puls skilles fra hard kvalitet** (v138c): Ny ren `classifyWorkoutIntensityContext()` i `domain-core.js` skiller rolige/baseøkter med høy puls fra terskel/intervall/race. Slike økter kan fortsatt gi moderat belastning og pulsvarsel, men teller ikke som hard kvalitetsøkt i coach-context, Bakken-mønstre eller heltekortets konfliktlogikk. Coach-grunnlag og notis forklarer når baseøkter har høy puls uten å tolke dem som ny terskelbelastning.
 - **Mål-kort v2 på Hjem** (v139): Hjem-kortet for mål-løp viser nå mål-score med trend fra forrige periode, fase, neste relevante milepæl og ett praktisk neste steg. Kortet gjenbruker `goalMotivationSummary()`, `goalMilestones()`, `raceGoalPlan()` og `raceReadinessSummary()` fra `domain-goals.js`, uten ny datamodell. Tomtilstand uten mål viser nå en tydelig “Velg et mål å jobbe mot”-retning.
 - **Desktop layout patch** (v139b): Hjem-dashboardet på brede skjermer har nå eksplisitt grid-plassering: heltekortet ligger øverst i venstre kolonne, `Denne uken` rett under, og Mål/Kontinuitet/Siste høydepunkt ligger i høyre kolonne. Dette fjerner stort tomrom under heltekortet etter v139 uten å endre mobilflyt eller innhold.
+- **Forklarbar Mål-score** (v139c): Mål-fanen har nå et utvidbart `Vis scoregrunnlag` under Mål-score. Den viser de fem eksisterende score-komponentene fra `goalProgressScore()` (`Kontinuitet`, `Rolig grunnlag`, `Kontrollert kvalitet`, `Skadefrihet`, `Race/test-status`) med poeng/status, forklaring og neste viktigste forbedring. Hjem-kortet forblir kompakt og sender brukeren videre til Mål-fanen.
 - **Fjernet «Foreslå neste økt»** (v92): Kortet er fjernet fra Kalender-fanen. Ukeplanen dekker samme behov bedre og er rollebevisst. `renderWorkoutSuggestion`-kallet er fjernet fra render-løkken for å unngå krasj.
 - **Coach: smertegradering + priority-felt + X-økt** (v91): Tre coach-forbedringer: (1) `bodySignalState` skiller nå mellom mild smerte (1–2/10 → `cooling`, foreslår terskel etter en rolig økt) og bekymringsfull smerte (3+/10 → `caution`, kun recovery). Løser at mild smerte blokkerte terskelforslag for hele neste uke. (2) `priority`-feltet i treningsprofilen er nå aktivt: `performance` foreslår terskel straks det er rom, `injury_free_progression` krever 2 rolige øyer før terskel. (3) X-økt vises alltid som 4. forslag i normaluke når det er rom — sikrer at VO2max/teknikk/styrke alltid er synlig som alternativ.
 - **Hjem: alle økter samme dag** (v90): «Neste økt» / «Dagens økt» viser nå alle planlagte økter på samme dato, ikke bare én. For fremtidige dager grupperes etter første kommende dato (`nextDateItems`). Tittelen skifter til «Dagens økt» automatisk når det finnes økter på dagens dato (eksisterende logikk).
