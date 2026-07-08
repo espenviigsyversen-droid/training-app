@@ -38,6 +38,7 @@ function test(name, fn) {
     formatPace,
     goldenZonePercentages,
     hasStructuredIntervals,
+    homeHeroState,
     injuryAdjustedWorkoutAdvice,
     injuryRecoveryGuidance,
     injurySignalSummary,
@@ -178,6 +179,9 @@ function test(name, fn) {
     assert.ok(app.includes('dailyCoachSupport({'), 'dashboard should enrich today decision with daily coach support');
     assert.ok(app.includes('completedToday'), 'coach context should expose workouts completed today');
     assert.ok(app.includes('todayCompletedWorkoutFeedback({'), 'dashboard should switch to post-workout feedback after a completed workout');
+    assert.ok(app.includes('homeHeroState({'), 'dashboard should classify hero card state with domain logic');
+    assert.ok(app.includes('swapHeroPlannedWorkout'), 'dashboard conflict state should support one-click workout swap');
+    assert.ok(app.includes('hero-state-${heroState.state}'), 'dashboard hero should render state classes');
     assert.ok(app.includes('function buildCompletedTodayCoachNote'), 'coach note should have a post-workout mode');
     assert.ok(app.includes('const completedTodayNote = buildCompletedTodayCoachNote(ctx);'), 'coach note should prioritize today completed workout feedback');
     assert.ok(index.includes('class="coach-basis-list"'), 'dashboard should render structured coach basis list');
@@ -200,6 +204,9 @@ function test(name, fn) {
     assert.ok(read('styles.css').includes('.calendar-entry.planned { color: var(--dashboard-quality); }'), 'planned calendar entries should be neutral');
     assert.ok(read('styles.css').includes('.readiness-chip'), 'readiness chip styling is missing');
     assert.ok(read('styles.css').includes('.hero-intensity-track'), 'hero intensity strip styling is missing');
+    assert.ok(read('styles.css').includes('.dashboard-hero-card.hero-state-conflict'), 'conflict hero styling is missing');
+    assert.ok(!index.includes('id="homeWeekSessions"'), 'week card should not duplicate the session count outside the ring');
+    assert.ok(read('styles.css').includes('grid-column: 1 / 2;'), 'desktop week card should no longer always span the full dashboard grid');
   });
 
   test('daily injury check-in is preserved and used by coach context', () => {
@@ -1047,6 +1054,61 @@ function test(name, fn) {
     assert.strictEqual(decision.level, 'yellow');
     assert.match(decision.title, /Rolig/);
     assert.match(decision.reason, /intervallarbeid/);
+  });
+
+  test('home hero state detects hard planned workout conflict from readiness or intensity balance', () => {
+    const conflict = homeHeroState({
+      planned: { label: 'Intervall 8x3', intensity: 'Intervall', role: 'main_threshold', load: 'moderate' },
+      hasPlannedToday: false,
+      hasNextPlanned: true,
+      dailyReadinessLevel: 'green',
+      hardShare14: 83,
+      decision: { level: 'green' }
+    });
+    assert.strictEqual(conflict.state, 'conflict');
+    assert.strictEqual(conflict.level, 'yellow');
+    assert.match(conflict.body, /Bytt til rolig alternativ/);
+    assert.match(conflict.reason, /intensitetsbalanse/);
+
+    const redConflict = homeHeroState({
+      planned: { label: 'Terskel', intensity: 'Terskel', load: 'high' },
+      hasPlannedToday: true,
+      hasNextPlanned: true,
+      dailyReadinessLevel: 'red',
+      decision: { level: 'red' }
+    });
+    assert.strictEqual(redConflict.state, 'conflict');
+    assert.strictEqual(redConflict.level, 'red');
+    assert.strictEqual(redConflict.primaryAction, 'swap_recovery');
+  });
+
+  test('home hero state supports post-workout, rest day and comeback states', () => {
+    const completed = homeHeroState({
+      completedToday: { label: 'Rolig Kort Tur', type: 'Løping' },
+      decision: { level: 'green', title: 'Bra justert økt', reason: 'Rolig respons.' }
+    });
+    assert.strictEqual(completed.state, 'post_workout');
+    assert.match(completed.kicker, /Fullført/);
+
+    const rest = homeHeroState({
+      planned: { label: 'Støtteterskel', intensity: 'Terskel' },
+      hasPlannedToday: false,
+      hasNextPlanned: true,
+      nextDateLabel: 'i morgen',
+      hardShare14: 20,
+      decision: { level: 'green' }
+    });
+    assert.strictEqual(rest.state, 'rest_day');
+    assert.match(rest.title, /overskudd/);
+
+    const comeback = homeHeroState({
+      daysSinceLast: 8,
+      hasPlannedToday: false,
+      hasNextPlanned: false,
+      decision: { level: 'neutral' }
+    });
+    assert.strictEqual(comeback.state, 'comeback');
+    assert.match(comeback.body, /8 dager/);
   });
 
   test('today decision falls back safely without training data', () => {
