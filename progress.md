@@ -1,5 +1,5 @@
 # Treningsapp — progress.md
-Oppdatert: 2026-07-07 (siste endringer: v75–v137)
+Oppdatert: 2026-07-08 (siste endringer: v75–v138)
 
 ---
 
@@ -27,7 +27,7 @@ Standard Bakken-uke: Hoved-terskel → Støtte-terskel → Lang rolig → Valgfr
 **Hosting:** GitHub Pages.  
 **Backend:** Firebase (prosjekt `home-tasks-app-18de3`) — Firestore + Google Auth.  
 **Frontend:** Vanilla JS + HTML + CSS, single-page app, tab-navigasjon.  
-**Versjon:** v137 (konstant i `app.js`).
+**Versjon:** v138 (konstant i `app.js`).
 
 ### Filer
 
@@ -110,6 +110,8 @@ Treningsapp/
 - **Dashboard motivasjonskort** (v135): Hjem har nå tre kompakte motivasjonskort under heltekortet: `Mål-løp` med aktivt mål, uker/nedtelling, mål-score og fase; `Kontinuitet` med streak og 8-ukers minigrid; og `Siste høydepunkt` med ny PB/testløp eller siste registrerte race/test. Kortene gjenbruker eksisterende mål-, PB- og kontinuitetslogikk uten ny datamodell.
 - **Denne uken og challenge-status v2** (v136): Hjem-kortet `Denne uken` viser nå øktring, tid, kilometer, belastning og dagsstolper for ukeprogresjon. Aktiv challenge har fått forventet takt-markør og tydelig status som `I rute` eller `Bak takt`, basert på eksisterende challenge-progress, periode og dagens dato. Endringen er kun visuell/regelstyrt og introduserer ingen ny datamodell.
 - **Dashboard fargesystem og desktop polish** (v137): Dashboardets statusfarger er strammet inn: planlagt er nøytralt, `I rute`/progresjon er grønt, `Bak takt`/obs er gult og rødt holdes til stopp/avvik/kroppssignal. Ukestolper og ukekortet på Hjem er gjort roligere og mer desktop-vennlige, mens oransje i større grad er beholdt som merkevare- og handlingsfarge.
+- **Planlagt neste dashboardrunde**: Roadmap/backlog er oppdatert etter v137-test. Neste anbefalte runde er v138 `Heltekortets tilstander og v137b polish`: fullført økt gir feiring resten av dagen, konflikt mellom dagsform/belastning og hard plan gir handlende bytteforslag, hviledag blir positiv tilstand, langt opphold gir velkommen-tilbake-forslag, og v137b fikser dobbel `1/3`, for dominante dagsstolper og ubalanse i desktop-rutenettet. Fryskort for kontinuitet er lagt inn som planlagt guardrail før en fremhevet streak kan ryke urettferdig.
+- **Heltekortets tilstander og v137b polish** (v138): Ny ren `homeHeroState()` i `domain-core.js` klassifiserer heltekortet som fullført økt, konflikt, hviledag, langt opphold eller normal plan. Konflikt mellom hard planlagt/neste økt og gul/rød dagsform, kroppssignal eller skjev 14-dagers intensitetsbalanse gir nå tydelig bytteforslag. Bytteknappen bruker eksisterende mal-matching og bekreftet `safeStateWrite` for å bytte til rolig/restitusjonsmal. Hjem-polish: dobbel `1/3` er fjernet, dagsstolpene er komprimert, og `Denne uken` bruker desktop-rutenettet mer balansert.
 - **Fjernet «Foreslå neste økt»** (v92): Kortet er fjernet fra Kalender-fanen. Ukeplanen dekker samme behov bedre og er rollebevisst. `renderWorkoutSuggestion`-kallet er fjernet fra render-løkken for å unngå krasj.
 - **Coach: smertegradering + priority-felt + X-økt** (v91): Tre coach-forbedringer: (1) `bodySignalState` skiller nå mellom mild smerte (1–2/10 → `cooling`, foreslår terskel etter en rolig økt) og bekymringsfull smerte (3+/10 → `caution`, kun recovery). Løser at mild smerte blokkerte terskelforslag for hele neste uke. (2) `priority`-feltet i treningsprofilen er nå aktivt: `performance` foreslår terskel straks det er rom, `injury_free_progression` krever 2 rolige øyer før terskel. (3) X-økt vises alltid som 4. forslag i normaluke når det er rom — sikrer at VO2max/teknikk/styrke alltid er synlig som alternativ.
 - **Hjem: alle økter samme dag** (v90): «Neste økt» / «Dagens økt» viser nå alle planlagte økter på samme dato, ikke bare én. For fremtidige dager grupperes etter første kommende dato (`nextDateItems`). Tittelen skifter til «Dagens økt» automatisk når det finnes økter på dagens dato (eksisterende logikk).

@@ -1,8 +1,8 @@
 # DEVELOPMENT_ROADMAP.md
 
-Strategisk utviklingsroadmap for Treningsapp etter v137.
+Strategisk utviklingsroadmap for Treningsapp etter v138.
 
-Oppdatert: 2026-06-10
+Oppdatert: 2026-07-07
 
 ## Formål
 
@@ -468,7 +468,215 @@ Profesjonalisere den visuelle tydeligheten etter at ny Hjem-struktur er på plas
 - Ukestolper og ukekort på Hjem er gjort roligere og mer desktop-vennlige.
 - Oransje brukes mer som merkevare-/handlingsfarge enn generell status.
 
-## v138 - Ernæring, væske og restitusjonsnotater
+## v138 - Heltekortets tilstander og v137b polish - Bygget
+
+### Mål
+
+Gjør heltekortet på Hjem til en ekte kontekststyrt beslutningsflate, ikke bare et fast kort med neste økt.
+
+Heltekortet skal kunne bytte tydelig tilstand etter hva som faktisk er relevant akkurat nå:
+
+1. Fullført økt.
+2. Konflikt mellom dagsform/belastning og plan.
+3. Planlagt hviledag.
+4. Langt opphold / velkommen tilbake.
+5. Normal planlagt økt.
+
+Dette er neste store dashboard-steg fordi samme mekanikk brukes for alle tilstandene: ett toppkort som prioriterer dagens viktigste beslutning.
+
+### Viktigste tilstand: konflikt dagsform/plan
+
+Hvis dagsform, skadesignal eller intensitetsbalanse tilsier forsiktighet, samtidig som planlagt/neste økt er hard, skal heltekortet bli handlende:
+
+```text
+Dagsform tilsier lettere økt.
+Bytt intervall til rolig alternativ?
+```
+
+Dette bør i første versjon støtte ett trygt bytteforslag, for eksempel:
+
+- hard løpeøkt -> rolig løp
+- hard løpeøkt + aktivt skadesignal -> alternativ trening / hvile
+- høy hardandel siste 14 dager -> kontrollert rolig økt
+
+Målet er ikke at appen skal overstyre brukeren, men å gjøre regelmotoren praktisk nyttig i det øyeblikket den ser en konflikt.
+
+### Fullført økt
+
+Når dagens økt er fullført, skal heltekortet resten av dagen skifte fra "hva bør jeg gjøre?" til en rolig feiring og vurdering:
+
+- "Bra gjennomført"
+- hva som var positivt
+- kort belastnings-/smerterespons
+- eventuell påminnelse om restitusjon
+
+Feiring skal være lavmælt og nyttig, ikke masete.
+
+### Planlagt hviledag
+
+Hviledag skal være en fullverdig positiv tilstand, ikke et tomt kort:
+
+```text
+Planlagt hviledag.
+Dette bygger overskudd til neste økt.
+```
+
+Ved skadesignal eller tung belastning bør hviledag forklares som et aktivt godt valg.
+
+### Langt opphold
+
+Hvis det er lenge siden siste økt, bør heltekortet ønske brukeren tilbake og foreslå en nedjustert start:
+
+```text
+Velkommen tilbake.
+Start med 20-30 min rolig og kjenn etter.
+```
+
+Dette skal redusere terskel for å komme i gang igjen, ikke gi dårlig samvittighet.
+
+### v137b polish i samme runde
+
+Basert på skjermbildet etter v137 bør disse små UI-grepene gjøres før eller sammen med v138:
+
+- Fjern dobbel `1/3`: ringen er sannhetskilden for øktmål, så den ekstra `1/3 økter`-boksen fjernes.
+- Krymp dagsstolpene til en lav, tett rad slik at de blir et rytmeglimt, ikke en egen seksjon.
+- Balanser desktop-rutenettet under heltekortet. Vurder om `Denne uken` skal rykke opp i venstre kolonne ved siden av høydepunktkortet, eller om heltekortet skal strekkes slik at venstre/høyre kolonne føles jevnere.
+
+### Teknisk anbefaling
+
+- Lag ren tilstandsvurdering i `domain-core.js` hvis mulig, for eksempel `homeHeroState()` eller tilsvarende.
+- `app.js` bør fortsatt eie DOM/state/Firebase-wrapperen.
+- Konfliktlogikk bør gjenbruke eksisterende dagsform, skadesignal, intensitetsbalanse og planlagt økt.
+- Ett-trykks bytte skal være konservativt og bekreftende, ikke automatisk endre plan uten brukerhandling.
+- Ingen ny datamodell med mindre det er nødvendig for å lagre et eksplisitt bytte.
+
+### Tester
+
+Test minst scenarioene:
+
+- fullført økt i dag gir etter-økt-tilstand
+- hard økt + gul/rød dagsform gir konflikt-tilstand
+- hard økt + for hard intensitetsbalanse gir konflikt-tilstand
+- hviledag gir positiv hviledagstilstand
+- langt opphold gir velkommen-tilbake-tilstand
+- normal planlagt økt fungerer som før
+
+### Status etter v138
+
+- Heltekortet klassifiseres nå med ren `homeHeroState()` i `domain-core.js`.
+- Fullført økt gir post-workout-tilstand i heltekortet resten av dagen.
+- Hard planlagt/neste økt kan gi konflikt-tilstand når dagsform, kroppssignal eller 14-dagers intensitetsbalanse tilsier lettere valg.
+- Konflikt-tilstanden tilbyr konservativt bytte til en eksisterende rolig/restitusjonsmal, med bekreftelse før planlagt økt oppdateres.
+- Planlagt hviledag vises som positiv hviledagstilstand når det finnes en kommende plan, men ingen økt i dag.
+- Langt opphold gir velkommen-tilbake-/lett-start-tilstand.
+- v137b-polish er gjennomført: dobbel `1/3` er fjernet, dagsstolpene er lavere/tettere, og `Denne uken` ligger bedre i desktop-rutenettet.
+
+## v139 - Mål-kort v2 på Hjem
+
+### Mål
+
+Gjør mål-kortet på Hjem enda mer motiverende uten å gjøre det stort.
+
+### Scope
+
+- Vis tydeligere mini-delmal eller neste milepæl.
+- Vis enkel trend for mål-score: opp, ned eller uendret.
+- Vis fase på en måte som føles som fremdrift, for eksempel "Basebygging - steg 2 av 5".
+- Behold kortet kompakt.
+
+### Hvorfor
+
+Mål-kortet er en av de sterkeste motivasjonsflatene på Hjem. Det bør gi følelsen av at brukeren er på vei et sted, ikke bare telle ned til en dato langt frem i tid.
+
+### Teknisk
+
+- Gjenbruk eksisterende mål-score, raceplan og milepællogikk.
+- Ikke innfør ny datamodell i første versjon.
+- Test ren måltekst/trendlogikk hvis den trekkes ut.
+
+## v140 - Ukesvolum-graf på Hjem desktop
+
+### Mål
+
+Legg til en kompakt ukesvolum-trend på Hjem, primært for desktop og større skjermer.
+
+### Scope
+
+- Vise enkel trend for siste 6-8 uker med kilometer/tid.
+- Skal være kompakt og ikke konkurrere med heltekortet.
+- Bør være skjult eller svært nedtonet på mobil hvis det gir mer støy enn verdi.
+- Gjenbruk data/logikk fra Innsikt der det er mulig.
+
+### Hvorfor dette kommer etter v138/v139
+
+Innsikt er allerede ett trykk unna, så dette løser et mindre problem enn heltekort-tilstander og mål-kortet. Det er likevel nyttig på desktop, der Hjem har mer plass.
+
+### Teknisk
+
+- Start uten ny datamodell.
+- Bruk ren summering hvis mulig.
+- Pass på at mobilopplevelsen ikke blir tyngre.
+
+## v141 - Kalender polish og handlingsflyt
+
+### Mål
+
+Gjør kalenderen mer behagelig og handlingsorientert uten stor redesign.
+
+### Scope
+
+- Mindre teksttung ukeplan.
+- Tydeligere rolle-/statuschips.
+- Planlagt skal fortsatt være nøytral.
+- Bedre skanning på desktop.
+- Mobil skal fortsatt være enkel én-kolonneflyt.
+- Eventuelle konfliktforslag fra heltekortet bør kunne forstås i kalenderen uten at kalenderen blir komplisert.
+
+### Hvorfor
+
+Kalenderen er stedet der råd blir til faktisk plan. Etter at heltekortet kan foreslå justeringer, bør kalenderen være enklere å lese og stole på.
+
+## v142 - Logg og Mål polish
+
+### Mål
+
+Gjør oppfølging etter økter, PB og mål mer ryddig og motiverende.
+
+### Scope
+
+- Logg: bedre visning av pace/fart og ukesgruppering hvis det kan gjøres lavrisiko.
+- Mål: bedre PB-kort, tydeligere historikk og mer lesbar utvikling.
+- Challenges: vurder arkiv/ferdige challenges som kan gi mestring uten å fylle Hjem.
+- Behold all eksisterende historikk og datamodell.
+
+### Hvorfor
+
+Når Hjem blir mer beslutningsorientert, bør Logg og Mål bli gode steder for refleksjon: hva gjorde jeg, hva lærte jeg, og hva betyr det for målet?
+
+## v143 - Fryskort for kontinuitet
+
+### Mål
+
+Beskytt motivasjonen i kontinuitetskortet ved sykdom, reise eller andre legitime avbrudd.
+
+### Bakgrunn
+
+Streak vises nå tydelig på Hjem. Da blir en urettferdig brutt streak mer demotiverende enn om appen ikke hadde vist streak i det hele tatt.
+
+### Scope
+
+- Enkel måte å markere sykdom/reise/ikke-treningsuke som ikke skal bryte streak.
+- Bør være begrenset og tydelig, slik at streak fortsatt betyr noe.
+- Må ikke misbrukes til å skjule vanlige treningshull.
+- Kalenderens "ikke treningsdag" kan være relevant input, men fryskort bør sannsynligvis gjelde på ukenivå.
+
+### Teknisk
+
+- Krever sannsynligvis liten datamodell.
+- Må dokumenteres før bygging.
+- Kontinuitetsberegningen må håndtere gamle data uten fryskort.
+
+## v144 - Ernæring, væske og restitusjonsnotater
 
 ### Mål
 
@@ -504,7 +712,7 @@ Ved skadesignal:
 - Ren funksjon som tar dagens beslutning og planlagt økt som input.
 - Ingen logging av ernæring i første versjon.
 
-## v139 - AI-chat design og sikkerhetsramme
+## v145 - AI-chat design og sikkerhetsramme
 
 ### Mål
 
@@ -536,21 +744,7 @@ AI-chat skal ikke:
 - ignorere skadesignal
 - gi medisinske diagnoser
 
-### Eksempler på spørsmål
-
-- "Bør jeg løpe i dag?"
-- "Hvordan bør jeg tolke kneet?"
-- "Hva bør jeg prioritere de neste to ukene?"
-- "Hvordan kan jeg bli bedre mot Halv-Birken uten å trigge skade?"
-- "Hvorfor gikk mål-score ned?"
-
-### Teknisk
-
-- Eget dokument før bygging, f.eks. `AI_COACH_DESIGN.md`.
-- Sannsynligvis backend via Firebase Cloud Functions senere.
-- Ikke eksponer OpenAI API-nøkkel i frontend.
-
-## v140 - AI-chat MVP
+## v146 - AI-chat MVP
 
 ### Mål
 
@@ -564,73 +758,7 @@ Bygg en enkel "Spør coachen"-funksjon.
 - AI svarer med råd/forklaring.
 - Ingen automatisk planendring.
 
-### Forutsetninger
-
-Bør vente til:
-
-- Coach-grunnlag v2 finnes.
-- AI-design er dokumentert.
-- Backendvalg er bestemt.
-
-## v141 - Mål-fane videre: Du er her nå
-
-### Mål
-
-Gjør Mål-fanen enda mer handlingsorientert.
-
-### Nåværende status
-
-Mål-fanen har:
-
-- mål-løp
-- mål-score
-- milepæler
-- race/testløp-anbefaling
-- PB-historikk
-- challenges
-
-### Neste forbedring
-
-Vis tydeligere:
-
-- nåværende fase
-- viktigste svakhet
-- neste test
-- neste 2-ukers fokus
-- hva som vil flytte score mest
-
-Eksempel:
-
-```text
-Du er her nå:
-Basebygging mot Halv-Birken.
-
-Det som flytter deg mest:
-2 stabile uker med rolig volum og smertefri løping.
-
-Neste relevante test:
-5 km kontrollert test når kneet er stabilt.
-```
-
-## v142 - Challenges som delmål
-
-### Mål
-
-Koble kortsiktige challenges til langsiktige mål.
-
-### Eksempler
-
-- "85 km i juni støtter basebygging mot Halv-Birken."
-- "Denne challengen bør roes ned ved aktivt skadesignal."
-- "Du ligger 65 km unna målet, men treningsgrunnlaget bør fortsatt bygges kontrollert."
-
-### Hvorfor
-
-Challenges er motiverende, men kan også gi feil press hvis kroppen signaliserer skade.
-
-Appen bør balansere motivasjon og trygg progresjon.
-
-## v143 - Andre treningsformer v1
+## v147 - Andre treningsformer v1
 
 ### Mål
 
@@ -694,22 +822,22 @@ Hvis svaret er ja på flere av disse, bør ideen prioriteres.
 
 ### Neste 3 runder
 
-1. v138 - Ernæring, væske og restitusjonsnotater
-2. v139 - AI-chat design
-3. v140 - AI-chat MVP
+1. v139 - Mål-kort v2 på Hjem
+2. v141 - Kalender polish og handlingsflyt
+3. v142 - Logg og Mål polish
 
 ### Neste 10 runder
 
-1. Dashboard heltekort
-2. Dashboard motivasjonskort
-3. Denne uken og challenge-status v2
-4. Dashboard fargesystem og desktop polish
-5. Ernæring/væske/restitusjonsnotater
-6. AI-chat design
-7. AI-chat MVP
-8. Mål-fane videre: "Du er her nå"
-9. Challenges som delmål
-10. Andre treningsformer v1
+1. v139 - Mål-kort v2 på Hjem
+2. v141 - Kalender polish og handlingsflyt
+3. v142 - Logg og Mål polish
+4. v143 - Fryskort for kontinuitet
+5. v140 - Ukesvolum-graf på Hjem desktop
+6. v144 - Ernæring/væske/restitusjonsnotater
+7. v145 - AI-chat design
+8. v146 - AI-chat MVP
+9. v147 - Andre treningsformer v1
+10. Strava/Firebase-integrasjon når backendsporet tas opp igjen
 
 ## Hva vi bør vente med
 
@@ -729,10 +857,9 @@ Start med AI-chat som rådgiver når coach-context er klar.
 
 Ikke gjør alt på én gang. Dashboard-spesifikasjonen skal gjennomføres som små, testbare runder:
 
-- først heltekort
-- deretter motivasjonskort
-- deretter ukestatus/challenge
-- til slutt fargesystem og desktop-polish
+- heltekortet er bygget, men bør nå få flere konteksttilstander
+- motivasjonskort, ukestatus og fargesystem er bygget
+- videre dashboardarbeid bør være små polish-runder, ikke stor redesign
 
 ### Full styrkecoach
 
@@ -800,6 +927,6 @@ Neste store verdiøkning er en bedre daglig coach.
 
 Anbefalt neste utviklingsrunde:
 
-> v138 - Ernæring, væske og restitusjonsnotater
+> v139 - Mål-kort v2 på Hjem
 
-Den bør gi mer praktisk verdi i Dagens råd ved å legge inn enkle støttepåminnelser for drikke, karbohydrater, protein og restitusjon.
+Den bør gjøre mål-kortet mer motiverende med mini-delmål, mål-score-trend og tydelig fase/progresjon uten å gjøre Hjem tyngre.

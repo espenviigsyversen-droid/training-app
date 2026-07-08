@@ -421,6 +421,93 @@ function plannedWorkoutIsQuality(planned = {}) {
   );
 }
 
+export function homeHeroState(input = {}) {
+  const completedToday = input.completedToday || null;
+  const planned = input.planned || {};
+  const hasPlannedToday = Boolean(input.hasPlannedToday);
+  const hasNextPlanned = Boolean(input.hasNextPlanned || planned.label);
+  const decision = input.decision || {};
+  const readiness = String(input.dailyReadinessLevel || '').toLowerCase();
+  const injuryStatus = String(input.injuryStatus || '').toLowerCase();
+  const injuryActive = Boolean(input.injuryActive);
+  const hardShare14 = Number(input.hardShare14 || 0);
+  const daysSinceLast = input.daysSinceLast === null || input.daysSinceLast === undefined
+    ? null
+    : Number(input.daysSinceLast);
+  const plannedLabel = String(planned.label || '').trim();
+  const plannedType = String(planned.type || '').trim();
+  const nextDateLabel = String(input.nextDateLabel || '').trim();
+  const quality = plannedWorkoutIsQuality(planned);
+
+  if (completedToday) {
+    return {
+      state: 'post_workout',
+      level: decision.level || 'green',
+      kicker: completedToday.type ? `Fullført i dag · ${completedToday.type}` : 'Fullført i dag',
+      title: decision.title || `Bra gjennomført: ${completedToday.label || 'dagens økt'}`,
+      body: decision.reason || decision.action || 'Økten er logget. Bruk resten av dagen til restitusjon og respons.',
+      primaryAction: 'details'
+    };
+  }
+
+  const conflictReasons = [];
+  if (quality && (readiness === 'red' || decision.level === 'red')) conflictReasons.push('dagsform rød');
+  else if (quality && (readiness === 'yellow' || decision.level === 'yellow')) conflictReasons.push('dagsform gul');
+  if (quality && injuryActive && ['worse', 'high', 'improving', 'caution', 'stable'].includes(injuryStatus)) {
+    conflictReasons.push('kroppssignal');
+  }
+  if (quality && hardShare14 >= 65) conflictReasons.push(`intensitetsbalanse ${Math.round(100 - hardShare14)}/${Math.round(hardShare14)}`);
+
+  if (hasNextPlanned && quality && conflictReasons.length) {
+    const redConflict = readiness === 'red' || decision.level === 'red' || injuryStatus === 'worse' || injuryStatus === 'high';
+    return {
+      state: 'conflict',
+      level: redConflict ? 'red' : 'yellow',
+      kicker: 'Dagsform og plan krasjer litt',
+      title: 'Dagsform tilsier lettere økt',
+      body: plannedLabel
+        ? `${hasPlannedToday ? 'Planlagt' : 'Neste'} ${plannedLabel} ser hard ut. Bytt til rolig alternativ?`
+        : 'Planen ser hard ut. Bytt til rolig alternativ?',
+      reason: conflictReasons.join(' · '),
+      primaryAction: redConflict ? 'swap_recovery' : 'swap_easy'
+    };
+  }
+
+  if (daysSinceLast !== null && daysSinceLast >= 5) {
+    return {
+      state: 'comeback',
+      level: 'neutral',
+      kicker: 'Velkommen tilbake',
+      title: 'Start kontrollert',
+      body: `Det er ${daysSinceLast} dager siden siste økt. Velg en lett start og bruk kroppen som fasit.`,
+      primaryAction: hasNextPlanned ? 'start_easy' : 'plan'
+    };
+  }
+
+  if (!hasPlannedToday && hasNextPlanned) {
+    return {
+      state: 'rest_day',
+      level: decision.level || 'green',
+      kicker: 'Planlagt hviledag',
+      title: 'Bygg overskudd i dag',
+      body: nextDateLabel
+        ? `Neste økt er ${plannedLabel || 'planlagt økt'} ${nextDateLabel}. Bruk dagen til å møte den med friske bein.`
+        : 'Hvile er en aktiv del av planen. Bruk dagen til å hente overskudd.',
+      primaryAction: 'show_next'
+    };
+  }
+
+  return {
+    state: hasPlannedToday ? 'planned' : 'empty',
+    level: decision.level || 'neutral',
+    kicker: hasPlannedToday ? 'Dagens økt' : hasNextPlanned ? 'Neste økt' : 'Ingen økt planlagt',
+    title: plannedLabel || 'Planlegg én realistisk økt',
+    body: decision.action || decision.reason || 'Velg neste steg ut fra dagsform og plan.',
+    meta: plannedType,
+    primaryAction: hasPlannedToday ? 'complete' : hasNextPlanned ? 'show_next' : 'plan'
+  };
+}
+
 export function dailyCoachSupport(input = {}) {
   const decision = input.decision || {};
   const planned = input.planned || {};

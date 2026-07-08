@@ -46,24 +46,57 @@ Prioritert backlog for videre utvikling av Treningsapp.
    - Eksempel: "Fordi du er i basebygging mot Halv-Birken, er dagens beste valg rolig volum."
    - Utvidet v132: når dagens økt er logget, skifter rådet til etter-økt-vurdering av belastning og smerterespons.
 
-12. **Challenges som delmål**
-   - Koble challenges til hovedmål.
-   - Eksempel: "85 km i juni støtter Halv-Birken-basebygging" eller "for hardt nå ved skadesignal".
+12. **Heltekortets tilstander og v137b polish** - Bygget v138
+   - La heltekortet bytte tydelig tilstand etter kontekst:
+     fullført økt, konflikt dagsform/plan, hviledag, langt opphold og normal planlagt økt.
+   - Konflikt dagsform/plan er høyest verdi: hard planlagt økt + gul/rød dagsform, skadesignal eller for hard intensitetsbalanse bør gi tydelig bytteforslag.
+   - Ta samtidig v137b-polish: fjern dobbel `1/3`, krymp dagsstolpene og balanser desktop-rutenettet under heltekortet.
 
 13. **Coach-grunnlag v2** - Bygget v133
    - Utvid forklaringsgrunnlaget bak råd.
    - Inkluder mål-løp, fase, skadesignal, siste test, siste 7/28 dager og kommende økter.
    - Viser nå strukturert grunnlag under Dagens råd på Hjem.
 
-14. **Mobil polish og mikro-UX**
+14. **Mål-kort v2 på Hjem** - Planlagt v139
+    - Vis mini-delmål, mål-score-trend og fase som progresjon.
+    - Hold kortet kompakt og motiverende.
+
+15. **Kalender polish og handlingsflyt** - Planlagt v141
+    - Gjør ukeplan og planlagte økter mer skannbare.
+    - Behold nøytral planlagt-status.
+    - La kalenderen støtte forståelsen av bytteforslag fra heltekortet.
+
+16. **Logg og Mål polish** - Planlagt v142
+    - Bedre pace/fart i logg, mer ryddig ukesgruppering og tydeligere PB-/måloppfølging.
+
+17. **Fryskort for kontinuitet** - Planlagt v143
+    - Sykdom, reise eller legitime avbrudd bør kunne fryse streak slik at et fremhevet kontinuitetskort ikke blir demotiverende.
+    - Må dokumenteres før bygging fordi det sannsynligvis krever liten datamodell.
+
+18. **Ukesvolum-graf på Hjem desktop** - Planlagt v140, lavere prioritet
+    - Kompakt volumtrend for brede skjermer.
+    - Lavere prioritet fordi Innsikt allerede er ett trykk unna.
+
+19. **Ernæring, væske og restitusjonsnotater** - Planlagt v144
+    - Små støttepåminnelser i Dagens råd/heltekort.
+    - Ikke full ernæringsapp.
+
+20. **AI-chat design og sikkerhetsramme** - Planlagt v145
+    - Dokumenter rolle, dataflyt, API-sikkerhet og grenser før AI bygges.
+
+21. **AI-chat MVP** - Planlagt v146
+    - Enkel rådgivende chat basert på coach-context.
+    - Ingen automatisk planendring.
+
+22. **Mobil polish og mikro-UX**
     - Små forbedringer som gjør appen mer behagelig i daglig bruk.
     - Eksempler: kortere tekster, bedre prioritering på Hjem/Mål, sticky handlinger i modaler og bedre tomtilstander.
 
 ## Anbefalt neste steg
 
-Neste anbefalte backlogpunkt er **Ernæring, væske og restitusjonsnotater**.
+Neste anbefalte backlogpunkt er **Mål-kort v2 på Hjem**.
 
 Begrunnelse:
-- bygger direkte videre på Dagens råd og heltekortet
-- gir praktisk verdi rundt kvalitet, langtur og restitusjon
-- kan gjøres som regelstyrte støttepåminnelser uten ny stor datamodell
+- bygger videre på motivasjonen rundt Halv-Birken og mål-score
+- kan vise mini-delmål, mål-score-trend og fase uten ny stor datamodell
+- passer godt etter v138 fordi heltekortet nå håndterer dagens beslutning, mens mål-kortet kan handle mer om fremdrift

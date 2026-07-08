@@ -19,6 +19,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       formatKm,
       formatPace,
       goldenZonePercentages,
+      homeHeroState,
       normalizeTemplate,
       parseNonNegativeInteger,
       dailyCoachSupport,
@@ -56,7 +57,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       raceReadinessSummary
     } from './domain-goals.js';
 
-    const APP_VERSION = 'v137';
+    const APP_VERSION = 'v138';
     const APP_CACHE_NAME = `treningsapp-${APP_VERSION}`;
 
     const firebaseConfig = {
@@ -5065,6 +5066,127 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         </div>`;
     }
 
+    function heroHardShare14(ctx) {
+      const load = ctx.load14 || {};
+      const low = Number(load.low || 0);
+      const moderateHard = Number(load.moderate || 0) + Number(load.high || 0);
+      const total = low + moderateHard;
+      return total ? Math.round((moderateHard / total) * 100) : 0;
+    }
+
+    function heroStateForContext(ctx, primaryItems = [], todayItems = [], decision = {}) {
+      const completedToday = ctx.completedToday?.[ctx.completedToday.length - 1] || null;
+      const completedMeta = completedToday ? completedWorkoutAdviceMeta(completedToday) : null;
+      const firstPlanned = primaryItems[0] || null;
+      const template = firstPlanned ? getTemplate(firstPlanned.templateId) : null;
+      const nextDateLabel = firstPlanned?.date && firstPlanned.date !== ctx.today ? formatDate(firstPlanned.date).toLowerCase() : '';
+      return homeHeroState({
+        completedToday: completedMeta,
+        planned: template ? {
+          label: template.name,
+          type: template.type,
+          intensity: template.intensity,
+          role: template.role,
+          purpose: template.purpose,
+          load: template.load
+        } : {},
+        hasPlannedToday: todayItems.length > 0,
+        hasNextPlanned: Boolean(firstPlanned),
+        nextDateLabel,
+        decision,
+        dailyReadinessLevel: ctx.dailyReadiness?.level || '',
+        injuryActive: Boolean(ctx.injurySummary7?.hasSignal),
+        injuryStatus: ctx.injurySummary7?.status || '',
+        hardShare14: heroHardShare14(ctx),
+        daysSinceLast: ctx.daysSinceLast
+      });
+    }
+
+    function heroSwapSuggestion(heroState) {
+      if (!heroState || heroState.state !== 'conflict') return null;
+      return heroState.primaryAction === 'swap_recovery'
+        ? recoverySuggestion('Dagsform eller kroppssignal tilsier lav risiko i dag.')
+        : gentleBaseSuggestion('Intensitetsbalansen tilsier rolig støtte før mer kvalitet.');
+    }
+
+    function heroSwapOption(heroState, planned) {
+      const suggestion = heroSwapSuggestion(heroState);
+      if (!suggestion || !planned) return null;
+      const template = findSuggestedTemplate(suggestion, [planned.templateId]);
+      return template ? { suggestion, template } : { suggestion, template: null };
+    }
+
+    function heroActionsHtml(heroState, firstPlanned, completedToday) {
+      if (heroState.state === 'post_workout' && completedToday) {
+        return `<button class="btn-success" onclick="openWorkoutDetail('${completedToday.id}')">Se økten</button>`;
+      }
+      if (heroState.state === 'conflict' && firstPlanned) {
+        const option = heroSwapOption(heroState, firstPlanned);
+        return `
+          ${option?.template
+            ? `<button class="btn-primary" onclick="swapHeroPlannedWorkout('${firstPlanned.id}', '${heroState.primaryAction}')">Bytt til ${escapeHtml(option.template.name)}</button>`
+            : `<button class="btn-primary" onclick="openPlan('${firstPlanned.date}', true)">Velg rolig alternativ</button>`}
+          <button class="btn-soft" onclick="openRescheduleModal('${firstPlanned.id}')">Endre dato</button>`;
+      }
+      if (heroState.state === 'rest_day' && firstPlanned) {
+        return `
+          <button class="btn-soft" onclick="openCalendarDayModal('${firstPlanned.date}')">Se neste økt</button>
+          <button class="btn-primary" onclick="openPlan('${ctxSafeDate(firstPlanned.date)}', true)">Legg til rolig økt</button>`;
+      }
+      if (heroState.state === 'comeback') {
+        return firstPlanned
+          ? `<button class="btn-primary" onclick="openPlan('${ctxSafeDate(firstPlanned.date)}', true)">Velg lett start</button>
+             <button class="btn-soft" onclick="openRescheduleModal('${firstPlanned.id}')">Endre plan</button>`
+          : `<button class="btn-primary" onclick="openPlan('${todayISO()}')">Planlegg lett start</button>`;
+      }
+      if (firstPlanned) {
+        return `<button class="btn-success" onclick="openCompleteModal('${firstPlanned.id}')">Marker utført</button>
+          <button class="btn-soft" onclick="openRescheduleModal('${firstPlanned.id}')">Endre dato</button>`;
+      }
+      return `<button class="btn-primary" onclick="showTab('plan')">Planlegg økt</button>`;
+    }
+
+    function ctxSafeDate(dateIso) {
+      return dateIso || todayISO();
+    }
+
+    window.swapHeroPlannedWorkout = async function(plannedId, action = 'swap_easy') {
+      const planned = state.planned.find(item => item.id === plannedId);
+      if (!planned) return alert('Fant ikke den planlagte økten.');
+      const currentTemplate = getTemplate(planned.templateId);
+      const suggestion = action === 'swap_recovery'
+        ? recoverySuggestion('Byttet fra hard økt fordi dagsform eller kroppssignal tilsier lav risiko.')
+        : gentleBaseSuggestion('Byttet fra hard økt fordi intensitetsbalansen tilsier mer rolig støtte.');
+      const alternative = findSuggestedTemplate(suggestion, [planned.templateId]);
+      if (!alternative) {
+        openPlan(planned.date, true);
+        showToast('Fant ingen tydelig rolig mal. Velg alternativ selv.', 'info');
+        return;
+      }
+      if (!confirm(`Bytte ${currentTemplate.name || 'planlagt økt'} til ${alternative.name}?`)) return;
+      await safeStateWrite({
+        apply: () => {
+          const item = state.planned.find(entry => entry.id === plannedId);
+          if (!item) return;
+          item.templateId = alternative.id;
+          item.notes = [item.notes, 'Byttet fra heltekortet fordi dagsform/belastning tilsa lettere økt.']
+            .filter(Boolean).join('\n');
+          item.updatedAt = new Date().toISOString();
+        },
+        write: () => {
+          const updated = state.planned.find(entry => entry.id === plannedId);
+          return fsSet('planned', plannedId, updated);
+        },
+        afterApply: () => {
+          if (document.getElementById('calendarDayModal')?.classList.contains('active') && selectedCalendarDate) {
+            openCalendarDayModal(selectedCalendarDate);
+          }
+        },
+        successMessage: `Byttet til ${alternative.name}`,
+        errorMessage: 'Kunne ikke bytte økten'
+      });
+    };
+
     function renderHomeHero(ctx, primaryItems, todayItems, decision) {
       const readinessChip = document.getElementById('homeReadinessChip');
       const heroDate = document.getElementById('homeHeroDate');
@@ -5080,33 +5202,33 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       const template = firstPlanned ? getTemplate(firstPlanned.templateId) : null;
       const isPostWorkout = Boolean(completedToday && decision?.mode === 'post_workout');
       const completedMeta = completedToday ? completedWorkoutAdviceMeta(completedToday) : null;
-      const title = isPostWorkout
-        ? completedMeta.label
-        : template?.name || 'Planlegg én realistisk økt';
-      const eyebrow = isPostWorkout
-        ? `Fullført i dag · ${completedMeta.type || 'Økt'}`
-        : firstPlanned
-          ? `${todayItems.length ? 'Dagens økt' : 'Neste økt'} · ${formatDate(firstPlanned.date)}${template?.type ? ` · ${template.type}` : ''}`
-          : 'Ingen økt planlagt';
-      const reason = decision?.action || decision?.reason || 'Velg neste steg ut fra dagsform og plan.';
+      const heroState = heroStateForContext(ctx, primaryItems, todayItems, decision);
+      const heroCard = heroMain.closest('.dashboard-hero-card');
+      const title = heroState.state === 'planned' && template?.name ? template.name : heroState.title;
+      const eyebrow = heroState.state === 'planned' && firstPlanned
+        ? `${todayItems.length ? 'Dagens økt' : 'Neste økt'} · ${formatDate(firstPlanned.date)}${template?.type ? ` · ${template.type}` : ''}`
+        : heroState.kicker;
+      const reason = heroState.body || decision?.action || decision?.reason || 'Velg neste steg ut fra dagsform og plan.';
+      const heroLevel = ['green', 'yellow', 'red', 'neutral'].includes(heroState.level) ? heroState.level : 'neutral';
 
       if (readinessChip) {
-        const level = ctx.dailyReadiness?.level && TRAFFIC_LIGHT_CONFIG[ctx.dailyReadiness.level] ? ctx.dailyReadiness.level : 'neutral';
+        const level = heroState.state === 'conflict'
+          ? heroLevel
+          : ctx.dailyReadiness?.level && TRAFFIC_LIGHT_CONFIG[ctx.dailyReadiness.level] ? ctx.dailyReadiness.level : heroLevel;
         readinessChip.className = `readiness-chip ${level}`;
-        readinessChip.innerHTML = readinessChipHtml(ctx.dailyReadiness);
+        readinessChip.innerHTML = heroState.state === 'conflict'
+          ? `<span class="readiness-dot ${level}"></span>${level === 'red' ? 'Rødt lys' : 'Gult lys'}`
+          : readinessChipHtml(ctx.dailyReadiness);
       }
       if (heroDate) heroDate.textContent = formatDate(ctx.today);
+      if (heroCard) heroCard.className = `card dashboard-hero-card hero-state-${heroState.state} hero-level-${heroLevel}`;
       heroMain.innerHTML = `
         <span>${escapeHtml(eyebrow)}</span>
         <h2>${escapeHtml(title)}</h2>
-        <p>${escapeHtml(reason)}</p>`;
+        <p>${escapeHtml(reason)}</p>
+        ${heroState.reason ? `<small class="home-hero-state-reason">${escapeHtml(heroState.reason)}</small>` : ''}`;
 
-      heroActions.innerHTML = isPostWorkout
-        ? `<button class="btn-success" onclick="openWorkoutDetail('${completedToday.id}')">Se økten</button>`
-        : firstPlanned
-          ? `<button class="btn-success" onclick="openCompleteModal('${firstPlanned.id}')">Marker utført</button>
-             <button class="btn-soft" onclick="openRescheduleModal('${firstPlanned.id}')">Endre dato</button>`
-          : `<button class="btn-primary" onclick="showTab('plan')">Planlegg økt</button>`;
+      heroActions.innerHTML = heroActionsHtml(heroState, firstPlanned, completedToday);
 
       heroIntensity.innerHTML = heroIntensityHtml(ctx);
       heroPreparation.innerHTML = `
@@ -5245,7 +5367,6 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     function renderHomeWeekStatus(today, weekStart, weekSummary, weekItems, goals, profile) {
       const ring = document.getElementById('homeWeekRing');
       const days = document.getElementById('homeWeekDays');
-      const sessionsEl = document.getElementById('homeWeekSessions');
       const timeEl = document.getElementById('homeWeekTime');
       const kmEl = document.getElementById('homeWeekKm');
       const loadEl = document.getElementById('homeWeekLoad');
@@ -5260,7 +5381,6 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         ring.style.setProperty('--week-ring-percent', `${sessionPercent * 3.6}deg`);
         ring.innerHTML = `<strong>${weekSummary.sessions}/${target}</strong><span>økter</span>`;
       }
-      if (sessionsEl) sessionsEl.textContent = `${weekSummary.sessions}/${target}`;
       if (timeEl) timeEl.textContent = formatClockDuration(weekSummary.seconds);
       if (kmEl) kmEl.textContent = formatKm(weekSummary.km);
       if (loadEl) loadEl.textContent = homeLoadLabel(weekItems, profile);

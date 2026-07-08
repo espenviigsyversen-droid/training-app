@@ -346,6 +346,21 @@
       box-shadow: 0 12px 34px rgba(17,17,17,0.055);
     }
 
+    .dashboard-hero-card.hero-state-conflict {
+      border-color: rgba(245,158,11,0.28);
+      background: linear-gradient(180deg, #fff 0%, rgba(255,248,235,0.72) 100%);
+    }
+
+    .dashboard-hero-card.hero-level-red {
+      border-color: rgba(225,29,72,0.24);
+      background: linear-gradient(180deg, #fff 0%, rgba(255,241,242,0.72) 100%);
+    }
+
+    .dashboard-hero-card.hero-state-post_workout {
+      border-color: rgba(31,157,85,0.22);
+      background: linear-gradient(180deg, #fff 0%, rgba(236,253,245,0.62) 100%);
+    }
+
     .dashboard-wide-card {
       overflow: hidden;
       box-shadow: 0 12px 34px rgba(17,17,17,0.055);
@@ -498,8 +513,8 @@
 
     .home-week-layout {
       display: grid;
-      grid-template-columns: 104px minmax(0, 1fr);
-      gap: 14px;
+      grid-template-columns: 92px minmax(0, 1fr);
+      gap: 12px;
       align-items: center;
     }
 
@@ -550,7 +565,7 @@
 
     .home-week-stats {
       display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
+      grid-template-columns: repeat(3, minmax(0, 1fr));
       gap: 8px;
       min-width: 0;
     }
@@ -568,10 +583,10 @@
     .home-week-days {
       display: grid;
       grid-template-columns: repeat(7, minmax(0, 1fr));
-      gap: 8px;
+      gap: 5px;
       align-items: end;
-      margin-top: 12px;
-      padding: 12px 0 2px;
+      margin-top: 10px;
+      padding: 8px 0 0;
       border-top: 1px solid rgba(17,17,17,0.06);
     }
 
@@ -584,12 +599,12 @@
       color: var(--warm-gray-3);
       font-size: 0.68rem;
       font-weight: 900;
-      min-height: 86px;
+      min-height: 42px;
     }
 
     .home-week-day-bar {
       display: block;
-      width: min(22px, 48%);
+      width: min(18px, 42%);
       min-height: 8px;
       border-radius: 999px 999px 7px 7px;
       background: rgba(238,233,227,0.72);
@@ -694,6 +709,18 @@
       font-size: 0.98rem;
       line-height: 1.45;
       font-weight: 650;
+    }
+
+    .home-hero-state-reason {
+      display: inline-flex;
+      width: fit-content;
+      margin-top: 2px;
+      padding: 5px 9px;
+      border-radius: 999px;
+      background: rgba(245,158,11,0.13);
+      color: #8a5200;
+      font-size: 0.72rem;
+      font-weight: 900;
     }
 
     .home-hero-actions {
@@ -4513,11 +4540,11 @@
       }
 
       #dashboard > .dashboard-wide-card {
-        grid-column: 1 / -1;
+        grid-column: 1 / 2;
       }
 
       #dashboard .home-week-layout {
-        grid-template-columns: 118px minmax(0, 1fr);
+        grid-template-columns: 104px minmax(0, 1fr);
       }
 
       #dashboard .home-week-ring {
@@ -4525,18 +4552,18 @@
       }
 
       #dashboard .home-week-stats {
-        grid-template-columns: repeat(4, minmax(0, 1fr));
+        grid-template-columns: repeat(3, minmax(0, 1fr));
       }
 
       #dashboard .home-week-days {
-        gap: 10px;
+        gap: 7px;
       }
 
       #dashboard .home-week-day {
-        min-height: 80px;
-        border-radius: 14px;
-        background: rgba(238,233,227,0.34);
-        padding: 10px 4px 8px;
+        min-height: 48px;
+        border-radius: 10px;
+        background: rgba(238,233,227,0.24);
+        padding: 7px 4px 6px;
       }
 
       #dashboard .home-week-day.active {
