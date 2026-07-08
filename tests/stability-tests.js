@@ -28,6 +28,7 @@ function test(name, fn) {
     assessTrafficLight,
     buildStructuredWorkout,
     calculatePaceMetrics,
+    classifyWorkoutIntensityContext,
     completedDurationSeconds,
     challengeProgress,
     challengeRemainingLabel,
@@ -253,8 +254,8 @@ function test(name, fn) {
     assert.ok(app.includes("race: 'Konkurranse / race'"), 'race role label is missing');
     assert.ok(app.includes("race: 'Konkurranse / testløp'"), 'race purpose label is missing');
     assert.ok(app.includes("name: '2 km race / testløp'"), '2 km race standard template is missing');
-    assert.ok(app.includes("template.role === 'race'"), 'race role should count as hard workout');
-    assert.ok(app.includes("template.purpose === 'race'"), 'race purpose should count as hard workout');
+    const raceContext = classifyWorkoutIntensityContext({ template: { role: 'race', purpose: 'race' } });
+    assert.strictEqual(raceContext.countsAsHardQuality, true, 'race role/purpose should count as hard workout');
     assert.ok(app.includes("role === 'race' || purpose === 'race'"), 'race should not be treated as restorative');
   });
 
@@ -845,6 +846,78 @@ function test(name, fn) {
     assert.strictEqual(context.latest.date, '2026-05-24');
     assert.strictEqual(context.latest.name, 'Siste');
     assert.strictEqual(context.closeQualityDays, true);
+  });
+
+  test('workout intensity context separates high-pulse base from hard quality', () => {
+    const context = classifyWorkoutIntensityContext({
+      template: {
+        name: 'Rolig Langtur Base',
+        type: 'Løping',
+        intensity: 'Rolig',
+        role: 'long_easy',
+        purpose: 'base'
+      },
+      completed: {
+        trainingEffectCategory: 'high_aerobic',
+        avgHeartRate: 166,
+        rpe: 5,
+        distanceKm: 12.15,
+        elevationGainM: 120,
+        bodyStatus: { painBefore: 0, painAfter: 1 }
+      },
+      profile: { maxHeartRate: 192, thresholdHeartRate: 169 }
+    });
+
+    assert.strictEqual(context.category, 'high_pulse_base');
+    assert.strictEqual(context.highPulseBase, true);
+    assert.strictEqual(context.countsAsEasySupport, true);
+    assert.strictEqual(context.countsAsHardQuality, false);
+    assert.strictEqual(context.countsAsHardLoad, false);
+  });
+
+  test('workout intensity context still treats structured intervals and races as quality', () => {
+    const structured = classifyWorkoutIntensityContext({
+      template: {
+        name: '45/15 terskel',
+        intensity: 'Terskel',
+        role: 'support_threshold',
+        structuredWorkout: buildStructuredWorkout({ repetitions: 20, workSeconds: 45, restSeconds: 15 })
+      },
+      completed: { trainingEffectCategory: 'high_aerobic', rpe: 6 }
+    });
+    const race = classifyWorkoutIntensityContext({
+      template: { name: '2 km race', role: 'race', purpose: 'race', intensity: 'Tempo' },
+      completed: { trainingEffectCategory: 'anaerobic', rpe: 9 }
+    });
+
+    assert.strictEqual(structured.category, 'quality');
+    assert.strictEqual(structured.countsAsHardQuality, true);
+    assert.strictEqual(race.category, 'quality');
+    assert.strictEqual(race.countsAsHardQuality, true);
+  });
+
+  test('workout intensity context flags high RPE or pain as hard risk on easy sessions', () => {
+    const context = classifyWorkoutIntensityContext({
+      template: { name: 'Rolig tur', intensity: 'Rolig', role: 'long_easy', purpose: 'base' },
+      completed: {
+        trainingEffectCategory: 'low_aerobic',
+        rpe: 8,
+        bodyStatus: { painBefore: 1, painAfter: 5 }
+      }
+    });
+
+    assert.strictEqual(context.category, 'hard_risk');
+    assert.strictEqual(context.countsAsHardLoad, true);
+    assert.strictEqual(context.countsAsHardQuality, false);
+  });
+
+  test('coach context uses high-pulse base without counting it as hard quality', () => {
+    assert.ok(app.includes('classifyWorkoutIntensityContext({'), 'app should call workout intensity context helper');
+    assert.ok(app.includes('baseøkt med høy puls - ikke hard kvalitet'), 'load assessment should cap high-pulse base as non-quality');
+    assert.ok(app.includes('if (context.highPulseBase) acc.highPulseBase += 1;'), 'coach load breakdown should count high-pulse base separately');
+    assert.ok(app.includes('if (context.countsAsHardQuality || context.countsAsHardLoad) acc.hardQuality += 1;'), 'coach load breakdown should count real hard quality/risk separately');
+    assert.ok(app.includes('const highPulseBaseText = load14.highPulseBase'), 'coach basis should explain high-pulse base context');
+    assert.ok(app.includes('baseøkter siste 14 dager hadde høy puls'), 'coach note should explain repeated high-pulse base');
   });
 
   test('coach context uses structured intervals as quality signal', () => {
