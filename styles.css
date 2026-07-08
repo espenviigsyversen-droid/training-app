@@ -4611,8 +4611,14 @@
         align-items: start;
       }
 
+      #dashboard > .dashboard-hero-card {
+        grid-column: 1 / 2;
+        grid-row: 1;
+      }
+
       #dashboard > .dashboard-wide-card {
         grid-column: 1 / 2;
+        grid-row: 2;
       }
 
       #dashboard .home-week-layout {
@@ -4643,6 +4649,8 @@
       }
 
       #dashboard > .dashboard-motivation-grid {
+        grid-column: 2 / 3;
+        grid-row: 1 / span 2;
         grid-template-columns: minmax(0, 1fr);
         margin-bottom: 0;
       }

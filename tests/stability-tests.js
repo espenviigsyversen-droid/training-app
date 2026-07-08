@@ -220,7 +220,10 @@ function test(name, fn) {
     assert.ok(read('styles.css').includes('.hero-intensity-track'), 'hero intensity strip styling is missing');
     assert.ok(read('styles.css').includes('.dashboard-hero-card.hero-state-conflict'), 'conflict hero styling is missing');
     assert.ok(!index.includes('id="homeWeekSessions"'), 'week card should not duplicate the session count outside the ring');
-    assert.ok(read('styles.css').includes('grid-column: 1 / 2;'), 'desktop week card should no longer always span the full dashboard grid');
+    assert.ok(read('styles.css').includes('#dashboard > .dashboard-hero-card'), 'desktop dashboard should explicitly place hero card');
+    assert.ok(read('styles.css').includes('#dashboard > .dashboard-wide-card'), 'desktop dashboard should explicitly place week card');
+    assert.ok(read('styles.css').includes('grid-row: 2;'), 'desktop week card should start below hero card, not below right column');
+    assert.ok(read('styles.css').includes('grid-row: 1 / span 2;'), 'desktop motivation column should span alongside hero and week cards');
   });
 
   test('daily injury check-in is preserved and used by coach context', () => {
