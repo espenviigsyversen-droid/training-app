@@ -3980,8 +3980,8 @@
     }
 
     .week-role-chip.planned {
-      border-color: rgba(255,123,15,0.22);
-      background: rgba(255,123,15,0.08);
+      border-color: rgba(17,17,17,0.08);
+      background: var(--status-neutral-bg);
     }
 
     .week-role-chip.missing {
@@ -4074,6 +4074,7 @@
     }
 
     .week-plan-item.planned {
+      border-color: rgba(17,17,17,0.08);
       background: #fff;
     }
 
@@ -4082,8 +4083,35 @@
       background: rgba(255,255,255,0.86);
     }
 
+    .week-plan-kind-easy,
+    .week-plan-kind-recovery {
+      border-left: 4px solid rgba(31,157,85,0.72);
+    }
+
+    .week-plan-kind-quality {
+      border-left: 4px solid rgba(245,158,11,0.72);
+    }
+
+    .week-plan-kind-race {
+      border-left: 4px solid rgba(118,81,255,0.72);
+    }
+
+    .week-plan-kind-strength,
+    .week-plan-kind-alternative {
+      border-left: 4px solid rgba(128,118,111,0.55);
+    }
+
+    .week-plan-item-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 4px;
+    }
+
     .week-plan-item strong,
-    .week-plan-item span {
+    .week-plan-item span,
+    .week-plan-item small {
       display: block;
       min-width: 0;
     }
@@ -4091,15 +4119,85 @@
     .week-plan-item strong {
       font-size: 0.78rem;
       color: var(--burgundy);
-      margin-bottom: 3px;
     }
 
-    .week-plan-item span {
+    .week-plan-item-head small {
+      flex: 0 0 auto;
+      padding: 3px 7px;
+      border-radius: 999px;
+      background: var(--status-neutral-bg);
+      color: var(--dashboard-quality);
+      font-size: 0.64rem;
+      font-weight: 900;
+      line-height: 1;
+      text-transform: uppercase;
+    }
+
+    .week-plan-item.suggested .week-plan-item-head small {
+      background: rgba(255,79,46,0.08);
+      color: var(--burgundy);
+    }
+
+    .week-plan-title {
       font-size: 0.84rem;
       color: var(--black);
       font-weight: 750;
       line-height: 1.25;
       overflow-wrap: anywhere;
+    }
+
+    .week-plan-meta {
+      color: var(--warm-gray-3);
+      font-size: 0.72rem;
+      line-height: 1.25;
+      font-weight: 800;
+      margin-top: 2px;
+      overflow-wrap: anywhere;
+    }
+
+    .week-plan-chip-row,
+    .calendar-context-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      margin-top: 7px;
+    }
+
+    .calendar-context-chip {
+      display: inline-flex;
+      align-items: center;
+      max-width: 100%;
+      padding: 4px 7px;
+      border-radius: 999px;
+      background: var(--status-neutral-bg);
+      color: var(--dashboard-quality);
+      font-size: 0.66rem;
+      font-weight: 900;
+      line-height: 1.1;
+      overflow-wrap: anywhere;
+    }
+
+    .calendar-context-chip.kind-easy,
+    .calendar-context-chip.kind-recovery,
+    .calendar-context-chip.load-low {
+      background: rgba(31,157,85,0.12);
+      color: var(--success);
+    }
+
+    .calendar-context-chip.kind-quality,
+    .calendar-context-chip.load-moderate {
+      background: var(--status-yellow-bg);
+      color: #8a5400;
+    }
+
+    .calendar-context-chip.kind-race {
+      background: rgba(118,81,255,0.14);
+      color: var(--purple);
+    }
+
+    .calendar-context-chip.load-high {
+      background: var(--status-red-bg);
+      color: var(--red);
     }
 
     .week-plan-item .week-plan-reason {
@@ -4504,6 +4602,10 @@
     .calendar-entry {
       line-height: 1.16;
       margin-top: 4px;
+      padding: 3px 5px;
+      border-radius: 7px;
+      background: rgba(238,233,227,0.58);
+      border-left: 3px solid rgba(128,118,111,0.42);
       font-size: 0.62rem;
       font-weight: 800;
       white-space: normal;
@@ -4512,8 +4614,51 @@
     }
 
     .calendar-entry.planned { color: var(--dashboard-quality); }
-    .calendar-entry.done { color: var(--success); }
-    .calendar-entry.blocked { color: var(--warm-gray-3); }
+    .calendar-entry.done {
+      color: var(--success);
+      background: rgba(31,157,85,0.1);
+    }
+    .calendar-entry.blocked {
+      color: var(--warm-gray-3);
+      background: rgba(238,233,227,0.7);
+      border-left-color: rgba(128,118,111,0.35);
+    }
+    .calendar-entry.calendar-kind-easy,
+    .calendar-entry.calendar-kind-recovery {
+      border-left-color: rgba(31,157,85,0.72);
+    }
+    .calendar-entry.calendar-kind-quality {
+      border-left-color: rgba(245,158,11,0.8);
+    }
+    .calendar-entry.calendar-kind-race {
+      border-left-color: rgba(118,81,255,0.82);
+    }
+    .calendar-entry.calendar-kind-strength,
+    .calendar-entry.calendar-kind-alternative {
+      border-left-color: rgba(128,118,111,0.7);
+    }
+
+    .calendar-day-workouts {
+      display: grid;
+      gap: 10px;
+    }
+
+    .calendar-workout-card {
+      border-left: 4px solid rgba(128,118,111,0.42);
+    }
+
+    .calendar-workout-card.calendar-kind-easy,
+    .calendar-workout-card.calendar-kind-recovery {
+      border-left-color: rgba(31,157,85,0.72);
+    }
+
+    .calendar-workout-card.calendar-kind-quality {
+      border-left-color: rgba(245,158,11,0.8);
+    }
+
+    .calendar-workout-card.calendar-kind-race {
+      border-left-color: rgba(118,81,255,0.82);
+    }
 
     .calendar-block-controls {
       display: grid;
@@ -4840,7 +4985,7 @@
 
       #calendar.tab.active {
         display: grid;
-        grid-template-columns: minmax(0, 1.45fr) minmax(320px, 0.75fr);
+        grid-template-columns: minmax(0, 1.3fr) minmax(360px, 0.9fr);
         gap: 16px;
         align-items: start;
       }
@@ -4856,6 +5001,14 @@
       #calendar .calendar-entry {
         font-size: 0.7rem;
         line-height: 1.2;
+      }
+
+      #calendar .week-role-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      #calendar .week-plan-card {
+        padding: 16px;
       }
 
       #settings #setupOverview {

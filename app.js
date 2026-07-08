@@ -58,7 +58,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       raceReadinessSummary
     } from './domain-goals.js';
 
-    const APP_VERSION = 'v139c';
+    const APP_VERSION = 'v141';
     const APP_CACHE_NAME = `treningsapp-${APP_VERSION}`;
 
     const firebaseConfig = {
@@ -3059,8 +3059,10 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
 
     function workoutCard(planned, options = {}) {
       const t = getTemplate(planned.templateId);
+      const kind = templateCalendarKind(t);
+      const chips = templateCalendarChips(t);
       return `
-        <div class="workout-card">
+        <div class="workout-card calendar-workout-card calendar-kind-${escapeHtml(kind.key)}">
           <div class="workout-top">
             <div>
               <h3 class="workout-title">${escapeHtml(t.name)}</h3>
@@ -3068,6 +3070,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
             </div>
             <span class="tag ${planned.status === 'done' ? 'done' : 'planned'}">${planned.status === 'done' ? 'Utført' : 'Planlagt'}</span>
           </div>
+          ${chips ? `<div class="calendar-context-row">${chips}</div>` : ''}
           ${t.structure ? `<p class="meta" style="white-space:pre-line;">${escapeHtml(t.structure)}</p>` : ''}
           ${structuredWorkoutSummaryHtml(t.structuredWorkout)}
           ${planned.notes ? `<p class="meta"><strong>Notat:</strong> ${escapeHtml(planned.notes)}</p>` : ''}
@@ -3108,6 +3111,53 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         moderate: 'Moderat belastning',
         high: 'Høy belastning'
       });
+    }
+
+    function templateCalendarKind(template = {}, suggestion = {}) {
+      const role = template.role || asArray(suggestion.roles)[0] || '';
+      const purpose = template.purpose || asArray(suggestion.purposes)[0] || '';
+      const intensity = template.intensity || asArray(suggestion.intensities)[0] || '';
+      const type = template.type || asArray(suggestion.types)[0] || '';
+      const load = template.load || asArray(suggestion.loads)[0] || '';
+      const text = [role, purpose, intensity, type, template.name, suggestion.title, suggestion.detail].filter(Boolean).join(' ').toLowerCase();
+      if (role === 'race' || purpose === 'race' || /race|testløp|konkurranse/.test(text)) {
+        return { key: 'race', label: 'Race/test' };
+      }
+      if (role === 'recovery' || purpose === 'recovery' || intensity === 'Restitusjon') {
+        return { key: 'recovery', label: 'Recovery' };
+      }
+      if (role === 'main_threshold' || role === 'support_threshold' || purpose === 'threshold' || ['Terskel', 'Intervall', 'Tempo', 'Anaerob'].includes(intensity)) {
+        return { key: 'quality', label: 'Kvalitet' };
+      }
+      if (role === 'strength' || purpose === 'strength' || purpose === 'muscle_growth' || type === 'Styrke' || intensity === 'Styrke') {
+        return { key: 'strength', label: 'Styrke' };
+      }
+      if (role === 'mobility' || purpose === 'mobility' || ['Sykling', 'Ski', 'Gåtur', 'Mobilitet'].includes(type)) {
+        return { key: 'alternative', label: 'Alternativ' };
+      }
+      if (role === 'long_easy' || purpose === 'base' || intensity === 'Rolig' || load === 'low') {
+        return { key: 'easy', label: 'Rolig' };
+      }
+      return { key: 'neutral', label: 'Økt' };
+    }
+
+    function templateCalendarChips(template = {}, suggestion = {}) {
+      const kind = templateCalendarKind(template, suggestion);
+      const role = template.role || asArray(suggestion.roles)[0] || '';
+      const purpose = template.purpose || asArray(suggestion.purposes)[0] || '';
+      const load = template.load || asArray(suggestion.loads)[0] || '';
+      const chips = [
+        { label: kind.label, className: `kind-${kind.key}` },
+        role ? { label: templateRoleLabel(role), className: 'role' } : null,
+        purpose && purpose !== role ? { label: templatePurposeLabel(purpose), className: 'purpose' } : null,
+        load ? { label: templateLoadLabel(load), className: `load-${load}` } : null
+      ].filter(item => item && item.label);
+      return chips.slice(0, 4).map(chip => `<span class="calendar-context-chip ${escapeHtml(chip.className)}">${escapeHtml(chip.label)}</span>`).join('');
+    }
+
+    function calendarEntryClass(status, template = {}) {
+      const kind = templateCalendarKind(template);
+      return `${status} calendar-kind-${kind.key}`;
     }
 
     function templateRecommendedWhenLabel(value) {
@@ -3402,6 +3452,10 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     };
 
     function shortCalendarLabel(template) {
+      const kind = templateCalendarKind(template);
+      if (kind.key === 'race') return 'Race';
+      if (kind.key === 'recovery') return 'Rest';
+      if (kind.key === 'quality') return template.intensity === 'Intervall' ? 'Interv' : 'Kval';
       const typeMap = {
         'Løping': 'Løp',
         'Styrke': 'Styrke',
@@ -3459,11 +3513,11 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         const dateIso = `${prevYear}-${String(prevMonthNum).padStart(2,'0')}-${String(prevDay).padStart(2,'0')}`;
         const doneItems = state.completed.filter(c => c.date === dateIso).map(c => {
           const t = completedTemplate(c);
-          return { status: 'done', name: t.name, shortLabel: shortCalendarLabel(t) };
+          return { status: 'done', className: calendarEntryClass('done', t), name: t.name, shortLabel: shortCalendarLabel(t) };
         });
         const blockedDay = blockedDayForDate(dateIso);
         const dayItems = [
-          ...(blockedDay ? [{ status: 'blocked', name: `Ikke treningsdag: ${blockedDayLabel(blockedDay)}`, shortLabel: 'Fri' }] : []),
+          ...(blockedDay ? [{ status: 'blocked', className: 'blocked calendar-kind-blocked', name: `Ikke treningsdag: ${blockedDayLabel(blockedDay)}`, shortLabel: 'Fri' }] : []),
           ...doneItems
         ];
         const visibleItems = dayItems.slice(0, 2);
@@ -3472,7 +3526,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
           <div class="calendar-day calendar-day-overflow ${blockedDay ? 'no-training' : ''}" onclick="openCalendarDayModal('${dateIso}')">
             <div class="calendar-date">${prevDay}</div>
             ${visibleItems.map(item => `
-              <div class="calendar-entry ${item.status}" title="${escapeHtml(item.name)}">
+              <div class="calendar-entry ${escapeHtml(item.className || item.status)}" title="${escapeHtml(item.name)}">
                 <span class="calendar-entry-short">${escapeHtml(item.shortLabel)}</span>
                 <span class="calendar-entry-full">${escapeHtml(item.name)}</span>
               </div>`).join('')}
@@ -3487,14 +3541,14 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         const doneItems = state.completed.filter(c => c.date === dateIso);
         const blockedDay = blockedDayForDate(dateIso);
         const dayItems = [
-          ...(blockedDay ? [{ status: 'blocked', name: `Ikke treningsdag: ${blockedDayLabel(blockedDay)}`, shortLabel: 'Fri' }] : []),
+          ...(blockedDay ? [{ status: 'blocked', className: 'blocked calendar-kind-blocked', name: `Ikke treningsdag: ${blockedDayLabel(blockedDay)}`, shortLabel: 'Fri' }] : []),
           ...plannedItems.map(p => {
             const template = getTemplate(p.templateId);
-            return { status: 'planned', name: template.name, shortLabel: shortCalendarLabel(template) };
+            return { status: 'planned', className: calendarEntryClass('planned', template), name: template.name, shortLabel: shortCalendarLabel(template) };
           }),
           ...doneItems.map(c => {
             const template = completedTemplate(c);
-            return { status: 'done', name: template.name, shortLabel: shortCalendarLabel(template) };
+            return { status: 'done', className: calendarEntryClass('done', template), name: template.name, shortLabel: shortCalendarLabel(template) };
           })
         ];
         const visibleItems = dayItems.slice(0, 2);
@@ -3503,7 +3557,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
           <div class="calendar-day ${dateIso === todayISO() ? 'today' : ''} ${blockedDay ? 'no-training' : ''}" onclick="openCalendarDayModal('${dateIso}')">
             <div class="calendar-date">${day}</div>
             ${visibleItems.map(item => `
-              <div class="calendar-entry ${item.status}" title="${escapeHtml(item.name)}">
+              <div class="calendar-entry ${escapeHtml(item.className || item.status)}" title="${escapeHtml(item.name)}">
                 <span class="calendar-entry-short">${escapeHtml(item.shortLabel)}</span>
                 <span class="calendar-entry-full">${escapeHtml(item.name)}</span>
               </div>`).join('')}
@@ -3519,11 +3573,11 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         const dateIso = `${nextYear}-${String(nextMonthNum).padStart(2,'0')}-${String(i).padStart(2,'0')}`;
         const plannedItems = state.planned.filter(p => p.date === dateIso && p.status !== 'done').map(p => {
           const t = getTemplate(p.templateId);
-          return { status: 'planned', name: t.name, shortLabel: shortCalendarLabel(t) };
+          return { status: 'planned', className: calendarEntryClass('planned', t), name: t.name, shortLabel: shortCalendarLabel(t) };
         });
         const blockedDay = blockedDayForDate(dateIso);
         const dayItems = [
-          ...(blockedDay ? [{ status: 'blocked', name: `Ikke treningsdag: ${blockedDayLabel(blockedDay)}`, shortLabel: 'Fri' }] : []),
+          ...(blockedDay ? [{ status: 'blocked', className: 'blocked calendar-kind-blocked', name: `Ikke treningsdag: ${blockedDayLabel(blockedDay)}`, shortLabel: 'Fri' }] : []),
           ...plannedItems
         ];
         const visibleItems = dayItems.slice(0, 2);
@@ -3532,7 +3586,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
           <div class="calendar-day calendar-day-overflow ${blockedDay ? 'no-training' : ''}" onclick="openCalendarDayModal('${dateIso}')">
             <div class="calendar-date">${i}</div>
             ${visibleItems.map(item => `
-              <div class="calendar-entry ${item.status}" title="${escapeHtml(item.name)}">
+              <div class="calendar-entry ${escapeHtml(item.className || item.status)}" title="${escapeHtml(item.name)}">
                 <span class="calendar-entry-short">${escapeHtml(item.shortLabel)}</span>
                 <span class="calendar-entry-full">${escapeHtml(item.name)}</span>
               </div>`).join('')}
@@ -3637,11 +3691,13 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         .sort((a,b) => String(a.completedAt || '').localeCompare(String(b.completedAt || '')));
       document.getElementById('calendarDayTitle').textContent = formatDate(dateIso);
       document.getElementById('calendarDayBlockControls').innerHTML = calendarBlockControlsHtml(dateIso);
-      document.getElementById('calendarDayList').innerHTML =
-        [
+      const dayHtml = [
           ...plannedItems.map(p => workoutCard(p, { canDelete: true })),
           ...doneItems.map(completedCard)
-        ].join('') || `<div class="empty">Ingen økter denne dagen.</div>`;
+        ].join('');
+      document.getElementById('calendarDayList').innerHTML = dayHtml
+        ? `<div class="calendar-day-workouts">${dayHtml}</div>`
+        : `<div class="empty">Ingen økter denne dagen.</div>`;
       document.getElementById('calendarDayModal').classList.add('active');
     };
 
@@ -4751,33 +4807,49 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       return `${roleLabel}: dekker en rolle i normaluka.`;
     }
 
-    function plannedWeekItem(item) {
-      const template = getTemplate(item.templateId);
-      return `
-        <div class="week-plan-item planned">
-          <div>
-            <strong>${escapeHtml(formatDate(item.date))}</strong>
-            <span>${escapeHtml(template.name)} · ${escapeHtml(template.intensity || template.type || '')}</span>
-          </div>
-          <button class="btn-soft" onclick="openPlan('${item.date}')">Endre</button>
-        </div>`;
-    }
-
     function suggestedWeekPlanItem(suggestion, template, dateIso, index) {
       const meta = template
         ? [template.type, template.intensity, templateLoadLabel(template.load)].filter(Boolean).join(' · ')
         : suggestion.detail;
       const reason = suggestionRoleReason(suggestion, template);
+      const kind = templateCalendarKind(template || {}, suggestion);
+      const title = template ? template.name : suggestion.title;
+      const chips = templateCalendarChips(template || {}, suggestion);
       return `
-        <div class="week-plan-item suggested">
+        <div class="week-plan-item suggested week-plan-kind-${escapeHtml(kind.key)}">
           <div>
-            <strong>${escapeHtml(formatDate(dateIso))}</strong>
-            <span>${escapeHtml(template ? template.name : suggestion.title)} · ${escapeHtml(meta)}</span>
+            <div class="week-plan-item-head">
+              <strong>${escapeHtml(formatDate(dateIso))}</strong>
+              <small>Forslag</small>
+            </div>
+            <span class="week-plan-title">${escapeHtml(title)}</span>
+            ${meta ? `<small class="week-plan-meta">${escapeHtml(meta)}</small>` : ''}
+            ${chips ? `<div class="week-plan-chip-row">${chips}</div>` : ''}
             ${reason ? `<small class="week-plan-reason">${escapeHtml(reason)}</small>` : ''}
           </div>
           ${template
             ? `<button class="btn-primary" onclick="planSuggestedWorkout('${template.id}', '${dateIso}', 'Ukeplan forslag ${index + 1}. Juster etter dagsform.')">Planlegg</button>`
             : `<button class="btn-soft" onclick="openPlan('${dateIso}')">Velg</button>`}
+        </div>`;
+    }
+
+    function plannedWeekItem(item) {
+      const template = getTemplate(item.templateId);
+      const kind = templateCalendarKind(template);
+      const chips = templateCalendarChips(template);
+      return `
+        <div class="week-plan-item planned week-plan-kind-${escapeHtml(kind.key)}">
+          <div>
+            <div class="week-plan-item-head">
+              <strong>${escapeHtml(formatDate(item.date))}</strong>
+              <small>Planlagt</small>
+            </div>
+            <span class="week-plan-title">${escapeHtml(template.name)}</span>
+            <small class="week-plan-meta">${escapeHtml([template.type, template.intensity].filter(Boolean).join(' · '))}</small>
+            ${chips ? `<div class="week-plan-chip-row">${chips}</div>` : ''}
+            ${item.notes ? `<small class="week-plan-reason">${escapeHtml(item.notes)}</small>` : ''}
+          </div>
+          <button class="btn-soft" onclick="openPlan('${item.date}')">Endre</button>
         </div>`;
     }
 
