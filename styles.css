@@ -4697,6 +4697,46 @@
     .calendar-entry-short { display: none; }
     .calendar-entry-full { display: inline; }
 
+    @media (max-width: 899px) {
+      .calendar-grid {
+        gap: 3px;
+      }
+
+      .calendar-day {
+        padding: 5px 3px;
+      }
+
+      .calendar-entry {
+        margin-top: 3px;
+        padding: 2px 2px;
+        border-left: 0;
+        border-radius: 6px;
+        font-size: 0.58rem;
+        line-height: 1.15;
+        overflow-wrap: normal;
+        word-break: normal;
+        hyphens: auto;
+      }
+
+      .calendar-entry.calendar-kind-easy,
+      .calendar-entry.calendar-kind-recovery {
+        background: rgba(31,157,85,0.12);
+      }
+
+      .calendar-entry.calendar-kind-quality {
+        background: rgba(245,158,11,0.13);
+      }
+
+      .calendar-entry.calendar-kind-race {
+        background: rgba(118,81,255,0.12);
+      }
+
+      .calendar-entry.calendar-kind-strength,
+      .calendar-entry.calendar-kind-alternative {
+        background: rgba(238,233,227,0.78);
+      }
+    }
+
     @media (orientation: landscape) {
       .calendar-day { min-height: 128px; }
       .calendar-entry { font-size: 0.7rem; line-height: 1.18; }

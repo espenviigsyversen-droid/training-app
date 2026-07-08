@@ -731,6 +731,9 @@ function test(name, fn) {
     assert.ok(styles.includes('.week-plan-kind-race'), 'race/test week plan styling is missing');
     assert.ok(styles.includes('.calendar-day-workouts'), 'calendar day modal list styling is missing');
     assert.ok(styles.includes('grid-template-columns: minmax(0, 1.3fr) minmax(360px, 0.9fr);'), 'desktop calendar layout should give week plan more usable width');
+    assert.ok(styles.includes('@media (max-width: 899px)'), 'mobile calendar readability media query is missing');
+    assert.ok(styles.includes('border-left: 0;'), 'mobile calendar events should remove the thick left rail');
+    assert.ok(styles.includes('overflow-wrap: normal;'), 'mobile calendar events should avoid unnecessary letter-by-letter wrapping');
   });
 
   test('completed workout detail has discreet confirmed delete action', () => {

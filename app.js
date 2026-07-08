@@ -58,7 +58,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       raceReadinessSummary
     } from './domain-goals.js';
 
-    const APP_VERSION = 'v141';
+    const APP_VERSION = 'v141b';
     const APP_CACHE_NAME = `treningsapp-${APP_VERSION}`;
 
     const firebaseConfig = {
