@@ -57,7 +57,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       raceReadinessSummary
     } from './domain-goals.js';
 
-    const APP_VERSION = 'v138';
+    const APP_VERSION = 'v138b';
     const APP_CACHE_NAME = `treningsapp-${APP_VERSION}`;
 
     const firebaseConfig = {
@@ -5212,13 +5212,9 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       const heroLevel = ['green', 'yellow', 'red', 'neutral'].includes(heroState.level) ? heroState.level : 'neutral';
 
       if (readinessChip) {
-        const level = heroState.state === 'conflict'
-          ? heroLevel
-          : ctx.dailyReadiness?.level && TRAFFIC_LIGHT_CONFIG[ctx.dailyReadiness.level] ? ctx.dailyReadiness.level : heroLevel;
+        const level = ctx.dailyReadiness?.level && TRAFFIC_LIGHT_CONFIG[ctx.dailyReadiness.level] ? ctx.dailyReadiness.level : 'neutral';
         readinessChip.className = `readiness-chip ${level}`;
-        readinessChip.innerHTML = heroState.state === 'conflict'
-          ? `<span class="readiness-dot ${level}"></span>${level === 'red' ? 'Rødt lys' : 'Gult lys'}`
-          : readinessChipHtml(ctx.dailyReadiness);
+        readinessChip.innerHTML = readinessChipHtml(ctx.dailyReadiness);
       }
       if (heroDate) heroDate.textContent = formatDate(ctx.today);
       if (heroCard) heroCard.className = `card dashboard-hero-card hero-state-${heroState.state} hero-level-${heroLevel}`;

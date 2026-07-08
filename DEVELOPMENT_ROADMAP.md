@@ -566,6 +566,7 @@ Test minst scenarioene:
 - Heltekortet klassifiseres nå med ren `homeHeroState()` i `domain-core.js`.
 - Fullført økt gir post-workout-tilstand i heltekortet resten av dagen.
 - Hard planlagt/neste økt kan gi konflikt-tilstand når dagsform, kroppssignal eller 14-dagers intensitetsbalanse tilsier lettere valg.
+- v138b presiserer dette skillet: dagsform-chipen viser faktisk registrert dagsform, mens belastnings-/intensitetskonflikt vises som egen heltekort-tilstand.
 - Konflikt-tilstanden tilbyr konservativt bytte til en eksisterende rolig/restitusjonsmal, med bekreftelse før planlagt økt oppdateres.
 - Planlagt hviledag vises som positiv hviledagstilstand når det finnes en kommende plan, men ingen økt i dag.
 - Langt opphold gir velkommen-tilbake-/lett-start-tilstand.

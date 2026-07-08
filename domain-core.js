@@ -451,20 +451,24 @@ export function homeHeroState(input = {}) {
   }
 
   const conflictReasons = [];
-  if (quality && (readiness === 'red' || decision.level === 'red')) conflictReasons.push('dagsform rød');
-  else if (quality && (readiness === 'yellow' || decision.level === 'yellow')) conflictReasons.push('dagsform gul');
+  const hasReadinessConflict = quality && (readiness === 'red' || readiness === 'yellow');
+  const hasInjuryConflict = quality && injuryActive && ['worse', 'high', 'improving', 'caution', 'stable'].includes(injuryStatus);
+  const hasLoadConflict = quality && hardShare14 >= 65;
+  if (quality && readiness === 'red') conflictReasons.push('dagsform rød');
+  else if (quality && readiness === 'yellow') conflictReasons.push('dagsform gul');
   if (quality && injuryActive && ['worse', 'high', 'improving', 'caution', 'stable'].includes(injuryStatus)) {
     conflictReasons.push('kroppssignal');
   }
-  if (quality && hardShare14 >= 65) conflictReasons.push(`intensitetsbalanse ${Math.round(100 - hardShare14)}/${Math.round(hardShare14)}`);
+  if (hasLoadConflict) conflictReasons.push(`intensitetsbalanse ${Math.round(100 - hardShare14)}/${Math.round(hardShare14)}`);
 
   if (hasNextPlanned && quality && conflictReasons.length) {
     const redConflict = readiness === 'red' || decision.level === 'red' || injuryStatus === 'worse' || injuryStatus === 'high';
+    const loadOnlyConflict = hasLoadConflict && !hasReadinessConflict && !hasInjuryConflict;
     return {
       state: 'conflict',
       level: redConflict ? 'red' : 'yellow',
-      kicker: 'Dagsform og plan krasjer litt',
-      title: 'Dagsform tilsier lettere økt',
+      kicker: loadOnlyConflict ? 'Belastning og plan krasjer litt' : 'Dagsform og plan krasjer litt',
+      title: loadOnlyConflict ? 'Belastningen tilsier lettere økt' : 'Dagsform tilsier lettere økt',
       body: plannedLabel
         ? `${hasPlannedToday ? 'Planlagt' : 'Neste'} ${plannedLabel} ser hard ut. Bytt til rolig alternativ?`
         : 'Planen ser hard ut. Bytt til rolig alternativ?',
