@@ -58,7 +58,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       raceReadinessSummary
     } from './domain-goals.js';
 
-    const APP_VERSION = 'v138c';
+    const APP_VERSION = 'v139';
     const APP_CACHE_NAME = `treningsapp-${APP_VERSION}`;
 
     const firebaseConfig = {
@@ -5091,6 +5091,14 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         </div>`;
     }
 
+    function compactGoalCardText(value, maxLength = 132) {
+      const text = String(value || '').trim();
+      if (!text) return '';
+      const firstSentence = text.split('. ')[0] || text;
+      const compact = firstSentence.length >= 36 ? firstSentence : text;
+      return compact.length > maxLength ? `${compact.slice(0, maxLength - 3).trim()}...` : compact;
+    }
+
     function heroHardShare14(ctx) {
       const load = ctx.load14 || {};
       const highPulseBase = Number(load.highPulseBase || 0);
@@ -5266,7 +5274,23 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       if (!el) return;
       const last7 = summarizeCompleted(ctx.last7Days || []);
       const last28 = summarizeCompleted(ctx.last28Days || []);
+      const previous7Start = addDays(ctx.today, -13);
+      const previous7End = addDays(ctx.today, -7);
+      const previous28Start = addDays(ctx.today, -34);
+      const previous28End = addDays(ctx.today, -7);
+      const previous7 = summarizeCompleted((state.completed || []).filter(item => item.date >= previous7Start && item.date <= previous7End));
+      const previous28 = summarizeCompleted((state.completed || []).filter(item => item.date >= previous28Start && item.date <= previous28End));
       const summary = goalMotivationSummary({
+        goal: state.settings.raceGoal,
+        readiness: ctx.raceReadiness,
+        plan: ctx.racePlan,
+        injurySummary: ctx.injurySummary7,
+        last7,
+        last28,
+        previous7,
+        previous28
+      }, ctx.today);
+      const milestones = goalMilestones({
         goal: state.settings.raceGoal,
         readiness: ctx.raceReadiness,
         plan: ctx.racePlan,
@@ -5277,10 +5301,15 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       const score = summary.score || {};
       const countdown = ctx.raceReadiness?.countdown || raceGoalCountdown(state.settings.raceGoal, ctx.today);
       if (!summary.hasGoal || !countdown) {
+        const emptyStep = compactGoalCardText(summary.action || 'Legg inn mål-løp eller kortsiktig challenge.');
         el.innerHTML = `
           <div class="dashboard-mini-head"><span>Mål-løp</span></div>
-          <strong class="dashboard-mini-title">Sett et løpsmål</strong>
-          <p class="dashboard-mini-note">Et konkret mål gjør rådene og testløpene mer motiverende.</p>
+          <strong class="dashboard-mini-title">${escapeHtml(summary.title || 'Velg et mål å jobbe mot')}</strong>
+          <p class="dashboard-mini-note">${escapeHtml(summary.subtitle || 'Et konkret mål gjør rådene mer motiverende.')}</p>
+          <div class="home-goal-empty-step">
+            <span>Neste steg</span>
+            <strong>${escapeHtml(emptyStep)}</strong>
+          </div>
           <button class="btn-soft btn-full" onclick="showTab('goals')">Åpne mål</button>`;
         return;
       }
@@ -5293,6 +5322,19 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       const weeksLeft = ctx.racePlan?.weeksLeft !== null && ctx.racePlan?.weeksLeft !== undefined
         ? `${ctx.racePlan.weeksLeft} uke${ctx.racePlan.weeksLeft === 1 ? '' : 'r'} igjen`
         : countdown.label;
+      const trend = score.trend || null;
+      const trendHtml = trend
+        ? `<span class="home-goal-trend ${escapeHtml(trend.status || 'neutral')}">${escapeHtml(trend.label)}</span>`
+        : `<span class="home-goal-trend neutral">Trend kommer</span>`;
+      const nextMilestone = (milestones || []).find(item => ['current', 'blocked'].includes(item.status))
+        || (milestones || []).find(item => item.status !== 'done')
+        || (milestones || [])[0]
+        || null;
+      const phaseFocus = ctx.racePlan?.focus
+        ? ctx.racePlan.focus.split('.')[0]
+        : summary.motivation || '';
+      const phaseText = ctx.racePlan?.phaseLabel || score.label || 'Målperiode';
+      const nextStepText = compactGoalCardText(summary.action || score.nextImprovement || 'Bygg videre kontrollert.');
       el.innerHTML = `
         <div class="dashboard-mini-head">
           <span>Mål-løp</span>
@@ -5302,9 +5344,22 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         <p class="dashboard-mini-note">${escapeHtml([weeksLeft, meta].filter(Boolean).join(' · '))}</p>
         <div class="home-goal-score ${escapeHtml(score.status || 'neutral')}">
           <strong>${percent}</strong><span>/100 mål-score</span>
+          ${trendHtml}
         </div>
         <div class="home-goal-score-bar"><span style="width:${percent}%"></span></div>
-        <p class="dashboard-mini-note"><strong>${escapeHtml(ctx.racePlan?.phaseLabel || score.label || 'Målperiode')}</strong>${score.trend?.label ? ` · ${escapeHtml(score.trend.label)}` : ''}</p>`;
+        <div class="home-goal-phase ${escapeHtml(ctx.racePlan?.phase || 'neutral')}">
+          <span>${escapeHtml(phaseText)}</span>
+          ${phaseFocus ? `<p>${escapeHtml(phaseFocus)}.</p>` : ''}
+        </div>
+        ${nextMilestone ? `
+          <div class="home-goal-milestone ${escapeHtml(nextMilestone.status || 'upcoming')}">
+            <span>Neste milepæl${nextMilestone.tag ? ` · ${escapeHtml(nextMilestone.tag)}` : ''}</span>
+            <strong>${escapeHtml(nextMilestone.title)}</strong>
+          </div>` : ''}
+        <div class="home-goal-next-step">
+          <span>Neste steg</span>
+          <strong>${escapeHtml(nextStepText)}</strong>
+        </div>`;
     }
 
     function renderHomeContinuityCard(ctx, weekStart, weekSummary) {

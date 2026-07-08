@@ -173,6 +173,15 @@ function test(name, fn) {
     assert.ok(app.includes('challenge-expected-marker'), 'dashboard challenge mini should render expected pace marker');
     assert.ok(app.includes("const fillClass = p.done ? 'done' : p.current > 0 ? pace.status : 'empty'"), 'challenge mini fill should follow pace status');
     assert.ok(app.includes('goalMotivationSummary({'), 'home goal card should reuse domain goal motivation summary');
+    assert.ok(app.includes('previous7Start = addDays(ctx.today, -13)'), 'home goal card should calculate previous week for score trend');
+    assert.ok(app.includes('previous28Start = addDays(ctx.today, -34)'), 'home goal card should calculate shifted previous 28 days for score trend');
+    assert.ok(app.includes('goalMilestones({'), 'home goal card should reuse domain milestones');
+    assert.ok(app.includes("['current', 'blocked'].includes(item.status)"), 'home goal card should prefer current or blocked milestone');
+    assert.ok(app.includes('class="home-goal-trend'), 'home goal card should render score trend');
+    assert.ok(app.includes('Trend kommer'), 'home goal card should fall back when trend is missing');
+    assert.ok(app.includes('class="home-goal-milestone'), 'home goal card should render next milestone');
+    assert.ok(app.includes('class="home-goal-next-step'), 'home goal card should render a practical next step');
+    assert.ok(app.includes('home-goal-empty-step'), 'home goal card should have a safe empty state');
     assert.ok(app.includes('calculateWeeklyStreak(weekStart, target)'), 'home continuity card should reuse continuity streak logic');
     assert.ok(app.includes('personalBestSummary(completedRaceItems(), state.raceResults)'), 'home highlight card should reuse personal best summary');
     assert.ok(app.includes('renderTodayDecision(todayDecisionResult)'), 'dashboard should render today decision result');
@@ -196,6 +205,9 @@ function test(name, fn) {
     assert.ok(read('styles.css').includes('.dashboard-hero-card'), 'dashboard hero styling is missing');
     assert.ok(read('styles.css').includes('.dashboard-motivation-grid'), 'dashboard motivation grid styling is missing');
     assert.ok(read('styles.css').includes('.home-goal-score'), 'home goal score styling is missing');
+    assert.ok(read('styles.css').includes('.home-goal-trend'), 'home goal trend styling is missing');
+    assert.ok(read('styles.css').includes('.home-goal-milestone'), 'home goal milestone styling is missing');
+    assert.ok(read('styles.css').includes('.home-goal-next-step'), 'home goal next step styling is missing');
     assert.ok(read('styles.css').includes('.home-continuity-strip'), 'home continuity strip styling is missing');
     assert.ok(read('styles.css').includes('.home-week-ring'), 'home week ring styling is missing');
     assert.ok(read('styles.css').includes('.home-week-days'), 'home week day bar styling is missing');
@@ -496,6 +508,20 @@ function test(name, fn) {
     assert.match(summary.action, /Neste/);
   });
 
+  test('goal motivation summary has safe empty state without goal', () => {
+    const summary = goalMotivationSummary({
+      goal: {},
+      injurySummary: { hasSignal: false },
+      last7: { sessions: 0, km: 0, hard: 0 },
+      last28: { sessions: 0, km: 0, hard: 0 }
+    }, '2027-04-15');
+
+    assert.strictEqual(summary.hasGoal, false);
+    assert.match(summary.title, /Velg et mål/);
+    assert.match(summary.action, /mål-løp|challenges/);
+    assert.strictEqual(summary.score.percent, 0);
+  });
+
   test('goal motivation summary respects active injury signal', () => {
     const goal = { name: 'Halv-Birken', date: '2027-06-08', distanceKm: 12, targetTimeSeconds: 4800 };
     const readiness = raceReadinessSummary(goal, [], [], '2027-04-15');
@@ -510,6 +536,7 @@ function test(name, fn) {
     }, '2027-04-15');
     assert.match(summary.action, /Skadesignal/);
     assert.match(summary.motivation, /skadefritt/);
+    assert.match(summary.action, /Hold testløp og hard kvalitet igjen/);
     assert.ok(summary.score.items.some(item => item.label === 'Skadefrihet' && item.status === 'watch'));
   });
 

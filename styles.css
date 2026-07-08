@@ -426,6 +426,7 @@
     .home-goal-score {
       display: flex;
       align-items: baseline;
+      flex-wrap: wrap;
       gap: 4px;
       margin-top: 2px;
       color: var(--black);
@@ -462,6 +463,77 @@
       height: 100%;
       border-radius: inherit;
       background: linear-gradient(90deg, #28a980, var(--success));
+    }
+
+    .home-goal-trend {
+      margin-left: auto;
+      border-radius: 999px;
+      padding: 4px 8px;
+      background: var(--warm-gray-1);
+      color: var(--warm-gray-3);
+      font-size: 0.72rem;
+      font-weight: 900;
+      line-height: 1.15;
+      white-space: nowrap;
+    }
+
+    .home-goal-trend.good {
+      background: var(--status-green-bg);
+      color: var(--success);
+    }
+
+    .home-goal-trend.watch {
+      background: var(--status-yellow-bg);
+      color: #9a5b00;
+    }
+
+    .home-goal-phase,
+    .home-goal-milestone,
+    .home-goal-next-step,
+    .home-goal-empty-step {
+      display: grid;
+      gap: 3px;
+      border-radius: 12px;
+      border: 1px solid rgba(17,17,17,0.07);
+      background: rgba(238,233,227,0.24);
+      padding: 9px 10px;
+      min-width: 0;
+    }
+
+    .home-goal-phase span,
+    .home-goal-milestone span,
+    .home-goal-next-step span,
+    .home-goal-empty-step span {
+      color: var(--warm-gray-3);
+      font-size: 0.68rem;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      line-height: 1.15;
+    }
+
+    .home-goal-phase p,
+    .home-goal-milestone strong,
+    .home-goal-next-step strong,
+    .home-goal-empty-step strong {
+      margin: 0;
+      color: var(--black);
+      font-size: 0.84rem;
+      line-height: 1.25;
+      font-weight: 850;
+      overflow-wrap: anywhere;
+    }
+
+    .home-goal-phase.base,
+    .home-goal-milestone.current {
+      background: rgba(40,169,128,0.08);
+      border-color: rgba(40,169,128,0.16);
+    }
+
+    .home-goal-milestone.blocked,
+    .home-goal-next-step {
+      background: rgba(255,79,46,0.07);
+      border-color: rgba(255,79,46,0.15);
     }
 
     .home-continuity-main {
