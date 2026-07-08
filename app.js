@@ -58,7 +58,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       raceReadinessSummary
     } from './domain-goals.js';
 
-    const APP_VERSION = 'v142';
+    const APP_VERSION = 'v142b';
     const APP_CACHE_NAME = `treningsapp-${APP_VERSION}`;
 
     const firebaseConfig = {
@@ -3403,10 +3403,6 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       return 'neutral';
     }
 
-    function historyMetric(label, value) {
-      return value ? `<span><strong>${escapeHtml(value)}</strong><small>${escapeHtml(label)}</small></span>` : '';
-    }
-
     function historyPainText(bodyStatus = {}) {
       const before = Number(bodyStatus.painBefore || 0);
       const after = Number(bodyStatus.painAfter || 0);
@@ -3418,42 +3414,31 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       return `Smerte ${before || after}/10`;
     }
 
+    function historyPriorityChip(completed, template, kind, assessment, painText) {
+      const race = normalizeRaceResult(completed.raceResult);
+      if (race) return { className: 'race', label: race.resultSeconds ? `Race ${formatRaceTime(race.resultSeconds)}` : 'Race/test' };
+      if (painText || (completed.bodyStatus?.adaptation && completed.bodyStatus.adaptation !== 'none')) return { className: 'signal', label: painText || 'Kroppssignal' };
+      if (assessment.level === 'high') return { className: 'load-high', label: 'Høy belastning' };
+      if (template.structuredWorkout) return { className: 'neutral', label: 'Strukturert' };
+      if (kind.key === 'quality') return { className: 'kind-quality', label: 'Kvalitet' };
+      return null;
+    }
+
     function historyRow(c) {
       const t = completedTemplate(c);
       const durationLabel = completedDurationLabel(c);
       const pace = completedPaceMetrics(c);
       const kind = templateCalendarKind(t);
       const metrics = [
-        historyMetric('Varighet', durationLabel),
-        historyMetric('Distanse', c.distanceKm ? `${c.distanceKm} km` : ''),
-        historyMetric('Pace', pace.paceDisplay ? `${pace.paceDisplay} /km` : ''),
-        historyMetric('Puls', c.avgHeartRate ? `${c.avgHeartRate} bpm` : ''),
-        historyMetric('RPE', c.rpe ? `${c.rpe}/10` : '')
-      ].filter(Boolean).join('');
+        c.distanceKm ? `${c.distanceKm} km` : '',
+        durationLabel || '',
+        c.avgHeartRate ? `${c.avgHeartRate} bpm` : ''
+      ].filter(Boolean).join(' · ');
       const stripeClass = kind.key === 'race' ? 'race' : kind.key === 'quality' ? 'medium' : intensityStripeClass(t.intensity);
       const assessment = completedLoadAssessment(c);
       const painText = historyPainText(c.bodyStatus || {});
-      const bodySignal = painText || (c.bodyStatus?.adaptation && c.bodyStatus.adaptation !== 'none');
-      const race = normalizeRaceResult(c.raceResult);
-      const raceChip = race
-        ? `<span class="history-chip race">${escapeHtml(race.resultSeconds ? `Race ${formatRaceTime(race.resultSeconds)}` : 'Race/test')}</span>`
-        : '';
-      const pbChip = race?.countsAsPersonalBest !== false && race
-        ? '<span class="history-chip pb">PB-tellende</span>'
-        : '';
-      const structuredChip = t.structuredWorkout
-        ? '<span class="history-chip neutral">Strukturert</span>'
-        : '';
-      const chips = [
-        `<span class="history-chip kind-${escapeHtml(kind.key)}">${escapeHtml(kind.label)}</span>`,
-        t.role ? `<span class="history-chip neutral">${escapeHtml(templateRoleLabel(t.role))}</span>` : '',
-        raceChip,
-        pbChip,
-        `<span class="history-chip load-${escapeHtml(assessment.level)}">${escapeHtml(assessment.label)}</span>`,
-        bodySignal ? `<span class="history-chip signal">${escapeHtml(painText || 'Kroppssignal')}</span>` : '',
-        structuredChip
-      ].filter(Boolean).join('');
-      const meta = [t.type, t.intensity, templatePurposeLabel(t.purpose)].filter(Boolean).join(' · ');
+      const chip = historyPriorityChip(c, t, kind, assessment, painText);
+      const meta = [t.type, t.intensity].filter(Boolean).join(' · ');
       return `
         <div class="history-row history-kind-${escapeHtml(kind.key)}" onclick="openWorkoutDetail('${c.id}')">
           <div class="history-row-stripe stripe-${stripeClass}"></div>
@@ -3463,10 +3448,11 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
                 <div class="history-row-title">${escapeHtml(t.name)}</div>
                 <div class="history-row-date">${formatDate(c.date)}${meta ? ` · ${escapeHtml(meta)}` : ''}</div>
               </div>
-              <span class="tag done">Utført</span>
             </div>
-            ${chips ? `<div class="history-chip-row">${chips}</div>` : ''}
-            <div class="history-row-metrics">${metrics || '<span><strong>-</strong><small>Nøkkeltall</small></span>'}</div>
+            <div class="history-row-bottom">
+              <span class="history-row-metrics">${escapeHtml(metrics || 'Ingen nøkkeltall')}</span>
+              ${chip ? `<span class="history-chip ${escapeHtml(chip.className)}">${escapeHtml(chip.label)}</span>` : ''}
+            </div>
           </div>
           <div class="history-row-chevron">›</div>
         </div>`;

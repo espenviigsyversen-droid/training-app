@@ -746,18 +746,21 @@ function test(name, fn) {
 
   test('history log rows show scannable completed workout context', () => {
     const styles = read('styles.css');
-    assert.ok(app.includes('function historyMetric'), 'history rows should render labeled metric boxes');
-    assert.ok(app.includes('completedPaceMetrics(c)'), 'history rows should reuse production pace helper');
+    const historyRowBlock = app.match(/function historyRow\(c\) \{[\s\S]+?\n    \}/)?.[0] || '';
+    assert.ok(app.includes('function historyPriorityChip'), 'history rows should choose one prioritized context chip');
     assert.ok(app.includes('templateCalendarKind(t)'), 'history rows should reuse workout kind classification');
-    assert.ok(app.includes('history-chip kind-'), 'history rows should render workout kind chips');
-    assert.ok(app.includes('history-chip race'), 'history rows should render race/test context');
+    assert.ok(app.includes("c.distanceKm ? `${c.distanceKm} km` : ''"), 'history rows should show distance in the compact metric line');
+    assert.ok(app.includes("c.avgHeartRate ? `${c.avgHeartRate} bpm` : ''"), 'history rows should show pulse in the compact metric line');
+    assert.ok(app.includes("history-row-metrics\">${escapeHtml(metrics || 'Ingen nøkkeltall')}"), 'history rows should use one compact metric line');
     assert.ok(app.includes('historyPainText'), 'history rows should summarize pain response');
-    assert.ok(app.includes('structuredChip'), 'history rows should preserve structured interval context');
+    assert.ok(app.includes("return { className: 'neutral', label: 'Strukturert' };"), 'history rows should preserve structured interval context as a priority chip');
     assert.ok(app.includes('openWorkoutDetail'), 'history rows should still open the detail modal');
-    assert.ok(styles.includes('.history-row-metrics span'), 'history metric box styling is missing');
+    assert.ok(styles.includes('.history-row-bottom'), 'compact history row bottom styling is missing');
     assert.ok(styles.includes('.history-chip.kind-race'), 'history race chip styling is missing');
     assert.ok(styles.includes('.history-chip.signal'), 'history body signal chip styling is missing');
     assert.ok(styles.includes('.stripe-race'), 'history race stripe styling is missing');
+    assert.ok(!app.includes('historyMetric('), 'history overview should not render heavy metric boxes');
+    assert.ok(!historyRowBlock.includes('<span class="tag done">Utført</span>'), 'history overview should not show redundant done badge');
   });
 
   test('duration and pace helpers come from domain core', () => {

@@ -1275,9 +1275,9 @@
 
     .history-row {
       display: flex;
-      align-items: stretch;
-      gap: 12px;
-      padding: 12px 4px;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 4px;
       border-bottom: 1px solid rgba(17,17,17,0.07);
       cursor: pointer;
       transition: background 0.15s;
@@ -1310,7 +1310,7 @@
       flex: 1;
       min-width: 0;
       display: grid;
-      gap: 7px;
+      gap: 4px;
     }
 
     .history-row-head {
@@ -1321,19 +1321,27 @@
     }
 
     .history-row-title {
-      font-size: 0.94rem;
+      font-size: 0.92rem;
       font-weight: 800;
       color: var(--black);
-      line-height: 1.22;
+      line-height: 1.18;
       overflow-wrap: anywhere;
     }
 
     .history-row-date {
-      font-size: 0.78rem;
+      font-size: 0.76rem;
       color: var(--warm-gray-3);
       margin-top: 2px;
       font-weight: 750;
       line-height: 1.25;
+    }
+
+    .history-row-bottom {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      min-width: 0;
     }
 
     .history-chip-row {
@@ -1346,7 +1354,7 @@
       display: inline-flex;
       align-items: center;
       max-width: 100%;
-      padding: 4px 7px;
+      padding: 3px 7px;
       border-radius: 999px;
       background: var(--status-neutral-bg);
       color: var(--dashboard-quality);
@@ -1386,24 +1394,11 @@
     .history-load-dot.load-high     { background: var(--red); }
 
     .history-row-metrics {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 6px;
-    }
-
-    .history-row-metrics span {
-      display: grid;
-      gap: 1px;
       min-width: 0;
-      padding: 7px 8px;
-      border: 1px solid rgba(17,17,17,0.06);
-      border-radius: 10px;
-      background: rgba(255,255,255,0.72);
-    }
-
-    .history-row-metrics strong {
-      font-size: 0.86rem;
-      line-height: 1.12;
+      color: var(--warm-gray-3);
+      font-size: 0.78rem;
+      font-weight: 800;
+      line-height: 1.2;
       overflow-wrap: anywhere;
     }
 
@@ -1420,12 +1415,6 @@
       color: rgba(17,17,17,0.25);
       flex-shrink: 0;
       line-height: 1;
-    }
-
-    @media (min-width: 520px) {
-      .history-row-metrics {
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-      }
     }
 
     .load-assessment {
