@@ -911,6 +911,157 @@ export function hasStructuredIntervals(structuredWorkout) {
     .some(block => block.repetitions > 0 && block.workSeconds > 0);
 }
 
+function numberValue(value) {
+  const parsed = Number(String(value ?? '').replace(',', '.'));
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function lowerText(parts = []) {
+  return parts.filter(Boolean).join(' ').toLowerCase();
+}
+
+export function classifyWorkoutIntensityContext(input = {}) {
+  const completed = input.completed && typeof input.completed === 'object' ? input.completed : {};
+  const template = input.template && typeof input.template === 'object' ? input.template : {};
+  const profile = input.profile && typeof input.profile === 'object' ? input.profile : {};
+  const structuredWorkout = template.structuredWorkout || completed.structuredWorkout || completed.templateSnapshot?.structuredWorkout;
+  const text = lowerText([
+    template.name,
+    template.type,
+    template.intensity,
+    template.role,
+    template.purpose,
+    template.load,
+    template.structure,
+    completed.manualName,
+    completed.trainingEffectType
+  ]);
+  const effectCategory = String(input.effectCategory || completed.trainingEffectCategory || '').toLowerCase();
+  const rpe = numberValue(input.rpe ?? completed.rpe);
+  const avgHr = numberValue(input.avgHeartRate ?? completed.avgHeartRate);
+  const maxHr = numberValue(input.maxHeartRate ?? completed.maxHeartRate);
+  const profileMaxHr = numberValue(input.profileMaxHeartRate ?? profile.maxHeartRate);
+  const thresholdHr = numberValue(input.thresholdHeartRate ?? profile.thresholdHeartRate);
+  const painBefore = numberValue(input.painBefore ?? completed.bodyStatus?.painBefore);
+  const painAfter = numberValue(input.painAfter ?? completed.bodyStatus?.painAfter);
+  const elevationGain = numberValue(input.elevationGainM ?? completed.elevationGainM);
+  const distanceKm = numberValue(input.distanceKm ?? completed.distanceKm);
+  const incline = numberValue(input.treadmillInclinePercent ?? completed.treadmillInclinePercent);
+  const elevationPerKm = distanceKm ? elevationGain / distanceKm : 0;
+
+  const structured = hasStructuredIntervals(structuredWorkout);
+  const raceIntent = template.role === 'race' || template.purpose === 'race' || /race|konkurranse|testløp|testlop/.test(text);
+  const qualityIntent = structured
+    || raceIntent
+    || /terskel|intervall|tempo|anaerob|threshold|vo2|hard/.test(text)
+    || ['main_threshold', 'support_threshold'].includes(template.role)
+    || ['threshold', 'interval', 'race'].includes(template.purpose);
+  const recoveryIntent = /restitusjon|recovery|mobilitet|rolig test/.test(text)
+    || template.role === 'recovery'
+    || template.purpose === 'recovery';
+  const baseIntent = !raceIntent && !qualityIntent && (
+    recoveryIntent
+    || /rolig|base|langtur|easy|low aerobic|lav aerob/.test(text)
+    || ['long_easy', 'easy', 'base'].includes(template.role)
+    || ['base', 'easy', 'aerobic'].includes(template.purpose)
+    || ['Rolig', 'Restitusjon'].includes(template.intensity)
+  );
+  const highPulse = Boolean(input.highPulse)
+    || effectCategory === 'high_aerobic'
+    || effectCategory === 'anaerobic'
+    || (avgHr && thresholdHr && avgHr / thresholdHr >= 0.92)
+    || (avgHr && profileMaxHr && avgHr / profileMaxHr >= 0.82)
+    || (maxHr && profileMaxHr && maxHr / profileMaxHr >= 0.90);
+  const hillContext = incline >= 4 || elevationPerKm >= 20 || elevationGain >= 150;
+  const painRisk = painAfter >= 4 || painAfter > painBefore + 1;
+  const rpeHigh = rpe >= 7;
+  const rpeModerate = rpe >= 6;
+
+  if (painRisk || (rpeHigh && !qualityIntent)) {
+    return {
+      category: 'hard_risk',
+      label: 'Hard/risko-belastning',
+      loadLevel: 'high',
+      baseIntent,
+      highPulseBase: false,
+      countsAsEasySupport: false,
+      countsAsHardQuality: false,
+      countsAsHardLoad: true,
+      reason: painRisk ? 'Smerte eller tydelig økning etter økten.' : 'Høy RPE uten tydelig rolig respons.'
+    };
+  }
+
+  if (qualityIntent) {
+    return {
+      category: 'quality',
+      label: raceIntent ? 'Konkurranse/testløp' : 'Kvalitetsøkt',
+      loadLevel: rpeModerate || highPulse || effectCategory === 'anaerobic' ? 'high' : 'moderate',
+      baseIntent: false,
+      highPulseBase: false,
+      countsAsEasySupport: false,
+      countsAsHardQuality: true,
+      countsAsHardLoad: true,
+      reason: structured ? 'Strukturert intervall/terskel teller som kvalitet.' : 'Mal eller intensitet tilsier kvalitet.'
+    };
+  }
+
+  if (baseIntent && highPulse) {
+    return {
+      category: 'high_pulse_base',
+      label: 'Baseøkt med høy puls',
+      loadLevel: rpeModerate || hillContext || effectCategory === 'high_aerobic' ? 'moderate' : 'low',
+      baseIntent: true,
+      highPulseBase: true,
+      countsAsEasySupport: true,
+      countsAsHardQuality: false,
+      countsAsHardLoad: false,
+      reason: hillContext
+        ? 'Rolig/base-intensjon, men puls/bakke gjorde belastningen høyere.'
+        : 'Rolig/base-intensjon, men pulsen var høyere enn helt rolig.'
+    };
+  }
+
+  if (baseIntent) {
+    return {
+      category: recoveryIntent || rpe <= 3 ? 'easy_recovery' : 'easy_base',
+      label: recoveryIntent || rpe <= 3 ? 'Rolig/restitusjon' : 'Baseøkt',
+      loadLevel: 'low',
+      baseIntent: true,
+      highPulseBase: false,
+      countsAsEasySupport: true,
+      countsAsHardQuality: false,
+      countsAsHardLoad: false,
+      reason: 'Rolig/base-intensjon uten harde signaler.'
+    };
+  }
+
+  if (effectCategory === 'anaerobic' || effectCategory === 'high_aerobic') {
+    return {
+      category: 'quality',
+      label: effectCategory === 'anaerobic' ? 'Anaerob/hard økt' : 'Høy aerob økt',
+      loadLevel: effectCategory === 'anaerobic' ? 'high' : 'moderate',
+      baseIntent: false,
+      highPulseBase: false,
+      countsAsEasySupport: false,
+      countsAsHardQuality: true,
+      countsAsHardLoad: true,
+      reason: 'Garmin-effekt tilsier moderat/hard kvalitet.'
+    };
+  }
+
+  return {
+    category: 'unknown',
+    label: 'Uklassifisert økt',
+    loadLevel: 'moderate',
+    baseIntent: false,
+    highPulseBase: false,
+    countsAsEasySupport: false,
+    countsAsHardQuality: false,
+    countsAsHardLoad: false,
+    reason: 'Mangler nok øktkontekst til sikker klassifisering.'
+  };
+}
+
 export function structuredWorkoutFromItem(item = {}) {
   if (!item || typeof item !== 'object') return null;
   return normalizeStructuredWorkout(item.structuredWorkout || item.templateSnapshot?.structuredWorkout);
