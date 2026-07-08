@@ -182,6 +182,7 @@ function test(name, fn) {
     assert.ok(app.includes('homeHeroState({'), 'dashboard should classify hero card state with domain logic');
     assert.ok(app.includes('swapHeroPlannedWorkout'), 'dashboard conflict state should support one-click workout swap');
     assert.ok(app.includes('hero-state-${heroState.state}'), 'dashboard hero should render state classes');
+    assert.ok(app.includes('readinessChip.innerHTML = readinessChipHtml(ctx.dailyReadiness);'), 'readiness chip should show actual daily readiness, not hero conflict level');
     assert.ok(app.includes('function buildCompletedTodayCoachNote'), 'coach note should have a post-workout mode');
     assert.ok(app.includes('const completedTodayNote = buildCompletedTodayCoachNote(ctx);'), 'coach note should prioritize today completed workout feedback');
     assert.ok(index.includes('class="coach-basis-list"'), 'dashboard should render structured coach basis list');
@@ -1067,8 +1068,11 @@ function test(name, fn) {
     });
     assert.strictEqual(conflict.state, 'conflict');
     assert.strictEqual(conflict.level, 'yellow');
+    assert.match(conflict.kicker, /Belastning/);
+    assert.match(conflict.title, /Belastningen/);
     assert.match(conflict.body, /Bytt til rolig alternativ/);
     assert.match(conflict.reason, /intensitetsbalanse/);
+    assert.ok(!conflict.reason.includes('dagsform gul'), conflict.reason);
 
     const redConflict = homeHeroState({
       planned: { label: 'Terskel', intensity: 'Terskel', load: 'high' },
