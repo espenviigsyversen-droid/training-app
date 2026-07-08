@@ -744,6 +744,22 @@ function test(name, fn) {
     assert.ok(app.includes('closeWorkoutDetailModal();'), 'detail modal should close after delete/undo apply');
   });
 
+  test('history log rows show scannable completed workout context', () => {
+    const styles = read('styles.css');
+    assert.ok(app.includes('function historyMetric'), 'history rows should render labeled metric boxes');
+    assert.ok(app.includes('completedPaceMetrics(c)'), 'history rows should reuse production pace helper');
+    assert.ok(app.includes('templateCalendarKind(t)'), 'history rows should reuse workout kind classification');
+    assert.ok(app.includes('history-chip kind-'), 'history rows should render workout kind chips');
+    assert.ok(app.includes('history-chip race'), 'history rows should render race/test context');
+    assert.ok(app.includes('historyPainText'), 'history rows should summarize pain response');
+    assert.ok(app.includes('structuredChip'), 'history rows should preserve structured interval context');
+    assert.ok(app.includes('openWorkoutDetail'), 'history rows should still open the detail modal');
+    assert.ok(styles.includes('.history-row-metrics span'), 'history metric box styling is missing');
+    assert.ok(styles.includes('.history-chip.kind-race'), 'history race chip styling is missing');
+    assert.ok(styles.includes('.history-chip.signal'), 'history body signal chip styling is missing');
+    assert.ok(styles.includes('.stripe-race'), 'history race stripe styling is missing');
+  });
+
   test('duration and pace helpers come from domain core', () => {
     assert.strictEqual(parseNonNegativeInteger('12'), 12);
     assert.strictEqual(parseNonNegativeInteger('-1'), 0);

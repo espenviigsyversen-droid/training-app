@@ -58,7 +58,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       raceReadinessSummary
     } from './domain-goals.js';
 
-    const APP_VERSION = 'v141b';
+    const APP_VERSION = 'v142';
     const APP_CACHE_NAME = `treningsapp-${APP_VERSION}`;
 
     const firebaseConfig = {
@@ -3403,32 +3403,70 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       return 'neutral';
     }
 
+    function historyMetric(label, value) {
+      return value ? `<span><strong>${escapeHtml(value)}</strong><small>${escapeHtml(label)}</small></span>` : '';
+    }
+
+    function historyPainText(bodyStatus = {}) {
+      const before = Number(bodyStatus.painBefore || 0);
+      const after = Number(bodyStatus.painAfter || 0);
+      if (!before && !after) return '';
+      if (before && after) {
+        const trend = after > before ? 'opp' : after < before ? 'ned' : 'stabil';
+        return `Smerte ${before}->${after} (${trend})`;
+      }
+      return `Smerte ${before || after}/10`;
+    }
+
     function historyRow(c) {
       const t = completedTemplate(c);
       const durationLabel = completedDurationLabel(c);
+      const pace = completedPaceMetrics(c);
+      const kind = templateCalendarKind(t);
       const metrics = [
-        c.distanceKm ? `${c.distanceKm} km` : null,
-        durationLabel || null,
-        c.avgHeartRate ? `${c.avgHeartRate} bpm` : null
-      ].filter(Boolean).join(' · ');
-      const stripeClass = intensityStripeClass(t.intensity);
+        historyMetric('Varighet', durationLabel),
+        historyMetric('Distanse', c.distanceKm ? `${c.distanceKm} km` : ''),
+        historyMetric('Pace', pace.paceDisplay ? `${pace.paceDisplay} /km` : ''),
+        historyMetric('Puls', c.avgHeartRate ? `${c.avgHeartRate} bpm` : ''),
+        historyMetric('RPE', c.rpe ? `${c.rpe}/10` : '')
+      ].filter(Boolean).join('');
+      const stripeClass = kind.key === 'race' ? 'race' : kind.key === 'quality' ? 'medium' : intensityStripeClass(t.intensity);
       const assessment = completedLoadAssessment(c);
-      const loadDot = assessment.level !== 'moderate'
-        ? `<span class="history-load-dot load-${assessment.level}"></span>`
+      const painText = historyPainText(c.bodyStatus || {});
+      const bodySignal = painText || (c.bodyStatus?.adaptation && c.bodyStatus.adaptation !== 'none');
+      const race = normalizeRaceResult(c.raceResult);
+      const raceChip = race
+        ? `<span class="history-chip race">${escapeHtml(race.resultSeconds ? `Race ${formatRaceTime(race.resultSeconds)}` : 'Race/test')}</span>`
         : '';
-      const bodyDot = (c.bodyStatus?.painBefore || c.bodyStatus?.painAfter || (c.bodyStatus?.adaptation && c.bodyStatus.adaptation !== 'none'))
-        ? `<span class="history-load-dot load-high" title="Kroppssignal"></span>`
+      const pbChip = race?.countsAsPersonalBest !== false && race
+        ? '<span class="history-chip pb">PB-tellende</span>'
         : '';
+      const structuredChip = t.structuredWorkout
+        ? '<span class="history-chip neutral">Strukturert</span>'
+        : '';
+      const chips = [
+        `<span class="history-chip kind-${escapeHtml(kind.key)}">${escapeHtml(kind.label)}</span>`,
+        t.role ? `<span class="history-chip neutral">${escapeHtml(templateRoleLabel(t.role))}</span>` : '',
+        raceChip,
+        pbChip,
+        `<span class="history-chip load-${escapeHtml(assessment.level)}">${escapeHtml(assessment.label)}</span>`,
+        bodySignal ? `<span class="history-chip signal">${escapeHtml(painText || 'Kroppssignal')}</span>` : '',
+        structuredChip
+      ].filter(Boolean).join('');
+      const meta = [t.type, t.intensity, templatePurposeLabel(t.purpose)].filter(Boolean).join(' · ');
       return `
-        <div class="history-row" onclick="openWorkoutDetail('${c.id}')">
+        <div class="history-row history-kind-${escapeHtml(kind.key)}" onclick="openWorkoutDetail('${c.id}')">
           <div class="history-row-stripe stripe-${stripeClass}"></div>
           <div class="history-row-body">
-            <div class="history-row-title">${escapeHtml(t.name)}</div>
-            <div class="history-row-date">${formatDate(c.date)}</div>
-            <div class="history-row-bottom">
-              <span class="history-row-meta">${escapeHtml(t.type)}${loadDot}${bodyDot}</span>
-              <span class="history-row-metrics">${escapeHtml(metrics)}</span>
+            <div class="history-row-head">
+              <div>
+                <div class="history-row-title">${escapeHtml(t.name)}</div>
+                <div class="history-row-date">${formatDate(c.date)}${meta ? ` · ${escapeHtml(meta)}` : ''}</div>
+              </div>
+              <span class="tag done">Utført</span>
             </div>
+            ${chips ? `<div class="history-chip-row">${chips}</div>` : ''}
+            <div class="history-row-metrics">${metrics || '<span><strong>-</strong><small>Nøkkeltall</small></span>'}</div>
           </div>
           <div class="history-row-chevron">›</div>
         </div>`;
