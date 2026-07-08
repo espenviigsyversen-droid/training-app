@@ -645,11 +645,63 @@
     .home-week-stats .insight-stat {
       min-height: 68px;
       align-content: center;
+      min-width: 0;
+      overflow: hidden;
     }
 
     .home-week-stats .insight-stat strong {
       font-size: 1.16rem;
       letter-spacing: 0;
+      overflow-wrap: normal;
+      word-break: normal;
+      hyphens: none;
+    }
+
+    .home-week-stats .insight-stat span {
+      overflow-wrap: normal;
+      word-break: normal;
+      hyphens: none;
+    }
+
+    #homeWeekLoad {
+      font-size: clamp(0.92rem, 3.7vw, 1.16rem);
+    }
+
+    @media (max-width: 420px) {
+      .home-week-layout {
+        grid-template-columns: 84px minmax(0, 1fr);
+        gap: 8px;
+      }
+
+      .home-week-ring {
+        width: 84px;
+      }
+
+      .home-week-stats {
+        gap: 6px;
+      }
+
+      .home-week-stats .insight-stat {
+        min-height: 58px;
+        padding: 8px 6px;
+        border-radius: 14px;
+      }
+
+      .home-week-stats .insight-stat strong {
+        font-size: clamp(0.86rem, 3.2vw, 1rem);
+        line-height: 1.05;
+      }
+
+      .home-week-stats .insight-stat span {
+        margin-top: 2px;
+        font-size: 0.56rem;
+        line-height: 1.05;
+        letter-spacing: 0;
+      }
+
+      #homeWeekLoad {
+        font-size: clamp(0.78rem, 3vw, 0.92rem);
+      }
     }
 
     .home-week-days {

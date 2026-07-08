@@ -223,6 +223,9 @@ function test(name, fn) {
     assert.ok(read('styles.css').includes('.home-continuity-strip'), 'home continuity strip styling is missing');
     assert.ok(read('styles.css').includes('.home-week-ring'), 'home week ring styling is missing');
     assert.ok(read('styles.css').includes('.home-week-days'), 'home week day bar styling is missing');
+    assert.ok(read('styles.css').includes('#homeWeekLoad'), 'home week load value needs a mobile-safe text rule');
+    assert.ok(read('styles.css').includes('.home-week-stats .insight-stat span'), 'home week stat labels need explicit wrapping guards');
+    assert.ok(read('styles.css').includes('hyphens: none;'), 'home week stat text should not hyphenate or split awkwardly');
     assert.ok(read('styles.css').includes('.challenge-pace'), 'challenge pace status styling is missing');
     assert.ok(read('styles.css').includes('.progress-fill.on-track'), 'on-track progress styling is missing');
     assert.ok(read('styles.css').includes('.progress-fill.behind'), 'behind progress styling is missing');
