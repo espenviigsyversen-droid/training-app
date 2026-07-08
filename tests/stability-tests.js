@@ -227,6 +227,7 @@ function test(name, fn) {
     assert.ok(read('styles.css').includes('.progress-fill.on-track'), 'on-track progress styling is missing');
     assert.ok(read('styles.css').includes('.progress-fill.behind'), 'behind progress styling is missing');
     assert.ok(read('styles.css').includes('.tag.planned { background: var(--status-neutral-bg);'), 'planned status should be visually neutral');
+    assert.ok(read('styles.css').includes('.week-role-chip.planned'), 'planned week role status styling is missing');
     assert.ok(read('styles.css').includes('.calendar-entry.planned { color: var(--dashboard-quality); }'), 'planned calendar entries should be neutral');
     assert.ok(read('styles.css').includes('.readiness-chip'), 'readiness chip styling is missing');
     assert.ok(read('styles.css').includes('.hero-intensity-track'), 'hero intensity strip styling is missing');
@@ -708,6 +709,28 @@ function test(name, fn) {
     assert.ok(normalCompleteFlow.includes("if (item) item.status = 'done'"), 'planned workout should be marked done locally');
     assert.ok(normalCompleteFlow.includes('afterApply'), 'normal complete flow should refresh UI after local state update');
     assert.ok(normalCompleteFlow.includes('openCalendarDayModal(selectedCalendarDate)'), 'calendar day modal should be refreshed after completion');
+  });
+
+  test('calendar polish keeps planned neutral and shows workout context', () => {
+    const styles = read('styles.css');
+    assert.ok(index.includes('id="calendarGrid"'), 'calendar grid container is missing');
+    assert.ok(index.includes('id="homeWeekPlan"'), 'week plan container is missing from calendar tab');
+    assert.ok(app.includes('function templateCalendarKind'), 'calendar should classify workout context from existing template metadata');
+    assert.ok(app.includes("return { key: 'race', label: 'Race/test' };"), 'race/test should be a first-class calendar category');
+    assert.ok(app.includes("return { key: 'recovery', label: 'Recovery' };"), 'recovery should be a first-class calendar category');
+    assert.ok(app.includes("return { key: 'quality', label: 'Kvalitet' };"), 'quality should be a first-class calendar category');
+    assert.ok(app.includes('templateCalendarChips'), 'calendar should render compact context chips');
+    assert.ok(app.includes('week-plan-kind-${escapeHtml(kind.key)}'), 'week plan rows should expose kind classes');
+    assert.ok(app.includes('calendar-day-workouts'), 'calendar day modal should group workouts in a scannable list');
+    assert.ok(app.includes('calendarEntryClass'), 'calendar grid entries should include status and kind classes');
+    assert.ok(app.includes('raceWeekPlanContext({'), 'week plan should keep using existing race-aware context');
+    assert.ok(styles.includes('.calendar-context-chip'), 'calendar context chip styling is missing');
+    assert.ok(styles.includes('.calendar-entry.calendar-kind-race'), 'race/test calendar entry styling is missing');
+    assert.ok(styles.includes('.calendar-entry.calendar-kind-quality'), 'quality calendar entry styling is missing');
+    assert.ok(styles.includes('.calendar-entry.calendar-kind-recovery'), 'recovery calendar entry styling is missing');
+    assert.ok(styles.includes('.week-plan-kind-race'), 'race/test week plan styling is missing');
+    assert.ok(styles.includes('.calendar-day-workouts'), 'calendar day modal list styling is missing');
+    assert.ok(styles.includes('grid-template-columns: minmax(0, 1.3fr) minmax(360px, 0.9fr);'), 'desktop calendar layout should give week plan more usable width');
   });
 
   test('completed workout detail has discreet confirmed delete action', () => {
