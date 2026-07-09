@@ -38,6 +38,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       weekPlanDatesInRange as weekPlanDatesInRangeCore
     } from './domain-core.js';
     import {
+      coachDecisionEngine,
       coachDecisionBasis,
       continuityFreezeDays,
       continuityFreezeReasonLabel,
@@ -76,7 +77,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       loadCoachRules
     } from './domain-coach-rules.js';
 
-    const APP_VERSION = 'v148c';
+    const APP_VERSION = 'v149';
     const APP_CACHE_NAME = `treningsapp-${APP_VERSION}`;
 
     const firebaseConfig = {
@@ -5853,7 +5854,26 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       const firstPlanned = primaryItems[0] || ctx.nextPlanned || null;
       const template = firstPlanned ? getTemplate(firstPlanned.templateId) : null;
       const painImproving = improvingPainFollowup(ctx);
-      const decision = todayDecision({
+      const plannedMeta = plannedWorkoutAdviceMeta(firstPlanned);
+      const tomorrowMeta = plannedWorkoutAdviceMeta(ctx.tomorrowPlanned);
+      const decisionPackage = coachDecisionEngine({
+        rules: getCoachRules(),
+        dailyReadinessLevel: ctx.dailyReadiness?.level || null,
+        highestPainTier: ctx.gradedPain?.highestTier || null,
+        painImprovingAfterHigh: Boolean(painImproving),
+        injuryActive: Boolean(ctx.injurySummary7?.hasSignal),
+        injuryStatus: ctx.injurySummary7?.status || '',
+        planned: plannedMeta,
+        tomorrowPlanned: tomorrowMeta,
+        plannedWorkoutLabel: template?.name || '',
+        hasPlannedToday: todayItems.length > 0,
+        hasNextPlanned: Boolean(firstPlanned),
+        comeback: ctx.comeback,
+        volumeRamp: ctx.volumeRamp,
+        intensityBalance: ctx.intensityBalance14,
+        continuityFreezeToday: isDateFrozen(ctx.today, state.continuityFreezes, { rules: getCoachRules() })
+      });
+      let decision = todayDecision({
         dailyReadinessLevel: ctx.dailyReadiness?.level || null,
         highestPainTier: ctx.gradedPain?.highestTier || null,
         painImprovingAfterHigh: Boolean(painImproving),
@@ -5869,11 +5889,27 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         weekSessions: ctx.weekSummary?.sessions || 0,
         weeklyTarget: ctx.effectiveWeeklyTarget || ctx.goals?.weeklySessionsTarget || 0
       });
+      if (decisionPackage.primarySignal === 'intensity_balance') {
+        decision = {
+          level: 'yellow',
+          title: 'Bygg rolig støtte',
+          action: 'Prioriter rolig trening eller restitusjon i dag.',
+          reason: decisionPackage.summary || 'Intensitetsbalansen trenger mer rolig volum.'
+        };
+      } else if (decisionPackage.primarySignal === 'tomorrow_quality') {
+        decision = {
+          level: 'green',
+          title: 'Hold dagen lett før kvalitet',
+          action: 'Velg hvile, mobilitet eller svært rolig aktivitet i dag.',
+          reason: decisionPackage.summary || 'Kvalitet i morgen bør møtes med friske bein.'
+        };
+      }
       const enrichedDecision = {
         ...decision,
+        coachDecision: decisionPackage,
         support: dailyCoachSupport({
           decision,
-          planned: plannedWorkoutAdviceMeta(firstPlanned),
+          planned: plannedMeta,
           hasPlannedToday: todayItems.length > 0,
           dailyReadinessLevel: ctx.dailyReadiness?.level || null,
           injuryActive: Boolean(ctx.injurySummary7?.hasSignal),
@@ -6989,6 +7025,10 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       const nextPlanned = [...(state.planned || [])]
         .filter(p => p.date >= today)
         .sort((a, b) => a.date.localeCompare(b.date))[0] || null;
+      const tomorrow = addDays(today, 1);
+      const tomorrowPlanned = [...(state.planned || [])]
+        .filter(p => p.date === tomorrow)
+        .sort((a, b) => String(a.createdAt || '').localeCompare(String(b.createdAt || '')))[0] || null;
 
       const isRunningBakken = trainingProfile.primaryFocus === 'running' && trainingProfile.philosophy === 'bakken_threshold';
       const hardCount7 = load7.hardQuality || load7.high || 0;
@@ -7016,7 +7056,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         latestHrv, latestRestingHr,
         goldenZone, heartRateCompliance14, intensityBalance14,
         weekPlanRoles, completedRoles, missingRoles,
-        activeChallenge, nextPlanned,
+        activeChallenge, nextPlanned, tomorrowPlanned,
         hardCount7, hardCount14, easyCount14,
         gradedPain, dailyReadiness, structuredIntervals, injuryCheckins14,
         injurySummary7, raceReadiness, racePlan, goalScore

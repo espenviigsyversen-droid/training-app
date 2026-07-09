@@ -777,12 +777,22 @@ Status etter v146:
 - `domain-core.js` beholder fortsatt intensitetsbalanse, pulsvurdering, skadehelpers og trenings-/templatehelpers for å unngå en stor dependency-refaktor.
 - `domain-coach.js` ligger i PWA app shell og testes direkte.
 
+### v149 - Coach Decision Engine v1 - Bygget
+
+- Ny ren `coachDecisionEngine()` i `domain-coach.js` samler samtidige coach-signaler i én strukturert beslutningspakke.
+- Motoren velger `primarySignal` etter eksplisitt prioritet: skadesignal, rød/gul dagsform, comeback/volum-ramp, intensitetsbalanse, morgendagens kvalitet og normal plan.
+- Sekundærsignaler beholdes som strukturerte objekter med anbefaling, alvorlighet og forklaring.
+- Beslutningspakken returnerer `blockedActions`, `allowedActions` og `guardrails` slik at senere AI-chat kan forklare appens vurdering uten å overstyre sikkerhetsreglene.
+- Hjem-wrapperen bygger pakken fra eksisterende coach-context, men beholder dagens UI-flyt.
+- Første myke «i morgen»-signal er lagt inn: planlagt kvalitet i morgen kan anbefale lett dag i dag når ingen høyere prioriterte signaler dominerer.
+- Post-workout-feedback etter kontrollert kvalitetsøkt uten smerteøkning er gjort grønn/nøytral i stedet for alarmgul.
+
 ### Senere coach-foundation
 
 - HRV som forsiktig gult signal, eller fjerning av død `low_hrv`-policy.
-- Et eksplisitt «i morgen»-perspektiv ved planlagt kvalitet.
-- Grønn/nøytral feiring etter vellykket kvalitetsøkt uten smerterespons.
-- Scoret regelmodell med hovedsignal og sekundærsignaler.
+- Videre bruk av «i morgen»-perspektiv i ukeplan/coach-note der det gir verdi.
+- Eventuelt mer nyansert post-workout-feiring for ulike økttyper.
+- Scoret regelmodell v2 med vekting hvis enkel prioritert modell ikke er nok.
 - Strukturert klassifisering først, tekstmatching kun som fallback.
 - AI-chat design etter at regler, terskler og coach-context er konsistente.
 
@@ -974,8 +984,8 @@ Hvis svaret er ja på flere av disse, bør ideen prioriteres.
 
 ### Neste 3 runder
 
-1. Senere - HRV / «i morgen» / post-workout-feiring
-2. Senere - AI-chat design
+1. Senere - AI-chat design og sikkerhetsramme
+2. Senere - HRV som forsiktig gult signal
 3. Senere - Fryskort polish hvis praktisk bruk viser behov
 
 ### Neste 10 runder
@@ -985,9 +995,9 @@ Hvis svaret er ja på flere av disse, bør ideen prioriteres.
 3. v144 - Gylne-sone-fiks og kanonisk intensitetsbalanse - Bygget
 4. v145 - Volum-ramp og comeback-protokoll - Bygget
 5. v146 - `domain-coach.js` første uttrekk - Bygget
-6. v147 - Fryskort design - Dokumentert
-7. v148 - Fryskort implementering - Bygget
-8. Senere - HRV / «i morgen» / post-workout-feiring
+6. v149 - Coach Decision Engine v1 - Bygget
+7. v147 - Fryskort design - Dokumentert
+8. v148 - Fryskort implementering - Bygget
 9. Senere - AI-chat design
 10. Senere - Strava/Firebase-integrasjon
 
@@ -1079,6 +1089,6 @@ Neste store verdiøkning er en bedre daglig coach.
 
 Anbefalt neste implementeringsrunde:
 
-> Senere coach-foundation - HRV / «i morgen» / post-workout-feiring
+> Senere - AI-chat design og sikkerhetsramme
 
-Fryskort v1 er bygget. Neste verdi bør være mer presis daglig coach uten stor AI-runde: HRV som forsiktig gult signal, tydeligere «i morgen»-perspektiv eller grønnere post-workout-feiring.
+Coach foundation har nå aktiv regelfil, kanonisk intensitetsbalanse, volum-ramp/comeback, `domain-coach.js` og en strukturert decision engine. Neste verdi bør være å dokumentere AI-chatens rolle, dataflyt, guardrails og backend/API-sikkerhet før første AI-MVP bygges.

@@ -92,37 +92,44 @@ Prioritert backlog for videre utvikling av Treningsapp.
     - `todayDecision`, `homeHeroState`, `coachDecisionBasis`, `trainingVolumeRamp` og `comebackProtocol` er flyttet til ny ren coach-modul.
     - State-, Firebase- og DOM-wrappere er beholdt i `app.js`.
 
-22. **Fryskort design** - Dokumentert v147
+22. **Coach Decision Engine v1** - Bygget v149
+    - `coachDecisionEngine()` samler samtidige coach-signaler i én strukturert pakke.
+    - Velger hovedsignal etter prioritert modell og beholder sekundærsignaler.
+    - Returnerer `blockedActions`, `allowedActions` og `guardrails` for senere AI-chat.
+    - Har første myke «i morgen»-signal og grønnere post-workout-feedback etter kontrollert kvalitet.
+
+23. **Fryskort design** - Dokumentert v147
     - `STREAK_FREEZE_DESIGN.md` dokumenterer policy, bakoverkompatibel datamodell, brukerflyt, coach-konsekvens og testplan.
     - Fryskort er definert som motivasjonsbeskyttelse, ikke treningsdata.
 
-23. **Fryskort implementering** - Bygget v148
+24. **Fryskort implementering** - Bygget v148
     - Sykdom, skade, reise, livsbelastning eller annet legitimt avbrudd kan beskytte kontinuitetsstreak innen tydelige grenser.
     - `continuityFreezes` er egen collection og teller ikke som økter, kilometer, tid, PB, challenge-progress eller kvalitet.
     - V1 har modal fra Hjem/Kontinuitet, aktiv/arkivert liste, arkiver/slett med bekreftelse og Hjem/Innsikt-kontinuitetsvisning.
     - Kalenderinngang, egen Setup-oversikt og målscore-nøytralisering er utsatt.
 
-24. **Senere coach-foundation**
+25. **Senere coach-foundation**
     - HRV som forsiktig gult signal.
-    - «I morgen»-perspektiv, grønnere post-workout-feiring og scoret regelprioritet.
+    - Videre «i morgen»-perspektiv i ukeplan/coach-note hvis det gir verdi.
+    - Scoret regelmodell v2 hvis den enkle prioriterte modellen ikke er nok.
     - AI-chat design først når regelfil og coach-context er konsistente.
 
-25. **Ukesvolum-graf på Hjem desktop** - Lavere prioritet
+26. **Ukesvolum-graf på Hjem desktop** - Lavere prioritet
     - Kompakt volumtrend for brede skjermer.
     - Lavere prioritet fordi Innsikt allerede er ett trykk unna.
 
-26. **Ernæring, væske og restitusjonsnotater** - Senere
+27. **Ernæring, væske og restitusjonsnotater** - Senere
     - Små støttepåminnelser i Dagens råd/heltekort.
     - Ikke full ernæringsapp.
 
-27. **AI-chat design og sikkerhetsramme** - Senere
+28. **AI-chat design og sikkerhetsramme** - Neste anbefalte designrunde
     - Dokumenter rolle, dataflyt, API-sikkerhet og grenser etter Coach foundation.
 
-28. **AI-chat MVP** - Senere
+29. **AI-chat MVP** - Senere
     - Enkel rådgivende chat basert på samme regler og coach-context som appen.
     - Ingen automatisk planendring.
 
-29. **Mobil polish og mikro-UX**
+30. **Mobil polish og mikro-UX**
     - Små forbedringer som gjør appen mer behagelig i daglig bruk.
     - Eksempler: kortere tekster, bedre prioritering på Hjem/Mål, sticky handlinger i modaler og bedre tomtilstander.
 
@@ -144,13 +151,14 @@ Disse punktene var del av den tidlige v142-idéen, men er bevisst flyttet ut av 
 
 ## Anbefalt neste steg
 
-Neste anbefalte implementeringspunkt er **senere coach-foundation: HRV / «i morgen» / post-workout-feiring**.
+Neste anbefalte punkt er **AI-chat design og sikkerhetsramme** før første AI-MVP.
 
 Begrunnelse:
 - v143b har etablert en validert parameterkilde med trygg fallback
 - v144 har samlet intensitetsgrunnlaget og rettet klassifiseringen av puls etter øktintensjon
 - v145 har lagt til felles vern mot rask volumøkning og for aggressive råd etter opphold
 - første coach-modul-uttrekk er gjort uten stor refaktorering
+- v149 har etablert en strukturert beslutningspakke med hovedsignal, sekundærsignaler og guardrails
 - v147 har dokumentert design/policy for fryskort
 - v148 har implementert en liten manuell fryskort-v1
-- neste coachverdi bør være mer presis dagsrådgivning med HRV, morgendagens plan eller bedre post-workout-feiring
+- neste verdi bør være å designe AI-chat slik at den forklarer og diskuterer samme coach-vurdering uten å overstyre sikkerhetsreglene

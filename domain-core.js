@@ -440,8 +440,8 @@ export function todayCompletedWorkoutFeedback(input = {}) {
     return {
       mode: 'post_workout',
       kicker: 'Dagens vurdering',
-      level: 'yellow',
-      title: 'Kvalitet er gjennomført',
+      level: 'green',
+      title: 'Kvalitet gjennomført kontrollert',
       action: 'La resten av dagen og neste økt støtte effekten av arbeidet.',
       reason: `${label} er logget${completedSummary ? ` (${completedSummary})` : ''}.`,
       support: {

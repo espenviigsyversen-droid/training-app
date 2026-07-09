@@ -63,6 +63,7 @@ function test(name, fn) {
     weekPlanDatesInRange
   } = domain;
   const {
+    coachDecisionEngine,
     coachDecisionBasis,
     comebackProtocol,
     continuityFreezeDays,
@@ -228,7 +229,7 @@ function test(name, fn) {
 
   test('coach domain helpers live in domain-coach module', () => {
     assert.ok(app.includes("from './domain-coach.js'"), 'app should import pure coach helpers from domain-coach.js');
-    ['todayDecision', 'homeHeroState', 'coachDecisionBasis', 'trainingVolumeRamp', 'comebackProtocol', 'normalizeContinuityFreeze', 'isWeekProtectedByFreeze'].forEach(name => {
+    ['coachDecisionEngine', 'todayDecision', 'homeHeroState', 'coachDecisionBasis', 'trainingVolumeRamp', 'comebackProtocol', 'normalizeContinuityFreeze', 'isWeekProtectedByFreeze'].forEach(name => {
       assert.strictEqual(typeof coach[name], 'function', `${name} should be exported from domain-coach.js`);
       assert.ok(!domainCoreExports.includes(name), `${name} should not still be exported from domain-core.js`);
     });
@@ -367,6 +368,7 @@ function test(name, fn) {
     assert.ok(app.includes('personalBestSummary(completedRaceItems(), state.raceResults)'), 'home highlight card should reuse personal best summary');
     assert.ok(app.includes('renderTodayDecision(todayDecisionResult)'), 'dashboard should render today decision result');
     assert.ok(app.includes('todayDecision({'), 'app wrapper should call the domain todayDecision function');
+    assert.ok(app.includes('coachDecisionEngine({'), 'app wrapper should build a structured coach decision package');
     assert.ok(app.includes('dailyCoachSupport({'), 'dashboard should enrich today decision with daily coach support');
     assert.ok(app.includes('completedToday'), 'coach context should expose workouts completed today');
     assert.ok(app.includes('todayCompletedWorkoutFeedback({'), 'dashboard should switch to post-workout feedback after a completed workout');
@@ -376,6 +378,7 @@ function test(name, fn) {
     assert.ok(app.includes('readinessChip.innerHTML = readinessChipHtml(ctx.dailyReadiness);'), 'readiness chip should show actual daily readiness, not hero conflict level');
     assert.ok(app.includes('function buildCompletedTodayCoachNote'), 'coach note should have a post-workout mode');
     assert.ok(app.includes('const completedTodayNote = buildCompletedTodayCoachNote(ctx);'), 'coach note should prioritize today completed workout feedback');
+    assert.ok(app.includes('tomorrowPlanned'), 'coach context should expose tomorrow planned workout context');
     assert.ok(index.includes('class="coach-basis-list"'), 'dashboard should render structured coach basis list');
     assert.ok(app.includes('renderHomeCoachBasis(buildHomeCoachBasis(coachCtx, todayDecisionResult'), 'dashboard should render structured coach basis');
     assert.ok(app.includes('coachDecisionBasis({'), 'app wrapper should use domain coach basis function');
@@ -1510,6 +1513,103 @@ function test(name, fn) {
     assert.strictEqual(assessTrafficLight(5, 5, 71, true, 60), 'red');
   });
 
+  test('coach decision engine picks injury before green readiness', () => {
+    const decision = coachDecisionEngine({
+      dailyReadinessLevel: 'green',
+      highestPainTier: 'high',
+      planned: { label: 'Intervall', intensity: 'Intervall', role: 'main_threshold' },
+      hasPlannedToday: true
+    });
+    assert.strictEqual(decision.primarySignal, 'injury_active');
+    assert.strictEqual(decision.severity, 'red');
+    assert.ok(decision.blockedActions.includes('hard_quality'));
+    assert.ok(decision.guardrails.some(item => /ikke anbefale terskel|intervall|race/i.test(item)));
+  });
+
+  test('coach decision engine blocks quality on red readiness', () => {
+    const decision = coachDecisionEngine({
+      dailyReadinessLevel: 'red',
+      planned: { label: 'Terskel', intensity: 'Terskel', load: 'high' },
+      hasPlannedToday: true
+    });
+    assert.strictEqual(decision.primarySignal, 'readiness_red');
+    assert.strictEqual(decision.severity, 'red');
+    assert.ok(decision.blockedActions.includes('hard_quality'));
+  });
+
+  test('coach decision engine prioritizes comeback before hard planned quality', () => {
+    const decision = coachDecisionEngine({
+      dailyReadinessLevel: 'green',
+      planned: { label: 'Intervall', intensity: 'Intervall', role: 'main_threshold' },
+      hasPlannedToday: true,
+      comeback: { active: true, label: 'Comeback-uke', explanation: 'Hold uka rundt 65 % av normalen.' }
+    });
+    assert.strictEqual(decision.primarySignal, 'comeback');
+    assert.ok(decision.blockedActions.includes('hard_quality'));
+    assert.match(decision.summary, /65|opphold|normalen/i);
+  });
+
+  test('coach decision engine recommends easy support when intensity balance is too hard', () => {
+    const decision = coachDecisionEngine({
+      dailyReadinessLevel: 'green',
+      planned: { label: 'Rolig tur', intensity: 'Rolig', role: 'long_easy' },
+      hasPlannedToday: true,
+      intensityBalance: {
+        verdict: 'too_hard',
+        status: 'yellow',
+        explanation: '4 harde mot 1 rolige siste 14 dager.'
+      }
+    });
+    assert.strictEqual(decision.primarySignal, 'intensity_balance');
+    assert.match(decision.recommendation, /rolig|restitusjon/i);
+  });
+
+  test('coach decision engine treats tomorrow quality as a soft signal', () => {
+    const decision = coachDecisionEngine({
+      dailyReadinessLevel: 'green',
+      hasPlannedToday: false,
+      hasNextPlanned: true,
+      tomorrowPlanned: { label: 'Støtteterskel', intensity: 'Terskel', role: 'support_threshold' }
+    });
+    assert.strictEqual(decision.primarySignal, 'tomorrow_quality');
+    assert.strictEqual(decision.severity, 'green');
+    assert.ok(decision.blockedActions.includes('extra_hard_today'));
+  });
+
+  test('coach decision engine lets injury beat tomorrow quality', () => {
+    const decision = coachDecisionEngine({
+      dailyReadinessLevel: 'green',
+      highestPainTier: 'moderate',
+      hasPlannedToday: false,
+      tomorrowPlanned: { label: 'Intervall', intensity: 'Intervall' }
+    });
+    assert.strictEqual(decision.primarySignal, 'injury_active');
+    assert.ok(decision.secondarySignals.some(signal => signal.id === 'tomorrow_quality'));
+  });
+
+  test('coach decision engine keeps freeze as continuity signal only', () => {
+    const decision = coachDecisionEngine({
+      dailyReadinessLevel: 'green',
+      continuityFreezeToday: true,
+      hasPlannedToday: false
+    });
+    assert.strictEqual(decision.primarySignal, 'normal_plan');
+    assert.ok(decision.secondarySignals.some(signal => signal.id === 'continuity_freeze_today'));
+    assert.ok(!decision.blockedActions.includes('hard_quality'));
+    assert.ok(decision.guardrails.some(item => /ikke gi økter|belastningskreditt/i.test(item)));
+  });
+
+  test('coach decision engine falls back to normal plan without special signals', () => {
+    const decision = coachDecisionEngine({
+      dailyReadinessLevel: 'green',
+      planned: { label: 'Rolig Kort Tur', intensity: 'Rolig', role: 'recovery' },
+      hasPlannedToday: true
+    });
+    assert.strictEqual(decision.primarySignal, 'normal_plan');
+    assert.strictEqual(decision.severity, 'green');
+    assert.match(decision.recommendation, /Rolig Kort Tur|planlagt/i);
+  });
+
   test('today decision prioritizes red readiness and body signals', () => {
     const pain = todayDecision({ highestPainTier: 'high', hasPlannedToday: true, plannedWorkoutLabel: 'Terskel' });
     assert.strictEqual(pain.level, 'red');
@@ -1627,6 +1727,28 @@ function test(name, fn) {
     assert.match(feedback.title, /Bra justert/);
     assert.match(feedback.reason, /Rolig Kort Tur/);
     assert.match(feedback.support.support, /karbohydrater|protein|Drikk|drikk/);
+  });
+
+  test('completed workout feedback celebrates controlled quality without pain increase', () => {
+    const feedback = todayCompletedWorkoutFeedback({
+      completed: {
+        label: 'Støtteterskel 10x3',
+        intensity: 'Terskel',
+        role: 'support_threshold',
+        loadLevel: 'moderate',
+        loadLabel: 'Moderat belastning',
+        durationSeconds: 2520,
+        distanceKm: 6.2,
+        rpe: 6,
+        painBefore: 0,
+        painAfter: 0
+      }
+    });
+
+    assert.strictEqual(feedback.mode, 'post_workout');
+    assert.strictEqual(feedback.level, 'green');
+    assert.match(feedback.title, /Kvalitet.*kontrollert/);
+    assert.match(feedback.support.motivation, /dagens viktigste treningsbidrag/);
   });
 
   test('completed workout feedback warns when pain increases after workout', () => {

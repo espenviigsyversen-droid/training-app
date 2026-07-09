@@ -167,6 +167,250 @@ function plannedWorkoutIsQuality(planned = {}) {
   );
 }
 
+function signalPriority(id, rules = getCoachRules()) {
+  const requestedOrder = [
+    'injury_active',
+    'readiness_red',
+    'readiness_yellow',
+    'comeback',
+    'volume_ramp',
+    'intensity_balance',
+    'planned_quality',
+    'tomorrow_quality',
+    'normal_plan'
+  ];
+  const ruleOrder = Array.isArray(rules?.decisionPriority) ? rules.decisionPriority : [];
+  const mapped = {
+    injury_active: 'injury_active',
+    readiness_red: 'readiness_red',
+    readiness_yellow: 'readiness_yellow',
+    comeback: 'volume_ramp',
+    volume_ramp: 'volume_ramp',
+    intensity_balance: 'recent_load',
+    planned_quality: 'week_structure',
+    tomorrow_quality: 'week_structure',
+    normal_plan: 'consistency'
+  };
+  const ruleIndex = ruleOrder.indexOf(mapped[id]);
+  if (ruleIndex >= 0) return (ruleIndex + 1) * 10;
+  const fallbackIndex = requestedOrder.indexOf(id);
+  return fallbackIndex >= 0 ? (fallbackIndex + 1) * 10 : 999;
+}
+
+function uniqueValues(values = []) {
+  return [...new Set(values.filter(Boolean))];
+}
+
+function signalReason(signal) {
+  return {
+    id: signal.id,
+    label: signal.title,
+    detail: signal.summary,
+    severity: signal.severity,
+    priority: signal.priority
+  };
+}
+
+export function coachDecisionEngine(input = {}) {
+  const rules = input.rules && typeof input.rules === 'object' ? input.rules : getCoachRules();
+  const planned = input.planned && typeof input.planned === 'object' ? input.planned : {};
+  const tomorrowPlanned = input.tomorrowPlanned && typeof input.tomorrowPlanned === 'object' ? input.tomorrowPlanned : {};
+  const plannedLabel = String(planned.label || input.plannedWorkoutLabel || '').trim();
+  const tomorrowLabel = String(tomorrowPlanned.label || '').trim();
+  const readiness = String(input.dailyReadinessLevel || '').toLowerCase();
+  const painTier = String(input.highestPainTier || '').toLowerCase();
+  const injuryStatus = String(input.injuryStatus || '').toLowerCase();
+  const injuryActive = Boolean(input.injuryActive || painTier || ['worse', 'high', 'improving', 'caution', 'stable'].includes(injuryStatus));
+  const painImprovingAfterHigh = Boolean(input.painImprovingAfterHigh);
+  const comeback = input.comeback && typeof input.comeback === 'object' ? input.comeback : null;
+  const volumeRamp = input.volumeRamp && typeof input.volumeRamp === 'object' ? input.volumeRamp : null;
+  const intensityBalance = input.intensityBalance && typeof input.intensityBalance === 'object' ? input.intensityBalance : null;
+  const hasPlannedToday = Boolean(input.hasPlannedToday);
+  const hasNextPlanned = Boolean(input.hasNextPlanned || plannedLabel);
+  const plannedQuality = plannedWorkoutIsQuality(planned) || plannedWorkoutIsQuality({ ...planned, label: plannedLabel });
+  const tomorrowQuality = plannedWorkoutIsQuality(tomorrowPlanned);
+  const completedFeedback = input.completedFeedback && typeof input.completedFeedback === 'object' ? input.completedFeedback : null;
+  const continuityFreezeToday = Boolean(input.continuityFreezeToday);
+  const signals = [];
+
+  const addSignal = (signal) => {
+    if (!signal?.id) return;
+    const normalized = {
+      primaryEligible: signal.primaryEligible !== false,
+      blockedActions: [],
+      allowedActions: [],
+      guardrails: [],
+      ...signal,
+      priority: Number.isFinite(signal.priority) ? signal.priority : signalPriority(signal.id, rules)
+    };
+    signals.push(normalized);
+  };
+
+  if (completedFeedback) {
+    addSignal({
+      id: completedFeedback.level === 'red' ? 'post_workout_warning' : 'post_workout_feedback',
+      severity: completedFeedback.level || 'green',
+      title: completedFeedback.title || 'Økt gjennomført',
+      recommendation: completedFeedback.action || 'Bruk resten av dagen til restitusjon.',
+      summary: completedFeedback.reason || 'Dagens økt er logget.',
+      priority: 1,
+      blockedActions: completedFeedback.level === 'red' ? ['hard_quality', 'race_test'] : [],
+      allowedActions: completedFeedback.level === 'red' ? ['rest', 'pain_free_alternative'] : ['recovery', 'easy_bonus'],
+      guardrails: completedFeedback.level === 'red'
+        ? ['Ikke anbefal ny hard økt etter smerteøkning samme dag.']
+        : ['Ikke anbefal ekstra hard trening samme dag som kvalitet allerede er gjennomført.']
+    });
+  }
+
+  if (injuryActive || painImprovingAfterHigh) {
+    const redInjury = painTier === 'high' || injuryStatus === 'worse' || injuryStatus === 'high';
+    addSignal({
+      id: 'injury_active',
+      severity: redInjury ? 'red' : 'yellow',
+      title: redInjury ? 'Kroppssignal styrer dagen' : 'Følg kroppssignalet tett',
+      recommendation: redInjury
+        ? 'Velg hvile eller smertefri alternativ trening.'
+        : 'Velg rolig/alternativ trening og vent med hard kvalitet.',
+      summary: painImprovingAfterHigh
+        ? 'Smerten er bedre, men tidligere høy smerte skal fortsatt styre før planen.'
+        : redInjury
+        ? 'Aktivt eller forverret skadesignal skal overstyre plan og mål.'
+        : 'Moderat/lavt skadesignal gjør at hard kvalitet bør vente.',
+      blockedActions: ['hard_quality', 'race_test', 'aggressive_progression'],
+      allowedActions: redInjury ? ['rest', 'pain_free_alternative', 'mobility'] : ['easy_test', 'easy_alternative', 'mobility'],
+      guardrails: ['AI skal ikke anbefale terskel, intervall eller race-test når aktivt kroppssignal blokkerer kvalitet.']
+    });
+  }
+
+  if (readiness === 'red') {
+    addSignal({
+      id: 'readiness_red',
+      severity: 'red',
+      title: 'Rød dagsform',
+      recommendation: 'La planen vike og velg hvile eller svært rolig alternativ.',
+      summary: 'Søvn, energi, hvilepuls eller trappetest peker mot restitusjon først.',
+      blockedActions: ['hard_quality', 'race_test'],
+      allowedActions: ['rest', 'very_easy', 'mobility'],
+      guardrails: ['Rød dagsform skal ikke matches med hard løping samme dag.']
+    });
+  } else if (readiness === 'yellow') {
+    addSignal({
+      id: 'readiness_yellow',
+      severity: 'yellow',
+      title: 'Gul dagsform',
+      recommendation: plannedQuality ? 'Start kontrollert eller bytt til lettere økt.' : 'Hold økten rolig og kort nok til overskudd.',
+      summary: 'Dagsformen er brukbar, men bør senke terskelen for justering.',
+      blockedActions: plannedQuality ? ['max_effort', 'race_test'] : [],
+      allowedActions: ['easy', 'adjusted_plan', 'mobility'],
+      guardrails: ['Gul dagsform skal gi justering, ikke prestasjonspress.']
+    });
+  }
+
+  if (comeback?.active) {
+    addSignal({
+      id: 'comeback',
+      severity: 'yellow',
+      title: comeback.label || 'Comeback krever lavere terskel',
+      recommendation: 'Gjør økten lettere/kortere og bygg rytme før kvalitet.',
+      summary: comeback.explanation || 'Et opphold tilsier redusert forventning denne uken.',
+      blockedActions: plannedQuality ? ['hard_quality', 'race_test'] : ['aggressive_progression'],
+      allowedActions: ['easy', 'shortened_plan', 'mobility'],
+      guardrails: ['Ikke anbefal å ta igjen tapt trening i comeback-perioden.']
+    });
+  }
+
+  if (volumeRamp?.status === 'high') {
+    addSignal({
+      id: 'volume_ramp',
+      severity: 'yellow',
+      title: 'Volumet har økt raskt',
+      recommendation: 'Hold neste økt rolig eller kortere.',
+      summary: volumeRamp.explanation || 'Siste periode ligger over normal belastning.',
+      blockedActions: plannedQuality ? ['hard_quality'] : ['aggressive_progression'],
+      allowedActions: ['easy', 'recovery', 'shortened_plan'],
+      guardrails: ['Rask volumøkning skal dempe hard kvalitet, ikke trigge mer progresjon.']
+    });
+  }
+
+  if (intensityBalance?.verdict === 'too_hard' || intensityBalance?.status === 'yellow') {
+    addSignal({
+      id: 'intensity_balance',
+      severity: 'yellow',
+      title: 'Intensitetsbalansen er for hard',
+      recommendation: 'Prioriter rolig støtte eller restitusjon.',
+      summary: intensityBalance.explanation || 'Fordelingen mellom rolige og harde økter trenger mer rolig volum.',
+      blockedActions: plannedQuality ? ['hard_quality'] : [],
+      allowedActions: ['easy', 'recovery', 'mobility'],
+      guardrails: ['Ikke tolk skjev hardandel som grunn til mer kvalitet.']
+    });
+  }
+
+  if (tomorrowQuality && !hasPlannedToday) {
+    addSignal({
+      id: 'tomorrow_quality',
+      severity: 'green',
+      title: 'Kvalitet i morgen',
+      recommendation: 'Hold dagen lett slik at morgendagens kvalitet får friske bein.',
+      summary: tomorrowLabel ? `${tomorrowLabel} ligger i morgen.` : 'Det ligger en hard/kvalitetsøkt i morgen.',
+      blockedActions: ['extra_hard_today'],
+      allowedActions: ['rest', 'easy', 'mobility'],
+      guardrails: ['Ikke anbefal hard bonusøkt dagen før planlagt kvalitet.']
+    });
+  }
+
+  if (continuityFreezeToday) {
+    addSignal({
+      id: 'continuity_freeze_today',
+      severity: 'neutral',
+      title: 'Fryskort aktivt i dag',
+      recommendation: 'Fryskort beskytter kontinuitet, men teller ikke som trening.',
+      summary: 'Dette er motivasjonsbeskyttelse, ikke treningsbelastning.',
+      primaryEligible: false,
+      allowedActions: ['rest', 'normal_plan_if_body_ready'],
+      guardrails: ['Fryskort skal ikke gi økter, kilometer, kvalitet eller belastningskreditt.']
+    });
+  }
+
+  addSignal({
+    id: 'normal_plan',
+    severity: hasPlannedToday || hasNextPlanned ? 'green' : 'neutral',
+    title: hasPlannedToday ? 'Følg planen' : hasNextPlanned ? 'Bruk planen som retning' : 'Planlegg realistisk',
+    recommendation: hasPlannedToday
+      ? plannedLabel ? `Gjennomfør ${plannedLabel} med kontroll.` : 'Gjennomfør planlagt økt med kontroll.'
+      : hasNextPlanned
+      ? 'Bruk dagen til å møte neste økt med overskudd.'
+      : 'Velg én gjennomførbar økt eller planlegg neste steg.',
+    summary: 'Ingen høyere prioriterte signaler krever endring.',
+    allowedActions: ['normal_plan', 'easy_adjustment']
+  });
+
+  const primaryCandidates = signals.filter(signal => signal.primaryEligible);
+  const primary = [...primaryCandidates].sort((a, b) => a.priority - b.priority)[0] || signals[0];
+  const secondarySignals = signals
+    .filter(signal => signal !== primary && signal.id !== 'normal_plan')
+    .sort((a, b) => a.priority - b.priority);
+  const relevantSignals = [primary, ...secondarySignals].filter(Boolean);
+
+  return {
+    primarySignal: primary?.id || 'normal_plan',
+    severity: primary?.severity || 'neutral',
+    recommendation: primary?.recommendation || '',
+    title: primary?.title || '',
+    summary: primary?.summary || '',
+    reasons: relevantSignals.map(signalReason),
+    secondarySignals: secondarySignals.map(signal => ({
+      id: signal.id,
+      severity: signal.severity,
+      title: signal.title,
+      summary: signal.summary,
+      recommendation: signal.recommendation
+    })),
+    blockedActions: uniqueValues(relevantSignals.flatMap(signal => signal.blockedActions || [])),
+    allowedActions: uniqueValues(relevantSignals.flatMap(signal => signal.allowedActions || [])),
+    guardrails: uniqueValues(relevantSignals.flatMap(signal => signal.guardrails || []))
+  };
+}
+
 export function homeHeroState(input = {}) {
   const rules = input.rules && typeof input.rules === 'object' ? input.rules : getCoachRules();
   const hardShareLimit = Number(rules?.thresholds?.intensityBalance?.heroConflictHardShare || 0.65) * 100;
@@ -292,6 +536,13 @@ export function coachDecisionBasis(input = {}) {
 
   if (decision.title) {
     add('Beslutning', decision.title, decision.reason || '', decision.level || 'neutral');
+  }
+  const decisionPackage = input.coachDecision || decision.coachDecision || null;
+  const secondarySignal = Array.isArray(decisionPackage?.secondarySignals)
+    ? decisionPackage.secondarySignals[0]
+    : null;
+  if (secondarySignal?.title) {
+    add('Sekundærsignal', secondarySignal.title, secondarySignal.summary || secondarySignal.recommendation || '', secondarySignal.severity || 'neutral');
   }
 
   if (completedToday?.label) {
