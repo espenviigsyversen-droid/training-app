@@ -158,16 +158,18 @@ Treningsapp/
 
 ## Neste steg (prioritert)
 
-### 1. Strukturert intervallstøtte v2
-- Test v104 manuelt i øktmalflyten, planlagt økt, fullført detaljvisning, Innsikt og coach-notis.
-- Vurder om strukturen også skal kunne brukes direkte når en planlagt økt logges.
-- Vurder flere intervallblokker senere hvis én blokk blir for begrensende.
+1. **v143b - `coach-rules.json` v2**
+   - Etabler en versjonert, validert regel-/parameterkilde med trygg hardkodet fallback.
+2. **v144 - Gylne-sone-fiks og kanonisk intensitetsbalanse**
+   - Skill rolig-brudd fra terskel-brudd og bruk samme intensitetsvurdering på alle flater.
+3. **v145 - Volum-ramp og comeback-protokoll**
+   - Legg til forsiktig volumvakt og redusert forventning etter lengre opphold.
+4. **v146 - `domain-coach.js` første uttrekk**
+   - Flytt ren coach-logikk gradvis ut av `app.js` uten stor refaktorering.
+5. **v147/v148 - Fryskort design og implementering**
+   - Dokumenter policy og bakoverkompatibel datamodell før fryskort bygges.
 
-### 2. AI-integrasjon senere
-Lag en «Spør coachen»-funksjon når datagrunnlaget og intervallstøtten er stabile:
-- Send siste 14 dager komprimert treningshistorikk + `coach-rammeverk.md` som system-prompt til Claude API
-- Vis svaret i Innsikt-fanen
-- Kan bruke `claude-haiku-4-5` for lavere kostnad per kall
+AI-chat, HRV-signaler og øvrige coach-utvidelser tas etter at Coach foundation er konsistent og testbar.
 
 ---
 
