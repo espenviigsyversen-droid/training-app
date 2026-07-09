@@ -14,8 +14,6 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       challengeProgress as challengeProgressCore,
       challengeRemainingLabel,
       challengeValueLabel,
-      coachDecisionBasis,
-      comebackProtocol,
       dateToISO,
       formatClockDuration,
       formatDuration,
@@ -23,7 +21,6 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       formatPace,
       goldenZonePercentages,
       heartRateComplianceSummary,
-      homeHeroState,
       normalizeTemplate,
       parseNonNegativeInteger,
       dailyCoachSupport,
@@ -37,11 +34,16 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       structuredWorkoutBreakdown,
       structuredWorkoutSummary,
       todayCompletedWorkoutFeedback,
-      todayDecision,
-      trainingVolumeRamp,
       weekPlanDates as weekPlanDatesCore,
       weekPlanDatesInRange as weekPlanDatesInRangeCore
     } from './domain-core.js';
+    import {
+      coachDecisionBasis,
+      comebackProtocol,
+      homeHeroState,
+      todayDecision,
+      trainingVolumeRamp
+    } from './domain-coach.js';
     import {
       formatRaceTime,
       goalMilestones,
@@ -67,7 +69,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       loadCoachRules
     } from './domain-coach-rules.js';
 
-    const APP_VERSION = 'v145';
+    const APP_VERSION = 'v146';
     const APP_CACHE_NAME = `treningsapp-${APP_VERSION}`;
 
     const firebaseConfig = {
@@ -7741,7 +7743,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
           const keys = await caches.keys();
           await Promise.all(keys.filter(key => key.startsWith('treningsapp-')).map(key => caches.delete(key)));
         }
-        await Promise.all(['./index.html', './styles.css', './app.js', './domain-core.js', './domain-goals.js', './domain-coach-rules.js', './data/coach-rules.json', './service-worker.js'].map(path =>
+        await Promise.all(['./index.html', './styles.css', './app.js', './domain-core.js', './domain-coach.js', './domain-goals.js', './domain-coach-rules.js', './data/coach-rules.json', './service-worker.js'].map(path =>
           fetch(path, { cache: 'reload' }).catch(() => null)
         ));
       } finally {

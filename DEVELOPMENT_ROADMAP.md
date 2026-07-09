@@ -762,12 +762,20 @@ Status etter v145:
 - Hjem, Dagens råd, heltekort, coach-grunnlag og ukeplan bruker samme volum-/comeback-vurdering.
 - Ukemålet reduseres midlertidig i runtime under comeback uten å endre brukerens lagrede mål eller datamodell.
 
-### v146 - `domain-coach.js` første uttrekk
+### v146 - `domain-coach.js` første uttrekk - Bygget
 
 - Flytt små, tydelig rene coach-beregninger ut av `app.js`.
 - Behold state-, Firebase- og DOM-wrappere i `app.js`.
 - Ikke kombiner dette med stor UI-endring eller full omskriving av coachen.
 - Bruk produksjonsfunksjonene direkte i stabilitetstestene.
+
+Status etter v146:
+
+- Ny `domain-coach.js` eier første avgrensede gruppe med rene coach-funksjoner.
+- `todayDecision()`, `homeHeroState()`, `coachDecisionBasis()`, `trainingVolumeRamp()` og `comebackProtocol()` er flyttet ut av `domain-core.js`.
+- `app.js` importerer coach-funksjonene fra den nye modulen, men beholder wrappers, state, Firebase og render.
+- `domain-core.js` beholder fortsatt intensitetsbalanse, pulsvurdering, skadehelpers og trenings-/templatehelpers for å unngå en stor dependency-refaktor.
+- `domain-coach.js` ligger i PWA app shell og testes direkte.
 
 ### Senere coach-foundation
 
@@ -954,9 +962,9 @@ Hvis svaret er ja på flere av disse, bør ideen prioriteres.
 
 ### Neste 3 runder
 
-1. v146 - `domain-coach.js` første uttrekk
-2. v147 - Fryskort design
-3. v148 - Fryskort implementering
+1. v147 - Fryskort design
+2. v148 - Fryskort implementering
+3. Senere - HRV / «i morgen» / post-workout-feiring
 
 ### Neste 10 runder
 
@@ -964,7 +972,7 @@ Hvis svaret er ja på flere av disse, bør ideen prioriteres.
 2. v143b - `coach-rules.json` v2 - Bygget
 3. v144 - Gylne-sone-fiks og kanonisk intensitetsbalanse - Bygget
 4. v145 - Volum-ramp og comeback-protokoll - Bygget
-5. v146 - `domain-coach.js` første uttrekk
+5. v146 - `domain-coach.js` første uttrekk - Bygget
 6. v147 - Fryskort design
 7. v148 - Fryskort implementering
 8. Senere - HRV / «i morgen» / post-workout-feiring
@@ -1059,6 +1067,6 @@ Neste store verdiøkning er en bedre daglig coach.
 
 Anbefalt neste implementeringsrunde:
 
-> v146 - `domain-coach.js` første uttrekk
+> v147 - Fryskort design
 
-Den skal flytte den første tydelig avgrensede gruppen av rene coach-beregninger ut av `app.js`, mens state-, DOM- og Firebase-wrappere blir stående.
+Den bør dokumentere policy, dataflyt og bakoverkompatibel datamodell før selve fryskort-implementeringen bygges.

@@ -24,6 +24,7 @@ function test(name, fn) {
 
 (async () => {
   const domain = await import(pathToFileURL(path.join(root, 'domain-core.js')).href);
+  const coach = await import(pathToFileURL(path.join(root, 'domain-coach.js')).href);
   const goals = await import(pathToFileURL(path.join(root, 'domain-goals.js')).href);
   const coachRulesDomain = await import(pathToFileURL(path.join(root, 'domain-coach-rules.js')).href);
   const {
@@ -32,19 +33,16 @@ function test(name, fn) {
     calculatePaceMetrics,
     canonicalIntensityBalance,
     classifyWorkoutIntensityContext,
-    comebackProtocol,
     completedDurationSeconds,
     challengeProgress,
     challengeRemainingLabel,
     dailyCoachSupport,
-    coachDecisionBasis,
     formatClockDuration,
     formatDuration,
     formatPace,
     goldenZonePercentages,
     heartRateComplianceSummary,
     hasStructuredIntervals,
-    homeHeroState,
     injuryAdjustedWorkoutAdvice,
     injuryRecoveryGuidance,
     injurySignalSummary,
@@ -60,12 +58,18 @@ function test(name, fn) {
     structuredWorkoutTotalSeconds,
     structuredWorkoutWorkSeconds,
     todayCompletedWorkoutFeedback,
-    todayDecision,
-    trainingVolumeRamp,
     workoutHeartRateCompliance,
     weekPlanDates,
     weekPlanDatesInRange
   } = domain;
+  const {
+    coachDecisionBasis,
+    comebackProtocol,
+    homeHeroState,
+    todayDecision,
+    trainingVolumeRamp
+  } = coach;
+  const domainCoreExports = Object.keys(domain);
   const {
     combinedRaceResults,
     formatRaceTime,
@@ -141,7 +145,7 @@ function test(name, fn) {
   });
 
   test('service worker caches required app shell files', () => {
-    ['./index.html', './styles.css', './app.js', './domain-core.js', './domain-goals.js', './domain-coach-rules.js', './data/coach-rules.json', './manifest.json'].forEach(file => {
+    ['./index.html', './styles.css', './app.js', './domain-core.js', './domain-coach.js', './domain-goals.js', './domain-coach-rules.js', './data/coach-rules.json', './manifest.json'].forEach(file => {
       assert.ok(serviceWorker.includes(file), `${file} is missing from service worker app shell`);
     });
   });
@@ -211,6 +215,15 @@ function test(name, fn) {
     assert.ok(serviceWorker.includes('const isCoachRules'), 'service worker should identify the coach rules request');
     assert.ok(serviceWorker.includes('if (isCoachRules)'), 'coach rules should have a dedicated cache strategy');
     assert.ok(serviceWorker.includes('Coach rules unavailable'), 'coach rules network-first strategy should have an explicit offline miss');
+  });
+
+  test('coach domain helpers live in domain-coach module', () => {
+    assert.ok(app.includes("from './domain-coach.js'"), 'app should import pure coach helpers from domain-coach.js');
+    ['todayDecision', 'homeHeroState', 'coachDecisionBasis', 'trainingVolumeRamp', 'comebackProtocol'].forEach(name => {
+      assert.strictEqual(typeof coach[name], 'function', `${name} should be exported from domain-coach.js`);
+      assert.ok(!domainCoreExports.includes(name), `${name} should not still be exported from domain-core.js`);
+    });
+    assert.ok(serviceWorker.includes('./domain-coach.js'), 'service worker should cache domain-coach.js');
   });
 
   test('setup shows app version from app constants', () => {

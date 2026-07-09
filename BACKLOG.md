@@ -88,9 +88,9 @@ Prioritert backlog for videre utvikling av Treningsapp.
     - Varsle forsiktig ved rask volumøkning.
     - Reduser forventning/ukemål etter lengre opphold.
 
-21. **`domain-coach.js` første uttrekk** - Planlagt v146
-    - Flytt ren coach-logikk gradvis ut av `app.js`.
-    - Behold state-, Firebase- og DOM-wrappere i `app.js`.
+21. **`domain-coach.js` første uttrekk** - Bygget v146
+    - `todayDecision`, `homeHeroState`, `coachDecisionBasis`, `trainingVolumeRamp` og `comebackProtocol` er flyttet til ny ren coach-modul.
+    - State-, Firebase- og DOM-wrappere er beholdt i `app.js`.
 
 22. **Fryskort design** - Planlagt v147
     - Dokumenter policy og bakoverkompatibel datamodell.
@@ -142,11 +142,11 @@ Disse punktene var del av den tidlige v142-idéen, men er bevisst flyttet ut av 
 
 ## Anbefalt neste steg
 
-Neste anbefalte implementeringspunkt er **v146 - `domain-coach.js` første uttrekk**.
+Neste anbefalte implementeringspunkt er **v147 - Fryskort design**.
 
 Begrunnelse:
 - v143b har etablert en validert parameterkilde med trygg fallback
 - v144 har samlet intensitetsgrunnlaget og rettet klassifiseringen av puls etter øktintensjon
 - v145 har lagt til felles vern mot rask volumøkning og for aggressive råd etter opphold
-- neste arkitektursteg er å flytte tydelig ren coach-logikk ut av `app.js` uten stor refaktorering
-- fryskort flyttes til v147/v148 og skal bruke samme validerte policy
+- første coach-modul-uttrekk er gjort uten stor refaktorering
+- fryskort er neste, men bør starte med design/policy før implementering

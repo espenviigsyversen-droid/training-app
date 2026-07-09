@@ -27,7 +27,7 @@ Standard Bakken-uke: Hoved-terskel → Støtte-terskel → Lang rolig → Valgfr
 **Hosting:** GitHub Pages.  
 **Backend:** Firebase (prosjekt `home-tasks-app-18de3`) — Firestore + Google Auth.  
 **Frontend:** Vanilla JS + HTML + CSS, single-page app, tab-navigasjon.  
-**Versjon:** v145 (konstant i `app.js`).
+**Versjon:** v146 (konstant i `app.js`).
 
 ### Filer
 
@@ -36,6 +36,7 @@ Treningsapp/
 ├── index.html          # App-skall, 5 seksjoner (Hjem, Kalender, Logg, Innsikt, Innstillinger)
 ├── app.js              # App-logikk, Firebase-init, coach-system, sync, state og UI-wrappere.
 ├── domain-core.js      # Rene testbare domenehjelpere uten DOM/Firebase/state.
+├── domain-coach.js     # Rene coach-beslutninger, heltekorttilstand, volum-ramp og comeback.
 ├── domain-goals.js     # Rene testbare konkurranse-/mål-hjelpere uten DOM/Firebase/state.
 ├── domain-coach-rules.js # Validering, defaults, merge og fallback for coach-regler.
 ├── styles.css          # Design-tokens (oransje #ff4f2e), mobil-først, 2 000+ linjer.
@@ -128,6 +129,7 @@ Treningsapp/
 - **Coach-regler v2 med trygg fallback** (v143b): `data/coach-rules.json` er oppgradert til et versjonert v2-skjema med prinsipper, prioritet, terskler og fremtidig policy. Ny `domain-coach-rules.js` validerer hovedseksjoner og kjente verdier, fyller manglende nested-felter fra defaults og faller helt tilbake ved ugyldig fil, feil versjon eller lastefeil. `app.js` bygger nå `COACH_FRAMEWORK` fra aktive regler/defaults. Service worker bruker network-first for regelfilen, cache som offline-fallback og hardkodede defaults som siste sikkerhetsnett. Coachens terskelbaserte atferd er ikke tunet eller koblet om i denne runden.
 - **Gylne-sone-fiks og kanonisk intensitetsbalanse** (v144): Rolig/base med høy puls klassifiseres nå som eget rolig-brudd, mens intervall, kvalitet og race ikke omtales som for harde rolige økter. Kvalitet over kontrollert gylne-sone-tak får egen vurdering, og manglende puls gir ingen falsk advarsel. Én ren intensitetsbalanse brukes nå av Hjem, Dagens råd/coach-grunnlag og Innsikt. Vindu, minimumsgrunnlag, hardandel og behandling av `highPulseBase` kommer fra aktive, validerte coach-regler med fallback.
 - **Volum-ramp og comeback-protokoll** (v145): Ny ren `trainingVolumeRamp()` sammenligner de siste 7 dagene med ukesnittet fra de foregående 4 ukene og varsler bare når grunnlaget er tilstrekkelig. Ny `comebackProtocol()` skiller kontrollert retur fra lengre pause og holder redusert forventning aktiv i første returuke. Terskler og faktorer kommer fra validerte coach-regler. Hjem, Dagens råd, heltekortets konfliktvurdering, coach-grunnlaget og ukeplanen bruker samme vurdering. Under comeback reduseres ukemålet bare i runtime-visningen; lagrede mål og datamodell endres ikke.
+- **Første `domain-coach.js`-uttrekk** (v146): Ny ren coach-domene-modul er opprettet. `todayDecision()`, `homeHeroState()`, `coachDecisionBasis()`, `trainingVolumeRamp()` og `comebackProtocol()` er flyttet ut av `domain-core.js` og importeres nå direkte fra `domain-coach.js` i app og tester. `app.js` beholder state-, Firebase- og render-wrappere. PWA-cache inkluderer den nye runtime-filen.
 - **Fjernet «Foreslå neste økt»** (v92): Kortet er fjernet fra Kalender-fanen. Ukeplanen dekker samme behov bedre og er rollebevisst. `renderWorkoutSuggestion`-kallet er fjernet fra render-løkken for å unngå krasj.
 - **Coach: smertegradering + priority-felt + X-økt** (v91): Tre coach-forbedringer: (1) `bodySignalState` skiller nå mellom mild smerte (1–2/10 → `cooling`, foreslår terskel etter en rolig økt) og bekymringsfull smerte (3+/10 → `caution`, kun recovery). Løser at mild smerte blokkerte terskelforslag for hele neste uke. (2) `priority`-feltet i treningsprofilen er nå aktivt: `performance` foreslår terskel straks det er rom, `injury_free_progression` krever 2 rolige øyer før terskel. (3) X-økt vises alltid som 4. forslag i normaluke når det er rom — sikrer at VO2max/teknikk/styrke alltid er synlig som alternativ.
 - **Hjem: alle økter samme dag** (v90): «Neste økt» / «Dagens økt» viser nå alle planlagte økter på samme dato, ikke bare én. For fremtidige dager grupperes etter første kommende dato (`nextDateItems`). Tittelen skifter til «Dagens økt» automatisk når det finnes økter på dagens dato (eksisterende logikk).
@@ -162,10 +164,10 @@ Treningsapp/
 
 ## Neste steg (prioritert)
 
-1. **v146 - `domain-coach.js` første uttrekk**
-   - Flytt ren coach-logikk gradvis ut av `app.js` uten stor refaktorering.
-2. **v147/v148 - Fryskort design og implementering**
+1. **v147 - Fryskort design**
    - Dokumenter policy og bakoverkompatibel datamodell før fryskort bygges.
+2. **v148 - Fryskort implementering**
+   - Bygg fryskort når policy og dataflyt er avklart.
 3. **Senere coach-foundation**
    - HRV, «i morgen»-perspektiv og AI-chat design etter at coach-modulen er tydelig avgrenset.
 
