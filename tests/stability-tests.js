@@ -9,6 +9,7 @@ const read = file => fs.readFileSync(path.join(root, file), 'utf8');
 const app = read('app.js');
 const index = read('index.html');
 const serviceWorker = read('service-worker.js');
+const coachRulesJson = JSON.parse(read('data/coach-rules.json'));
 
 function test(name, fn) {
   try {
@@ -24,6 +25,7 @@ function test(name, fn) {
 (async () => {
   const domain = await import(pathToFileURL(path.join(root, 'domain-core.js')).href);
   const goals = await import(pathToFileURL(path.join(root, 'domain-goals.js')).href);
+  const coachRulesDomain = await import(pathToFileURL(path.join(root, 'domain-coach-rules.js')).href);
   const {
     assessTrafficLight,
     buildStructuredWorkout,
@@ -81,6 +83,28 @@ function test(name, fn) {
     raceWeekPlanContext,
     raceReadinessSummary
   } = goals;
+  const {
+    DEFAULT_COACH_RULES,
+    coachFrameworkFromRules,
+    getCoachRules,
+    loadCoachRules,
+    mergeCoachRules,
+    resetCoachRules,
+    resolveCoachRules,
+    validateCoachRules
+  } = coachRulesDomain;
+
+  const loadedRulesResult = await loadCoachRules('./data/coach-rules.json', async () => ({
+    ok: true,
+    json: async () => coachRulesJson
+  }));
+  const invalidJsonLoadResult = await loadCoachRules('./data/coach-rules.json', async () => ({
+    ok: true,
+    json: async () => {
+      throw new Error('invalid JSON');
+    }
+  }));
+  resetCoachRules();
 
   test('app version matches service worker cache version', () => {
     const appVersion = app.match(/APP_VERSION\s*=\s*'([^']+)'/)?.[1];
@@ -112,9 +136,73 @@ function test(name, fn) {
   });
 
   test('service worker caches required app shell files', () => {
-    ['./index.html', './styles.css', './app.js', './domain-core.js', './domain-goals.js', './manifest.json'].forEach(file => {
+    ['./index.html', './styles.css', './app.js', './domain-core.js', './domain-goals.js', './domain-coach-rules.js', './data/coach-rules.json', './manifest.json'].forEach(file => {
       assert.ok(serviceWorker.includes(file), `${file} is missing from service worker app shell`);
     });
+  });
+
+  test('coach rules v2 validates and supplies the active framework', () => {
+    const validation = validateCoachRules(coachRulesJson);
+    assert.strictEqual(validation.valid, true, validation.errors.join('; '));
+    assert.strictEqual(loadedRulesResult.valid, true);
+    assert.strictEqual(loadedRulesResult.source, 'loaded');
+    const framework = coachFrameworkFromRules(loadedRulesResult.rules);
+    assert.match(framework.principles.controlled_threshold, /kontrollert og repeterbar/);
+  });
+
+  test('coach rules use defaults for invalid version or missing main sections', () => {
+    const wrongVersion = resolveCoachRules({ ...coachRulesJson, version: 1 });
+    const missingThresholds = resolveCoachRules({ ...coachRulesJson, thresholds: undefined });
+    assert.strictEqual(wrongVersion.valid, false);
+    assert.strictEqual(wrongVersion.source, 'defaults');
+    assert.strictEqual(wrongVersion.rules.version, 2);
+    assert.strictEqual(missingThresholds.valid, false);
+    assert.strictEqual(missingThresholds.source, 'defaults');
+  });
+
+  test('coach rules safely merge missing nested values from defaults', () => {
+    const partial = {
+      ...coachRulesJson,
+      thresholds: {
+        ...coachRulesJson.thresholds,
+        pain: { lowMax: 1 }
+      }
+    };
+    const validation = validateCoachRules(partial);
+    const merged = mergeCoachRules(partial);
+    assert.strictEqual(validation.valid, true, validation.errors.join('; '));
+    assert.strictEqual(merged.thresholds.pain.lowMax, 1);
+    assert.strictEqual(merged.thresholds.pain.moderateMax, DEFAULT_COACH_RULES.thresholds.pain.moderateMax);
+  });
+
+  test('coach rules loader falls back after invalid JSON and keeps principles available', () => {
+    assert.strictEqual(invalidJsonLoadResult.valid, false);
+    assert.strictEqual(invalidJsonLoadResult.source, 'defaults');
+    assert.match(invalidJsonLoadResult.errors.join(' '), /invalid JSON/);
+    assert.match(invalidJsonLoadResult.rules.principles.controlled_threshold, /kontrollert og repeterbar/);
+    assert.strictEqual(getCoachRules().version, 2);
+  });
+
+  test('coach rules defaults preserve current threshold values', () => {
+    assert.strictEqual(DEFAULT_COACH_RULES.thresholds.pain.lowMax, 2);
+    assert.strictEqual(DEFAULT_COACH_RULES.thresholds.pain.moderateMax, 4);
+    assert.strictEqual(DEFAULT_COACH_RULES.thresholds.pain.highMin, 5);
+    assert.strictEqual(DEFAULT_COACH_RULES.thresholds.readiness.redAvgMax, 2);
+    assert.strictEqual(DEFAULT_COACH_RULES.thresholds.readiness.yellowAvgMax, 3.5);
+    assert.strictEqual(DEFAULT_COACH_RULES.thresholds.intensityBalance.windowDays, 14);
+    assert.strictEqual(DEFAULT_COACH_RULES.thresholds.intensityBalance.heroConflictHardShare, 0.65);
+    assert.strictEqual(DEFAULT_COACH_RULES.thresholds.quality.hardRpeMin, 7);
+    assert.deepStrictEqual(DEFAULT_COACH_RULES.thresholds.goldenZone.experienced, [0.8, 0.87]);
+  });
+
+  test('app loads coach rules and service worker uses explicit network-first fallback', () => {
+    assert.ok(app.includes("from './domain-coach-rules.js'"), 'app should import the coach rules module');
+    assert.ok(app.includes("loadCoachRules('./data/coach-rules.json')"), 'app should load coach rules at startup');
+    assert.ok(app.includes('coachFrameworkFromRules(result.rules)'), 'app framework should use resolved coach rules');
+    assert.ok(!app.includes('const COACH_FRAMEWORK = {'), 'app should not keep a separate hardcoded framework copy');
+    assert.ok(serviceWorker.includes('const isCoachRules'), 'service worker should identify the coach rules request');
+    assert.ok(serviceWorker.includes('if (isCoachRules)'), 'coach rules should have a dedicated cache strategy');
+    assert.ok(serviceWorker.includes('Coach rules unavailable'), 'coach rules network-first strategy should have an explicit offline miss');
   });
 
   test('setup shows app version from app constants', () => {

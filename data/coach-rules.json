@@ -1,7 +1,7 @@
 {
-  "version": 1,
-  "source": "../Treningsfilosofi/coach-rammeverk.md",
-  "framework": "Bakken-inspirert kontrollert terskel og skadefri progresjon",
+  "version": 2,
+  "source": "./Treningsfilosofi/coach-rammeverk.md",
+  "framework": "Bakken-inspirert kontrollert terskel",
   "principles": {
     "controlled_threshold": "Terskel skal være kontrollert og repeterbar, ikke maksimal.",
     "golden_zone": "Den gylne sonen prioriterer litt lavere intensitet for bedre kontinuitet.",
@@ -12,16 +12,68 @@
     "repeatable_week": "Normaluken skal være enkel, repeterbar og justerbar."
   },
   "decisionPriority": [
-    "body_signals_first",
+    "injury_active",
+    "readiness_red",
+    "readiness_yellow",
     "recent_load",
-    "repeatable_week",
-    "template_roles",
+    "volume_ramp",
+    "week_structure",
     "consistency"
   ],
-  "bakkenRunningWeek": [
-    "main_threshold",
-    "support_threshold",
-    "long_easy",
-    "x_workout"
-  ]
+  "thresholds": {
+    "pain": {
+      "lowMax": 2,
+      "moderateMax": 4,
+      "highMin": 5,
+      "releaseMaxScore": 1,
+      "releaseStableCheckins": 2
+    },
+    "readiness": {
+      "redAvgMax": 2,
+      "yellowAvgMax": 3.5,
+      "redHrDelta": 10,
+      "yellowHrDelta": 5
+    },
+    "intensityBalance": {
+      "windowDays": 14,
+      "minEasyShare": 0.4,
+      "heroConflictHardShare": 0.65,
+      "insightsEasyPerHardTarget": 3,
+      "countHighPulseBaseAsEasy": true
+    },
+    "easyCeiling": {
+      "pctOfThresholdHr": 0.92,
+      "pctOfMaxHr": 0.82
+    },
+    "goldenZone": {
+      "beginner": [0.77, 0.84],
+      "intermediate": [0.78, 0.85],
+      "experienced": [0.8, 0.87]
+    },
+    "quality": {
+      "maxPer7Days": 2,
+      "minDaysBetween": 2,
+      "hardRpeMin": 7
+    },
+    "volumeRamp": {
+      "windowWeeks": 4,
+      "maxWeeklyIncreaseFactor": 1.25
+    },
+    "comeback": {
+      "triggerDaysSinceLast": 5,
+      "longBreakDays": 10,
+      "reducedWeekFactor": 0.65
+    },
+    "streakFreeze": {
+      "cardsPerMonth": 1,
+      "validReasons": ["sick", "travel", "injury"]
+    }
+  },
+  "bakkenRunningWeek": {
+    "roles": ["main_threshold", "support_threshold", "long_easy", "x_workout"],
+    "constraints": {
+      "easyDayAfterQuality": true,
+      "xWorkoutRequiresSurplus": true
+    }
+  }
 }

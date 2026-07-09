@@ -57,8 +57,13 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       raceWeekPlanContext,
       raceReadinessSummary
     } from './domain-goals.js';
+    import {
+      coachFrameworkFromRules,
+      getCoachRules,
+      loadCoachRules
+    } from './domain-coach-rules.js';
 
-    const APP_VERSION = 'v142c';
+    const APP_VERSION = 'v143b';
     const APP_CACHE_NAME = `treningsapp-${APP_VERSION}`;
 
     const firebaseConfig = {
@@ -127,19 +132,13 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     let tlSelections = { sleep: null, energy: null, stairsOk: null };
     let injuryCheckinExpanded = false;
 
-    const COACH_FRAMEWORK = {
-      name: 'Bakken-inspirert kontrollert terskel',
-      source: 'Treningsfilosofi/coach-rammeverk.md',
-      principles: {
-        controlled_threshold: 'Terskel skal være kontrollert, ikke maksimal.',
-        golden_zone: 'Den gylne sonen prioriterer litt lavere intensitet for bedre kontinuitet.',
-        easy_support: 'Rolig volum støtter kvalitet og kontinuitet.',
-        fresh_legs: 'Kvalitet bør komme med friske bein.',
-        body_signals_first: 'Kroppssignaler trumfer planen.',
-        recovery_is_training: 'Restitusjon er aktiv belastningsstyring.',
-        repeatable_week: 'Normaluken skal være enkel og repeterbar.'
+    let COACH_FRAMEWORK = coachFrameworkFromRules(getCoachRules());
+    loadCoachRules('./data/coach-rules.json').then(result => {
+      COACH_FRAMEWORK = coachFrameworkFromRules(result.rules);
+      if (!result.valid) {
+        console.warn('Coach rules fallback active:', result.errors.join('; '));
       }
-    };
+    });
 
     // ── Utilities ─────────────────────────────────────────────────────────────
     function uid(prefix) {
@@ -7804,7 +7803,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
           const keys = await caches.keys();
           await Promise.all(keys.filter(key => key.startsWith('treningsapp-')).map(key => caches.delete(key)));
         }
-        await Promise.all(['./index.html', './styles.css', './app.js', './domain-core.js', './domain-goals.js', './service-worker.js'].map(path =>
+        await Promise.all(['./index.html', './styles.css', './app.js', './domain-core.js', './domain-goals.js', './domain-coach-rules.js', './data/coach-rules.json', './service-worker.js'].map(path =>
           fetch(path, { cache: 'reload' }).catch(() => null)
         ));
       } finally {

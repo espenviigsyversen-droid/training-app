@@ -27,7 +27,7 @@ Standard Bakken-uke: Hoved-terskel → Støtte-terskel → Lang rolig → Valgfr
 **Hosting:** GitHub Pages.  
 **Backend:** Firebase (prosjekt `home-tasks-app-18de3`) — Firestore + Google Auth.  
 **Frontend:** Vanilla JS + HTML + CSS, single-page app, tab-navigasjon.  
-**Versjon:** v142c (konstant i `app.js`).
+**Versjon:** v143b (konstant i `app.js`).
 
 ### Filer
 
@@ -37,6 +37,7 @@ Treningsapp/
 ├── app.js              # App-logikk, Firebase-init, coach-system, sync, state og UI-wrappere.
 ├── domain-core.js      # Rene testbare domenehjelpere uten DOM/Firebase/state.
 ├── domain-goals.js     # Rene testbare konkurranse-/mål-hjelpere uten DOM/Firebase/state.
+├── domain-coach-rules.js # Validering, defaults, merge og fallback for coach-regler.
 ├── styles.css          # Design-tokens (oransje #ff4f2e), mobil-først, 2 000+ linjer.
 ├── manifest.json       # PWA-manifest
 ├── service-worker.js   # Offline-cache
@@ -58,7 +59,7 @@ Treningsapp/
 - Maler og planlegging av økter (kalendervisning)
 - Loggføring med RPE, smerte, treningseffekt (Garmin), HRV
 - Belastningsvurdering (lav / moderat / høy) basert på RPE + HRV + Garmin-effekt
-- Coach-rammeverk-objekt med 7 Bakken-prinsipper i koden
+- Coach-regler v2 med 7 Bakken-prinsipper, validering og trygg runtime-fallback
 - Innsikt-fane med grunnleggende statistikk
 - Utfordringer/mål-modul
 - **Coach-kontekst v1** (v75): `buildCoachContext()` samler nå-bilde fra 7/14/28 dager, gylne sone, HRV, kroppssignaler, ukesroller, challenges. Coach-noten på Hjem og Innsikt kjører ekte logikk. "?"-knapp viser grunnlaget.
@@ -124,6 +125,7 @@ Treningsapp/
 - **Hjem ukestatus mobilpatch** (v142c): `Denne uken`-kortet på Hjem har fått mobilspesifikke tekst- og boksguarder for de små statkortene. `Balansert`/belastningsfeltet og labelen `BELASTNING` beholder full tekst, men bruker strammere mobiltypografi, normal ordbryting og `hyphens: none` slik at teksten ikke brekkes bokstav-for-bokstav eller presses ut av boksen. Endringen er CSS-only bortsett fra versjon/cache.
 - **Roadmap-status etter v142** (dokumentasjon): Logg-delen av v142 er markert ferdig etter v142/v142b, med v142c som separat mobilpatch på Hjem. Ikke-leverte idéer fra opprinnelig v142-scope er flyttet til versjonsløse backlogspor for Mål/PB-historikk, challenge-arkiv og eventuell Logg-gruppering.
 - **Coach foundation prioritert** (v143a, dokumentasjon): Ekstern coach-review er analysert. Roadmap/backlog prioriterer nå en validert `coach-rules.json` v2, gylne-sone-fiks, én kanonisk intensitetsbalanse, volum-ramp/comeback og gradvis uttrekk til `domain-coach.js` før fryskort og AI. Fryskort er flyttet til v147 design / v148 implementering. `ARKITEKT_CONTEXT.md` presiserer én sannhetskilde for coach-regler og forbud mot dupliserte terskler. Ingen runtime-filer eller versjon/cache er endret.
+- **Coach-regler v2 med trygg fallback** (v143b): `data/coach-rules.json` er oppgradert til et versjonert v2-skjema med prinsipper, prioritet, terskler og fremtidig policy. Ny `domain-coach-rules.js` validerer hovedseksjoner og kjente verdier, fyller manglende nested-felter fra defaults og faller helt tilbake ved ugyldig fil, feil versjon eller lastefeil. `app.js` bygger nå `COACH_FRAMEWORK` fra aktive regler/defaults. Service worker bruker network-first for regelfilen, cache som offline-fallback og hardkodede defaults som siste sikkerhetsnett. Coachens terskelbaserte atferd er ikke tunet eller koblet om i denne runden.
 - **Fjernet «Foreslå neste økt»** (v92): Kortet er fjernet fra Kalender-fanen. Ukeplanen dekker samme behov bedre og er rollebevisst. `renderWorkoutSuggestion`-kallet er fjernet fra render-løkken for å unngå krasj.
 - **Coach: smertegradering + priority-felt + X-økt** (v91): Tre coach-forbedringer: (1) `bodySignalState` skiller nå mellom mild smerte (1–2/10 → `cooling`, foreslår terskel etter en rolig økt) og bekymringsfull smerte (3+/10 → `caution`, kun recovery). Løser at mild smerte blokkerte terskelforslag for hele neste uke. (2) `priority`-feltet i treningsprofilen er nå aktivt: `performance` foreslår terskel straks det er rom, `injury_free_progression` krever 2 rolige øyer før terskel. (3) X-økt vises alltid som 4. forslag i normaluke når det er rom — sikrer at VO2max/teknikk/styrke alltid er synlig som alternativ.
 - **Hjem: alle økter samme dag** (v90): «Neste økt» / «Dagens økt» viser nå alle planlagte økter på samme dato, ikke bare én. For fremtidige dager grupperes etter første kommende dato (`nextDateItems`). Tittelen skifter til «Dagens økt» automatisk når det finnes økter på dagens dato (eksisterende logikk).
@@ -158,15 +160,13 @@ Treningsapp/
 
 ## Neste steg (prioritert)
 
-1. **v143b - `coach-rules.json` v2**
-   - Etabler en versjonert, validert regel-/parameterkilde med trygg hardkodet fallback.
-2. **v144 - Gylne-sone-fiks og kanonisk intensitetsbalanse**
+1. **v144 - Gylne-sone-fiks og kanonisk intensitetsbalanse**
    - Skill rolig-brudd fra terskel-brudd og bruk samme intensitetsvurdering på alle flater.
-3. **v145 - Volum-ramp og comeback-protokoll**
+2. **v145 - Volum-ramp og comeback-protokoll**
    - Legg til forsiktig volumvakt og redusert forventning etter lengre opphold.
-4. **v146 - `domain-coach.js` første uttrekk**
+3. **v146 - `domain-coach.js` første uttrekk**
    - Flytt ren coach-logikk gradvis ut av `app.js` uten stor refaktorering.
-5. **v147/v148 - Fryskort design og implementering**
+4. **v147/v148 - Fryskort design og implementering**
    - Dokumenter policy og bakoverkompatibel datamodell før fryskort bygges.
 
 AI-chat, HRV-signaler og øvrige coach-utvidelser tas etter at Coach foundation er konsistent og testbar.

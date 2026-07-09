@@ -1,4 +1,4 @@
-const CACHE_NAME = "treningsapp-v142c";
+const CACHE_NAME = "treningsapp-v143b";
 const FIREBASE_MODULES = [
   "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js",
   "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js",
@@ -11,6 +11,7 @@ const APP_SHELL = [
   "./app.js",
   "./domain-core.js",
   "./domain-goals.js",
+  "./domain-coach-rules.js",
   "./manifest.json",
   "./Treningsfilosofi/coach-rammeverk.md",
   "./data/coach-rules.json",
@@ -40,18 +41,37 @@ self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") return;
 
   const url = new URL(event.request.url);
+  const isCoachRules = url.origin === self.location.origin &&
+    url.pathname.endsWith("/data/coach-rules.json");
   const isAppFile = url.origin === self.location.origin && (
     url.pathname.endsWith("/") ||
     url.pathname.endsWith("/index.html") ||
     url.pathname.endsWith("/app.js") ||
     url.pathname.endsWith("/domain-core.js") ||
     url.pathname.endsWith("/domain-goals.js") ||
+    url.pathname.endsWith("/domain-coach-rules.js") ||
     url.pathname.endsWith("/styles.css") ||
     url.pathname.endsWith("/manifest.json") ||
     url.pathname.endsWith("/service-worker.js")
   );
   const isFirebaseModule = url.origin === "https://www.gstatic.com" &&
     url.pathname.startsWith("/firebasejs/10.12.2/");
+
+  if (isCoachRules) {
+    event.respondWith(
+      fetch(event.request, { cache: "no-store" })
+        .then((response) => {
+          if (!response.ok) throw new Error(`Coach rules request failed: ${response.status}`);
+          const copy = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
+          return response;
+        })
+        .catch(() => caches.match(event.request).then((cached) =>
+          cached || new Response("", { status: 503, statusText: "Coach rules unavailable" })
+        ))
+    );
+    return;
+  }
 
   if (isAppFile) {
     event.respondWith(

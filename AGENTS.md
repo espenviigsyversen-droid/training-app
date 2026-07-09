@@ -30,6 +30,7 @@ node --check app.js
 node --check service-worker.js
 node --check domain-core.js
 node --check domain-goals.js
+node --check domain-coach-rules.js
 node tests\stability-tests.js
 ```
 
@@ -39,6 +40,7 @@ node tests\stability-tests.js
 - `app.js` - hovedlogikk, state, Firebase, coach, render
 - `domain-core.js` - rene testbare domenehjelpere
 - `domain-goals.js` - rene testbare konkurranse-/mål-hjelpere
+- `domain-coach-rules.js` - validering, defaults og runtime-fallback for coach-regler
 - `styles.css` - styling
 - `service-worker.js` - PWA-cache
 - `manifest.json` - PWA-manifest
@@ -55,6 +57,7 @@ node --check app.js
 node --check service-worker.js
 node --check domain-core.js
 node --check domain-goals.js
+node --check domain-coach-rules.js
 node tests\stability-tests.js
 ```
 

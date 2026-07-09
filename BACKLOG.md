@@ -75,7 +75,7 @@ Prioritert backlog for videre utvikling av Treningsapp.
     - Coach foundation er prioritert før fryskort og AI.
     - Review-funnene er fordelt på små, testbare runder.
 
-18. **`coach-rules.json` v2** - Planlagt v143b
+18. **`coach-rules.json` v2** - Bygget v143b
     - Gjør regelfilen til validert kilde for prinsipper, terskler og coach-policy.
     - Bruk hardkodede defaults som trygg fallback.
     - Definer eksplisitt PWA/cache-atferd og test ugyldig/manglende fil.
@@ -142,9 +142,10 @@ Disse punktene var del av den tidlige v142-idéen, men er bevisst flyttet ut av 
 
 ## Anbefalt neste steg
 
-Neste anbefalte implementeringspunkt er **v143b - `coach-rules.json` v2 med validering og trygg fallback**.
+Neste anbefalte implementeringspunkt er **v144 - Gylne-sone-fiks og kanonisk intensitetsbalanse**.
 
 Begrunnelse:
-- dagens regelfil caches uten å brukes og prinsipper/terskler har flere sannhetskilder
-- gylne-sone-fiks og felles intensitetsbalanse trenger en stabil parameterkilde
+- v143b har etablert en validert parameterkilde med trygg fallback
+- gylne-sone-analysen har en reell klassifiseringsfeil som bør rettes nå
+- Hjem, Dagens råd og Innsikt bør bruke samme intensitetsgrunnlag
 - fryskort flyttes til v147/v148 og skal bruke samme validerte policy

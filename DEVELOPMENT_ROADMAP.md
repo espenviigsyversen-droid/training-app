@@ -716,13 +716,20 @@ Dette sporet skal bygges i små runder. Det er ikke en stor refaktorering, og hv
 - Fryskort er flyttet til etter de viktigste foundation-rundene.
 - Ingen runtime-logikk eller versjon/cache endres i denne runden.
 
-### v143b - `coach-rules.json` v2
+### v143b - `coach-rules.json` v2 - Bygget
 
 - Dokumenter og implementer et versjonert v2-skjema for prinsipper, terskler, prioritet og policy.
 - Last og valider filen ved oppstart.
 - Bruk hardkodede defaults ved nettverks-, cache- eller valideringsfeil.
 - Avklar eksplisitt PWA/cache-strategi og test både gyldig fil og fallback.
 - Fjern dupliserte sannhetskilder gradvis; ikke endre alle coach-regler samtidig.
+
+Status etter v143b:
+
+- Ny `domain-coach-rules.js` eier defaults, validering, trygg merge, aktiv regeltilgang og lasting.
+- Appen bruker validert regelfil for rammeverksnavn og prinsipptekster, med umiddelbare defaults som fallback.
+- Regelfilen lastes network-first, ligger i app shell som offline-fallback og kan ikke blokkere appoppstart.
+- Tersklene er samlet og klare for v144/v145, men eksisterende coach-beregninger er bevisst ikke koblet om i denne runden.
 
 ### v144 - Gylne-sone-fiks og kanonisk intensitetsbalanse
 
@@ -931,14 +938,14 @@ Hvis svaret er ja på flere av disse, bør ideen prioriteres.
 
 ### Neste 3 runder
 
-1. v143b - `coach-rules.json` v2 med validering og fallback
-2. v144 - Gylne-sone-fiks og kanonisk intensitetsbalanse
-3. v145 - Volum-ramp og comeback-protokoll
+1. v144 - Gylne-sone-fiks og kanonisk intensitetsbalanse
+2. v145 - Volum-ramp og comeback-protokoll
+3. v146 - `domain-coach.js` første uttrekk
 
 ### Neste 10 runder
 
 1. v143a - Coach review triage og roadmap - Ferdig dokumentasjon
-2. v143b - `coach-rules.json` v2
+2. v143b - `coach-rules.json` v2 - Bygget
 3. v144 - Gylne-sone-fiks og kanonisk intensitetsbalanse
 4. v145 - Volum-ramp og comeback-protokoll
 5. v146 - `domain-coach.js` første uttrekk
@@ -1036,6 +1043,6 @@ Neste store verdiøkning er en bedre daglig coach.
 
 Anbefalt neste implementeringsrunde:
 
-> v143b - `coach-rules.json` v2 med validering og trygg fallback
+> v144 - Gylne-sone-fiks og kanonisk intensitetsbalanse
 
-Den skal etablere én robust kilde for prinsipper, terskler og coach-policy før gylne-sone-fiks, felles intensitetsbalanse og fryskort bygges videre.
+Den skal bruke den validerte regelfilen til å fjerne den reelle gylne-sone-feilen og gi Hjem, Dagens råd og Innsikt samme intensitetsgrunnlag.
