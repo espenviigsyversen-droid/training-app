@@ -57,17 +57,19 @@ Prioritert backlog for videre utvikling av Treningsapp.
    - Inkluder mål-løp, fase, skadesignal, siste test, siste 7/28 dager og kommende økter.
    - Viser nå strukturert grunnlag under Dagens råd på Hjem.
 
-14. **Mål-kort v2 på Hjem** - Planlagt v139
+14. **Mål-kort v2 på Hjem** - Bygget v139
     - Vis mini-delmål, mål-score-trend og fase som progresjon.
     - Hold kortet kompakt og motiverende.
 
-15. **Kalender polish og handlingsflyt** - Planlagt v141
+15. **Kalender polish og handlingsflyt** - Bygget v141
     - Gjør ukeplan og planlagte økter mer skannbare.
     - Behold nøytral planlagt-status.
     - La kalenderen støtte forståelsen av bytteforslag fra heltekortet.
 
-16. **Logg og Mål polish** - Planlagt v142
-    - Bedre pace/fart i logg, mer ryddig ukesgruppering og tydeligere PB-/måloppfølging.
+16. **Logg polish** - Bygget v142/v142b
+    - Kompakte, skannbare loggkort med øktnavn, dato, aktivitet/intensitet og hovedtall.
+    - Detaljmodal, filtre, sletting/angre og eksisterende dataflyt er beholdt.
+    - Mobiloversikten ble trimmet i v142b. Ukesgruppering og Mål/PB-polish ble ikke bygget i denne runden.
 
 17. **Fryskort for kontinuitet** - Planlagt v143
     - Sykdom, reise eller legitime avbrudd bør kunne fryse streak slik at et fremhevet kontinuitetskort ikke blir demotiverende.
@@ -92,11 +94,27 @@ Prioritert backlog for videre utvikling av Treningsapp.
     - Små forbedringer som gjør appen mer behagelig i daglig bruk.
     - Eksempler: kortere tekster, bedre prioritering på Hjem/Mål, sticky handlinger i modaler og bedre tomtilstander.
 
+## Deferred / senere polish
+
+Disse punktene var del av den tidlige v142-idéen, men er bevisst flyttet ut av den ferdige Logg-runden og har ikke reserverte versjonsnumre.
+
+1. **Mål/PB-historikk polish**
+   - Bedre PB-kort og mer lesbar PB-/testhistorikk.
+   - Tydeligere utvikling over tid uten å gjøre Mål-fanen unødvendig tung.
+
+2. **Challenge-arkiv**
+   - Arkiver fullførte challenges.
+   - La gamle challenges gi mestring og historikk uten å fylle Hjem.
+
+3. **Logg ukes-/månedsgruppering**
+   - Vurder gruppering bare dersom det forbedrer oversikten sammenlignet med den kompakte v142b-listen.
+   - Mobilvisningen skal fortsatt være lett og skannbar.
+
 ## Anbefalt neste steg
 
-Neste anbefalte backlogpunkt er **Mål-kort v2 på Hjem**.
+Neste anbefalte backlogpunkt er **v143a - Fryskort for kontinuitet: design og datamodell først**.
 
 Begrunnelse:
-- bygger videre på motivasjonen rundt Halv-Birken og mål-score
-- kan vise mini-delmål, mål-score-trend og fase uten ny stor datamodell
-- passer godt etter v138 fordi heltekortet nå håndterer dagens beslutning, mens mål-kortet kan handle mer om fremdrift
+- streaken vises tydelig på Hjem og bør ikke brytes urettferdig ved sykdom, reise eller andre legitime avbrudd
+- design og datamodell bør avklares før runtime-implementering
+- de utsatte v142-punktene kan prioriteres senere uten å blokkere dette sikkerhetsgrepet

@@ -637,22 +637,52 @@ Gjør kalenderen mer behagelig og handlingsorientert uten stor redesign.
 
 Kalenderen er stedet der råd blir til faktisk plan. Etter at heltekortet kan foreslå justeringer, bør kalenderen være enklere å lese og stole på.
 
-## v142 - Logg og Mål polish
+## v142 - Logg polish - Ferdig
 
 ### Mål
 
-Gjør oppfølging etter økter, PB og mål mer ryddig og motiverende.
+Gjør treningshistorikken mer ryddig, skannbar og nyttig, særlig på mobil.
 
-### Scope
+### Levert
 
-- Logg: bedre visning av pace/fart og ukesgruppering hvis det kan gjøres lavrisiko.
-- Mål: bedre PB-kort, tydeligere historikk og mer lesbar utvikling.
-- Challenges: vurder arkiv/ferdige challenges som kan gi mestring uten å fylle Hjem.
-- Behold all eksisterende historikk og datamodell.
+- v142 gjorde øktkategori, rolle/formål, belastning og nøkkeltall tydeligere i Logg.
+- v142b trimmet standardkortet til øktnavn, dato, aktivitet/intensitet og en kompakt hovedlinje med distanse, tid og puls.
+- Maks én prioritert kontekstchip og en diskret fargemarkør gir rask skanning uten å gjøre kortene tunge.
+- Detaljmodal, filtre, sletting/angre og eksisterende dataflyt er beholdt.
+- v142c rettet tekstbryting i ukestatuskortet på Hjem uten å endre Logg-flyten.
+- Ingen ny datamodell ble introdusert.
+
+### Utsatt fra opprinnelig scope
+
+Disse punktene ble ikke presset inn i v142 og ligger som egne, versjonsløse spor under `Deferred / senere polish`:
+
+- Mål/PB-historikk polish.
+- Challenge-arkiv.
+- Logg ukes-/månedsgruppering, bare dersom det faktisk forbedrer dagens kompakte oversikt.
 
 ### Hvorfor
 
-Når Hjem blir mer beslutningsorientert, bør Logg og Mål bli gode steder for refleksjon: hva gjorde jeg, hva lærte jeg, og hva betyr det for målet?
+Når Hjem blir mer beslutningsorientert, skal Logg være en rask oversiktsflate. Full informasjon finnes fortsatt i detaljvisningen.
+
+## Deferred / senere polish
+
+### Mål/PB-historikk polish
+
+- Forbedre PB-kort og gjøre PB-/testhistorikk enda lettere å lese.
+- Synliggjøre utvikling over tid uten å gjøre Mål-fanen mer teksttung.
+- Gjenbruke eksisterende PB- og trendlogikk; ingen ny versjon er reservert.
+
+### Challenge-arkiv
+
+- Arkivere fullførte challenges slik at aktive mål ikke drukner.
+- Beholde gamle challenges som mestrings- og historikkvisning uten å fylle Hjem.
+- Avklare ønsket dataflyt og bakoverkompatibilitet før implementering.
+
+### Logg ukes-/månedsgruppering
+
+- Vurdere gruppering først etter praktisk bruk av den kompakte v142b-loggen.
+- Bygge det bare dersom gruppering gir bedre skanning enn dagens kronologiske liste.
+- Mobiloversikten skal ikke bli høyere eller tyngre.
 
 ## v143 - Fryskort for kontinuitet
 
@@ -823,15 +853,15 @@ Hvis svaret er ja på flere av disse, bør ideen prioriteres.
 
 ### Neste 3 runder
 
-1. v139 - Mål-kort v2 på Hjem
-2. v141 - Kalender polish og handlingsflyt
-3. v142 - Logg og Mål polish
+1. v143a - Fryskort for kontinuitet: design og datamodell først
+2. v143 - Fryskort for kontinuitet: implementering etter godkjent design
+3. v140 - Ukesvolum-graf på Hjem desktop, fortsatt lavere prioritet
 
 ### Neste 10 runder
 
 1. v139 - Mål-kort v2 på Hjem
 2. v141 - Kalender polish og handlingsflyt
-3. v142 - Logg og Mål polish
+3. v142 - Logg polish - Ferdig
 4. v143 - Fryskort for kontinuitet
 5. v140 - Ukesvolum-graf på Hjem desktop
 6. v144 - Ernæring/væske/restitusjonsnotater
@@ -928,6 +958,6 @@ Neste store verdiøkning er en bedre daglig coach.
 
 Anbefalt neste utviklingsrunde:
 
-> v139 - Mål-kort v2 på Hjem
+> v143a - Fryskort for kontinuitet: design og datamodell først
 
-Den bør gjøre mål-kortet mer motiverende med mini-delmål, mål-score-trend og tydelig fase/progresjon uten å gjøre Hjem tyngre.
+Den bør avklare en liten, bakoverkompatibel modell og tydelige begrensninger før streak-beregningen eller UI-et endres.
