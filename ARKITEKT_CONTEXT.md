@@ -337,6 +337,13 @@ Kontroller:
 - Coach-logikk skal gradvis flyttes fra `app.js` til `domain-coach.js`; `app.js` skal fortsatt håndtere state, DOM, Firebase og render-wrappere.
 - En senere AI-coach skal bruke samme regelfil og coach-context som den regelstyrte appen.
 
+### 6.10 Fryskort er motivasjonsbeskyttelse, ikke treningsdata
+
+- Fryskort/streak freeze skal beskytte kontinuitetsfølelse ved legitime avbrudd som sykdom, skade, reise eller ekstraordinær livsbelastning.
+- Fryskort skal ikke telle som økt, kilometer, minutter, PB, challenge-volum eller kvalitet.
+- Fryskort skal ikke overstyre skadesignal, dagsform, volum-ramp eller comeback-protokoll.
+- Datamodell og implementering skal følge `STREAK_FREEZE_DESIGN.md`.
+
 ---
 
 ## 7. UI/UX-prinsipper

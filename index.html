@@ -1279,6 +1279,44 @@
     </div>
   </div>
 
+  <div id="continuityFreezeModal" class="modal-backdrop">
+    <div class="modal">
+      <h2>Frys kontinuitet</h2>
+      <p class="small-note">Dette beskytter kontinuiteten, men teller ikke som trening.</p>
+      <div class="inline-form">
+        <div class="form-grid-2">
+          <div>
+            <label>Fra dato</label>
+            <input id="freezeStartDate" type="date" />
+          </div>
+          <div>
+            <label>Til dato</label>
+            <input id="freezeEndDate" type="date" />
+          </div>
+        </div>
+        <div>
+          <label>Årsak</label>
+          <select id="freezeReason">
+            <option value="sick">Sykdom</option>
+            <option value="injury">Skade/kroppssignal</option>
+            <option value="travel">Reise</option>
+            <option value="life_load">Livsbelastning</option>
+            <option value="other">Annet</option>
+          </select>
+        </div>
+        <div>
+          <label>Notat</label>
+          <textarea id="freezeNote" placeholder="Valgfritt, men nyttig for å huske hvorfor uka ble beskyttet."></textarea>
+        </div>
+        <div class="button-row">
+          <button class="btn-primary" onclick="saveContinuityFreeze()">Lagre fryskort</button>
+          <button class="btn-soft" onclick="closeContinuityFreezeModal()">Lukk</button>
+        </div>
+        <div id="continuityFreezeList" class="freeze-list"></div>
+      </div>
+    </div>
+  </div>
+
   <div id="personalBestHistoryModal" class="modal-backdrop">
     <div class="modal pb-history-modal">
       <div id="personalBestHistoryContent"></div>

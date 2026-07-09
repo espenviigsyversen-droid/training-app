@@ -65,7 +65,13 @@ function test(name, fn) {
   const {
     coachDecisionBasis,
     comebackProtocol,
+    continuityFreezeDays,
+    continuityFreezeWeekSummary,
     homeHeroState,
+    isDateFrozen,
+    isWeekProtectedByFreeze,
+    normalizeContinuityFreeze,
+    normalizeContinuityFreezes,
     todayDecision,
     trainingVolumeRamp
   } = coach;
@@ -125,7 +131,7 @@ function test(name, fn) {
 
   test('all user data collections are included in replacement import', () => {
     const collections = app.match(/DATA_COLLECTIONS\s*=\s*\[([^\]]+)\]/)?.[1] || '';
-    ['templates', 'planned', 'completed', 'wellness', 'challenges', 'blockedDays', 'raceResults'].forEach(collection => {
+    ['templates', 'planned', 'completed', 'wellness', 'challenges', 'blockedDays', 'raceResults', 'continuityFreezes'].forEach(collection => {
       assert.ok(collections.includes(`'${collection}'`), `${collection} is missing from DATA_COLLECTIONS`);
     });
     assert.ok(app.includes('replaceFirestoreData(nextState)'), 'import does not call replaceFirestoreData(nextState)');
@@ -204,6 +210,9 @@ function test(name, fn) {
     assert.strictEqual(DEFAULT_COACH_RULES.thresholds.quality.hardRpeMin, 7);
     assert.strictEqual(DEFAULT_COACH_RULES.thresholds.volumeRamp.minimumBaselineSessions, 4);
     assert.strictEqual(DEFAULT_COACH_RULES.thresholds.comeback.protocolDays, 7);
+    assert.deepStrictEqual(DEFAULT_COACH_RULES.thresholds.streakFreeze.validReasons, ['sick', 'injury', 'travel', 'life_load', 'other']);
+    assert.strictEqual(DEFAULT_COACH_RULES.thresholds.streakFreeze.maxDaysPerFreeze, 14);
+    assert.strictEqual(DEFAULT_COACH_RULES.thresholds.streakFreeze.protectedWeekCoverageDays, 3);
     assert.deepStrictEqual(DEFAULT_COACH_RULES.thresholds.goldenZone.experienced, [0.8, 0.87]);
   });
 
@@ -219,11 +228,48 @@ function test(name, fn) {
 
   test('coach domain helpers live in domain-coach module', () => {
     assert.ok(app.includes("from './domain-coach.js'"), 'app should import pure coach helpers from domain-coach.js');
-    ['todayDecision', 'homeHeroState', 'coachDecisionBasis', 'trainingVolumeRamp', 'comebackProtocol'].forEach(name => {
+    ['todayDecision', 'homeHeroState', 'coachDecisionBasis', 'trainingVolumeRamp', 'comebackProtocol', 'normalizeContinuityFreeze', 'isWeekProtectedByFreeze'].forEach(name => {
       assert.strictEqual(typeof coach[name], 'function', `${name} should be exported from domain-coach.js`);
       assert.ok(!domainCoreExports.includes(name), `${name} should not still be exported from domain-core.js`);
     });
     assert.ok(serviceWorker.includes('./domain-coach.js'), 'service worker should cache domain-coach.js');
+  });
+
+  test('continuity freezes normalize safely and protect weeks without counting workouts', () => {
+    const freeze = normalizeContinuityFreeze({
+      id: 'freeze_1',
+      startDate: '2026-07-06',
+      endDate: '2026-07-10',
+      reason: 'travel',
+      note: '',
+      status: 'active',
+      source: 'manual'
+    });
+    assert.ok(freeze, 'valid continuity freeze should normalize');
+    assert.strictEqual(freeze.reason, 'travel');
+    assert.strictEqual(normalizeContinuityFreeze({ ...freeze, id: 'bad_other', reason: 'other', note: '' }), null, 'other should require note');
+    assert.strictEqual(normalizeContinuityFreeze({ ...freeze, id: 'bad_date', endDate: '2026-07-05' }), null, 'end before start should be rejected');
+    const freezes = normalizeContinuityFreezes([
+      freeze,
+      { id: 'freeze_2', startDate: '2026-07-10', endDate: '2026-07-12', reason: 'sick', status: 'active' },
+      { id: 'freeze_3', startDate: '2026-07-01', endDate: '2026-07-02', reason: 'injury', status: 'archived' }
+    ]);
+    assert.strictEqual(isDateFrozen('2026-07-07', freezes), true);
+    assert.strictEqual(isDateFrozen('2026-07-02', freezes), false, 'archived freezes should not be active');
+    assert.deepStrictEqual(continuityFreezeDays(freezes, '2026-07-06', '2026-07-12'), [
+      '2026-07-06',
+      '2026-07-07',
+      '2026-07-08',
+      '2026-07-09',
+      '2026-07-10',
+      '2026-07-11',
+      '2026-07-12'
+    ]);
+    const week = continuityFreezeWeekSummary('2026-07-06', freezes);
+    assert.strictEqual(week.protected, true);
+    assert.strictEqual(week.frozenDayCount, 7);
+    assert.strictEqual(isWeekProtectedByFreeze('2026-07-06', freezes), true);
+    assert.strictEqual(isWeekProtectedByFreeze('2026-07-13', freezes), false);
   });
 
   test('setup shows app version from app constants', () => {
@@ -287,7 +333,7 @@ function test(name, fn) {
     assert.ok(app.includes('const todayDecisionResult = buildTodayDecision(coachCtx, primaryItems, todayItems)'), 'dashboard should build today decision from coach context');
     assert.ok(app.includes('renderHomeHero(coachCtx, primaryItems, todayItems, todayDecisionResult)'), 'dashboard should render merged hero card');
     assert.ok(app.includes('renderHomeMotivation(coachCtx, weekStart, weekSummary)'), 'dashboard should render motivation cards from coach context');
-    assert.ok(app.includes('renderHomeWeekStatus(today, weekStart, weekSummary, weekItems, effectiveGoals, profile)'), 'dashboard should render weekly status with effective comeback target');
+    assert.ok(app.includes('renderHomeWeekStatus(today, weekStart, weekSummary, weekItems, effectiveGoals, profile, freezeSummary)'), 'dashboard should render weekly status with effective comeback target and freeze summary');
     assert.ok(app.includes('function challengePaceInfo'), 'dashboard challenge mini should calculate expected pace');
     assert.ok(app.includes('challenge-expected-marker'), 'dashboard challenge mini should render expected pace marker');
     assert.ok(app.includes("const fillClass = p.done ? 'done' : p.current > 0 ? pace.status : 'empty'"), 'challenge mini fill should follow pace status');

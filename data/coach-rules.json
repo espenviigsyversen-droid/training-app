@@ -73,7 +73,12 @@
     },
     "streakFreeze": {
       "cardsPerMonth": 1,
-      "validReasons": ["sick", "travel", "injury"]
+      "validReasons": ["sick", "injury", "travel", "life_load", "other"],
+      "requireNoteForReasons": ["other"],
+      "maxDaysPerFreeze": 14,
+      "maxActiveFreezesPerMonth": 2,
+      "protectedWeekCoverageDays": 3,
+      "allowAutomaticActivation": false
     }
   },
   "bakkenRunningWeek": {

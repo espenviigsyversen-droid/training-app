@@ -121,7 +121,12 @@ export const DEFAULT_COACH_RULES = deepFreeze({
     },
     streakFreeze: {
       cardsPerMonth: 1,
-      validReasons: ['sick', 'travel', 'injury']
+      validReasons: ['sick', 'injury', 'travel', 'life_load', 'other'],
+      requireNoteForReasons: ['other'],
+      maxDaysPerFreeze: 14,
+      maxActiveFreezesPerMonth: 2,
+      protectedWeekCoverageDays: 3,
+      allowAutomaticActivation: false
     }
   },
   bakkenRunningWeek: {
@@ -175,7 +180,10 @@ function validateResolvedRules(rules, errors) {
     ['thresholds.comeback.longBreakDays', rules.thresholds?.comeback?.longBreakDays],
     ['thresholds.comeback.reducedWeekFactor', rules.thresholds?.comeback?.reducedWeekFactor],
     ['thresholds.comeback.shortBreakWeekFactor', rules.thresholds?.comeback?.shortBreakWeekFactor],
-    ['thresholds.comeback.protocolDays', rules.thresholds?.comeback?.protocolDays]
+    ['thresholds.comeback.protocolDays', rules.thresholds?.comeback?.protocolDays],
+    ['thresholds.streakFreeze.maxDaysPerFreeze', rules.thresholds?.streakFreeze?.maxDaysPerFreeze],
+    ['thresholds.streakFreeze.maxActiveFreezesPerMonth', rules.thresholds?.streakFreeze?.maxActiveFreezesPerMonth],
+    ['thresholds.streakFreeze.protectedWeekCoverageDays', rules.thresholds?.streakFreeze?.protectedWeekCoverageDays]
   ];
   numberPaths.forEach(([path, value]) => {
     if (!finiteNumber(value)) errors.push(`${path} must be a finite number`);
@@ -193,6 +201,16 @@ function validateResolvedRules(rules, errors) {
   }
   if (!isPlainObject(rules.bakkenRunningWeek?.constraints)) {
     errors.push('bakkenRunningWeek.constraints must be an object');
+  }
+  const freeze = rules.thresholds?.streakFreeze || {};
+  if (!Array.isArray(freeze.validReasons) || !freeze.validReasons.length || freeze.validReasons.some(reason => typeof reason !== 'string' || !reason.trim())) {
+    errors.push('thresholds.streakFreeze.validReasons must contain non-empty strings');
+  }
+  if (!Array.isArray(freeze.requireNoteForReasons) || freeze.requireNoteForReasons.some(reason => typeof reason !== 'string' || !reason.trim())) {
+    errors.push('thresholds.streakFreeze.requireNoteForReasons must be an array of strings');
+  }
+  if (typeof freeze.allowAutomaticActivation !== 'boolean') {
+    errors.push('thresholds.streakFreeze.allowAutomaticActivation must be a boolean');
   }
 }
 

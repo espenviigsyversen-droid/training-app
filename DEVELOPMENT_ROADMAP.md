@@ -786,7 +786,7 @@ Status etter v146:
 - Strukturert klassifisering først, tekstmatching kun som fallback.
 - AI-chat design etter at regler, terskler og coach-context er konsistente.
 
-## v147 - Fryskort for kontinuitet: design
+## v147 - Fryskort for kontinuitet: design - Dokumentert
 
 ### Mål
 
@@ -809,12 +809,24 @@ Streak vises nå tydelig på Hjem. Da blir en urettferdig brutt streak mer demot
 - Krever sannsynligvis en liten, bakoverkompatibel datamodell.
 - Kontinuitetsberegningen må håndtere gamle data uten fryskort.
 
-## v148 - Fryskort for kontinuitet: implementering
+### Status etter v147
 
-- Implementer bare etter godkjent v147-design.
-- Begrens gyldige årsaker og omfang slik at streak fortsatt betyr noe.
-- Test gamle data, manglende policy og fallback.
-- Behold en tydelig, positiv brukeropplevelse ved legitim sykdom, skade eller reise.
+- `STREAK_FREEZE_DESIGN.md` dokumenterer policy, datamodell, brukerflyt, visning, coach-konsekvens, normalisering, import/export og testplan.
+- Anbefalt datamodell er ny `continuityFreezes`-collection med datointervall, årsak, notat, kilde og status.
+- Fryskort defineres som motivasjonsbeskyttelse, ikke treningsdata.
+- Fryskort skal kunne beskytte streak, kontinuitetskort og urimelig "bak takt"-følelse, men aldri gi økter, kilometer, minutter, PB eller kvalitet.
+- Comeback-protokollen fra v145 skal fortsatt styre trygg retur etter pause.
+- v148 implementerer en liten manuell v1 med modal, normalisering, dataflyt og Hjem/Kontinuitet-visning.
+
+## v148 - Fryskort for kontinuitet: implementering - Bygget
+
+- Manuell v1 er bygget etter godkjent v147-design.
+- Ny `continuityFreezes`-collection lagrer datointervall, årsak, notat, kilde og status.
+- Normalisering håndterer gamle data uten feltet, ugyldige datoer og krav om notat for `other`.
+- Hjem/Kontinuitet har inngang til modal, aktiv/arkivert liste og arkiver/slett med bekreftelse.
+- Kontinuitetsstreak og ukestatus kan vise beskyttet uke uten å telle fryskort som trening.
+- Fryskort påvirker ikke økter, kilometer, tid, PB, challenge-progress, kvalitet, comeback eller skadesignal.
+- Kalenderinngang, egen Setup-oversikt og målscore-nøytralisering er utsatt til senere polish/design.
 
 ## Senere - Ernæring, væske og restitusjonsnotater
 
@@ -962,9 +974,9 @@ Hvis svaret er ja på flere av disse, bør ideen prioriteres.
 
 ### Neste 3 runder
 
-1. v147 - Fryskort design
-2. v148 - Fryskort implementering
-3. Senere - HRV / «i morgen» / post-workout-feiring
+1. Senere - HRV / «i morgen» / post-workout-feiring
+2. Senere - AI-chat design
+3. Senere - Fryskort polish hvis praktisk bruk viser behov
 
 ### Neste 10 runder
 
@@ -973,8 +985,8 @@ Hvis svaret er ja på flere av disse, bør ideen prioriteres.
 3. v144 - Gylne-sone-fiks og kanonisk intensitetsbalanse - Bygget
 4. v145 - Volum-ramp og comeback-protokoll - Bygget
 5. v146 - `domain-coach.js` første uttrekk - Bygget
-6. v147 - Fryskort design
-7. v148 - Fryskort implementering
+6. v147 - Fryskort design - Dokumentert
+7. v148 - Fryskort implementering - Bygget
 8. Senere - HRV / «i morgen» / post-workout-feiring
 9. Senere - AI-chat design
 10. Senere - Strava/Firebase-integrasjon
@@ -1067,6 +1079,6 @@ Neste store verdiøkning er en bedre daglig coach.
 
 Anbefalt neste implementeringsrunde:
 
-> v147 - Fryskort design
+> Senere coach-foundation - HRV / «i morgen» / post-workout-feiring
 
-Den bør dokumentere policy, dataflyt og bakoverkompatibel datamodell før selve fryskort-implementeringen bygges.
+Fryskort v1 er bygget. Neste verdi bør være mer presis daglig coach uten stor AI-runde: HRV som forsiktig gult signal, tydeligere «i morgen»-perspektiv eller grønnere post-workout-feiring.

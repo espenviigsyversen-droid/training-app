@@ -345,6 +345,132 @@ export function coachDecisionBasis(input = {}) {
   return items.slice(0, 8);
 }
 
+const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+const FREEZE_REASON_LABELS = {
+  sick: 'Sykdom',
+  injury: 'Skade/kroppssignal',
+  travel: 'Reise',
+  life_load: 'Livsbelastning',
+  other: 'Annet'
+};
+
+function cleanIsoDate(value) {
+  const text = String(value || '').trim();
+  return ISO_DATE_RE.test(text) ? text : '';
+}
+
+function cleanFreezeStatus(value) {
+  return value === 'archived' ? 'archived' : 'active';
+}
+
+function cleanFreezeReason(value, rules = getCoachRules()) {
+  const reason = String(value || '').trim();
+  const validReasons = Array.isArray(rules?.thresholds?.streakFreeze?.validReasons)
+    ? rules.thresholds.streakFreeze.validReasons
+    : ['sick', 'injury', 'travel', 'life_load', 'other'];
+  return validReasons.includes(reason) ? reason : '';
+}
+
+export function continuityFreezeReasonLabel(reason) {
+  return FREEZE_REASON_LABELS[String(reason || '').trim()] || 'Annet';
+}
+
+export function normalizeContinuityFreeze(input = {}, options = {}) {
+  if (!input || typeof input !== 'object' || Array.isArray(input)) return null;
+  const rules = options.rules && typeof options.rules === 'object' ? options.rules : getCoachRules();
+  const id = String(input.id || '').trim();
+  const startDate = cleanIsoDate(input.startDate);
+  const endDate = cleanIsoDate(input.endDate);
+  if (!id || !startDate || !endDate || endDate < startDate) return null;
+  const reason = cleanFreezeReason(input.reason, rules);
+  if (!reason) return null;
+  const note = String(input.note || '').trim().slice(0, 500);
+  const requiredNotes = Array.isArray(rules?.thresholds?.streakFreeze?.requireNoteForReasons)
+    ? rules.thresholds.streakFreeze.requireNoteForReasons
+    : ['other'];
+  if (requiredNotes.includes(reason) && !note) return null;
+  const source = input.source === 'system_suggested' ? 'system_suggested' : 'manual';
+  const status = cleanFreezeStatus(input.status);
+  return {
+    id,
+    startDate,
+    endDate,
+    reason,
+    note,
+    source,
+    status,
+    createdAt: String(input.createdAt || '').trim(),
+    updatedAt: String(input.updatedAt || '').trim()
+  };
+}
+
+export function normalizeContinuityFreezes(values = [], options = {}) {
+  return (Array.isArray(values) ? values : [])
+    .map(item => normalizeContinuityFreeze(item, options))
+    .filter(Boolean)
+    .sort((a, b) => a.startDate.localeCompare(b.startDate) || a.endDate.localeCompare(b.endDate));
+}
+
+function activeFreezes(values = [], rules = getCoachRules()) {
+  return normalizeContinuityFreezes(values, { rules }).filter(item => item.status === 'active');
+}
+
+export function isDateFrozen(dateIso, freezes = [], options = {}) {
+  const date = cleanIsoDate(dateIso);
+  if (!date) return false;
+  const rules = options.rules && typeof options.rules === 'object' ? options.rules : getCoachRules();
+  return activeFreezes(freezes, rules).some(item => item.startDate <= date && item.endDate >= date);
+}
+
+export function continuityFreezeDays(freezes = [], startDateIso, endDateIso, options = {}) {
+  const startDate = cleanIsoDate(startDateIso);
+  const endDate = cleanIsoDate(endDateIso);
+  if (!startDate || !endDate || endDate < startDate) return [];
+  const rules = options.rules && typeof options.rules === 'object' ? options.rules : getCoachRules();
+  const days = new Set();
+  activeFreezes(freezes, rules).forEach(item => {
+    const from = item.startDate > startDate ? item.startDate : startDate;
+    const to = item.endDate < endDate ? item.endDate : endDate;
+    if (to < from) return;
+    let cursor = from;
+    while (cursor <= to) {
+      days.add(cursor);
+      cursor = addDays(cursor, 1);
+    }
+  });
+  return [...days].sort();
+}
+
+export function continuityFreezeWeekSummary(weekStartIso, freezes = [], options = {}) {
+  const weekStart = cleanIsoDate(weekStartIso);
+  if (!weekStart) {
+    return { protected: false, weekStart: '', weekEnd: '', frozenDays: [], frozenDayCount: 0, reasons: [], reasonLabels: [], primaryReason: '' };
+  }
+  const rules = options.rules && typeof options.rules === 'object' ? options.rules : getCoachRules();
+  const weekEnd = addDays(weekStart, 6);
+  const frozenDays = continuityFreezeDays(freezes, weekStart, weekEnd, { rules });
+  const threshold = Math.max(1, Math.round(Number(rules?.thresholds?.streakFreeze?.protectedWeekCoverageDays) || 3));
+  const reasons = [...new Set(activeFreezes(freezes, rules)
+    .filter(item => item.startDate <= weekEnd && item.endDate >= weekStart)
+    .map(item => item.reason))];
+  return {
+    protected: frozenDays.length >= threshold,
+    weekStart,
+    weekEnd,
+    frozenDays,
+    frozenDayCount: frozenDays.length,
+    threshold,
+    reasons,
+    reasonLabels: reasons.map(continuityFreezeReasonLabel),
+    primaryReason: reasons[0] || ''
+  };
+}
+
+export function isWeekProtectedByFreeze(weekStartIso, freezes = [], options = {}) {
+  return continuityFreezeWeekSummary(weekStartIso, freezes, options).protected;
+}
+
 function trainingVolumeSummary(items = []) {
   return items.reduce((summary, item) => {
     const seconds = completedDurationSeconds(item);
