@@ -76,7 +76,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       loadCoachRules
     } from './domain-coach-rules.js';
 
-    const APP_VERSION = 'v148b';
+    const APP_VERSION = 'v148c';
     const APP_CACHE_NAME = `treningsapp-${APP_VERSION}`;
 
     const firebaseConfig = {

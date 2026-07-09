@@ -4521,6 +4521,12 @@
       background: #fff;
     }
 
+    .freeze-item > div:first-child {
+      min-width: 0;
+      flex: 1 1 auto;
+      overflow-wrap: anywhere;
+    }
+
     .freeze-item.archived {
       opacity: 0.72;
       background: var(--warm-gray-1);
@@ -5082,6 +5088,35 @@
 
       .item-actions button {
         flex: 1;
+      }
+
+      .freeze-item {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .freeze-item .item-actions {
+        width: 100%;
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .freeze-item.archived .item-actions {
+        grid-template-columns: 1fr;
+      }
+
+      .freeze-item .item-actions button {
+        width: 100%;
+        min-height: 44px;
+        padding: 10px 12px;
+        flex: initial;
+      }
+
+      .freeze-item p,
+      .freeze-item small,
+      .freeze-item strong {
+        overflow-wrap: anywhere;
+        word-break: normal;
       }
     }
 

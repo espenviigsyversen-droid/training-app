@@ -273,12 +273,17 @@ function test(name, fn) {
   });
 
   test('continuity freeze UI explains today status and Norwegian date preview', () => {
+    const styles = read('styles.css');
     assert.ok(index.includes('id="freezePeriodPreview"'), 'freeze modal should include a Norwegian date preview');
     assert.ok(index.includes('renderFreezePeriodPreview()'), 'freeze date inputs should update the preview');
     assert.ok(app.includes('window.renderFreezePeriodPreview'), 'freeze preview renderer is missing');
     assert.ok(app.includes('Fryskort aktivt i dag:'), 'home continuity card should show active freeze for today');
     assert.ok(app.includes('Uken teller fortsatt etter vanlig mål'), 'one-day freeze should not imply protected week');
     assert.ok(app.includes('Kontinuitet beskyttet denne uken'), 'home continuity card should distinguish protected week');
+    assert.ok(styles.includes('.freeze-item {'), 'freeze list item styling is missing');
+    assert.ok(styles.includes('.freeze-item .item-actions'), 'freeze actions should have dedicated mobile layout');
+    assert.ok(styles.includes('grid-template-columns: repeat(2, minmax(0, 1fr));'), 'freeze action buttons should be side-by-side on mobile');
+    assert.ok(styles.includes('.freeze-item.archived .item-actions'), 'archived freeze actions should not leave an empty second column');
   });
 
   test('setup shows app version from app constants', () => {
