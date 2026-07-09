@@ -71,26 +71,56 @@ Prioritert backlog for videre utvikling av Treningsapp.
     - Detaljmodal, filtre, sletting/angre og eksisterende dataflyt er beholdt.
     - Mobiloversikten ble trimmet i v142b. Ukesgruppering og Mål/PB-polish ble ikke bygget i denne runden.
 
-17. **Fryskort for kontinuitet** - Planlagt v143
-    - Sykdom, reise eller legitime avbrudd bør kunne fryse streak slik at et fremhevet kontinuitetskort ikke blir demotiverende.
-    - Må dokumenteres før bygging fordi det sannsynligvis krever liten datamodell.
+17. **Coach review triage og roadmap** - Dokumentert v143a
+    - Coach foundation er prioritert før fryskort og AI.
+    - Review-funnene er fordelt på små, testbare runder.
 
-18. **Ukesvolum-graf på Hjem desktop** - Planlagt v140, lavere prioritet
+18. **`coach-rules.json` v2** - Planlagt v143b
+    - Gjør regelfilen til validert kilde for prinsipper, terskler og coach-policy.
+    - Bruk hardkodede defaults som trygg fallback.
+    - Definer eksplisitt PWA/cache-atferd og test ugyldig/manglende fil.
+
+19. **Gylne-sone-fiks og kanonisk intensitetsbalanse** - Planlagt v144
+    - Skill rolig-brudd fra terskel-brudd.
+    - Bruk én felles intensitetsberegning på Hjem, i Dagens råd og Innsikt.
+
+20. **Volum-ramp og comeback-protokoll** - Planlagt v145
+    - Varsle forsiktig ved rask volumøkning.
+    - Reduser forventning/ukemål etter lengre opphold.
+
+21. **`domain-coach.js` første uttrekk** - Planlagt v146
+    - Flytt ren coach-logikk gradvis ut av `app.js`.
+    - Behold state-, Firebase- og DOM-wrappere i `app.js`.
+
+22. **Fryskort design** - Planlagt v147
+    - Dokumenter policy og bakoverkompatibel datamodell.
+    - Gjør designet avhengig av validert coach-policy/regelfil.
+
+23. **Fryskort implementering** - Planlagt v148
+    - Sykdom, skade, reise eller andre legitime avbrudd kan fryse streak innen tydelige grenser.
+    - Implementeres først etter godkjent design.
+
+24. **Senere coach-foundation**
+    - HRV som forsiktig gult signal.
+    - «I morgen»-perspektiv, grønnere post-workout-feiring og scoret regelprioritet.
+    - AI-chat design først når regelfil og coach-context er konsistente.
+
+25. **Ukesvolum-graf på Hjem desktop** - Lavere prioritet
     - Kompakt volumtrend for brede skjermer.
     - Lavere prioritet fordi Innsikt allerede er ett trykk unna.
 
-19. **Ernæring, væske og restitusjonsnotater** - Planlagt v144
+26. **Ernæring, væske og restitusjonsnotater** - Senere
     - Små støttepåminnelser i Dagens råd/heltekort.
     - Ikke full ernæringsapp.
 
-20. **AI-chat design og sikkerhetsramme** - Planlagt v145
-    - Dokumenter rolle, dataflyt, API-sikkerhet og grenser før AI bygges.
+27. **AI-chat design og sikkerhetsramme** - Senere
+    - Dokumenter rolle, dataflyt, API-sikkerhet og grenser etter Coach foundation.
 
-21. **AI-chat MVP** - Planlagt v146
-    - Enkel rådgivende chat basert på coach-context.
+28. **AI-chat MVP** - Senere
+    - Enkel rådgivende chat basert på samme regler og coach-context som appen.
     - Ingen automatisk planendring.
 
-22. **Mobil polish og mikro-UX**
+29. **Mobil polish og mikro-UX**
     - Små forbedringer som gjør appen mer behagelig i daglig bruk.
     - Eksempler: kortere tekster, bedre prioritering på Hjem/Mål, sticky handlinger i modaler og bedre tomtilstander.
 
@@ -112,9 +142,9 @@ Disse punktene var del av den tidlige v142-idéen, men er bevisst flyttet ut av 
 
 ## Anbefalt neste steg
 
-Neste anbefalte backlogpunkt er **v143a - Fryskort for kontinuitet: design og datamodell først**.
+Neste anbefalte implementeringspunkt er **v143b - `coach-rules.json` v2 med validering og trygg fallback**.
 
 Begrunnelse:
-- streaken vises tydelig på Hjem og bør ikke brytes urettferdig ved sykdom, reise eller andre legitime avbrudd
-- design og datamodell bør avklares før runtime-implementering
-- de utsatte v142-punktene kan prioriteres senere uten å blokkere dette sikkerhetsgrepet
+- dagens regelfil caches uten å brukes og prinsipper/terskler har flere sannhetskilder
+- gylne-sone-fiks og felles intensitetsbalanse trenger en stabil parameterkilde
+- fryskort flyttes til v147/v148 og skal bruke samme validerte policy

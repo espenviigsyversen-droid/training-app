@@ -684,11 +684,82 @@ Når Hjem blir mer beslutningsorientert, skal Logg være en rask oversiktsflate.
 - Bygge det bare dersom gruppering gir bedre skanning enn dagens kronologiske liste.
 - Mobiloversikten skal ikke bli høyere eller tyngre.
 
-## v143 - Fryskort for kontinuitet
+## Coach foundation / regelmotor
+
+Den eksterne coach-reviewen avdekket flere load-bearing forhold som bør håndteres før nye coach-avhengige features bygges:
+
+- `coach-rules.json` caches, men brukes ikke av runtime.
+- Prinsipper og policy finnes i flere kilder med begynnende språklig drift.
+- Coach-terskler er hardkodet og spredt.
+- Hjem, Dagens råd og Innsikt bruker ulike definisjoner av intensitetsbalanse.
+- Gylne-sone-analysen kan feilklassifisere intervalløkter som brudd på rolige dager.
+- Volum-ramp og en konkret comeback-protokoll mangler.
+- Viktig coach-logikk ligger fortsatt tungt i `app.js`.
+
+Dette sporet skal bygges i små runder. Det er ikke en stor refaktorering, og hver runde skal bevare eksisterende brukerflyt med eksplisitte tester av beslutningsreglene.
+
+### Arkitekturretning
+
+- `coach-rules.json` skal bli én sannhetskilde for prinsipper, terskler og coach-policy.
+- Runtime skal ha validerte, hardkodede defaults som trygg fallback.
+- Ugyldig eller utilgjengelig JSON skal aldri kunne knekke appen.
+- PWA-strategien for regelfilen skal være eksplisitt og testbar.
+- Nye coach-terskler skal ikke hardkodes på flere steder.
+- Felles vurderinger skal beregnes én gang i domenelogikk og gjenbrukes av Hjem, Innsikt og coach-grunnlag.
+- Coach-logikk skal gradvis flyttes til `domain-coach.js`; `app.js` skal hente state, kalle domene-funksjoner og rendre.
+- En senere AI-coach skal bruke samme validerte regler og coach-context som den regelstyrte appen.
+
+### v143a - Coach review triage og roadmap - Ferdig dokumentasjon
+
+- Coach-reviewen er analysert og prioritert.
+- Coach foundation er lagt inn som eget roadmap- og backlogspor.
+- Fryskort er flyttet til etter de viktigste foundation-rundene.
+- Ingen runtime-logikk eller versjon/cache endres i denne runden.
+
+### v143b - `coach-rules.json` v2
+
+- Dokumenter og implementer et versjonert v2-skjema for prinsipper, terskler, prioritet og policy.
+- Last og valider filen ved oppstart.
+- Bruk hardkodede defaults ved nettverks-, cache- eller valideringsfeil.
+- Avklar eksplisitt PWA/cache-strategi og test både gyldig fil og fallback.
+- Fjern dupliserte sannhetskilder gradvis; ikke endre alle coach-regler samtidig.
+
+### v144 - Gylne-sone-fiks og kanonisk intensitetsbalanse
+
+- Skill rolig/base-brudd fra kontrollert terskel-brudd.
+- Intervalløkter skal ikke beskrives som for harde rolige økter.
+- Lag én ren intensitetsbalanse som brukes av Hjem, Dagens råd og Innsikt.
+- Vindu, terskler og behandling av `highPulseBase` skal komme fra den validerte regelfilen.
+- Lås sentrale scenarioer med tester før UI-tekster justeres.
+
+### v145 - Volum-ramp og comeback-protokoll
+
+- Legg til en forsiktig vakt mot rask økning sammenlignet med normal belastning.
+- Definer comeback etter lengre opphold med redusert forventning første uke.
+- Unngå at ukesmål og coach-råd trekker i motsatt retning under comeback.
+- Parametere skal komme fra regelfilen og logikken skal være ren og testbar.
+
+### v146 - `domain-coach.js` første uttrekk
+
+- Flytt små, tydelig rene coach-beregninger ut av `app.js`.
+- Behold state-, Firebase- og DOM-wrappere i `app.js`.
+- Ikke kombiner dette med stor UI-endring eller full omskriving av coachen.
+- Bruk produksjonsfunksjonene direkte i stabilitetstestene.
+
+### Senere coach-foundation
+
+- HRV som forsiktig gult signal, eller fjerning av død `low_hrv`-policy.
+- Et eksplisitt «i morgen»-perspektiv ved planlagt kvalitet.
+- Grønn/nøytral feiring etter vellykket kvalitetsøkt uten smerterespons.
+- Scoret regelmodell med hovedsignal og sekundærsignaler.
+- Strukturert klassifisering først, tekstmatching kun som fallback.
+- AI-chat design etter at regler, terskler og coach-context er konsistente.
+
+## v147 - Fryskort for kontinuitet: design
 
 ### Mål
 
-Beskytt motivasjonen i kontinuitetskortet ved sykdom, reise eller andre legitime avbrudd.
+Dokumenter policy, datamodell og begrensninger for fryskort før implementering.
 
 ### Bakgrunn
 
@@ -703,11 +774,18 @@ Streak vises nå tydelig på Hjem. Da blir en urettferdig brutt streak mer demot
 
 ### Teknisk
 
-- Krever sannsynligvis liten datamodell.
-- Må dokumenteres før bygging.
+- Avhenger av validert coach-policy/regelfil fra foundation-sporet.
+- Krever sannsynligvis en liten, bakoverkompatibel datamodell.
 - Kontinuitetsberegningen må håndtere gamle data uten fryskort.
 
-## v144 - Ernæring, væske og restitusjonsnotater
+## v148 - Fryskort for kontinuitet: implementering
+
+- Implementer bare etter godkjent v147-design.
+- Begrens gyldige årsaker og omfang slik at streak fortsatt betyr noe.
+- Test gamle data, manglende policy og fallback.
+- Behold en tydelig, positiv brukeropplevelse ved legitim sykdom, skade eller reise.
+
+## Senere - Ernæring, væske og restitusjonsnotater
 
 ### Mål
 
@@ -743,7 +821,7 @@ Ved skadesignal:
 - Ren funksjon som tar dagens beslutning og planlagt økt som input.
 - Ingen logging av ernæring i første versjon.
 
-## v145 - AI-chat design og sikkerhetsramme
+## Senere - AI-chat design og sikkerhetsramme
 
 ### Mål
 
@@ -775,7 +853,7 @@ AI-chat skal ikke:
 - ignorere skadesignal
 - gi medisinske diagnoser
 
-## v146 - AI-chat MVP
+## Senere - AI-chat MVP
 
 ### Mål
 
@@ -789,7 +867,7 @@ Bygg en enkel "Spør coachen"-funksjon.
 - AI svarer med råd/forklaring.
 - Ingen automatisk planendring.
 
-## v147 - Andre treningsformer v1
+## Senere - Andre treningsformer v1
 
 ### Mål
 
@@ -814,7 +892,7 @@ Andre treningsformer bør brukes til:
 - sykling/ski som alternativ ved skade
 - coach-råd som sier "velg sykkel" ved smerte
 
-## v144 - Strava/Garmin-forberedelse
+## Senere - Strava/Garmin-forberedelse
 
 ### Mål
 
@@ -853,22 +931,22 @@ Hvis svaret er ja på flere av disse, bør ideen prioriteres.
 
 ### Neste 3 runder
 
-1. v143a - Fryskort for kontinuitet: design og datamodell først
-2. v143 - Fryskort for kontinuitet: implementering etter godkjent design
-3. v140 - Ukesvolum-graf på Hjem desktop, fortsatt lavere prioritet
+1. v143b - `coach-rules.json` v2 med validering og fallback
+2. v144 - Gylne-sone-fiks og kanonisk intensitetsbalanse
+3. v145 - Volum-ramp og comeback-protokoll
 
 ### Neste 10 runder
 
-1. v139 - Mål-kort v2 på Hjem
-2. v141 - Kalender polish og handlingsflyt
-3. v142 - Logg polish - Ferdig
-4. v143 - Fryskort for kontinuitet
-5. v140 - Ukesvolum-graf på Hjem desktop
-6. v144 - Ernæring/væske/restitusjonsnotater
-7. v145 - AI-chat design
-8. v146 - AI-chat MVP
-9. v147 - Andre treningsformer v1
-10. Strava/Firebase-integrasjon når backendsporet tas opp igjen
+1. v143a - Coach review triage og roadmap - Ferdig dokumentasjon
+2. v143b - `coach-rules.json` v2
+3. v144 - Gylne-sone-fiks og kanonisk intensitetsbalanse
+4. v145 - Volum-ramp og comeback-protokoll
+5. v146 - `domain-coach.js` første uttrekk
+6. v147 - Fryskort design
+7. v148 - Fryskort implementering
+8. Senere - HRV / «i morgen» / post-workout-feiring
+9. Senere - AI-chat design
+10. Senere - Strava/Firebase-integrasjon
 
 ## Hva vi bør vente med
 
@@ -956,8 +1034,8 @@ Neste store verdiøkning er ikke mer logging eller flere grafer.
 
 Neste store verdiøkning er en bedre daglig coach.
 
-Anbefalt neste utviklingsrunde:
+Anbefalt neste implementeringsrunde:
 
-> v143a - Fryskort for kontinuitet: design og datamodell først
+> v143b - `coach-rules.json` v2 med validering og trygg fallback
 
-Den bør avklare en liten, bakoverkompatibel modell og tydelige begrensninger før streak-beregningen eller UI-et endres.
+Den skal etablere én robust kilde for prinsipper, terskler og coach-policy før gylne-sone-fiks, felles intensitetsbalanse og fryskort bygges videre.
