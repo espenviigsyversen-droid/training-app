@@ -1287,13 +1287,14 @@
         <div class="form-grid-2">
           <div>
             <label>Fra dato</label>
-            <input id="freezeStartDate" type="date" />
+            <input id="freezeStartDate" type="date" oninput="renderFreezePeriodPreview()" onchange="renderFreezePeriodPreview()" />
           </div>
           <div>
             <label>Til dato</label>
-            <input id="freezeEndDate" type="date" />
+            <input id="freezeEndDate" type="date" oninput="renderFreezePeriodPreview()" onchange="renderFreezePeriodPreview()" />
           </div>
         </div>
+        <p id="freezePeriodPreview" class="small-note">Velg fra- og til-dato.</p>
         <div>
           <label>Årsak</label>
           <select id="freezeReason">

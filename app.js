@@ -76,7 +76,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       loadCoachRules
     } from './domain-coach-rules.js';
 
-    const APP_VERSION = 'v148';
+    const APP_VERSION = 'v148b';
     const APP_CACHE_NAME = `treningsapp-${APP_VERSION}`;
 
     const firebaseConfig = {
@@ -205,6 +205,12 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       if (!iso) return '';
       const d = new Date(`${iso}T12:00:00`);
       return d.toLocaleDateString('no-NO', { day: 'numeric', month: 'short' }).replace('.', '');
+    }
+
+    function formatFullDate(iso) {
+      if (!iso) return '';
+      const d = new Date(`${iso}T12:00:00`);
+      return d.toLocaleDateString('no-NO', { day: 'numeric', month: 'long', year: 'numeric' });
     }
 
     function formatWeekRange(startIso, endIso) {
@@ -1098,6 +1104,20 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       return normalizeContinuityFreezes(state.continuityFreezes).filter(item => item.status === 'active');
     }
 
+    function activeContinuityFreezeForDate(dateIso) {
+      return activeContinuityFreezes().find(item => item.startDate <= dateIso && item.endDate >= dateIso) || null;
+    }
+
+    window.renderFreezePeriodPreview = function() {
+      const preview = document.getElementById('freezePeriodPreview');
+      if (!preview) return;
+      const startDate = document.getElementById('freezeStartDate')?.value || '';
+      const endDate = document.getElementById('freezeEndDate')?.value || '';
+      preview.textContent = startDate && endDate
+        ? `Valgt periode: ${formatFullDate(startDate)} - ${formatFullDate(endDate)}`
+        : 'Velg fra- og til-dato.';
+    };
+
     function renderContinuityFreezeList() {
       const list = document.getElementById('continuityFreezeList');
       if (!list) return;
@@ -1136,6 +1156,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       if (end && !end.value) end.value = today;
       if (reason && !reason.value) reason.value = 'sick';
       if (note) note.value = note.value || '';
+      renderFreezePeriodPreview();
       renderContinuityFreezeList();
       document.getElementById('continuityFreezeModal')?.classList.add('active');
     };
@@ -1181,6 +1202,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         write: () => fsSet('continuityFreezes', draft.id, draft),
         afterApply: () => {
           document.getElementById('freezeNote').value = '';
+          renderFreezePeriodPreview();
           renderContinuityFreezeList();
         },
         successMessage: 'Fryskort lagret',
@@ -5630,6 +5652,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       const remaining = Math.max(0, target - (weekSummary.sessions || 0));
       const weeks = buildContinuityWeeks(weekStart);
       const currentFreeze = continuityFreezeWeekSummary(weekStart, state.continuityFreezes, { rules: getCoachRules() });
+      const todayFreeze = activeContinuityFreezeForDate(ctx.today || todayISO());
       const chips = weeks.map((week, index) => {
         const sessions = week.summary.sessions || 0;
         const protectedWeek = weekProtectedByFreeze(week.start);
@@ -5644,7 +5667,14 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         ? 'Denne uken teller. Videre trening er bonus og bør styres av overskudd.'
         : currentFreeze.protected
         ? 'Fryskort beskytter denne uken. Det teller ikke som trening.'
+        : todayFreeze
+        ? 'Fryskortet gjelder i dag. Uken teller fortsatt etter vanlig mål.'
         : `${remaining} økt${remaining === 1 ? '' : 'er'} igjen for at denne uken skal telle.`;
+      const freezeStatusHtml = currentFreeze.protected
+        ? `<div class="home-freeze-status protected"><strong>Kontinuitet beskyttet denne uken</strong><span>${escapeHtml(currentFreeze.reasonLabels.join(', ') || 'Fryskort')} · Teller ikke som trening.</span></div>`
+        : todayFreeze
+        ? `<div class="home-freeze-status today"><strong>Fryskort aktivt i dag: ${escapeHtml(freezeReasonOptionLabel(todayFreeze.reason))}</strong><span>Teller ikke som trening.</span></div>`
+        : '';
       el.innerHTML = `
         <div class="dashboard-mini-head">
           <span>Kontinuitet</span>
@@ -5652,7 +5682,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         </div>
         <div class="home-continuity-main"><strong>${streak}</strong><span>uker på rad</span></div>
         <div class="home-continuity-strip">${chips}</div>
-        ${currentFreeze.protected ? `<div class="home-freeze-status">Beskyttet · ${escapeHtml(currentFreeze.reasonLabels.join(', ') || 'Fryskort')}</div>` : ''}
+        ${freezeStatusHtml}
         <p class="dashboard-mini-note">${escapeHtml(note)}</p>`;
     }
 
@@ -5723,6 +5753,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       const sessionPercent = Math.max(0, Math.min(100, (weekSummary.sessions / target) * 100));
       const remaining = Math.max(0, target - weekSummary.sessions);
       const protectedWeek = Boolean(freezeSummary?.protected);
+      const todayFreeze = activeContinuityFreezeForDate(today);
       const ringStatus = weekSummary.sessions >= target ? 'done' : protectedWeek ? 'protected' : weekSummary.sessions > 0 ? 'partial' : 'empty';
 
       if (ring) {
@@ -5738,6 +5769,8 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
           ? 'Ukesmålet er nådd. Videre trening bør styres av overskudd og dagsform.'
           : protectedWeek
           ? 'Uka er beskyttet av fryskort. Det teller ikke som trening, men kontinuiteten brytes ikke.'
+          : todayFreeze
+          ? 'Fryskort aktivt i dag. Uken teller fortsatt etter vanlig mål.'
           : `${remaining} økt${remaining === 1 ? '' : 'er'} igjen til ukesmålet.`;
       }
       if (days) {

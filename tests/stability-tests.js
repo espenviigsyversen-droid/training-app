@@ -272,6 +272,15 @@ function test(name, fn) {
     assert.strictEqual(isWeekProtectedByFreeze('2026-07-13', freezes), false);
   });
 
+  test('continuity freeze UI explains today status and Norwegian date preview', () => {
+    assert.ok(index.includes('id="freezePeriodPreview"'), 'freeze modal should include a Norwegian date preview');
+    assert.ok(index.includes('renderFreezePeriodPreview()'), 'freeze date inputs should update the preview');
+    assert.ok(app.includes('window.renderFreezePeriodPreview'), 'freeze preview renderer is missing');
+    assert.ok(app.includes('Fryskort aktivt i dag:'), 'home continuity card should show active freeze for today');
+    assert.ok(app.includes('Uken teller fortsatt etter vanlig mål'), 'one-day freeze should not imply protected week');
+    assert.ok(app.includes('Kontinuitet beskyttet denne uken'), 'home continuity card should distinguish protected week');
+  });
+
   test('setup shows app version from app constants', () => {
     assert.ok(index.includes('id="appVersionInfo"'), 'visible app version element is missing from Setup');
     assert.ok(app.includes('const APP_CACHE_NAME = `treningsapp-${APP_VERSION}`'), 'cache display name should be derived from APP_VERSION');
