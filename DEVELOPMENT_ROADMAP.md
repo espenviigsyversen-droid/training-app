@@ -747,12 +747,20 @@ Status etter v144:
 - Vindu, minimumsgrunnlag og terskler leses fra aktive coach-regler med validerte defaults.
 - Eldre, ubrukte intensitetsvurderinger i `app.js` er fjernet for å unngå parallelle definisjoner.
 
-### v145 - Volum-ramp og comeback-protokoll
+### v145 - Volum-ramp og comeback-protokoll - Bygget
 
 - Legg til en forsiktig vakt mot rask økning sammenlignet med normal belastning.
 - Definer comeback etter lengre opphold med redusert forventning første uke.
 - Unngå at ukesmål og coach-råd trekker i motsatt retning under comeback.
 - Parametere skal komme fra regelfilen og logikken skal være ren og testbar.
+
+Status etter v145:
+
+- `trainingVolumeRamp()` sammenligner rullerende 7 dager med ukesnittet fra de foregående fire ukene.
+- Varsel krever et minimum av nyere og historiske økter; tynt grunnlag gir nøytral status.
+- `comebackProtocol()` oppdager både ventende retur og første uke etter retur, med sterkere reduksjon etter lengre pause.
+- Hjem, Dagens råd, heltekort, coach-grunnlag og ukeplan bruker samme volum-/comeback-vurdering.
+- Ukemålet reduseres midlertidig i runtime under comeback uten å endre brukerens lagrede mål eller datamodell.
 
 ### v146 - `domain-coach.js` første uttrekk
 
@@ -946,16 +954,16 @@ Hvis svaret er ja på flere av disse, bør ideen prioriteres.
 
 ### Neste 3 runder
 
-1. v145 - Volum-ramp og comeback-protokoll
-2. v146 - `domain-coach.js` første uttrekk
-3. v147 - Fryskort design
+1. v146 - `domain-coach.js` første uttrekk
+2. v147 - Fryskort design
+3. v148 - Fryskort implementering
 
 ### Neste 10 runder
 
 1. v143a - Coach review triage og roadmap - Ferdig dokumentasjon
 2. v143b - `coach-rules.json` v2 - Bygget
 3. v144 - Gylne-sone-fiks og kanonisk intensitetsbalanse - Bygget
-4. v145 - Volum-ramp og comeback-protokoll
+4. v145 - Volum-ramp og comeback-protokoll - Bygget
 5. v146 - `domain-coach.js` første uttrekk
 6. v147 - Fryskort design
 7. v148 - Fryskort implementering
@@ -1051,6 +1059,6 @@ Neste store verdiøkning er en bedre daglig coach.
 
 Anbefalt neste implementeringsrunde:
 
-> v145 - Volum-ramp og comeback-protokoll
+> v146 - `domain-coach.js` første uttrekk
 
-Den skal bruke den validerte regelfilen til å oppdage raske belastningsøkninger og gjøre returen etter opphold mer forsiktig uten å skape motstridende råd.
+Den skal flytte den første tydelig avgrensede gruppen av rene coach-beregninger ut av `app.js`, mens state-, DOM- og Firebase-wrappere blir stående.

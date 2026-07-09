@@ -15,6 +15,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       challengeRemainingLabel,
       challengeValueLabel,
       coachDecisionBasis,
+      comebackProtocol,
       dateToISO,
       formatClockDuration,
       formatDuration,
@@ -37,6 +38,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       structuredWorkoutSummary,
       todayCompletedWorkoutFeedback,
       todayDecision,
+      trainingVolumeRamp,
       weekPlanDates as weekPlanDatesCore,
       weekPlanDatesInRange as weekPlanDatesInRangeCore
     } from './domain-core.js';
@@ -65,7 +67,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       loadCoachRules
     } from './domain-coach-rules.js';
 
-    const APP_VERSION = 'v144';
+    const APP_VERSION = 'v145';
     const APP_CACHE_NAME = `treningsapp-${APP_VERSION}`;
 
     const firebaseConfig = {
@@ -5247,7 +5249,9 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         injuryStatus: ctx.injurySummary7?.status || '',
         hardShare14: heroHardShare14(ctx),
         rules: getCoachRules(),
-        daysSinceLast: ctx.daysSinceLast
+        daysSinceLast: ctx.daysSinceLast,
+        comeback: ctx.comeback,
+        volumeRamp: ctx.volumeRamp
       });
     }
 
@@ -5615,8 +5619,11 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       const nextDateItems = nextDate ? upcomingItems.filter(p => p.date === nextDate) : [];
       const primaryItems = todayItems.length ? todayItems : nextDateItems;
 
-      renderHomeWeekStatus(today, weekStart, weekSummary, weekItems, goals, profile);
       const coachCtx = buildCoachContext();
+      const effectiveGoals = coachCtx.comeback?.active
+        ? { ...goals, weeklySessionsTarget: coachCtx.effectiveWeeklyTarget }
+        : goals;
+      renderHomeWeekStatus(today, weekStart, weekSummary, weekItems, effectiveGoals, profile);
       const todayDecisionResult = buildTodayDecision(coachCtx, primaryItems, todayItems);
       renderHomeHero(coachCtx, primaryItems, todayItems, todayDecisionResult);
       renderHomeMotivation(coachCtx, weekStart, weekSummary);
@@ -5624,7 +5631,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       document.getElementById('homeCoachNote').textContent = buildCoachNote(coachCtx);
       renderInjuryWorkoutAdvice(buildInjuryWorkoutAdvice(coachCtx, primaryItems));
       renderHomeCoachBasis(buildHomeCoachBasis(coachCtx, todayDecisionResult, firstPlannedFromPrimary(primaryItems)));
-      renderWeekPlan(today, weekSummary, weekItems, last14DaysForSignals, profile, goals, plannedActive);
+      renderWeekPlan(today, weekSummary, weekItems, last14DaysForSignals, profile, effectiveGoals, plannedActive);
     }
 
     function firstPlannedFromPrimary(primaryItems = []) {
@@ -5665,10 +5672,12 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         hasPlannedToday: todayItems.length > 0,
         hasNextPlanned: Boolean(firstPlanned),
         daysSinceLast: ctx.daysSinceLast,
+        comeback: ctx.comeback,
+        volumeRamp: ctx.volumeRamp,
         structuredIntervalsLast7Count: ctx.structuredIntervals?.last7?.count || 0,
         structuredIntervalsCloseQualityDays: Boolean(ctx.structuredIntervals?.closeQualityDays),
         weekSessions: ctx.weekSummary?.sessions || 0,
-        weeklyTarget: ctx.goals?.weeklySessionsTarget || 0
+        weeklyTarget: ctx.effectiveWeeklyTarget || ctx.goals?.weeklySessionsTarget || 0
       });
       const enrichedDecision = {
         ...decision,
@@ -5683,7 +5692,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
           goalScoreLabel: ctx.goalScore?.label || '',
           racePhaseLabel: ctx.racePlan?.phaseLabel || '',
           weekSessions: ctx.weekSummary?.sessions || 0,
-          weeklyTarget: ctx.goals?.weeklySessionsTarget || 0
+          weeklyTarget: ctx.effectiveWeeklyTarget || ctx.goals?.weeklySessionsTarget || 0
         })
       };
       const latestTodayCompleted = ctx.completedToday?.[ctx.completedToday.length - 1] || null;
@@ -5806,8 +5815,21 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       const readinessConfig = ctx.dailyReadiness?.level ? TRAFFIC_LIGHT_CONFIG[ctx.dailyReadiness.level] : null;
       const injury = ctx.injurySummary7?.hasSignal ? ctx.injurySummary7 : null;
       const weekSessions = ctx.weekSummary?.sessions || 0;
-      const weeklyTarget = ctx.goals?.weeklySessionsTarget || 0;
+      const weeklyTarget = ctx.effectiveWeeklyTarget || ctx.goals?.weeklySessionsTarget || 0;
       const weekStatus = weeklyTarget && weekSessions >= weeklyTarget ? 'green' : weekSessions > 0 ? 'neutral' : 'yellow';
+      const loadTrend = ctx.comeback?.active
+        ? {
+            label: ctx.comeback.label,
+            detail: ctx.comeback.explanation,
+            status: 'yellow'
+          }
+        : ctx.volumeRamp?.enoughData
+        ? {
+            label: ctx.volumeRamp.label,
+            detail: ctx.volumeRamp.explanation,
+            status: ctx.volumeRamp.status === 'high' ? 'yellow' : ctx.volumeRamp.status === 'stable' ? 'green' : 'neutral'
+          }
+        : null;
       const metricParts = [
         ctx.latestHrv?.hrv7d ? `HRV ${ctx.latestHrv.hrv7d} ms` : '',
         ctx.latestRestingHr?.restingHeartRate7d ? `hvilepuls ${ctx.latestRestingHr.restingHeartRate7d} bpm` : '',
@@ -5849,9 +5871,10 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         } : null,
         week: {
           label: `${weekSessions}/${weeklyTarget || '-'} økter`,
-          detail: `${formatClockDuration(ctx.weekSummary?.seconds || 0)} · ${formatKm(ctx.weekSummary?.km || 0)} denne uken`,
+          detail: `${formatClockDuration(ctx.weekSummary?.seconds || 0)} · ${formatKm(ctx.weekSummary?.km || 0)} denne uken${ctx.comeback?.active ? ' · redusert comeback-mål' : ''}`,
           status: weekStatus
         },
+        loadTrend,
         intensity: ctx.intensityBalance14 ? {
           label: ctx.intensityBalance14.label,
           detail: ctx.intensityBalance14.explanation,
@@ -6728,6 +6751,19 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       const daysSinceLast = lastWorkout
         ? Math.round((new Date(`${today}T12:00:00`) - new Date(`${lastWorkout.date}T12:00:00`)) / 86400000)
         : null;
+      const activeCoachRules = getCoachRules();
+      const volumeRamp = trainingVolumeRamp(completedToDate, {
+        todayIso: today,
+        rules: activeCoachRules
+      });
+      const comeback = comebackProtocol(completedToDate, {
+        todayIso: today,
+        weeklyTarget: goals.weeklySessionsTarget,
+        rules: activeCoachRules
+      });
+      const effectiveWeeklyTarget = comeback.active && comeback.effectiveWeeklyTarget
+        ? comeback.effectiveWeeklyTarget
+        : goals.weeklySessionsTarget;
 
       const latestHrv = latestMetric('hrv7d');
       const latestRestingHr = latestMetric('restingHeartRate7d');
@@ -6772,6 +6808,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         thisWeek, last7Days, last14Days, last28Days, completedToday,
         weekSummary, load7,
         bodySignals14, consecutiveDays, daysSinceLast, lastWorkout,
+        volumeRamp, comeback, effectiveWeeklyTarget,
         latestHrv, latestRestingHr,
         goldenZone, heartRateCompliance14, intensityBalance14,
         weekPlanRoles, completedRoles, missingRoles,
@@ -6790,7 +6827,8 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
               bodySignals14, consecutiveDays, daysSinceLast, lastWorkout,
               goldenZone, heartRateCompliance14, intensityBalance14,
               hardCount14, easyCount14, last14Days,
-              gradedPain, dailyReadiness, structuredIntervals, injuryCheckins14 } = ctx;
+              gradedPain, dailyReadiness, structuredIntervals, injuryCheckins14,
+              volumeRamp, comeback, effectiveWeeklyTarget } = ctx;
 
       // 1. Smerte — gradert respons etter alvorlighetsgrad (Bakken: body_signals_first)
       const { activePain, resolvedRecently, highestTier } = gradedPain;
@@ -6849,6 +6887,14 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         return `Gult lys i dag — ${reason}.${extra} ${coachPrincipleLine(['recovery_is_training'])}`;
       }
 
+      if (comeback?.active) {
+        return `${comeback.explanation} Prioriter lett, repeterbar trening og la første uke bygge rytme fremfor å ta igjen det tapte. ${coachPrincipleLine(['recovery_is_training', 'repeatable_week'])}`;
+      }
+
+      if (volumeRamp?.status === 'high') {
+        return `${volumeRamp.explanation} Hold neste økt rolig eller kortere, slik at kroppen får tid til å absorbere økningen. ${coachPrincipleLine(['easy_support', 'recovery_is_training'])}`;
+      }
+
       // 3. Mange dager på rad uten rolig økt (Bakken: recovery_is_training)
       if (consecutiveDays >= 3 && load7.low === 0) {
         return `${consecutiveDays} treningsdager på rad uten rolig økt. En hviledag eller lett bevegelse gir kroppen tid til å adaptere. ${coachPrincipleLine(['recovery_is_training'])}`;
@@ -6891,17 +6937,21 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       }
 
       // 6. Ukesprogrems — mål og momentum
-      if (weekSummary.sessions >= goals.weeklyStretchSessionsTarget) {
+      const activeWeeklyTarget = effectiveWeeklyTarget || goals.weeklySessionsTarget;
+      const activeStretchTarget = comeback?.active
+        ? activeWeeklyTarget
+        : goals.weeklyStretchSessionsTarget;
+      if (weekSummary.sessions >= activeStretchTarget) {
         return 'Sterk kontinuitet denne uken. Du har nådd stretch-målet, så videre trening bør styres av overskudd og dagsform.';
       }
-      if (weekSummary.sessions >= goals.weeklySessionsTarget) {
+      if (weekSummary.sessions >= activeWeeklyTarget) {
         return 'Du er i mål med ukesmålet. En eventuell ekstra økt kan være bonus, ikke press.';
       }
       if (weekSummary.sessions > 0) {
-        const remaining = Math.max(0, goals.weeklySessionsTarget - weekSummary.sessions);
+        const remaining = Math.max(0, activeWeeklyTarget - weekSummary.sessions);
         return `Du er i gang denne uken. ${remaining} økt${remaining === 1 ? '' : 'er'} igjen til ukesmålet. Velg neste økt ut fra kropp og dagsform.`;
       }
-      if (daysSinceLast !== null && daysSinceLast >= 5) {
+      if (daysSinceLast !== null && daysSinceLast >= Number(getCoachRules().thresholds.comeback.triggerDaysSinceLast || 5)) {
         return `Det er ${daysSinceLast} dager siden siste økt. Start med én gjennomførbar økt — ikke press mer inn enn kroppen er klar for.`;
       }
       return 'Ingen økter logget denne uken ennå. Start med én gjennomførbar økt, gjerne kontrollert og realistisk.';
@@ -6910,7 +6960,8 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     function buildCoachBasis(ctx) {
       const { last14Days, bodySignals14, consecutiveDays, daysSinceLast,
               goldenZone, heartRateCompliance14, intensityBalance14, latestHrv, latestRestingHr,
-              gradedPain, dailyReadiness, structuredIntervals, injuryCheckins14 } = ctx;
+              gradedPain, dailyReadiness, structuredIntervals, injuryCheckins14,
+              volumeRamp, comeback } = ctx;
       const parts = [];
       if (dailyReadiness?.level && TRAFFIC_LIGHT_CONFIG[dailyReadiness.level]) {
         const cfg = TRAFFIC_LIGHT_CONFIG[dailyReadiness.level];
@@ -6928,6 +6979,11 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       const total14 = last14Days.length;
       if (total14 > 0) {
         parts.push(`Intensitetsbalanse: ${intensityBalance14.explanation}`);
+      }
+      if (comeback?.active) {
+        parts.push(`Comeback: ${comeback.explanation}`);
+      } else if (volumeRamp?.enoughData) {
+        parts.push(`Volumtrend: ${volumeRamp.explanation}`);
       }
       if (gradedPain.activePain.length > 0) {
         const byTier = gradedPain.activePain.reduce((acc, p) => {

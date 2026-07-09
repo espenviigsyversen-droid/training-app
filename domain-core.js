@@ -297,6 +297,8 @@ export function todayDecision(input = {}) {
     : Number(input.daysSinceLast);
   const weekSessions = Number(input.weekSessions || 0);
   const weeklyTarget = Number(input.weeklyTarget || 0);
+  const comeback = input.comeback && typeof input.comeback === 'object' ? input.comeback : null;
+  const volumeRamp = input.volumeRamp && typeof input.volumeRamp === 'object' ? input.volumeRamp : null;
 
   if (readiness === 'red') {
     return {
@@ -349,6 +351,28 @@ export function todayDecision(input = {}) {
       title: 'Bekreft at kroppen responderer',
       action: hasPlannedToday ? 'Hold planlagt økt kontrollert og stopp tidlig ved nye signaler.' : 'Velg en rolig økt før du øker belastningen.',
       reason: 'Du har nylig tilpasset trening etter kroppssignal.'
+    };
+  }
+
+  if (comeback?.active) {
+    return {
+      level: 'yellow',
+      title: comeback.phase === 'awaiting_return' ? 'Start comebacken rolig' : 'Bygg deg gradvis tilbake',
+      action: hasPlannedToday
+        ? 'Gjør dagens økt roligere og kortere enn en normal treningsdag.'
+        : 'Velg en lett, gjennomførbar økt og la responsen styre neste steg.',
+      reason: comeback.explanation || 'Et opphold tilsier redusert forventning denne uken.'
+    };
+  }
+
+  if (volumeRamp?.status === 'high') {
+    return {
+      level: 'yellow',
+      title: 'La kroppen ta igjen volumet',
+      action: hasPlannedToday
+        ? 'Behold økten bare hvis den er rolig, eller gjør den kortere.'
+        : 'Velg hvile, recovery eller en kort rolig økt.',
+      reason: volumeRamp.explanation || 'Treningsvolumet har økt raskere enn normalt.'
     };
   }
 
@@ -436,6 +460,8 @@ export function homeHeroState(input = {}) {
   const injuryStatus = String(input.injuryStatus || '').toLowerCase();
   const injuryActive = Boolean(input.injuryActive);
   const hardShare14 = Number(input.hardShare14 || 0);
+  const comeback = input.comeback && typeof input.comeback === 'object' ? input.comeback : null;
+  const volumeRamp = input.volumeRamp && typeof input.volumeRamp === 'object' ? input.volumeRamp : null;
   const daysSinceLast = input.daysSinceLast === null || input.daysSinceLast === undefined
     ? null
     : Number(input.daysSinceLast);
@@ -459,16 +485,20 @@ export function homeHeroState(input = {}) {
   const hasReadinessConflict = quality && (readiness === 'red' || readiness === 'yellow');
   const hasInjuryConflict = quality && injuryActive && ['worse', 'high', 'improving', 'caution', 'stable'].includes(injuryStatus);
   const hasLoadConflict = quality && hardShare14 >= hardShareLimit;
+  const hasComebackConflict = quality && Boolean(comeback?.active);
+  const hasVolumeConflict = quality && volumeRamp?.status === 'high';
   if (quality && readiness === 'red') conflictReasons.push('dagsform rød');
   else if (quality && readiness === 'yellow') conflictReasons.push('dagsform gul');
   if (quality && injuryActive && ['worse', 'high', 'improving', 'caution', 'stable'].includes(injuryStatus)) {
     conflictReasons.push('kroppssignal');
   }
   if (hasLoadConflict) conflictReasons.push(`intensitetsbalanse ${Math.round(100 - hardShare14)}/${Math.round(hardShare14)}`);
+  if (hasComebackConflict) conflictReasons.push('comeback-uke');
+  if (hasVolumeConflict) conflictReasons.push('rask volumøkning');
 
   if (hasNextPlanned && quality && conflictReasons.length) {
     const redConflict = readiness === 'red' || decision.level === 'red' || injuryStatus === 'worse' || injuryStatus === 'high';
-    const loadOnlyConflict = hasLoadConflict && !hasReadinessConflict && !hasInjuryConflict;
+    const loadOnlyConflict = (hasLoadConflict || hasComebackConflict || hasVolumeConflict) && !hasReadinessConflict && !hasInjuryConflict;
     return {
       state: 'conflict',
       level: redConflict ? 'red' : 'yellow',
@@ -482,13 +512,15 @@ export function homeHeroState(input = {}) {
     };
   }
 
-  if (daysSinceLast !== null && daysSinceLast >= 5) {
+  const fallbackComeback = !comeback && daysSinceLast !== null
+    && daysSinceLast >= Number(rules?.thresholds?.comeback?.triggerDaysSinceLast || 5);
+  if (comeback?.active || fallbackComeback) {
     return {
       state: 'comeback',
       level: 'neutral',
       kicker: 'Velkommen tilbake',
-      title: 'Start kontrollert',
-      body: `Det er ${daysSinceLast} dager siden siste økt. Velg en lett start og bruk kroppen som fasit.`,
+      title: comeback?.phase === 'return_week' ? 'Fortsett comebacken kontrollert' : 'Start kontrollert',
+      body: comeback?.explanation || `Det er ${daysSinceLast} dager siden siste økt. Velg en lett start og bruk kroppen som fasit.`,
       primaryAction: hasNextPlanned ? 'start_easy' : 'plan'
     };
   }
@@ -699,6 +731,7 @@ export function coachDecisionBasis(input = {}) {
   const dailyReadiness = input.dailyReadiness || null;
   const injury = input.injury || null;
   const week = input.week || null;
+  const loadTrend = input.loadTrend || null;
   const intensity = input.intensity || null;
   const race = input.race || null;
   const intervals = input.intervals || null;
@@ -730,6 +763,10 @@ export function coachDecisionBasis(input = {}) {
 
   if (week?.label) {
     add('Uke', week.label, week.detail || '', week.status || 'neutral');
+  }
+
+  if (loadTrend?.label) {
+    add('Belastningstrend', loadTrend.label, loadTrend.detail || '', loadTrend.status || 'neutral');
   }
 
   if (intensity?.label) {
@@ -1165,6 +1202,185 @@ export function canonicalIntensityBalance(completedItems = [], options = {}) {
     label,
     explanation,
     countHighPulseBaseAsEasy
+  };
+}
+
+function trainingVolumeSummary(items = []) {
+  return items.reduce((summary, item) => {
+    const seconds = completedDurationSeconds(item);
+    summary.sessions += 1;
+    summary.seconds += seconds;
+    summary.km += Math.max(0, Number(item?.distanceKm) || 0);
+    if (seconds > 0) summary.sessionsWithDuration += 1;
+    return summary;
+  }, { sessions: 0, seconds: 0, km: 0, sessionsWithDuration: 0 });
+}
+
+export function trainingVolumeRamp(completedItems = [], options = {}) {
+  const rules = options.rules && typeof options.rules === 'object' ? options.rules : getCoachRules();
+  const config = rules?.thresholds?.volumeRamp || {};
+  const todayIso = String(options.todayIso || '').trim();
+  const windowWeeks = Math.max(1, Math.round(Number(config.windowWeeks) || 4));
+  const maxFactor = Math.max(1, Number(config.maxWeeklyIncreaseFactor) || 1.25);
+  const minimumBaselineSessions = Math.max(1, Math.round(Number(config.minimumBaselineSessions) || windowWeeks));
+  const minimumRecentSessions = Math.max(1, Math.round(Number(config.minimumRecentSessions) || 2));
+  const recentStart = todayIso ? addDays(todayIso, -6) : '';
+  const baselineEnd = todayIso ? addDays(todayIso, -7) : '';
+  const baselineStart = todayIso ? addDays(todayIso, -((windowWeeks + 1) * 7 - 1)) : '';
+  const validItems = Array.isArray(completedItems)
+    ? completedItems.filter(item => item?.date && (!todayIso || item.date <= todayIso))
+    : [];
+  const recentItems = todayIso
+    ? validItems.filter(item => item.date >= recentStart)
+    : [];
+  const baselineItems = todayIso
+    ? validItems.filter(item => item.date >= baselineStart && item.date <= baselineEnd)
+    : [];
+  const recent = trainingVolumeSummary(recentItems);
+  const baseline = trainingVolumeSummary(baselineItems);
+  const durationCoverage = recent.sessions > 0
+    && baseline.sessions > 0
+    && recent.sessionsWithDuration / recent.sessions >= 0.5
+    && baseline.sessionsWithDuration / baseline.sessions >= 0.5;
+  const metric = durationCoverage ? 'duration' : 'sessions';
+  const recentValue = metric === 'duration' ? recent.seconds : recent.sessions;
+  const baselineWeeklyValue = (metric === 'duration' ? baseline.seconds : baseline.sessions) / windowWeeks;
+  const enoughData = Boolean(
+    todayIso
+    && recent.sessions >= minimumRecentSessions
+    && baseline.sessions >= minimumBaselineSessions
+    && baselineWeeklyValue > 0
+  );
+  const factor = enoughData ? recentValue / baselineWeeklyValue : null;
+  const status = !enoughData
+    ? 'insufficient_data'
+    : factor > maxFactor
+    ? 'high'
+    : factor > 1
+    ? 'rising'
+    : 'stable';
+  const percentChange = factor === null ? null : Math.round((factor - 1) * 100);
+  const label = status === 'high'
+    ? 'Rask volumøkning'
+    : status === 'rising'
+    ? 'Volumet øker'
+    : status === 'stable'
+    ? 'Kontrollert volum'
+    : 'Ikke nok volumgrunnlag';
+  const metricLabel = metric === 'duration' ? 'treningstid' : 'antall økter';
+  const explanation = status === 'high'
+    ? `Siste 7 dager har ${Math.max(0, percentChange)} % mer ${metricLabel} enn ukesnittet fra de foregående ${windowWeeks} ukene.`
+    : status === 'rising'
+    ? `Siste 7 dager ligger ${Math.max(0, percentChange)} % over normalt ${metricLabel}, men under varselgrensen.`
+    : status === 'stable'
+    ? `Siste 7 dager ligger på eller under normalt ${metricLabel}.`
+    : `Trenger minst ${minimumRecentSessions} nyere og ${minimumBaselineSessions} tidligere økter for en trygg sammenligning.`;
+
+  return {
+    status,
+    level: status === 'high' ? 'yellow' : status === 'stable' ? 'green' : 'neutral',
+    label,
+    explanation,
+    metric,
+    windowWeeks,
+    maxFactor,
+    factor,
+    percentChange,
+    enoughData,
+    recent,
+    baseline,
+    baselineWeekly: {
+      sessions: baseline.sessions / windowWeeks,
+      seconds: baseline.seconds / windowWeeks,
+      km: baseline.km / windowWeeks
+    },
+    ranges: { recentStart, recentEnd: todayIso, baselineStart, baselineEnd }
+  };
+}
+
+function daysBetweenIso(fromIso, toIso) {
+  return Math.round((new Date(`${toIso}T12:00:00`) - new Date(`${fromIso}T12:00:00`)) / 86400000);
+}
+
+export function comebackProtocol(completedItems = [], options = {}) {
+  const rules = options.rules && typeof options.rules === 'object' ? options.rules : getCoachRules();
+  const config = rules?.thresholds?.comeback || {};
+  const todayIso = String(options.todayIso || '').trim();
+  const weeklyTarget = Math.max(0, Math.round(Number(options.weeklyTarget) || 0));
+  const triggerDays = Math.max(1, Math.round(Number(config.triggerDaysSinceLast) || 5));
+  const longBreakDays = Math.max(triggerDays, Math.round(Number(config.longBreakDays) || 10));
+  const longFactor = Math.max(0.1, Math.min(1, Number(config.reducedWeekFactor) || 0.65));
+  const shortFactor = Math.max(longFactor, Math.min(1, Number(config.shortBreakWeekFactor) || 0.8));
+  const protocolDays = Math.max(1, Math.round(Number(config.protocolDays) || 7));
+  const dates = [...new Set(
+    (Array.isArray(completedItems) ? completedItems : [])
+      .map(item => String(item?.date || '').trim())
+      .filter(date => date && (!todayIso || date <= todayIso))
+  )].sort();
+
+  const inactive = {
+    active: false,
+    phase: 'none',
+    level: 'neutral',
+    label: 'Vanlig treningsrytme',
+    explanation: 'Ingen nylig pause krever redusert forventning.',
+    gapDays: null,
+    daysSinceReturn: null,
+    longBreak: false,
+    weekFactor: 1,
+    effectiveWeeklyTarget: weeklyTarget,
+    protocolDays
+  };
+  if (!todayIso || !dates.length) return inactive;
+
+  const latestDate = dates[dates.length - 1];
+  const daysSinceLast = daysBetweenIso(latestDate, todayIso);
+  let phase = 'none';
+  let gapDays = null;
+  let daysSinceReturn = null;
+
+  if (daysSinceLast >= triggerDays) {
+    phase = 'awaiting_return';
+    gapDays = daysSinceLast;
+  } else {
+    for (let index = dates.length - 1; index > 0; index -= 1) {
+      const gap = daysBetweenIso(dates[index - 1], dates[index]);
+      const sinceReturn = daysBetweenIso(dates[index], todayIso);
+      if (gap >= triggerDays && sinceReturn >= 0 && sinceReturn < protocolDays) {
+        phase = 'return_week';
+        gapDays = gap;
+        daysSinceReturn = sinceReturn;
+        break;
+      }
+    }
+  }
+
+  if (phase === 'none') return inactive;
+  const longBreak = gapDays >= longBreakDays;
+  const weekFactor = longBreak ? longFactor : shortFactor;
+  const effectiveWeeklyTarget = weeklyTarget
+    ? Math.max(1, Math.round(weeklyTarget * weekFactor))
+    : 0;
+  const percent = Math.round(weekFactor * 100);
+  const label = phase === 'awaiting_return'
+    ? longBreak ? 'Rolig comeback etter lengre pause' : 'Kontrollert retur'
+    : 'Comeback-uke';
+  const explanation = phase === 'awaiting_return'
+    ? `Det er ${gapDays} dager siden siste økt. Start lett og sikt mot omtrent ${percent} % av normal uke.`
+    : `Du er ${daysSinceReturn + 1}. dag i retur etter ${gapDays} dagers opphold. Hold uka rundt ${percent} % av normalen.`;
+
+  return {
+    active: true,
+    phase,
+    level: 'yellow',
+    label,
+    explanation,
+    gapDays,
+    daysSinceReturn,
+    longBreak,
+    weekFactor,
+    effectiveWeeklyTarget,
+    protocolDays
   };
 }
 

@@ -36,6 +36,7 @@
     },
     "intensityBalance": {
       "windowDays": 14,
+      "minimumSessions": 3,
       "minEasyShare": 0.4,
       "heroConflictHardShare": 0.65,
       "insightsEasyPerHardTarget": 3,
@@ -43,7 +44,8 @@
     },
     "easyCeiling": {
       "pctOfThresholdHr": 0.92,
-      "pctOfMaxHr": 0.82
+      "pctOfMaxHr": 0.82,
+      "maxPctOfMaxHr": 0.9
     },
     "goldenZone": {
       "beginner": [0.77, 0.84],
@@ -53,16 +55,21 @@
     "quality": {
       "maxPer7Days": 2,
       "minDaysBetween": 2,
+      "moderateRpeMin": 6,
       "hardRpeMin": 7
     },
     "volumeRamp": {
       "windowWeeks": 4,
-      "maxWeeklyIncreaseFactor": 1.25
+      "maxWeeklyIncreaseFactor": 1.25,
+      "minimumBaselineSessions": 4,
+      "minimumRecentSessions": 2
     },
     "comeback": {
       "triggerDaysSinceLast": 5,
       "longBreakDays": 10,
-      "reducedWeekFactor": 0.65
+      "reducedWeekFactor": 0.65,
+      "shortBreakWeekFactor": 0.8,
+      "protocolDays": 7
     },
     "streakFreeze": {
       "cardsPerMonth": 1,

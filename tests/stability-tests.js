@@ -32,6 +32,7 @@ function test(name, fn) {
     calculatePaceMetrics,
     canonicalIntensityBalance,
     classifyWorkoutIntensityContext,
+    comebackProtocol,
     completedDurationSeconds,
     challengeProgress,
     challengeRemainingLabel,
@@ -60,6 +61,7 @@ function test(name, fn) {
     structuredWorkoutWorkSeconds,
     todayCompletedWorkoutFeedback,
     todayDecision,
+    trainingVolumeRamp,
     workoutHeartRateCompliance,
     weekPlanDates,
     weekPlanDatesInRange
@@ -196,6 +198,8 @@ function test(name, fn) {
     assert.strictEqual(DEFAULT_COACH_RULES.thresholds.intensityBalance.minimumSessions, 3);
     assert.strictEqual(DEFAULT_COACH_RULES.thresholds.intensityBalance.heroConflictHardShare, 0.65);
     assert.strictEqual(DEFAULT_COACH_RULES.thresholds.quality.hardRpeMin, 7);
+    assert.strictEqual(DEFAULT_COACH_RULES.thresholds.volumeRamp.minimumBaselineSessions, 4);
+    assert.strictEqual(DEFAULT_COACH_RULES.thresholds.comeback.protocolDays, 7);
     assert.deepStrictEqual(DEFAULT_COACH_RULES.thresholds.goldenZone.experienced, [0.8, 0.87]);
   });
 
@@ -270,7 +274,7 @@ function test(name, fn) {
     assert.ok(app.includes('const todayDecisionResult = buildTodayDecision(coachCtx, primaryItems, todayItems)'), 'dashboard should build today decision from coach context');
     assert.ok(app.includes('renderHomeHero(coachCtx, primaryItems, todayItems, todayDecisionResult)'), 'dashboard should render merged hero card');
     assert.ok(app.includes('renderHomeMotivation(coachCtx, weekStart, weekSummary)'), 'dashboard should render motivation cards from coach context');
-    assert.ok(app.includes('renderHomeWeekStatus(today, weekStart, weekSummary, weekItems, goals, profile)'), 'dashboard should render upgraded weekly status');
+    assert.ok(app.includes('renderHomeWeekStatus(today, weekStart, weekSummary, weekItems, effectiveGoals, profile)'), 'dashboard should render weekly status with effective comeback target');
     assert.ok(app.includes('function challengePaceInfo'), 'dashboard challenge mini should calculate expected pace');
     assert.ok(app.includes('challenge-expected-marker'), 'dashboard challenge mini should render expected pace marker');
     assert.ok(app.includes("const fillClass = p.done ? 'done' : p.current > 0 ? pace.status : 'empty'"), 'challenge mini fill should follow pace status');
@@ -1269,6 +1273,106 @@ function test(name, fn) {
     assert.ok(!app.includes('goldenZoneViolations'), 'legacy all-workout golden-zone violation count should be removed');
   });
 
+  test('volume ramp compares recent seven days with the prior four-week baseline', () => {
+    const baseline = [
+      '2026-06-06', '2026-06-10', '2026-06-15', '2026-06-19',
+      '2026-06-23', '2026-06-26', '2026-06-29', '2026-07-02'
+    ].map(date => ({ date, durationSeconds: 1800 }));
+    const recent = ['2026-07-04', '2026-07-06', '2026-07-08']
+      .map(date => ({ date, durationSeconds: 3600 }));
+    const ramp = trainingVolumeRamp([...baseline, ...recent], { todayIso: '2026-07-09' });
+    assert.strictEqual(ramp.enoughData, true);
+    assert.strictEqual(ramp.metric, 'duration');
+    assert.strictEqual(ramp.baselineWeekly.seconds, 3600);
+    assert.strictEqual(ramp.recent.seconds, 10800);
+    assert.strictEqual(ramp.factor, 3);
+    assert.strictEqual(ramp.status, 'high');
+    assert.match(ramp.explanation, /200 % mer treningstid/);
+  });
+
+  test('volume ramp stays neutral without a reliable baseline', () => {
+    const ramp = trainingVolumeRamp([
+      { date: '2026-07-07', durationSeconds: 3600 },
+      { date: '2026-07-08', durationSeconds: 3600 }
+    ], { todayIso: '2026-07-09' });
+    assert.strictEqual(ramp.enoughData, false);
+    assert.strictEqual(ramp.status, 'insufficient_data');
+    assert.strictEqual(ramp.level, 'neutral');
+  });
+
+  test('volume ramp thresholds come from active coach rules', () => {
+    const customRules = mergeCoachRules({
+      ...coachRulesJson,
+      thresholds: {
+        ...coachRulesJson.thresholds,
+        volumeRamp: {
+          ...coachRulesJson.thresholds.volumeRamp,
+          maxWeeklyIncreaseFactor: 4
+        }
+      }
+    });
+    const baseline = [
+      '2026-06-06', '2026-06-10', '2026-06-15', '2026-06-19',
+      '2026-06-23', '2026-06-26', '2026-06-29', '2026-07-02'
+    ].map(date => ({ date, durationSeconds: 1800 }));
+    const recent = ['2026-07-04', '2026-07-06', '2026-07-08']
+      .map(date => ({ date, durationSeconds: 3600 }));
+    const ramp = trainingVolumeRamp([...baseline, ...recent], {
+      todayIso: '2026-07-09',
+      rules: customRules
+    });
+    assert.strictEqual(ramp.factor, 3);
+    assert.strictEqual(ramp.status, 'rising');
+  });
+
+  test('comeback protocol reduces expectations before and after the return workout', () => {
+    const beforeReturn = comebackProtocol([
+      { date: '2026-06-29', durationSeconds: 1800 }
+    ], {
+      todayIso: '2026-07-09',
+      weeklyTarget: 3
+    });
+    assert.strictEqual(beforeReturn.active, true);
+    assert.strictEqual(beforeReturn.phase, 'awaiting_return');
+    assert.strictEqual(beforeReturn.longBreak, true);
+    assert.strictEqual(beforeReturn.effectiveWeeklyTarget, 2);
+
+    const returnWeek = comebackProtocol([
+      { date: '2026-06-20', durationSeconds: 1800 },
+      { date: '2026-07-05', durationSeconds: 1200 }
+    ], {
+      todayIso: '2026-07-09',
+      weeklyTarget: 3
+    });
+    assert.strictEqual(returnWeek.active, true);
+    assert.strictEqual(returnWeek.phase, 'return_week');
+    assert.strictEqual(returnWeek.daysSinceReturn, 4);
+    assert.strictEqual(returnWeek.effectiveWeeklyTarget, 2);
+    assert.match(returnWeek.explanation, /retur|opphold/);
+  });
+
+  test('comeback protocol remains inactive during normal training rhythm', () => {
+    const protocol = comebackProtocol([
+      { date: '2026-07-04' },
+      { date: '2026-07-07' },
+      { date: '2026-07-09' }
+    ], {
+      todayIso: '2026-07-09',
+      weeklyTarget: 3
+    });
+    assert.strictEqual(protocol.active, false);
+    assert.strictEqual(protocol.effectiveWeeklyTarget, 3);
+  });
+
+  test('coach context wires volume ramp and comeback into one decision flow', () => {
+    assert.ok(app.includes('trainingVolumeRamp(completedToDate'), 'coach context should calculate rolling volume ramp');
+    assert.ok(app.includes('comebackProtocol(completedToDate'), 'coach context should calculate comeback protocol');
+    assert.ok(app.includes('comeback: ctx.comeback'), 'today decision should receive comeback context');
+    assert.ok(app.includes('volumeRamp: ctx.volumeRamp'), 'today decision should receive volume context');
+    assert.ok(app.includes('loadTrend,'), 'coach basis should expose load trend');
+    assert.ok(app.includes('weeklySessionsTarget: coachCtx.effectiveWeeklyTarget'), 'week surfaces should use reduced comeback target');
+  });
+
   test('coach context uses structured intervals as quality signal', () => {
     assert.ok(app.includes('structuredIntervalContext(completedWithTemplateContext, today)'), 'coach context should build structured interval context');
     assert.ok(app.includes('hasStructuredIntervals(template.structuredWorkout)'), 'hard workout classification should count structured intervals');
@@ -1371,6 +1475,35 @@ function test(name, fn) {
     assert.match(yellow.action, /Start kontrollert|lettere/);
   });
 
+  test('today decision lowers load during comeback and rapid volume growth', () => {
+    const comeback = todayDecision({
+      dailyReadinessLevel: 'green',
+      hasPlannedToday: true,
+      plannedWorkoutLabel: 'Intervall',
+      comeback: {
+        active: true,
+        phase: 'return_week',
+        explanation: 'Comeback-uke etter opphold.'
+      }
+    });
+    assert.strictEqual(comeback.level, 'yellow');
+    assert.match(comeback.title, /gradvis|comeback/i);
+    assert.match(comeback.action, /roligere|kortere/);
+
+    const volume = todayDecision({
+      dailyReadinessLevel: 'green',
+      hasPlannedToday: true,
+      plannedWorkoutLabel: 'Terskel',
+      volumeRamp: {
+        status: 'high',
+        explanation: 'Siste 7 dager ligger over normalen.'
+      }
+    });
+    assert.strictEqual(volume.level, 'yellow');
+    assert.match(volume.title, /volumet/);
+    assert.match(volume.action, /rolig|kortere/);
+  });
+
   test('daily coach support adds nutrition and adjustment for quality workout', () => {
     const support = dailyCoachSupport({
       decision: { level: 'green', action: 'Gjennomfør planlagt økt.' },
@@ -1451,6 +1584,7 @@ function test(name, fn) {
       dailyReadiness: { label: 'Gult lys', sleep: 4, energy: 3, stairs: 'trapp ok', status: 'yellow' },
       injury: { active: true, label: 'Bedres: Begge kne', detail: '5 -> 1/10', status: 'yellow' },
       week: { label: '1/3 økter', detail: '30:05 · 3,4 km denne uken', status: 'neutral' },
+      loadTrend: { label: 'Comeback-uke', detail: 'Hold uka rundt 65 % av normalen.', status: 'yellow' },
       race: { label: 'Basebygging', detail: 'Mål-score 62/100', status: 'neutral' }
     });
 
@@ -1458,6 +1592,7 @@ function test(name, fn) {
     assert.deepStrictEqual(basis[0].label, 'Beslutning');
     assert.ok(basis.some(item => item.label === 'I dag' && item.value.includes('Rolig Kort Tur')));
     assert.ok(basis.some(item => item.label === 'Kroppssignal' && item.detail.includes('5 -> 1')));
+    assert.ok(basis.some(item => item.label === 'Belastningstrend' && item.value === 'Comeback-uke'));
     assert.ok(basis.some(item => item.label === 'Mål' && item.value.includes('Basebygging')));
   });
 
@@ -1535,6 +1670,28 @@ function test(name, fn) {
     });
     assert.strictEqual(comeback.state, 'comeback');
     assert.match(comeback.body, /8 dager/);
+  });
+
+  test('home hero treats quality during comeback or rapid volume growth as a conflict', () => {
+    const comebackConflict = homeHeroState({
+      planned: { label: 'Intervall', intensity: 'Intervall', role: 'main_threshold' },
+      hasPlannedToday: true,
+      hasNextPlanned: true,
+      comeback: { active: true, phase: 'return_week', explanation: 'Comeback-uke.' },
+      decision: { level: 'yellow' }
+    });
+    assert.strictEqual(comebackConflict.state, 'conflict');
+    assert.match(comebackConflict.reason, /comeback/);
+
+    const volumeConflict = homeHeroState({
+      planned: { label: 'Terskel', intensity: 'Terskel', role: 'support_threshold' },
+      hasPlannedToday: true,
+      hasNextPlanned: true,
+      volumeRamp: { status: 'high', explanation: 'Rask volumøkning.' },
+      decision: { level: 'yellow' }
+    });
+    assert.strictEqual(volumeConflict.state, 'conflict');
+    assert.match(volumeConflict.reason, /volum/);
   });
 
   test('today decision falls back safely without training data', () => {

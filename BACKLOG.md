@@ -84,7 +84,7 @@ Prioritert backlog for videre utvikling av Treningsapp.
     - Skill rolig-brudd fra terskel-brudd.
     - Bruk én felles intensitetsberegning på Hjem, i Dagens råd og Innsikt.
 
-20. **Volum-ramp og comeback-protokoll** - Planlagt v145
+20. **Volum-ramp og comeback-protokoll** - Bygget v145
     - Varsle forsiktig ved rask volumøkning.
     - Reduser forventning/ukemål etter lengre opphold.
 
@@ -142,10 +142,11 @@ Disse punktene var del av den tidlige v142-idéen, men er bevisst flyttet ut av 
 
 ## Anbefalt neste steg
 
-Neste anbefalte implementeringspunkt er **v145 - Volum-ramp og comeback-protokoll**.
+Neste anbefalte implementeringspunkt er **v146 - `domain-coach.js` første uttrekk**.
 
 Begrunnelse:
 - v143b har etablert en validert parameterkilde med trygg fallback
 - v144 har samlet intensitetsgrunnlaget og rettet klassifiseringen av puls etter øktintensjon
-- neste load-bearing hull er manglende vern mot rask volumøkning og for aggressive råd etter opphold
+- v145 har lagt til felles vern mot rask volumøkning og for aggressive råd etter opphold
+- neste arkitektursteg er å flytte tydelig ren coach-logikk ut av `app.js` uten stor refaktorering
 - fryskort flyttes til v147/v148 og skal bruke samme validerte policy

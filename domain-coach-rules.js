@@ -108,12 +108,16 @@ export const DEFAULT_COACH_RULES = deepFreeze({
     },
     volumeRamp: {
       windowWeeks: 4,
-      maxWeeklyIncreaseFactor: 1.25
+      maxWeeklyIncreaseFactor: 1.25,
+      minimumBaselineSessions: 4,
+      minimumRecentSessions: 2
     },
     comeback: {
       triggerDaysSinceLast: 5,
       longBreakDays: 10,
-      reducedWeekFactor: 0.65
+      reducedWeekFactor: 0.65,
+      shortBreakWeekFactor: 0.8,
+      protocolDays: 7
     },
     streakFreeze: {
       cardsPerMonth: 1,
@@ -163,10 +167,15 @@ function validateResolvedRules(rules, errors) {
     ['thresholds.easyCeiling.maxPctOfMaxHr', rules.thresholds?.easyCeiling?.maxPctOfMaxHr],
     ['thresholds.quality.moderateRpeMin', rules.thresholds?.quality?.moderateRpeMin],
     ['thresholds.quality.hardRpeMin', rules.thresholds?.quality?.hardRpeMin],
+    ['thresholds.volumeRamp.windowWeeks', rules.thresholds?.volumeRamp?.windowWeeks],
     ['thresholds.volumeRamp.maxWeeklyIncreaseFactor', rules.thresholds?.volumeRamp?.maxWeeklyIncreaseFactor],
+    ['thresholds.volumeRamp.minimumBaselineSessions', rules.thresholds?.volumeRamp?.minimumBaselineSessions],
+    ['thresholds.volumeRamp.minimumRecentSessions', rules.thresholds?.volumeRamp?.minimumRecentSessions],
     ['thresholds.comeback.triggerDaysSinceLast', rules.thresholds?.comeback?.triggerDaysSinceLast],
     ['thresholds.comeback.longBreakDays', rules.thresholds?.comeback?.longBreakDays],
-    ['thresholds.comeback.reducedWeekFactor', rules.thresholds?.comeback?.reducedWeekFactor]
+    ['thresholds.comeback.reducedWeekFactor', rules.thresholds?.comeback?.reducedWeekFactor],
+    ['thresholds.comeback.shortBreakWeekFactor', rules.thresholds?.comeback?.shortBreakWeekFactor],
+    ['thresholds.comeback.protocolDays', rules.thresholds?.comeback?.protocolDays]
   ];
   numberPaths.forEach(([path, value]) => {
     if (!finiteNumber(value)) errors.push(`${path} must be a finite number`);
