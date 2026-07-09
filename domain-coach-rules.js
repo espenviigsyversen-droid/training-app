@@ -84,6 +84,7 @@ export const DEFAULT_COACH_RULES = deepFreeze({
     },
     intensityBalance: {
       windowDays: 14,
+      minimumSessions: 3,
       minEasyShare: 0.4,
       heroConflictHardShare: 0.65,
       insightsEasyPerHardTarget: 3,
@@ -91,7 +92,8 @@ export const DEFAULT_COACH_RULES = deepFreeze({
     },
     easyCeiling: {
       pctOfThresholdHr: 0.92,
-      pctOfMaxHr: 0.82
+      pctOfMaxHr: 0.82,
+      maxPctOfMaxHr: 0.9
     },
     goldenZone: {
       beginner: [0.77, 0.84],
@@ -101,6 +103,7 @@ export const DEFAULT_COACH_RULES = deepFreeze({
     quality: {
       maxPer7Days: 2,
       minDaysBetween: 2,
+      moderateRpeMin: 6,
       hardRpeMin: 7
     },
     volumeRamp: {
@@ -152,8 +155,13 @@ function validateResolvedRules(rules, errors) {
     ['thresholds.readiness.redAvgMax', rules.thresholds?.readiness?.redAvgMax],
     ['thresholds.readiness.yellowAvgMax', rules.thresholds?.readiness?.yellowAvgMax],
     ['thresholds.intensityBalance.windowDays', rules.thresholds?.intensityBalance?.windowDays],
+    ['thresholds.intensityBalance.minimumSessions', rules.thresholds?.intensityBalance?.minimumSessions],
     ['thresholds.intensityBalance.minEasyShare', rules.thresholds?.intensityBalance?.minEasyShare],
     ['thresholds.intensityBalance.heroConflictHardShare', rules.thresholds?.intensityBalance?.heroConflictHardShare],
+    ['thresholds.easyCeiling.pctOfThresholdHr', rules.thresholds?.easyCeiling?.pctOfThresholdHr],
+    ['thresholds.easyCeiling.pctOfMaxHr', rules.thresholds?.easyCeiling?.pctOfMaxHr],
+    ['thresholds.easyCeiling.maxPctOfMaxHr', rules.thresholds?.easyCeiling?.maxPctOfMaxHr],
+    ['thresholds.quality.moderateRpeMin', rules.thresholds?.quality?.moderateRpeMin],
     ['thresholds.quality.hardRpeMin', rules.thresholds?.quality?.hardRpeMin],
     ['thresholds.volumeRamp.maxWeeklyIncreaseFactor', rules.thresholds?.volumeRamp?.maxWeeklyIncreaseFactor],
     ['thresholds.comeback.triggerDaysSinceLast', rules.thresholds?.comeback?.triggerDaysSinceLast],

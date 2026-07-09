@@ -7,6 +7,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       addDays,
       assessTrafficLight as assessTrafficLightCore,
       calculatePaceMetrics,
+      canonicalIntensityBalance,
       classifyWorkoutIntensityContext,
       completedDurationSeconds,
       buildStructuredWorkout,
@@ -20,6 +21,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       formatKm,
       formatPace,
       goldenZonePercentages,
+      heartRateComplianceSummary,
       homeHeroState,
       normalizeTemplate,
       parseNonNegativeInteger,
@@ -63,7 +65,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       loadCoachRules
     } from './domain-coach-rules.js';
 
-    const APP_VERSION = 'v143b';
+    const APP_VERSION = 'v144';
     const APP_CACHE_NAME = `treningsapp-${APP_VERSION}`;
 
     const firebaseConfig = {
@@ -2311,6 +2313,32 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         template,
         profile,
         effectCategory
+      });
+    }
+
+    function completedItemsForIntensityDomain(items = []) {
+      return items.map(completed => ({
+        ...completed,
+        template: completedTemplate(completed)
+      }));
+    }
+
+    function canonicalBalanceForCompleted(items, today = todayISO(), windowDays) {
+      return canonicalIntensityBalance(completedItemsForIntensityDomain(items), {
+        todayIso: today,
+        windowDays,
+        profile: normalizePersonProfile(state.settings.personProfile),
+        rules: getCoachRules()
+      });
+    }
+
+    function heartRateComplianceForCompleted(items, today = todayISO(), windowDays) {
+      return heartRateComplianceSummary(completedItemsForIntensityDomain(items), {
+        todayIso: today,
+        windowDays,
+        profile: normalizePersonProfile(state.settings.personProfile),
+        trainingLevel: normalizeTrainingProfile(state.settings.trainingProfile).level,
+        rules: getCoachRules()
       });
     }
 
@@ -5136,28 +5164,24 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     }
 
     function heroIntensityHtml(ctx) {
-      const load = ctx.load14 || {};
-      const highPulseBase = Number(load.highPulseBase || 0);
-      const low = Number(load.low || 0) + highPulseBase;
-      const moderateHard = Math.max(0, Number(load.moderate || 0) - highPulseBase) + Number(load.high || 0);
-      const total = low + moderateHard;
-      if (!total) return '';
-      const lowPct = Math.round((low / total) * 100);
-      const hardPct = 100 - lowPct;
-      const status = hardPct >= 65 ? 'yellow' : 'green';
-      const label = status === 'yellow' ? 'Litt lite rolig' : 'I balanse';
+      const balance = ctx.intensityBalance14;
+      if (!balance?.classifiedCount) return '';
+      const lowPct = balance.easyShare;
+      const hardPct = balance.hardShare;
+      const status = balance.status;
+      const label = balance.label;
       return `
         <div class="hero-intensity-top">
-          <span>Intensitetsbalanse · 14 dager</span>
+          <span>Intensitetsbalanse · ${balance.windowDays} dager</span>
           <strong class="${status}">${escapeHtml(label)}</strong>
         </div>
-        <div class="hero-intensity-track" aria-label="Intensitetsbalanse siste 14 dager">
+        <div class="hero-intensity-track" aria-label="${escapeHtml(balance.explanation)}">
           <div class="easy" style="width:${lowPct}%;"></div>
           <div class="hard" style="width:${hardPct}%;"></div>
         </div>
         <div class="hero-intensity-labels">
-          <span>${highPulseBase ? 'Rolig/base' : 'Rolig'} ${lowPct}%</span>
-          <span>Moderat/hard ${hardPct}%</span>
+          <span>Rolig/base ${lowPct}%</span>
+          <span>Hard ${hardPct}%</span>
         </div>`;
     }
 
@@ -5195,12 +5219,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     }
 
     function heroHardShare14(ctx) {
-      const load = ctx.load14 || {};
-      const highPulseBase = Number(load.highPulseBase || 0);
-      const low = Number(load.low || 0) + highPulseBase;
-      const moderateHard = Math.max(0, Number(load.moderate || 0) - highPulseBase) + Number(load.high || 0);
-      const total = low + moderateHard;
-      return total ? Math.round((moderateHard / total) * 100) : 0;
+      return Number(ctx.intensityBalance14?.hardShare || 0);
     }
 
     function heroStateForContext(ctx, primaryItems = [], todayItems = [], decision = {}) {
@@ -5227,6 +5246,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         injuryActive: Boolean(ctx.injurySummary7?.hasSignal),
         injuryStatus: ctx.injurySummary7?.status || '',
         hardShare14: heroHardShare14(ctx),
+        rules: getCoachRules(),
         daysSinceLast: ctx.daysSinceLast
       });
     }
@@ -5832,6 +5852,11 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
           detail: `${formatClockDuration(ctx.weekSummary?.seconds || 0)} · ${formatKm(ctx.weekSummary?.km || 0)} denne uken`,
           status: weekStatus
         },
+        intensity: ctx.intensityBalance14 ? {
+          label: ctx.intensityBalance14.label,
+          detail: ctx.intensityBalance14.explanation,
+          status: ctx.intensityBalance14.status
+        } : null,
         race: ctx.racePlan?.phaseLabel || ctx.goalScore?.percent ? {
           label: ctx.racePlan?.phaseLabel || `Mål-score ${ctx.goalScore.percent}/100`,
           detail: ctx.goalScore?.percent ? `Mål-score ${ctx.goalScore.percent}/100${ctx.goalScore.label ? ` (${ctx.goalScore.label})` : ''}` : '',
@@ -5844,8 +5869,15 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         } : null,
         metrics: metricParts.length ? {
           label: metricParts.join(' · '),
-          detail: ctx.goldenZoneViolations ? `${ctx.goldenZoneViolations} brudd på gylne sone siste 7 dager` : '',
-          status: ctx.goldenZoneViolations ? 'yellow' : 'neutral'
+          detail: [
+            ctx.heartRateCompliance14?.easyViolationCount
+              ? `${ctx.heartRateCompliance14.easyViolationCount} rolig/base med høy puls`
+              : '',
+            ctx.heartRateCompliance14?.qualityViolationCount
+              ? `${ctx.heartRateCompliance14.qualityViolationCount} kvalitet over kontrollert sone`
+              : ''
+          ].filter(Boolean).join(' · '),
+          status: (ctx.heartRateCompliance14?.easyViolationCount || ctx.heartRateCompliance14?.qualityViolationCount) ? 'yellow' : 'neutral'
         } : null
       });
     }
@@ -6547,96 +6579,12 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       return `Basert på Garmin Primær treningseffekt. Tolkes mot ${profileLabel(profile.primaryFocus)} · ${profileLabel(profile.philosophy)}${framework}.`;
     }
 
-    function weightedLoadScore(summary, profile) {
-      const runningBakkenFocus = profile.primaryFocus === 'running' && profile.philosophy === 'bakken_threshold';
-      const weights = runningBakkenFocus
-        ? { low_aerobic: 1, high_aerobic: 2.2, anaerobic: 4.5 }
-        : { low_aerobic: 1, high_aerobic: 2, anaerobic: 3.5 };
-      return Object.entries(summary.categories).reduce((score, [key, category]) => {
-        return score + (category.count * (weights[key] || 1));
-      }, 0);
-    }
-
     function categoryShare(summary, key) {
       const category = summary.categories[key];
       if (!category) return 0;
       if (summary.seconds > 0) return category.seconds / summary.seconds;
       if (summary.total > 0) return category.count / summary.total;
       return 0;
-    }
-
-    function intensityCoachLine(summary, profile) {
-      const low = summary.categories.low_aerobic;
-      const high = summary.categories.high_aerobic;
-      const anaerobic = summary.categories.anaerobic;
-      const lowShare = categoryShare(summary, 'low_aerobic');
-      const highShare = categoryShare(summary, 'high_aerobic');
-      const anaerobicShare = categoryShare(summary, 'anaerobic');
-      const runningBakkenFocus = profile.primaryFocus === 'running' && profile.philosophy === 'bakken_threshold';
-      const strengthGrowthFocus = profile.primaryFocus === 'strength' && profile.trainingFocus === 'muscle_growth';
-      const skiTechniqueFocus = profile.primaryFocus === 'ski' && profile.trainingFocus === 'technique_skill';
-      const restorativeShare = summary.total ? summary.activity.restorativeCount / summary.total : 0;
-      const mostlyRestorative = restorativeShare >= 0.5;
-
-      if (!summary.total && summary.missing) {
-        return `${summary.missing} økt${summary.missing === 1 ? '' : 'er'} mangler Garmin-valg, så balansen blir usikker.`;
-      }
-      if (!summary.total) {
-        return 'Ingen Garmin-klassifiserte økter i perioden ennå.';
-      }
-      if (strengthGrowthFocus) {
-        return 'For styrkefokus er dette mest et restitusjonssignal; tung styrke bør vurderes med volum, øvelser og progresjon.';
-      }
-      if (skiTechniqueFocus && anaerobic.count > 0) {
-        return 'Anaerob belastning kan være nyttig, men teknikkøkter bør fortsatt ha kontrollert kvalitet.';
-      }
-      if (runningBakkenFocus) {
-        if (anaerobic.count >= 2 || anaerobicShare >= 0.2) {
-          return 'Mye hard anaerob belastning for Bakken-inspirert løpsfokus. Neste løpeøkt bør trolig være rolig.';
-        }
-        if (lowShare < 0.4 && summary.total >= 3) {
-          return 'Rolig andel er litt lav for skadefri progresjon. Legg mer Base/Recovery rundt kvalitetsøktene.';
-        }
-        if (high.count >= 1 && anaerobic.count === 0 && low.count >= 1) {
-          return 'Mye kontrollert terskel uten anaerob topping. Dette passer godt med Bakken-inspirert oppbygging.';
-        }
-        if (lowShare >= 0.55 && highShare <= 0.35 && anaerobic.count === 0) {
-          if (mostlyRestorative) {
-            return 'Skånsom uke med lav risiko. Gåturer og restitusjon støtter kontinuitet, men gir begrenset løpsspesifikk stimulus alene.';
-          }
-          if (summary.activity.lowRunningCount > 0) {
-            return 'God rolig løpsstøtte og lav risiko. Dette bygger grunnlag uten å jage for hard belastning.';
-          }
-          return 'Lav risiko og god kontinuitet. Hvis kroppen kjennes fin, kan neste steg være kontrollert løping eller lett kvalitet.';
-        }
-      }
-      if (anaerobic.count >= 2 || anaerobicShare >= 0.25) {
-        return 'Hard andel er høy. Vurder rolig eller teknisk kontrollert neste økt.';
-      }
-      if (lowShare < 0.35 && summary.total >= 3) {
-        return 'Lite rolig trening i miksen. Mer lav aerob støtte kan gi bedre kontinuitet.';
-      }
-      if (lowShare >= 0.5 && (high.count > 0 || anaerobic.count > 0)) {
-        return 'Fin miks av rolig støtte og kvalitet.';
-      }
-      return 'Balansen ser kontrollert ut ut fra registrerte Garmin-valg.';
-    }
-
-    function intensityConclusion(summary, profile) {
-      const lowShare = categoryShare(summary, 'low_aerobic');
-      const highShare = categoryShare(summary, 'high_aerobic');
-      const anaerobicShare = categoryShare(summary, 'anaerobic');
-      const runningBakkenFocus = profile.primaryFocus === 'running' && profile.philosophy === 'bakken_threshold';
-
-      if (!summary.total && summary.missing) return 'Mangler Garmin-valg';
-      if (!summary.total) return 'Ingen data ennå';
-      if (anaerobicShare >= 0.2 || summary.categories.anaerobic.count >= 2) return 'Nok hardt nå';
-      if (runningBakkenFocus && lowShare < 0.4 && summary.total >= 3) return 'Litt lite rolig';
-      if (highShare >= 0.45 && lowShare < 0.45) return 'Mye kvalitet';
-      if (summary.total && summary.activity.restorativeCount / summary.total >= 0.5 && lowShare >= 0.65) return 'Skånsom uke';
-      if (lowShare >= 0.65 && anaerobicShare === 0) return 'Kontrollert uke';
-      if (lowShare >= 0.5 && highShare > 0) return 'Fin balanse';
-      return 'Kontrollert';
     }
 
     function intensityCategoryRows(summary) {
@@ -6667,7 +6615,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       return `4 uker: ${low}% rolig · ${high}% moderat · ${anaerobic}% hard`;
     }
 
-    function intensityBalanceCard(items, profile, contextSummary) {
+    function intensityBalanceCard(items, profile, contextSummary, balance) {
       const summary = summarizeTrainingEffects(items);
       const categories = Object.values(summary.categories);
       const basis = summary.seconds > 0 ? 'seconds' : 'count';
@@ -6690,11 +6638,11 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       return `
         <div class="intensity-card">
           <div class="intensity-header">
-            <span>Siste 7 dager</span>
+            <span>Siste ${balance.windowDays} dager</span>
             <span>${escapeHtml(registered)}</span>
           </div>
-          <strong class="intensity-verdict">${escapeHtml(intensityConclusion(summary, profile))}</strong>
-          <p class="intensity-coach-line">${escapeHtml(intensityCoachLine(summary, profile))}</p>
+          <strong class="intensity-verdict">${escapeHtml(balance.label)}</strong>
+          <p class="intensity-coach-line">${escapeHtml(balance.explanation)}</p>
           <div class="intensity-stack">${stack}</div>
           <div class="intensity-quick-grid">${intensityCategoryRows(summary)}</div>
           <p class="intensity-context-line">${escapeHtml(intensityCompactContext(contextSummary))}</p>
@@ -6702,80 +6650,16 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         </div>`;
     }
 
-    function buildIntensityNote(last7Items, last28Items, profile) {
-      const last7 = summarizeTrainingEffects(last7Items);
-      const last28 = summarizeTrainingEffects(last28Items);
-      const hard7 = last7.categories.high_aerobic.count + last7.categories.anaerobic.count;
-      const low7 = last7.categories.low_aerobic.count;
-      const high7 = last7.categories.high_aerobic.count;
-      const anaerobic7 = last7.categories.anaerobic.count;
-      const low28 = last28.categories.low_aerobic.count;
-      const hard28 = last28.categories.high_aerobic.count + last28.categories.anaerobic.count;
-      const lowShare7 = categoryShare(last7, 'low_aerobic');
-      const lowShare28 = categoryShare(last28, 'low_aerobic');
-      const anaerobicShare7 = categoryShare(last7, 'anaerobic');
-      const loadScore7 = weightedLoadScore(last7, profile);
-      const highPulseBase7 = last7.activity.highPulseBaseCount || 0;
-      const highPulseBase28 = last28.activity.highPulseBaseCount || 0;
-      const runningBakkenFocus = profile.primaryFocus === 'running' && profile.philosophy === 'bakken_threshold';
-      const strengthGrowthFocus = profile.primaryFocus === 'strength' && profile.trainingFocus === 'muscle_growth';
-      const skiTechniqueFocus = profile.primaryFocus === 'ski' && profile.trainingFocus === 'technique_skill';
-
-      if (!last7.total && last7.missing) {
-        return 'Du har logget økter siste 7 dager, men mangler Garmin-valg. Legg inn Primær treningseffekt på øktene for å få bedre analyse.';
-      }
-      if (last7.missing) {
-        return `${last7.missing} økt${last7.missing === 1 ? '' : 'er'} siste 7 dager mangler Garmin-valg. Fyll det inn først, så blir coachingen mer presis.`;
-      }
-      if (!last7.total) {
-        return 'Når du logger økter med Garmin-feltet, får du en enkel balanse mellom rolig, moderat og hard trening her.';
-      }
-      if (strengthGrowthFocus) {
-        return 'Med muskelvekst som treningsfokus er Garmin-intensitet bare et sekundært signal. Viktigst blir styrkevolum, progresjon, nok mat og nok restitusjon mellom tunge økter.';
-      }
-      if (skiTechniqueFocus && anaerobic7 >= 1) {
-        return 'Med teknikk/staking som fokus bør hard anaerob belastning doseres forsiktig. Prioriter teknisk kvalitet og kontrollerte drag fremfor å jage høyest mulig belastning.';
-      }
-      if (anaerobic7 >= 2 || anaerobicShare7 >= 0.25) {
-        return 'Du har flere anaerobe økter siste 7 dager. For kontinuitet og skadefri progresjon bør neste økt trolig være rolig eller teknisk kontrollert.';
-      }
-      if (runningBakkenFocus && anaerobic7 >= 1) {
-        return 'Med Bakken-inspirert løpsfokus bør anaerob belastning brukes forsiktig. Neste løpeøkt bør trolig være Base/Recovery eller kontrollert terskel under maks press.';
-      }
-      if (hard7 >= 2 && low7 === 0) {
-        return 'Denne uken har mye moderat/hard belastning og lite rolig trening. Vurder en Base eller Recovery-økt neste gang.';
-      }
-      if (runningBakkenFocus && last7.total >= 3 && lowShare7 < 0.4) {
-        if (highPulseBase7 >= 1) {
-          return `${highPulseBase7} av øktene siste 7 dager ser ut som base/rolig intensjon med høy puls. Det er nyttig aerob trening, men legg neste løpeøkt ekstra lett hvis målet er å bygge rolig fundament.`;
-        }
-        return 'Rolig andel er litt lav for skadefri løpsprogresjon. Neste løpeøkt bør trolig være Base/Recovery før mer terskel.';
-      }
-      if (runningBakkenFocus && high7 >= 2 && low7 < 1) {
-        return 'Du har nok terskelnær kvalitet denne uken, men lite rolig støtte rundt den. For sprekere bein og bedre kontinuitet bør neste økt være rolig aerob.';
-      }
-      if (runningBakkenFocus && high7 >= 1 && low7 >= 1 && anaerobic7 === 0 && loadScore7 <= 5.5) {
-        return 'Dette ligner en god Bakken-inspirert uke: rolig aerob støtte rundt kontrollert kvalitet, uten unødvendig anaerob toppbelastning.';
-      }
-      if (last28.total >= 4 && (low28 < hard28 || lowShare28 < 0.45)) {
-        if (highPulseBase28 >= 2) {
-          return `${highPulseBase28} økter siste 4 uker ser ut som base med høy puls. Coachingen bør derfor skille mellom aerob basebelastning og reell hard kvalitet: bygg mer lett løping, men ikke tolk alt som terskel.`;
-        }
-        return 'Siste 4 uker har mer høy belastning enn rolig aerob trening. Litt mer Base/Recovery kan gi bedre kontinuitet og lavere skaderisiko.';
-      }
-      return runningBakkenFocus
-        ? 'Balansen ser kontrollert ut for Bakken-inspirert løping: bygg rolig volum rundt kontrollert terskel, og spar anaerob belastning til sjeldnere behov.'
-        : 'Balansen ser kontrollert ut. Fortsett å bruke Garmin-valget etter øktene, så blir coach-vurderingene mer presise over tid.';
-    }
-
     function renderIntensityBalance(today, profile) {
-      const last7Start = addDays(today, -6);
+      const windowDays = Number(getCoachRules().thresholds.intensityBalance.windowDays) || 14;
+      const windowStart = addDays(today, -(windowDays - 1));
       const last28Start = addDays(today, -27);
-      const last7Items = state.completed.filter(c => c.date >= last7Start && c.date <= today);
+      const windowItems = state.completed.filter(c => c.date >= windowStart && c.date <= today);
       const last28Items = state.completed.filter(c => c.date >= last28Start && c.date <= today);
       const last28Summary = summarizeTrainingEffects(last28Items);
+      const balance = canonicalBalanceForCompleted(windowItems, today, windowDays);
       document.getElementById('insightIntensityProfile').textContent = intensityProfileText(profile);
-      document.getElementById('insightIntensityBalance').innerHTML = intensityBalanceCard(last7Items, profile, last28Summary);
+      document.getElementById('insightIntensityBalance').innerHTML = intensityBalanceCard(windowItems, profile, last28Summary, balance);
       document.getElementById('insightIntensityNote').textContent = '';
     }
 
@@ -6826,7 +6710,8 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
 
       const weekSummary = summarizeCompleted(thisWeek);
       const load7 = loadBreakdown(last7Days);
-      const load14 = loadBreakdown(last14Days);
+      const intensityBalance14 = canonicalBalanceForCompleted(last14Days, today);
+      const heartRateCompliance14 = heartRateComplianceForCompleted(last14Days, today);
 
       const bodySignals14 = {
         pain: last14Days.filter(hasPainSignal).length + injuryCheckins14.filter(item => Number(item.painNow) > 0).length,
@@ -6850,9 +6735,6 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       const maxHR = numberOrZero(personProfile.maxHeartRate);
       const { lowPct, highPct } = goldenZonePercentages(trainingProfile.level);
       const goldenZone = maxHR ? { low: Math.round(maxHR * lowPct), high: Math.round(maxHR * highPct), maxHR, lowPct, highPct } : null;
-      const goldenZoneViolations = goldenZone
-        ? last7Days.filter(c => numberOrZero(c.avgHeartRate) > goldenZone.high).length
-        : 0;
 
       const weekPlanRoles = trainingProfile.weekPlanRoles || [];
       const completedRoles = new Set(
@@ -6870,9 +6752,8 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
 
       const isRunningBakken = trainingProfile.primaryFocus === 'running' && trainingProfile.philosophy === 'bakken_threshold';
       const hardCount7 = load7.hardQuality || load7.high || 0;
-      const hardCount14 = load14.hardQuality || load14.high || 0;
-      const easyCount14 = (load14.low || 0) + (load14.highPulseBase || 0);
-      const intensityRatio14 = last14Days.length >= 3 ? easyCount14 / last14Days.length : null;
+      const hardCount14 = intensityBalance14.hardCount;
+      const easyCount14 = intensityBalance14.easyCount;
       const gradedPain = gradedPainContext(completedAndDailySignals, today);
       const dailyReadiness = loadDailyReadiness();
       const structuredIntervals = structuredIntervalContext(completedWithTemplateContext, today);
@@ -6889,13 +6770,13 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       return {
         today, goals, trainingProfile, personProfile, isRunningBakken,
         thisWeek, last7Days, last14Days, last28Days, completedToday,
-        weekSummary, load7, load14,
+        weekSummary, load7,
         bodySignals14, consecutiveDays, daysSinceLast, lastWorkout,
         latestHrv, latestRestingHr,
-        goldenZone, goldenZoneViolations,
+        goldenZone, heartRateCompliance14, intensityBalance14,
         weekPlanRoles, completedRoles, missingRoles,
         activeChallenge, nextPlanned,
-        hardCount7, hardCount14, easyCount14, intensityRatio14,
+        hardCount7, hardCount14, easyCount14,
         gradedPain, dailyReadiness, structuredIntervals, injuryCheckins14,
         injurySummary7, raceReadiness, racePlan, goalScore
       };
@@ -6905,10 +6786,10 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       const completedTodayNote = buildCompletedTodayCoachNote(ctx);
       if (completedTodayNote) return completedTodayNote;
 
-      const { goals, trainingProfile, isRunningBakken, weekSummary, load7, load14,
+      const { goals, trainingProfile, isRunningBakken, weekSummary, load7,
               bodySignals14, consecutiveDays, daysSinceLast, lastWorkout,
-              goldenZone, goldenZoneViolations,
-              hardCount14, easyCount14, intensityRatio14, last14Days,
+              goldenZone, heartRateCompliance14, intensityBalance14,
+              hardCount14, easyCount14, last14Days,
               gradedPain, dailyReadiness, structuredIntervals, injuryCheckins14 } = ctx;
 
       // 1. Smerte — gradert respons etter alvorlighetsgrad (Bakken: body_signals_first)
@@ -6973,18 +6854,20 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         return `${consecutiveDays} treningsdager på rad uten rolig økt. En hviledag eller lett bevegelse gir kroppen tid til å adaptere. ${coachPrincipleLine(['recovery_is_training'])}`;
       }
 
-      // 3. Gylne sonen brudd — rolige økter var egentlig for harde (Bakken: golden_zone)
-      if (goldenZone && goldenZoneViolations >= 2) {
-        return `Flere rolige økter siste uke hadde snittpuls over den gylne sonen (${goldenZone.low}–${goldenZone.high} bpm). Prøv å holde rolige dager virkelig rolige. ${coachPrincipleLine(['golden_zone'])}`;
+      // 3. Pulsrespons vurderes mot øktens intensjon, ikke som ett felles "brudd".
+      if (heartRateCompliance14.easyViolationCount >= 2) {
+        return `${heartRateCompliance14.easyViolationCount} rolige/baseøkter siste ${heartRateCompliance14.windowDays} dager hadde høy pulsrespons. Hold rolige dager virkelig rolige, slik at kvaliteten kan komme med friske bein. ${coachPrincipleLine(['easy_support', 'fresh_legs'])}`;
       }
-
-      if (isRunningBakken && (load14.highPulseBase || 0) >= 2 && hardCount14 <= 1) {
-        return `${load14.highPulseBase} baseøkter siste 14 dager hadde høy puls. De teller som nyttig aerob støtte, men ikke som hard terskelkvalitet. Bygg videre rolig/base og vent med ny hard kvalitet til beina kjennes friske. ${coachPrincipleLine(['easy_support', 'golden_zone', 'fresh_legs'])}`;
+      if (heartRateCompliance14.qualityViolationCount >= 2 && goldenZone) {
+        return `${heartRateCompliance14.qualityViolationCount} kvalitetsøkter siste ${heartRateCompliance14.windowDays} dager lå over den kontrollerte gylne sonen (${goldenZone.low}–${goldenZone.high} bpm). Hold terskelarbeidet kontrollert og repeterbart. ${coachPrincipleLine(['controlled_threshold', 'golden_zone'])}`;
+      }
+      if (isRunningBakken && intensityBalance14.highPulseBaseCount >= 2 && hardCount14 <= 1) {
+        return `${intensityBalance14.highPulseBaseCount} baseøkter siste ${intensityBalance14.windowDays} dager hadde høy puls. De teller som rolig støtte i intensitetsbalansen, men ikke som hard terskelkvalitet. Bygg videre rolig/base og vent med ny hard kvalitet til beina kjennes friske. ${coachPrincipleLine(['easy_support', 'golden_zone', 'fresh_legs'])}`;
       }
 
       // 4. Skjev intensitetsbalanse (Bakken: fresh_legs / golden_zone)
-      if (isRunningBakken && hardCount14 >= 2 && intensityRatio14 !== null && intensityRatio14 < 0.4) {
-        return `Intensitetsbalansen siste 2 uker er tung: ${hardCount14} harde mot ${easyCount14} rolige. Bakken-filosofien krever mer rolig volum som fundament. ${coachPrincipleLine(['golden_zone', 'fresh_legs'])}`;
+      if (isRunningBakken && intensityBalance14.verdict === 'too_hard') {
+        return `Intensitetsbalansen siste ${intensityBalance14.windowDays} dager er tung: ${hardCount14} harde mot ${easyCount14} rolige. Bakken-filosofien krever mer rolig volum som fundament. ${coachPrincipleLine(['golden_zone', 'fresh_legs'])}`;
       }
       if (!isRunningBakken && hardCount14 >= 3) {
         return 'Flere harde økter tett på hverandre de siste 2 ukene. Neste økt kan gjerne være rolig for å sikre kontinuitet.';
@@ -7025,8 +6908,8 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     }
 
     function buildCoachBasis(ctx) {
-      const { last14Days, load14, bodySignals14, consecutiveDays, daysSinceLast,
-              goldenZone, goldenZoneViolations, latestHrv, latestRestingHr,
+      const { last14Days, bodySignals14, consecutiveDays, daysSinceLast,
+              goldenZone, heartRateCompliance14, intensityBalance14, latestHrv, latestRestingHr,
               gradedPain, dailyReadiness, structuredIntervals, injuryCheckins14 } = ctx;
       const parts = [];
       if (dailyReadiness?.level && TRAFFIC_LIGHT_CONFIG[dailyReadiness.level]) {
@@ -7044,8 +6927,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       }
       const total14 = last14Days.length;
       if (total14 > 0) {
-        const highPulseBaseText = load14.highPulseBase ? `, ${load14.highPulseBase} base/høy puls` : '';
-        parts.push(`${total14} økt${total14 === 1 ? '' : 'er'} siste 14 dager (${load14.hardQuality || load14.high || 0} hard kvalitet, ${load14.low || 0} rolig${highPulseBaseText})`);
+        parts.push(`Intensitetsbalanse: ${intensityBalance14.explanation}`);
       }
       if (gradedPain.activePain.length > 0) {
         const byTier = gradedPain.activePain.reduce((acc, p) => {
@@ -7068,7 +6950,14 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         parts.push(`${daysSinceLast} dager siden siste økt`);
       }
       if (goldenZone) {
-        parts.push(`Gylne sonen: ${goldenZone.low}–${goldenZone.high} bpm${goldenZoneViolations > 0 ? ` (${goldenZoneViolations} brudd siste 7 dager)` : ''}`);
+        const pulseSignals = [];
+        if (heartRateCompliance14.easyViolationCount) {
+          pulseSignals.push(`${heartRateCompliance14.easyViolationCount} rolig/base med høy puls`);
+        }
+        if (heartRateCompliance14.qualityViolationCount) {
+          pulseSignals.push(`${heartRateCompliance14.qualityViolationCount} kvalitet over kontrollert sone`);
+        }
+        parts.push(`Gylne sonen: ${goldenZone.low}–${goldenZone.high} bpm${pulseSignals.length ? ` (${pulseSignals.join(', ')})` : ''}`);
       }
       if (structuredIntervals?.last14.count > 0) {
         const latest = structuredIntervals.latest?.date ? `, siste ${formatDate(structuredIntervals.latest.date)}` : '';
@@ -7086,42 +6975,35 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       const start30 = addDays(today, -29);
       const items30 = state.completed.filter(c => c.date >= start30 && c.date <= today);
       const weekStart = startOfWeek(today);
-      const maxHR = Number(profile.maxHeartRate) || 0;
-      const { lowPct, highPct } = goldenZonePercentages(profile.level);
+      const maxHR = Number(normalizePersonProfile(state.settings.personProfile).maxHeartRate) || 0;
       const patterns = [];
+      const balance = canonicalBalanceForCompleted(items30, today);
+      const pulseCompliance = heartRateComplianceForCompleted(items30, today);
+      const countHighPulseBaseAsEasy = getCoachRules().thresholds.intensityBalance.countHighPulseBaseAsEasy !== false;
+      const easyItems = items30.filter(item => {
+        const context = completedIntensityContext(item);
+        return context.countsAsEasySupport && (!context.highPulseBase || countHighPulseBaseAsEasy);
+      });
 
-      // 1. Rolig:terskel-ratio (Bakken: ≥ 3 rolige per harde økt)
-      const hardItems = items30.filter(c => isHardWorkout(c));
-      const easyItems = items30.filter(c => !isHardWorkout(c));
-      if (items30.length >= 4) {
-        const h = hardItems.length;
-        const e = easyItems.length;
-        if (h === 0) {
-          patterns.push({ status: 'green', label: 'Andel rolige økter', detail: `${e} rolige, ingen harde — godt volum-fundament` });
-        } else {
-          const ratio = e / h;
-          const status = ratio >= 3 ? 'green' : ratio >= 2 ? 'yellow' : 'red';
-          const detail = status === 'green'
-            ? `${e} rolige, ${h} harde — bra. Bakken anbefaler minst 3 rolige per hard økt`
-            : status === 'yellow'
-            ? `${e} rolige, ${h} harde — litt skjevt. Prøv å legge inn flere rolige økter`
-            : `${h} harde, bare ${e} rolige — for mange harde. Bakken anbefaler minst 3 rolige per hard økt`;
-          patterns.push({ status, label: 'Andel rolige økter', detail });
-        }
-      } else {
-        patterns.push({ status: 'neutral', label: 'Andel rolige økter', detail: 'Trenger minst 4 økter de siste 30 dagene' });
-      }
+      // 1. Samme kanoniske 14-dagersbalanse som Hjem og Dagens råd.
+      patterns.push({
+        status: balance.status,
+        label: 'Andel rolige økter',
+        detail: balance.explanation
+      });
 
-      // 2. Er rolige dager faktisk rolige? (avgHeartRate mot gylne sone)
+      // 2. Rolig pulsrespons og kontrollert kvalitet vurderes hver for seg.
       if (maxHR > 0) {
-        const zoneHigh = Math.round(highPct * maxHR);
-        const easyWithHr = easyItems.filter(c => Number(c.avgHeartRate) > 0);
-        if (easyWithHr.length >= 3) {
-          const overZone = easyWithHr.filter(c => Number(c.avgHeartRate) > zoneHigh).length;
-          const status = overZone === 0 ? 'green' : overZone <= Math.ceil(easyWithHr.length * 0.25) ? 'yellow' : 'red';
-          const detail = overZone === 0
-            ? `Alle ${easyWithHr.length} rolige økter holdt seg under gylne sone (≤ ${zoneHigh} bpm)`
-            : `${overZone} av ${easyWithHr.length} rolige økter var over gylne sone (> ${zoneHigh} bpm)`;
+        const easyCeiling = Math.round(Number(getCoachRules().thresholds.easyCeiling.pctOfMaxHr) * maxHR);
+        if (pulseCompliance.easyWithHeartRateCount >= 3) {
+          const overEasy = pulseCompliance.easyViolationCount;
+          const status = overEasy === 0 ? 'green' : overEasy === 1 ? 'yellow' : 'red';
+          const qualityText = pulseCompliance.qualityViolationCount
+            ? ` ${pulseCompliance.qualityViolationCount} kvalitetsøkt${pulseCompliance.qualityViolationCount === 1 ? '' : 'er'} var over kontrollert terskelsone.`
+            : '';
+          const detail = overEasy === 0
+            ? `Alle ${pulseCompliance.easyWithHeartRateCount} rolige/baseøkter med puls var under rolig-taket (ca. ${easyCeiling} bpm).${qualityText}`
+            : `${overEasy} av ${pulseCompliance.easyWithHeartRateCount} rolige/baseøkter med puls var over rolig-taket (ca. ${easyCeiling} bpm).${qualityText}`;
           patterns.push({ status, label: 'Rolige dager er rolige', detail });
         } else {
           patterns.push({ status: 'neutral', label: 'Rolige dager er rolige', detail: 'Logg snittpuls på flere rolige økter for å se dette mønsteret' });

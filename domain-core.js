@@ -1,3 +1,5 @@
+import { getCoachRules } from './domain-coach-rules.js';
+
 export function addDays(dateIso, days) {
   const d = new Date(`${dateIso}T12:00:00`);
   d.setDate(d.getDate() + days);
@@ -15,10 +17,11 @@ export function startOfWeek(dateIso) {
   return dateToISO(date);
 }
 
-export function goldenZonePercentages(level) {
-  if (level === 'experienced') return { lowPct: 0.80, highPct: 0.87 };
-  if (level === 'intermediate') return { lowPct: 0.78, highPct: 0.85 };
-  return { lowPct: 0.77, highPct: 0.84 };
+export function goldenZonePercentages(level, rules = getCoachRules()) {
+  const zones = rules?.thresholds?.goldenZone || {};
+  const key = level === 'experienced' ? 'experienced' : level === 'intermediate' ? 'intermediate' : 'beginner';
+  const range = Array.isArray(zones[key]) ? zones[key] : [0.77, 0.84];
+  return { lowPct: Number(range[0]), highPct: Number(range[1]) };
 }
 
 export function assessTrafficLight(sleep, energy, restingHR, stairsOk, baselineRestingHR = null) {
@@ -422,6 +425,8 @@ function plannedWorkoutIsQuality(planned = {}) {
 }
 
 export function homeHeroState(input = {}) {
+  const rules = input.rules && typeof input.rules === 'object' ? input.rules : getCoachRules();
+  const hardShareLimit = Number(rules?.thresholds?.intensityBalance?.heroConflictHardShare || 0.65) * 100;
   const completedToday = input.completedToday || null;
   const planned = input.planned || {};
   const hasPlannedToday = Boolean(input.hasPlannedToday);
@@ -453,7 +458,7 @@ export function homeHeroState(input = {}) {
   const conflictReasons = [];
   const hasReadinessConflict = quality && (readiness === 'red' || readiness === 'yellow');
   const hasInjuryConflict = quality && injuryActive && ['worse', 'high', 'improving', 'caution', 'stable'].includes(injuryStatus);
-  const hasLoadConflict = quality && hardShare14 >= 65;
+  const hasLoadConflict = quality && hardShare14 >= hardShareLimit;
   if (quality && readiness === 'red') conflictReasons.push('dagsform rød');
   else if (quality && readiness === 'yellow') conflictReasons.push('dagsform gul');
   if (quality && injuryActive && ['worse', 'high', 'improving', 'caution', 'stable'].includes(injuryStatus)) {
@@ -694,6 +699,7 @@ export function coachDecisionBasis(input = {}) {
   const dailyReadiness = input.dailyReadiness || null;
   const injury = input.injury || null;
   const week = input.week || null;
+  const intensity = input.intensity || null;
   const race = input.race || null;
   const intervals = input.intervals || null;
   const metrics = input.metrics || null;
@@ -724,6 +730,10 @@ export function coachDecisionBasis(input = {}) {
 
   if (week?.label) {
     add('Uke', week.label, week.detail || '', week.status || 'neutral');
+  }
+
+  if (intensity?.label) {
+    add('Intensitet', intensity.label, intensity.detail || '', intensity.status || 'neutral');
   }
 
   if (race?.label) {
@@ -924,6 +934,9 @@ export function classifyWorkoutIntensityContext(input = {}) {
   const completed = input.completed && typeof input.completed === 'object' ? input.completed : {};
   const template = input.template && typeof input.template === 'object' ? input.template : {};
   const profile = input.profile && typeof input.profile === 'object' ? input.profile : {};
+  const rules = input.rules && typeof input.rules === 'object' ? input.rules : getCoachRules();
+  const easyCeiling = rules?.thresholds?.easyCeiling || {};
+  const qualityThresholds = rules?.thresholds?.quality || {};
   const structuredWorkout = template.structuredWorkout || completed.structuredWorkout || completed.templateSnapshot?.structuredWorkout;
   const text = lowerText([
     template.name,
@@ -969,20 +982,21 @@ export function classifyWorkoutIntensityContext(input = {}) {
   const highPulse = Boolean(input.highPulse)
     || effectCategory === 'high_aerobic'
     || effectCategory === 'anaerobic'
-    || (avgHr && thresholdHr && avgHr / thresholdHr >= 0.92)
-    || (avgHr && profileMaxHr && avgHr / profileMaxHr >= 0.82)
-    || (maxHr && profileMaxHr && maxHr / profileMaxHr >= 0.90);
+    || (avgHr && thresholdHr && avgHr / thresholdHr >= Number(easyCeiling.pctOfThresholdHr || 0.92))
+    || (avgHr && profileMaxHr && avgHr / profileMaxHr >= Number(easyCeiling.pctOfMaxHr || 0.82))
+    || (maxHr && profileMaxHr && maxHr / profileMaxHr >= Number(easyCeiling.maxPctOfMaxHr || 0.90));
   const hillContext = incline >= 4 || elevationPerKm >= 20 || elevationGain >= 150;
   const painRisk = painAfter >= 4 || painAfter > painBefore + 1;
-  const rpeHigh = rpe >= 7;
-  const rpeModerate = rpe >= 6;
+  const rpeHigh = rpe >= Number(qualityThresholds.hardRpeMin || 7);
+  const rpeModerate = rpe >= Number(qualityThresholds.moderateRpeMin || 6);
+  const intent = { baseIntent, qualityIntent, raceIntent, recoveryIntent };
 
   if (painRisk || (rpeHigh && !qualityIntent)) {
     return {
       category: 'hard_risk',
       label: 'Hard/risko-belastning',
       loadLevel: 'high',
-      baseIntent,
+      ...intent,
       highPulseBase: false,
       countsAsEasySupport: false,
       countsAsHardQuality: false,
@@ -996,7 +1010,7 @@ export function classifyWorkoutIntensityContext(input = {}) {
       category: 'quality',
       label: raceIntent ? 'Konkurranse/testløp' : 'Kvalitetsøkt',
       loadLevel: rpeModerate || highPulse || effectCategory === 'anaerobic' ? 'high' : 'moderate',
-      baseIntent: false,
+      ...intent,
       highPulseBase: false,
       countsAsEasySupport: false,
       countsAsHardQuality: true,
@@ -1010,7 +1024,7 @@ export function classifyWorkoutIntensityContext(input = {}) {
       category: 'high_pulse_base',
       label: 'Baseøkt med høy puls',
       loadLevel: rpeModerate || hillContext || effectCategory === 'high_aerobic' ? 'moderate' : 'low',
-      baseIntent: true,
+      ...intent,
       highPulseBase: true,
       countsAsEasySupport: true,
       countsAsHardQuality: false,
@@ -1026,7 +1040,7 @@ export function classifyWorkoutIntensityContext(input = {}) {
       category: recoveryIntent || rpe <= 3 ? 'easy_recovery' : 'easy_base',
       label: recoveryIntent || rpe <= 3 ? 'Rolig/restitusjon' : 'Baseøkt',
       loadLevel: 'low',
-      baseIntent: true,
+      ...intent,
       highPulseBase: false,
       countsAsEasySupport: true,
       countsAsHardQuality: false,
@@ -1040,7 +1054,7 @@ export function classifyWorkoutIntensityContext(input = {}) {
       category: 'quality',
       label: effectCategory === 'anaerobic' ? 'Anaerob/hard økt' : 'Høy aerob økt',
       loadLevel: effectCategory === 'anaerobic' ? 'high' : 'moderate',
-      baseIntent: false,
+      ...intent,
       highPulseBase: false,
       countsAsEasySupport: false,
       countsAsHardQuality: true,
@@ -1053,12 +1067,199 @@ export function classifyWorkoutIntensityContext(input = {}) {
     category: 'unknown',
     label: 'Uklassifisert økt',
     loadLevel: 'moderate',
-    baseIntent: false,
+    ...intent,
     highPulseBase: false,
     countsAsEasySupport: false,
     countsAsHardQuality: false,
     countsAsHardLoad: false,
     reason: 'Mangler nok øktkontekst til sikker klassifisering.'
+  };
+}
+
+function workoutItemsInWindow(items, todayIso, windowDays) {
+  const source = Array.isArray(items) ? items.filter(Boolean) : [];
+  if (!todayIso) return source;
+  const startIso = addDays(todayIso, -(Math.max(1, Number(windowDays) || 1) - 1));
+  return source.filter(item => item?.date >= startIso && item.date <= todayIso);
+}
+
+function intensityContextForItem(item, options = {}) {
+  const completed = item?.completed && typeof item.completed === 'object' ? item.completed : item || {};
+  const template = item?.template && typeof item.template === 'object'
+    ? item.template
+    : completed.templateSnapshot || {};
+  return classifyWorkoutIntensityContext({
+    completed,
+    template,
+    profile: options.profile,
+    rules: options.rules,
+    effectCategory: item?.effectCategory
+  });
+}
+
+export function canonicalIntensityBalance(completedItems = [], options = {}) {
+  const rules = options.rules && typeof options.rules === 'object' ? options.rules : getCoachRules();
+  const policy = rules?.thresholds?.intensityBalance || {};
+  const windowDays = Math.max(1, Number(options.windowDays || policy.windowDays) || 14);
+  const minimumSessions = Math.max(1, Number(policy.minimumSessions) || 3);
+  const items = workoutItemsInWindow(completedItems, options.todayIso, windowDays);
+  const countHighPulseBaseAsEasy = policy.countHighPulseBaseAsEasy !== false;
+
+  let easyCount = 0;
+  let hardCount = 0;
+  let highPulseBaseCount = 0;
+  let unknownCount = 0;
+
+  items.forEach(item => {
+    const context = intensityContextForItem(item, { profile: options.profile, rules });
+    if (context.highPulseBase) highPulseBaseCount += 1;
+    if (context.countsAsHardQuality || context.countsAsHardLoad) {
+      hardCount += 1;
+    } else if (context.countsAsEasySupport && (!context.highPulseBase || countHighPulseBaseAsEasy)) {
+      easyCount += 1;
+    } else {
+      unknownCount += 1;
+    }
+  });
+
+  const classifiedCount = easyCount + hardCount;
+  const easyShare = classifiedCount ? Math.round((easyCount / classifiedCount) * 100) : 0;
+  const hardShare = classifiedCount ? Math.round((hardCount / classifiedCount) * 100) : 0;
+  const minEasyShare = Number(policy.minEasyShare) || 0.4;
+  const hardShareLimit = Number(policy.heroConflictHardShare) || 0.65;
+
+  let verdict = 'balanced';
+  let status = 'green';
+  let label = 'Balansert';
+  let explanation = `${easyCount} rolige mot ${hardCount} harde siste ${windowDays} dager.`;
+
+  if (classifiedCount < minimumSessions) {
+    verdict = 'insufficient_data';
+    status = 'neutral';
+    label = 'Ikke nok data';
+    explanation = `Trenger minst ${minimumSessions} klassifiserte økter siste ${windowDays} dager.`;
+  } else if ((hardShare / 100) >= hardShareLimit || (easyShare / 100) < minEasyShare) {
+    verdict = 'too_hard';
+    status = 'yellow';
+    label = 'For mye hardt';
+    explanation = `${hardCount} harde mot ${easyCount} rolige siste ${windowDays} dager.`;
+  }
+
+  if (highPulseBaseCount) {
+    const policyText = countHighPulseBaseAsEasy ? 'teller som rolig støtte' : 'holdes utenfor rolig/hard-ratioen';
+    explanation += ` ${highPulseBaseCount} baseøkt${highPulseBaseCount === 1 ? '' : 'er'} med høy puls ${policyText}.`;
+  }
+
+  return {
+    windowDays,
+    totalCount: items.length,
+    classifiedCount,
+    easyCount,
+    hardCount,
+    highPulseBaseCount,
+    unknownCount,
+    easyShare,
+    hardShare,
+    verdict,
+    status,
+    label,
+    explanation,
+    countHighPulseBaseAsEasy
+  };
+}
+
+export function workoutHeartRateCompliance(input = {}) {
+  const completed = input.completed && typeof input.completed === 'object' ? input.completed : {};
+  const template = input.template && typeof input.template === 'object' ? input.template : {};
+  const profile = input.profile && typeof input.profile === 'object' ? input.profile : {};
+  const rules = input.rules && typeof input.rules === 'object' ? input.rules : getCoachRules();
+  const context = classifyWorkoutIntensityContext({ completed, template, profile, rules });
+  const avgHeartRate = numberValue(input.avgHeartRate ?? completed.avgHeartRate);
+  const maxHeartRate = numberValue(input.profileMaxHeartRate ?? profile.maxHeartRate);
+  const thresholdHeartRate = numberValue(input.thresholdHeartRate ?? profile.thresholdHeartRate);
+  const easyCeiling = rules?.thresholds?.easyCeiling || {};
+
+  if (!avgHeartRate) {
+    return {
+      status: 'no_data',
+      hasHeartRate: false,
+      easyViolation: false,
+      qualityViolation: false,
+      context
+    };
+  }
+
+  const highEasyPulse = Boolean(
+    (thresholdHeartRate && avgHeartRate / thresholdHeartRate >= Number(easyCeiling.pctOfThresholdHr || 0.92))
+    || (maxHeartRate && avgHeartRate / maxHeartRate >= Number(easyCeiling.pctOfMaxHr || 0.82))
+  );
+  const { highPct } = goldenZonePercentages(input.trainingLevel, rules);
+  const qualityAboveZone = Boolean(
+    maxHeartRate
+    && context.countsAsHardQuality
+    && !context.raceIntent
+    && avgHeartRate / maxHeartRate > highPct
+  );
+
+  if (context.baseIntent && highEasyPulse) {
+    return {
+      status: 'easy_violation',
+      hasHeartRate: true,
+      easyViolation: true,
+      qualityViolation: false,
+      avgHeartRate,
+      context
+    };
+  }
+  if (qualityAboveZone) {
+    return {
+      status: 'quality_above_zone',
+      hasHeartRate: true,
+      easyViolation: false,
+      qualityViolation: true,
+      avgHeartRate,
+      context
+    };
+  }
+  return {
+    status: maxHeartRate || thresholdHeartRate ? 'within_expected' : 'no_reference',
+    hasHeartRate: true,
+    easyViolation: false,
+    qualityViolation: false,
+    avgHeartRate,
+    context
+  };
+}
+
+export function heartRateComplianceSummary(completedItems = [], options = {}) {
+  const rules = options.rules && typeof options.rules === 'object' ? options.rules : getCoachRules();
+  const windowDays = Math.max(
+    1,
+    Number(options.windowDays || rules?.thresholds?.intensityBalance?.windowDays) || 14
+  );
+  const items = workoutItemsInWindow(completedItems, options.todayIso, windowDays);
+  const assessments = items.map(item => {
+    const completed = item?.completed && typeof item.completed === 'object' ? item.completed : item || {};
+    const template = item?.template && typeof item.template === 'object'
+      ? item.template
+      : completed.templateSnapshot || {};
+    return workoutHeartRateCompliance({
+      completed,
+      template,
+      profile: options.profile,
+      trainingLevel: options.trainingLevel,
+      rules
+    });
+  });
+
+  return {
+    windowDays,
+    totalCount: items.length,
+    withHeartRateCount: assessments.filter(item => item.hasHeartRate).length,
+    easyWithHeartRateCount: assessments.filter(item => item.hasHeartRate && item.context.baseIntent).length,
+    easyViolationCount: assessments.filter(item => item.easyViolation).length,
+    qualityViolationCount: assessments.filter(item => item.qualityViolation).length,
+    highPulseBaseCount: assessments.filter(item => item.context.highPulseBase).length
   };
 }
 

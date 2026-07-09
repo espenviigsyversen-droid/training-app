@@ -30,6 +30,7 @@ function test(name, fn) {
     assessTrafficLight,
     buildStructuredWorkout,
     calculatePaceMetrics,
+    canonicalIntensityBalance,
     classifyWorkoutIntensityContext,
     completedDurationSeconds,
     challengeProgress,
@@ -40,6 +41,7 @@ function test(name, fn) {
     formatDuration,
     formatPace,
     goldenZonePercentages,
+    heartRateComplianceSummary,
     hasStructuredIntervals,
     homeHeroState,
     injuryAdjustedWorkoutAdvice,
@@ -58,6 +60,7 @@ function test(name, fn) {
     structuredWorkoutWorkSeconds,
     todayCompletedWorkoutFeedback,
     todayDecision,
+    workoutHeartRateCompliance,
     weekPlanDates,
     weekPlanDatesInRange
   } = domain;
@@ -190,6 +193,7 @@ function test(name, fn) {
     assert.strictEqual(DEFAULT_COACH_RULES.thresholds.readiness.redAvgMax, 2);
     assert.strictEqual(DEFAULT_COACH_RULES.thresholds.readiness.yellowAvgMax, 3.5);
     assert.strictEqual(DEFAULT_COACH_RULES.thresholds.intensityBalance.windowDays, 14);
+    assert.strictEqual(DEFAULT_COACH_RULES.thresholds.intensityBalance.minimumSessions, 3);
     assert.strictEqual(DEFAULT_COACH_RULES.thresholds.intensityBalance.heroConflictHardShare, 0.65);
     assert.strictEqual(DEFAULT_COACH_RULES.thresholds.quality.hardRpeMin, 7);
     assert.deepStrictEqual(DEFAULT_COACH_RULES.thresholds.goldenZone.experienced, [0.8, 0.87]);
@@ -1114,8 +1118,155 @@ function test(name, fn) {
     assert.ok(app.includes('baseøkt med høy puls - ikke hard kvalitet'), 'load assessment should cap high-pulse base as non-quality');
     assert.ok(app.includes('if (context.highPulseBase) acc.highPulseBase += 1;'), 'coach load breakdown should count high-pulse base separately');
     assert.ok(app.includes('if (context.countsAsHardQuality || context.countsAsHardLoad) acc.hardQuality += 1;'), 'coach load breakdown should count real hard quality/risk separately');
-    assert.ok(app.includes('const highPulseBaseText = load14.highPulseBase'), 'coach basis should explain high-pulse base context');
-    assert.ok(app.includes('baseøkter siste 14 dager hadde høy puls'), 'coach note should explain repeated high-pulse base');
+    assert.ok(app.includes('intensityBalance14.highPulseBaseCount'), 'coach basis should explain canonical high-pulse base context');
+    assert.ok(app.includes('baseøkter siste ${intensityBalance14.windowDays} dager hadde høy puls'), 'coach note should explain repeated high-pulse base');
+  });
+
+  test('heart-rate compliance separates easy violations from quality and race', () => {
+    const profile = { maxHeartRate: 192, thresholdHeartRate: 169 };
+    const easy = workoutHeartRateCompliance({
+      template: { name: 'Rolig base', intensity: 'Rolig', role: 'long_easy', purpose: 'base' },
+      completed: { avgHeartRate: 160 },
+      profile,
+      trainingLevel: 'experienced'
+    });
+    const quality = workoutHeartRateCompliance({
+      template: { name: '8 x 3 min', intensity: 'Intervall', role: 'main_threshold', purpose: 'interval' },
+      completed: { avgHeartRate: 170 },
+      profile,
+      trainingLevel: 'experienced'
+    });
+    const race = workoutHeartRateCompliance({
+      template: { name: '5 km race', intensity: 'Intervall', role: 'race', purpose: 'race' },
+      completed: { avgHeartRate: 180 },
+      profile,
+      trainingLevel: 'experienced'
+    });
+
+    assert.strictEqual(easy.status, 'easy_violation');
+    assert.strictEqual(easy.easyViolation, true);
+    assert.strictEqual(easy.context.highPulseBase, true);
+    assert.strictEqual(easy.context.countsAsHardQuality, false);
+    assert.strictEqual(quality.status, 'quality_above_zone');
+    assert.strictEqual(quality.easyViolation, false);
+    assert.strictEqual(quality.qualityViolation, true);
+    assert.strictEqual(race.easyViolation, false);
+    assert.strictEqual(race.qualityViolation, false);
+  });
+
+  test('heart-rate compliance does not warn without average heart-rate data', () => {
+    const result = workoutHeartRateCompliance({
+      template: { name: 'Rolig base', intensity: 'Rolig', role: 'long_easy' },
+      completed: { trainingEffectCategory: 'high_aerobic' },
+      profile: { maxHeartRate: 192, thresholdHeartRate: 169 }
+    });
+    assert.strictEqual(result.status, 'no_data');
+    assert.strictEqual(result.easyViolation, false);
+    assert.strictEqual(result.qualityViolation, false);
+  });
+
+  test('canonical intensity balance gives one verdict for four hard and one easy workout', () => {
+    const items = [
+      { date: '2026-07-01', template: { name: 'Terskel 1', intensity: 'Terskel', role: 'main_threshold' } },
+      { date: '2026-07-03', template: { name: 'Intervall 2', intensity: 'Intervall', role: 'support_threshold' } },
+      { date: '2026-07-05', template: { name: 'Race', intensity: 'Intervall', role: 'race', purpose: 'race' } },
+      { date: '2026-07-07', template: { name: 'Terskel 4', intensity: 'Terskel', role: 'main_threshold' } },
+      { date: '2026-07-08', template: { name: 'Rolig tur', intensity: 'Rolig', role: 'long_easy', purpose: 'base' } }
+    ];
+    const balance = canonicalIntensityBalance(items, { todayIso: '2026-07-09' });
+    assert.strictEqual(balance.windowDays, 14);
+    assert.strictEqual(balance.hardCount, 4);
+    assert.strictEqual(balance.easyCount, 1);
+    assert.strictEqual(balance.hardShare, 80);
+    assert.strictEqual(balance.verdict, 'too_hard');
+  });
+
+  test('canonical intensity balance applies high-pulse base policy consistently', () => {
+    const items = [
+      {
+        date: '2026-07-06',
+        template: { name: 'Rolig base', intensity: 'Rolig', role: 'long_easy', purpose: 'base' },
+        avgHeartRate: 160
+      },
+      { date: '2026-07-07', template: { name: 'Rolig kort', intensity: 'Rolig', role: 'recovery' } },
+      { date: '2026-07-08', template: { name: 'Terskel', intensity: 'Terskel', role: 'main_threshold' } }
+    ];
+    const balance = canonicalIntensityBalance(items, {
+      todayIso: '2026-07-09',
+      profile: { maxHeartRate: 192, thresholdHeartRate: 169 }
+    });
+    assert.strictEqual(balance.highPulseBaseCount, 1);
+    assert.strictEqual(balance.countHighPulseBaseAsEasy, true);
+    assert.strictEqual(balance.easyCount, 2);
+    assert.strictEqual(balance.hardCount, 1);
+  });
+
+  test('canonical intensity balance is neutral with too little data', () => {
+    const balance = canonicalIntensityBalance([
+      { date: '2026-07-08', template: { name: 'Rolig tur', intensity: 'Rolig', role: 'long_easy' } }
+    ], { todayIso: '2026-07-09' });
+    assert.strictEqual(balance.verdict, 'insufficient_data');
+    assert.strictEqual(balance.status, 'neutral');
+  });
+
+  test('canonical intensity balance reads thresholds from coach rules', () => {
+    const customRules = mergeCoachRules({
+      ...coachRulesJson,
+      thresholds: {
+        ...coachRulesJson.thresholds,
+        intensityBalance: {
+          ...coachRulesJson.thresholds.intensityBalance,
+          minEasyShare: 0.1,
+          heroConflictHardShare: 0.9
+        }
+      }
+    });
+    const items = [
+      { date: '2026-07-01', template: { intensity: 'Terskel', role: 'main_threshold' } },
+      { date: '2026-07-03', template: { intensity: 'Intervall', role: 'support_threshold' } },
+      { date: '2026-07-05', template: { intensity: 'Intervall', role: 'race', purpose: 'race' } },
+      { date: '2026-07-07', template: { intensity: 'Terskel', role: 'main_threshold' } },
+      { date: '2026-07-08', template: { intensity: 'Rolig', role: 'long_easy' } }
+    ];
+    const balance = canonicalIntensityBalance(items, { todayIso: '2026-07-09', rules: customRules });
+    assert.strictEqual(balance.hardShare, 80);
+    assert.strictEqual(balance.verdict, 'balanced');
+  });
+
+  test('heart-rate summary counts only intent-specific pulse findings', () => {
+    const summary = heartRateComplianceSummary([
+      {
+        date: '2026-07-05',
+        template: { name: 'Rolig base', intensity: 'Rolig', role: 'long_easy' },
+        avgHeartRate: 160
+      },
+      {
+        date: '2026-07-07',
+        template: { name: 'Intervall', intensity: 'Intervall', role: 'main_threshold' },
+        avgHeartRate: 170
+      },
+      {
+        date: '2026-07-08',
+        template: { name: 'Rolig uten puls', intensity: 'Rolig', role: 'long_easy' }
+      }
+    ], {
+      todayIso: '2026-07-09',
+      profile: { maxHeartRate: 192, thresholdHeartRate: 169 },
+      trainingLevel: 'experienced'
+    });
+    assert.strictEqual(summary.easyViolationCount, 1);
+    assert.strictEqual(summary.qualityViolationCount, 1);
+    assert.strictEqual(summary.withHeartRateCount, 2);
+  });
+
+  test('home coach and insights use the canonical intensity balance', () => {
+    assert.ok(app.includes('canonicalBalanceForCompleted(last14Days, today)'), 'coach context should build canonical 14-day balance');
+    assert.ok(app.includes('ctx.intensityBalance14?.hardShare'), 'home hero should use canonical hard share');
+    assert.ok(app.includes("intensityBalance14.verdict === 'too_hard'"), 'coach note should use canonical verdict');
+    assert.ok(app.includes('intensity: ctx.intensityBalance14 ?'), 'coach basis should render canonical balance');
+    assert.ok(app.includes('const balance = canonicalBalanceForCompleted(items30, today)'), 'Bakken patterns should use canonical balance');
+    assert.ok(app.includes('intensityBalanceCard(windowItems, profile, last28Summary, balance)'), 'insight intensity card should use canonical balance');
+    assert.ok(!app.includes('goldenZoneViolations'), 'legacy all-workout golden-zone violation count should be removed');
   });
 
   test('coach context uses structured intervals as quality signal', () => {

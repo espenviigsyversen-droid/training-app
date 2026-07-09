@@ -731,13 +731,21 @@ Status etter v143b:
 - Regelfilen lastes network-first, ligger i app shell som offline-fallback og kan ikke blokkere appoppstart.
 - Tersklene er samlet og klare for v144/v145, men eksisterende coach-beregninger er bevisst ikke koblet om i denne runden.
 
-### v144 - Gylne-sone-fiks og kanonisk intensitetsbalanse
+### v144 - Gylne-sone-fiks og kanonisk intensitetsbalanse - Bygget
 
 - Skill rolig/base-brudd fra kontrollert terskel-brudd.
 - Intervalløkter skal ikke beskrives som for harde rolige økter.
 - Lag én ren intensitetsbalanse som brukes av Hjem, Dagens råd og Innsikt.
 - Vindu, terskler og behandling av `highPulseBase` skal komme fra den validerte regelfilen.
 - Lås sentrale scenarioer med tester før UI-tekster justeres.
+
+Status etter v144:
+
+- `workoutHeartRateCompliance()` skiller rolig/base-brudd fra kontrollert kvalitetsbrudd og gir trygg fallback uten pulsdata.
+- `canonicalIntensityBalance()` er felles sannhetskilde for Hjem, Dagens råd/coach-grunnlag og Innsikt.
+- `highPulseBase` behandles konsekvent som rolig støtte med pulssignal, ikke som hard kvalitetsøkt.
+- Vindu, minimumsgrunnlag og terskler leses fra aktive coach-regler med validerte defaults.
+- Eldre, ubrukte intensitetsvurderinger i `app.js` er fjernet for å unngå parallelle definisjoner.
 
 ### v145 - Volum-ramp og comeback-protokoll
 
@@ -938,15 +946,15 @@ Hvis svaret er ja på flere av disse, bør ideen prioriteres.
 
 ### Neste 3 runder
 
-1. v144 - Gylne-sone-fiks og kanonisk intensitetsbalanse
-2. v145 - Volum-ramp og comeback-protokoll
-3. v146 - `domain-coach.js` første uttrekk
+1. v145 - Volum-ramp og comeback-protokoll
+2. v146 - `domain-coach.js` første uttrekk
+3. v147 - Fryskort design
 
 ### Neste 10 runder
 
 1. v143a - Coach review triage og roadmap - Ferdig dokumentasjon
 2. v143b - `coach-rules.json` v2 - Bygget
-3. v144 - Gylne-sone-fiks og kanonisk intensitetsbalanse
+3. v144 - Gylne-sone-fiks og kanonisk intensitetsbalanse - Bygget
 4. v145 - Volum-ramp og comeback-protokoll
 5. v146 - `domain-coach.js` første uttrekk
 6. v147 - Fryskort design
@@ -1043,6 +1051,6 @@ Neste store verdiøkning er en bedre daglig coach.
 
 Anbefalt neste implementeringsrunde:
 
-> v144 - Gylne-sone-fiks og kanonisk intensitetsbalanse
+> v145 - Volum-ramp og comeback-protokoll
 
-Den skal bruke den validerte regelfilen til å fjerne den reelle gylne-sone-feilen og gi Hjem, Dagens råd og Innsikt samme intensitetsgrunnlag.
+Den skal bruke den validerte regelfilen til å oppdage raske belastningsøkninger og gjøre returen etter opphold mer forsiktig uten å skape motstridende råd.

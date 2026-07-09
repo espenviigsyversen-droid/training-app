@@ -80,7 +80,7 @@ Prioritert backlog for videre utvikling av Treningsapp.
     - Bruk hardkodede defaults som trygg fallback.
     - Definer eksplisitt PWA/cache-atferd og test ugyldig/manglende fil.
 
-19. **Gylne-sone-fiks og kanonisk intensitetsbalanse** - Planlagt v144
+19. **Gylne-sone-fiks og kanonisk intensitetsbalanse** - Bygget v144
     - Skill rolig-brudd fra terskel-brudd.
     - Bruk én felles intensitetsberegning på Hjem, i Dagens råd og Innsikt.
 
@@ -142,10 +142,10 @@ Disse punktene var del av den tidlige v142-idéen, men er bevisst flyttet ut av 
 
 ## Anbefalt neste steg
 
-Neste anbefalte implementeringspunkt er **v144 - Gylne-sone-fiks og kanonisk intensitetsbalanse**.
+Neste anbefalte implementeringspunkt er **v145 - Volum-ramp og comeback-protokoll**.
 
 Begrunnelse:
 - v143b har etablert en validert parameterkilde med trygg fallback
-- gylne-sone-analysen har en reell klassifiseringsfeil som bør rettes nå
-- Hjem, Dagens råd og Innsikt bør bruke samme intensitetsgrunnlag
+- v144 har samlet intensitetsgrunnlaget og rettet klassifiseringen av puls etter øktintensjon
+- neste load-bearing hull er manglende vern mot rask volumøkning og for aggressive råd etter opphold
 - fryskort flyttes til v147/v148 og skal bruke samme validerte policy
