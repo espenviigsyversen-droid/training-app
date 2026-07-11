@@ -49,6 +49,8 @@ export function createAiCoachUi(options = {}) {
   const openSettings = options.openSettings;
   let messages = [];
   let configured = false;
+  let backendAvailable = true;
+  let connectionStatus = 'checking';
   let loading = false;
   let usage = { inputTokens: 0, outputTokens: 0, requests: 0 };
   let lastContextLabels = [];
@@ -88,16 +90,32 @@ export function createAiCoachUi(options = {}) {
     });
   }
 
+  function connectionPresentation() {
+    if (!backendAvailable) return { label: 'AI-backend utilgjengelig', badge: 'Utilgjengelig', tone: 'error' };
+    if (!configured) return { label: 'OpenAI ikke konfigurert', badge: 'Ikke tilkoblet', tone: 'offline' };
+    if (connectionStatus === 'connected') return { label: 'OpenAI tilkoblet', badge: 'Tilkoblet', tone: 'connected' };
+    if (connectionStatus === 'invalid') return { label: 'OpenAI-nøkkelen må oppdateres', badge: 'Nøkkel avvist', tone: 'error' };
+    if (connectionStatus === 'unavailable') return { label: 'OpenAI midlertidig utilgjengelig', badge: 'Utilgjengelig', tone: 'warning' };
+    if (connectionStatus === 'checking') return { label: 'Sjekker OpenAI ...', badge: 'Sjekker', tone: 'checking' };
+    return { label: 'OpenAI konfigurert', badge: 'Konfigurert', tone: 'offline' };
+  }
+
   function renderStatus() {
     const status = byId('aiCoachConnectionStatus');
+    const setupTag = byId('aiCoachSetupConnectionTag');
     const composer = byId('aiCoachComposer');
     const missing = byId('aiCoachMissingKey');
+    const presentation = connectionPresentation();
     if (status) {
-      status.className = `ai-coach-status ${configured ? 'connected' : 'offline'}`;
-      status.textContent = configured ? 'OpenAI tilkoblet' : 'OpenAI ikke konfigurert';
+      status.className = `ai-coach-status ${presentation.tone}`;
+      status.textContent = presentation.label;
+    }
+    if (setupTag) {
+      setupTag.className = `api-connection-badge ${presentation.tone}`;
+      setupTag.textContent = presentation.badge;
     }
     composer?.classList.toggle('hidden', !configured);
-    missing?.classList.toggle('hidden', configured);
+    missing?.classList.toggle('hidden', configured || !backendAvailable);
   }
 
   function renderUsage() {
@@ -127,12 +145,22 @@ export function createAiCoachUi(options = {}) {
 
   async function refreshStatus() {
     setText('aiCoachSetupStatus', 'Sjekker tilkobling ...');
+    connectionStatus = 'checking';
+    renderStatus();
     const result = await client.status();
+    backendAvailable = Boolean(result.ok);
     configured = Boolean(result.ok && result.configured);
+    connectionStatus = result.ok ? String(result.status || (configured ? 'configured' : 'not_configured')) : 'unavailable';
     const label = !result.ok
       ? result.message || 'AI-backend er ikke tilgjengelig.'
       : configured
-      ? `Tilkoblet (${result.maskedKey || '••••'})`
+      ? connectionStatus === 'connected'
+        ? `Tilkoblet (${result.maskedKey || '••••'})`
+        : connectionStatus === 'invalid'
+        ? `Nøkkelen er lagret, men ble avvist (${result.maskedKey || '••••'}).`
+        : connectionStatus === 'unavailable'
+        ? `Nøkkelen er lagret, men OpenAI er midlertidig utilgjengelig (${result.maskedKey || '••••'}).`
+        : `Konfigurert (${result.maskedKey || '••••'})`
       : result.code === 'AUTH_REQUIRED'
       ? 'Logg inn for å bruke AI-coachen.'
       : 'Ikke konfigurert';
@@ -233,7 +261,6 @@ export function createAiCoachUi(options = {}) {
       }
     });
     byId('aiCoachClearBtn')?.addEventListener('click', clear);
-    byId('aiCoachBackBtn')?.addEventListener('click', () => navigate('dashboard'));
     byId('aiCoachOpenSettingsBtn')?.addEventListener('click', openSettings);
     byId('aiCoachSaveKeyBtn')?.addEventListener('click', saveKey);
     byId('aiCoachTestKeyBtn')?.addEventListener('click', testKey);

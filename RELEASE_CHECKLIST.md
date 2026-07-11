@@ -73,7 +73,9 @@ Ved release med AI-coach:
 - bekreft at frontend ikke kan lese/skrive `apiKeys/{uid}` eller `aiUsage/{uid}`
 - deploy og test nøkkel/status-funksjonene før chatfunksjonen
 - bekreft at nøkkelen kun vises maskert og kan slettes
+- bekreft at `Server-side` er nøytral og at grønn `Tilkoblet` styres av backendstatus
 - test Auth-feil, manglende nøkkel, rate limit, timeout og normal chat
+- test at Chat ligger etter Mål og at alle seks bunnfaner er lesbare på liten mobil
 - bekreft at chatten ikke endrer plan, logg eller andre treningsdata
 - kontroller at logger ikke inneholder API-nøkkel, prompt, context eller chatinnhold
 - last opp `functions/`, `firebase.json` og `.firebaserc` via Firebase-verktøy/deployflyt, ikke som GitHub Pages-filer

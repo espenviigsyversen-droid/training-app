@@ -555,9 +555,8 @@
       <section id="aiCoach" class="tab">
         <div class="ai-coach-shell">
           <div class="ai-coach-header">
-            <button id="aiCoachBackBtn" class="btn-soft" type="button">Tilbake</button>
             <div>
-              <h2>Spør AI-coachen</h2>
+              <h2>AI-coach</h2>
               <p>Forklarer appens coach-vurdering. Endrer aldri planen eller dataene dine.</p>
             </div>
             <button id="aiCoachClearBtn" class="btn-soft" type="button">Tøm</button>
@@ -1001,7 +1000,10 @@
                 <strong>OpenAI</strong>
                 <p id="aiCoachSetupStatus" class="small-note">Sjekker tilkobling ...</p>
               </div>
-              <span class="api-security-badge">Server-side</span>
+              <div class="api-integration-badges" aria-label="OpenAI-status">
+                <span id="aiCoachSetupConnectionTag" class="api-connection-badge checking">Sjekker</span>
+                <span class="api-security-badge">Server-side</span>
+              </div>
             </div>
             <label for="aiCoachApiKey">Ny API-nøkkel</label>
             <input id="aiCoachApiKey" type="password" autocomplete="off" spellcheck="false" placeholder="sk-..." />
@@ -1096,6 +1098,12 @@
           <path d="M12 3l2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.3 6.4 20.2 7.5 14 3 9.6l6.2-.9L12 3z"></path>
         </svg>
         <span>Mål</span>
+      </button>
+      <button data-tab="aiCoach" onclick="openAiCoach()" aria-label="Chat">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"></path>
+        </svg>
+        <span>Chat</span>
       </button>
     </nav>
   </div>

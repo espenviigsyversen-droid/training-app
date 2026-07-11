@@ -2,7 +2,7 @@
 
 ## Status
 
-v151-v153-koden er klargjort lokalt, men Functions er ikke installert eller deployet fra denne prosjektkopien.
+v151-v154-koden er klargjort lokalt. Brukeren har rapportert at nøkkel kan lagres og testes i den deployede appen, men oppdatert v154-statuspersistens må fortsatt deployes og smoke-testes.
 
 GitHub Pages kan beholdes. Frontend bruker Firebase Callable Functions i region `europe-west1`, slik at Firebase Auth-token og CORS håndteres av Firebase SDK.
 
@@ -65,7 +65,7 @@ Ikke kjør deploy før Firestore Rules-porten over er godkjent.
 6. Verifiser at frontend ikke kan lese `apiKeys/{uid}` eller `aiUsage/{uid}`.
 7. Deploy `aiCoachChat`.
 8. Last opp frontendfilene til GitHub Pages.
-9. Test v153 på mobil/PWA og desktop.
+9. Test v154 på mobil/PWA og desktop, inkludert dynamisk `Tilkoblet`-tag og Chat som sjette fane.
 
 Foreslått Functions-deploy:
 
@@ -97,6 +97,8 @@ Før bredere bruk bør Firebase App Check designes og aktiveres i en egen sikker
 - Uinnlogget kall avvises.
 - Bruker A kan ikke bruke eller teste bruker Bs nøkkel.
 - Nøkkelen tømmes fra inputfeltet etter lagring.
+- `Server-side` er nøytral sikkerhetsmerking; grønn `Tilkoblet` vises bare når serverstatus er `connected`.
+- En mislykket eksplisitt tilkoblingstest oppdaterer status til `invalid` eller `unavailable` uten å returnere nøkkelen.
 - Klartekst finnes ikke i `users/{uid}/settings/openai`.
 - Frontendlesing av `apiKeys/{uid}` avvises.
 - Backup og lokal snapshot inneholder ikke nøkkel eller chat.

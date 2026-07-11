@@ -3,7 +3,7 @@
 const assert = require("assert");
 const { handleAiCoachChat, normalizeMessages, safetyIdentifier } = require("../ai/ai-chat");
 const { validateAiCoachContext } = require("../ai/context-schema");
-const { maskKey, validateOpenAiKey } = require("../ai/keys");
+const { maskKey, testOpenAiKey, validateOpenAiKey } = require("../ai/keys");
 const { extractOutputText, runOpenAiCoach } = require("../ai/openai-provider");
 const { buildAiCoachSystemPrompt } = require("../ai/system-prompt");
 
@@ -58,7 +58,9 @@ function fakeDb(initial = {}) {
   const store = new Map(Object.entries(initial));
   const ref = path => ({
     path,
-    get: async () => ({ exists: store.has(path), data: () => store.get(path) })
+    get: async () => ({ exists: store.has(path), data: () => store.get(path) }),
+    set: async (value, options = {}) => store.set(path, options.merge ? { ...(store.get(path) || {}), ...value } : value),
+    delete: async () => store.delete(path)
   });
   return {
     doc: ref,
@@ -94,6 +96,22 @@ function fakeDb(initial = {}) {
     assert.ok(!maskKey(key).includes("1234567890"));
     const rejected = await validateOpenAiKey(key, async () => response({ error: {} }, 401));
     assert.strictEqual(rejected.code, "INVALID_API_KEY");
+  });
+
+  await test("OpenAI connection test persists connected and invalid status", async () => {
+    const db = fakeDb({
+      "apiKeys/user-1": { openai: "sk-test-1234567890" },
+      "users/user-1/settings/openai": { configured: true, maskedKey: "sk-t…7890", status: "connected" }
+    });
+    const connected = await testOpenAiKey(db, "user-1", async () => response({ data: [] }));
+    assert.strictEqual(connected.ok, true);
+    assert.strictEqual(db._store.get("users/user-1/settings/openai").status, "connected");
+    assert.ok(db._store.get("users/user-1/settings/openai").lastTestedAt instanceof Date);
+
+    const invalid = await testOpenAiKey(db, "user-1", async () => response({ error: {} }, 401));
+    assert.strictEqual(invalid.ok, false);
+    assert.strictEqual(invalid.status, "invalid");
+    assert.strictEqual(db._store.get("users/user-1/settings/openai").status, "invalid");
   });
 
   await test("provider uses stateless Responses API without tools", async () => {

@@ -950,8 +950,47 @@ Scope:
 - Forbedret rate-limit- og budsjettstatus.
 - Eksplisitt beslutning om historikk, retention og sletting før eventuell Firestore-lagring.
 - Personvern-/samtykketekst og enkel kontroll over hvilke kategorier som sendes.
-- Vurder om AI-coach bør få egen navigasjonsfane; bottom nav utvides ikke automatisk.
+- I v153 ble Chat beholdt som sekundær side. Etter praktisk vurdering er egen navigasjonsfane implementert i v154.
 - Chat beholdes som sekundær side fra Hjem/Grunnlag, meldinger holdes bare i minnet, og tokenbruk/context-kategorier vises kompakt.
+
+## v154-v158 - AI-chat som varig produktflate
+
+Detaljert datamodell, sikkerhetsgrenser og rekkefølge ligger i `AI_CHAT_PROJECTS_DESIGN.md`.
+
+### v154 - AI-status og egen Chat-fane - Implementert lokalt, deploytest gjenstår
+
+- Skill tydelig mellom nøytral `Server-side`-merking og dynamisk grønn `Tilkoblet`-status.
+- Legg Chat som sjette bunnnavigasjonspunkt etter Mål.
+- Behold fritekstspørsmål, forslag og read-only svar.
+- Verifiser mobilbredde, desktop og PWA etter navigasjonsendringen.
+- Gjennomfør praktisk ende-til-ende-test med ekte nøkkel og dagens coach-context.
+
+### v155 - Chat persistence design og sikkerhetsgrunnlag
+
+- Lås Firestore-modell for prosjekter, samtaler og meldinger.
+- Etabler Rules-/emulatortester, normalisering og callable-kontrakter før historikk skrives.
+- Avklar retention, arkivering, rekursiv sletting og separat eksport/personvern.
+- Ikke kombiner designrunden med full prosjekt-UI.
+
+### v156 - Synkroniserte samtaler v1
+
+- Lagre meldinger via autentisert backend og les dem på tvers av PC/mobil.
+- Opprett, fortsett, gi navn til, arkiver og slett samtaler.
+- Bruk sammendrag og et begrenset nylig meldingsvindu i modellcontexten.
+- Behold AI som read-only uten automatisk endring av treningsdata.
+
+### v157 - Prosjekter og egne instrukser
+
+- Opprett prosjekter som grupperer flere samtaler.
+- Legg til egne prosjektinstrukser for fokus, tone, mål, tilgjengelig tid, utstyr og matpreferanser.
+- Prosjektinstrukser er brukerdata og kan aldri overstyre serverens guardrails eller `blockedActions`.
+
+### v158 - Kontrollert langtidskontekst og kvalitet
+
+- Forbedre samtalesammendrag for lange diskusjoner.
+- Vurder eksplisitt brukeradministrert minne på tvers av samtaler, med innsyn og sletting.
+- Legg til personvern-, eksport-, kostnads- og kvalitetskontroller.
+- Test trening, skade, mål-løp og generelle mat-/restitusjonsspørsmål mot samme sikkerhetsmodell.
 
 Utenfor v150-v153:
 
@@ -1025,9 +1064,9 @@ Hvis svaret er ja på flere av disse, bør ideen prioriteres.
 
 ### Neste 3 runder
 
-1. v150 - AI Coach Context og sikkerhetsdesign - Bygget lokalt
-2. v151 - Sikker backend og nøkkeladministrasjon - Implementert lokalt, deploy gjenstår
-3. v152/v153 - Read-only AI-coach chat og polish - Implementert lokalt, ende-til-ende-test gjenstår
+1. Deploy og smoke-test v154
+2. v155 - Chat persistence design og sikkerhetsgrunnlag
+3. v156 - Synkroniserte samtaler v1
 
 ### Neste 10 runder
 
@@ -1040,7 +1079,7 @@ Hvis svaret er ja på flere av disse, bør ideen prioriteres.
 7. v147 - Fryskort design - Dokumentert
 8. v148 - Fryskort implementering - Bygget
 9. v150 - AI Coach Context og sikkerhetsdesign - Bygget lokalt
-10. v151-v153 - Implementert lokalt, deploy og ende-til-ende-test gjenstår
+10. v151-v154 - Implementert lokalt, oppdatert deploy og ende-til-ende-test gjenstår
 
 ## Hva vi bør vente med
 
@@ -1130,6 +1169,6 @@ Neste store verdiøkning er en bedre daglig coach.
 
 Anbefalt neste implementeringsrunde:
 
-> AI-backend deploy-port og ende-til-ende-test av v153
+> Deploy og smoke-test v154, deretter v155 Firestore-design
 
-v150-v153 er implementert lokalt. Neste steg er å kontrollere eksisterende Firestore Rules, installere Functions-avhengigheter, deploye nøkkel/statusfunksjonene først og deretter teste chatten med en ekte OpenAI-nøkkel. Følg `FIREBASE_AI_BACKEND_DEPLOY.md`; ikke start nye AI-features før denne sikkerhets- og deployporten er bestått.
+v154 er implementert lokalt. Etter deploy og manuell test skal v155 låse Firestore-modellen og sikkerhetsreglene før vedvarende samtalehistorikk bygges i v156. Prosjekter og egne instrukser kommer i v157, mens kontrollert langtidskontekst og personvernpolish kommer i v158.

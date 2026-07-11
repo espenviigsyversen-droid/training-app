@@ -27,7 +27,7 @@ Standard Bakken-uke: Hoved-terskel → Støtte-terskel → Lang rolig → Valgfr
 **Hosting:** GitHub Pages.  
 **Backend:** Firebase (prosjekt `home-tasks-app-18de3`) — Firestore + Google Auth.  
 **Frontend:** Vanilla JS + HTML + CSS, single-page app, tab-navigasjon.  
-**Versjon:** v153 (konstant i `app.js`).
+**Versjon:** v154 (konstant i `app.js`).
 
 ### Filer
 
@@ -140,6 +140,8 @@ Treningsapp/
 - **Sikker AI-backend og nøkkeladministrasjon** (v151, implementert lokalt - ikke deployet): Ny `functions/`-backend bruker Firebase Callable Functions med Auth, server-side OpenAI-nøkkel, maskert status, kontekstvalidering, rate limit, timeout og sanitert metadata-logging. Nøkkelen skrives inn i Setup, men returneres aldri til frontend og lagres ikke i appens localStorage eller repo.
 - **Read-only AI-coach chat** (v152, implementert lokalt - ikke ende-til-ende-testet): Ny sekundær chatflate åpnes fra Hjem/Grunnlag. Den bruker serverbygget systeminstruks og coach-context, har ingen web-søk, tools, dataskriving eller automatisk planendring, og meldinger beholdes kun i minnet.
 - **Chat-polish, personvern og brukskontroll** (v153, implementert lokalt - deploytest gjenstår): Chatten viser tilkoblingsstatus, datagrunnlag, session-forbruk, forslag, tydelige feiltilstander og eksplisitt samtykke. OpenAI-kallet er stateless (`store: false`), bruker ingen tools og sender en pseudonym sikkerhetsidentifikator.
+- **AI-chat videre produktspor** (v154-v158, planlagt): `AI_CHAT_PROJECTS_DESIGN.md` dokumenterer neste runder. v154 gir tydelig dynamisk `Tilkoblet`-status og egen Chat-fane etter Mål. v155 låser Firestore-modell, Rules, retention og rekursiv sletting. v156 bygger synkroniserte samtaler på PC/mobil. v157 legger til prosjekter med egne instrukser. v158 innfører kontrollert samtalesammendrag, eventuelt eksplisitt minne, personvern og kostnadskontroll. Prosjektinstrukser kan aldri overstyre coachens guardrails.
+- **AI-status og egen Chat-fane** (v154, implementert lokalt): Chat er nå sjette hoveddestinasjon etter Mål og har fortsatt fritekstfelt, forslag og read-only adferd. Setup skiller nøytral `Server-side`-merking fra en dynamisk status-tag med `Tilkoblet`, `Ikke tilkoblet`, `Nøkkel avvist` eller `Utilgjengelig`. Lagring og eksplisitt tilkoblingstest persisterer siste status i det maskerte serverdokumentet, uten å eksponere nøkkelen. Seks-fane-layouten har egne mobilregler. Automatisk test er bestått; manuell innlogget mobil/PWA-test gjenstår etter deploy.
 - **AI deploy-port**: `FIREBASE_AI_BACKEND_DEPLOY.md` beskriver påkrevd kontroll av eksisterende Firestore Rules, Functions-installasjon/deploy og ekte ende-til-ende-test. Ingen Firebase-deploy, npm-installasjon eller ekte OpenAI-kall er gjort fra denne prosjektkopien.
 - **Arkitekturkontekst indeksert** (dokumentasjon): `AGENTS.md` peker nå eksplisitt på `ARKITEKT_CONTEXT.md` som veiledende beslutningsramme når Codex arbeider som både utvikler og arkitekt. Den overstyrer ikke prosjektregler eller nyere brukerbeslutninger.
 - **Fjernet «Foreslå neste økt»** (v92): Kortet er fjernet fra Kalender-fanen. Ukeplanen dekker samme behov bedre og er rollebevisst. `renderWorkoutSuggestion`-kallet er fjernet fra render-løkken for å unngå krasj.
@@ -176,14 +178,14 @@ Treningsapp/
 
 ## Neste steg (prioritert)
 
-1. **Kontroller Firestore Rules før AI-deploy**
-   - Verifiser at ingen bredere wildcard-regel gir frontend tilgang til `apiKeys/{uid}` eller `aiUsage/{uid}`.
-2. **Installer og deploy Firebase Functions kontrollert**
-   - Installer avhengigheter, kjør backendtestene, deploy nøkkel/status-funksjonene først og test maskering/sletting før chatfunksjonen deployes.
-3. **Last opp v153-frontend og kjør ende-til-ende-test**
-   - Test Setup, nøkkelstatus, chat, rate limit, timeout, mobil/PWA, offline og at resten av appen fungerer uten AI-backend.
+1. **Deploy og smoke-test v154**
+   - Last opp frontend, deploy oppdaterte nøkkel/status-funksjoner og kontroller `Tilkoblet`, Chat-fanen og et ekte fritekstsvar på PC/mobil/PWA.
+2. **v155 - Firestore-design og sikkerhetsgrunnlag for historikk**
+   - Lås datamodell, Rules, callable-kontrakter, retention, arkiv og rekursiv sletting før meldinger lagres.
+3. **v156/v157 - Synkroniserte samtaler og prosjekter**
+   - Bygg samtalehistorikk på tvers av enheter først, deretter prosjekter med egne instrukser.
 
-Nye AI-features og øvrige coach-utvidelser bør vente til denne sikkerhets- og deployporten er bestått.
+Kontrollert langtidskontekst, personvern og kostnadspolish følger i v158.
 
 ---
 

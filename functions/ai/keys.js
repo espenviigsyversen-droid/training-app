@@ -35,7 +35,8 @@ async function openAiKeyStatus(db, uid) {
     configured: true,
     maskedKey: String(data.maskedKey || "••••"),
     status: String(data.status || "connected"),
-    updatedAt: data.updatedAt?.toDate?.()?.toISOString?.() || null
+    updatedAt: data.updatedAt?.toDate?.()?.toISOString?.() || null,
+    lastTestedAt: data.lastTestedAt?.toDate?.()?.toISOString?.() || null
   };
 }
 
@@ -67,6 +68,7 @@ async function saveOpenAiKey(db, uid, key, fetchImpl = fetch) {
     configured: true,
     maskedKey,
     status: "connected",
+    lastTestedAt: now,
     updatedAt: now
   }, { merge: true });
   await batch.commit();
@@ -96,15 +98,23 @@ async function deleteOpenAiKey(db, uid) {
 
 async function testOpenAiKey(db, uid, fetchImpl = fetch) {
   const key = await resolveOpenAiKey(db, uid);
-  if (!key) return { ok: false, code: "AI_NOT_CONFIGURED", message: "Ingen OpenAI-nøkkel er konfigurert." };
+  const statusRef = db.doc("users/" + uid + "/settings/openai");
+  if (!key) {
+    await statusRef.set({ configured: false, maskedKey: "", status: "not_configured", lastTestedAt: new Date(), updatedAt: new Date() }, { merge: true });
+    return { ok: false, configured: false, status: "not_configured", code: "AI_NOT_CONFIGURED", message: "Ingen OpenAI-nøkkel er konfigurert." };
+  }
   try {
     const validation = await validateOpenAiKey(key, fetchImpl);
     if (!validation.valid) {
-      return { ok: false, code: validation.code, message: validation.code === "INVALID_API_KEY" ? "Nøkkelen ble avvist av OpenAI." : "OpenAI er midlertidig utilgjengelig." };
+      const status = validation.code === "INVALID_API_KEY" ? "invalid" : "unavailable";
+      await statusRef.set({ configured: true, maskedKey: maskKey(key), status, lastTestedAt: new Date(), updatedAt: new Date() }, { merge: true });
+      return { ok: false, configured: true, status, code: validation.code, message: validation.code === "INVALID_API_KEY" ? "Nøkkelen ble avvist av OpenAI." : "OpenAI er midlertidig utilgjengelig." };
     }
+    await statusRef.set({ configured: true, maskedKey: maskKey(key), status: "connected", lastTestedAt: new Date(), updatedAt: new Date() }, { merge: true });
     return { ok: true, configured: true, maskedKey: maskKey(key), status: "connected" };
   } catch {
-    return { ok: false, code: "PROVIDER_UNAVAILABLE", message: "Kunne ikke nå OpenAI." };
+    await statusRef.set({ configured: true, maskedKey: maskKey(key), status: "unavailable", lastTestedAt: new Date(), updatedAt: new Date() }, { merge: true });
+    return { ok: false, configured: true, status: "unavailable", code: "PROVIDER_UNAVAILABLE", message: "Kunne ikke nå OpenAI." };
   }
 }
 

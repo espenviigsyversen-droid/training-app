@@ -167,22 +167,31 @@ function test(name, fn) {
   });
 
   test('AI coach frontend is read-only, context-based and wired into Setup', () => {
+    const navMarkup = index.match(/<nav>([\s\S]*?)<\/nav>/)?.[1] || '';
     assert.ok(index.includes('id="aiCoach"'), 'AI coach page is missing');
     assert.ok(index.includes('onclick="openAiCoach()"'), 'AI coach entry from Home is missing');
+    assert.strictEqual((navMarkup.match(/<button/g) || []).length, 6, 'bottom navigation should have six destinations');
+    assert.ok(navMarkup.includes('data-tab="aiCoach"'), 'AI coach should be a bottom navigation destination');
+    assert.ok(navMarkup.indexOf('data-tab="aiCoach"') > navMarkup.indexOf('data-tab="goals"'), 'AI coach should appear after Goals');
     assert.ok(index.includes("openSetupSection('ai')"), 'AI integrations entry is missing from Setup');
     assert.ok(index.includes('id="aiCoachApiKey" type="password"'), 'OpenAI key field must be a password input');
+    assert.ok(index.includes('id="aiCoachSetupConnectionTag"'), 'Setup should have a dynamic OpenAI connection tag');
     assert.ok(app.includes('buildCurrentAiCoachContext()'), 'app wrapper should build current AI coach context');
     assert.ok(app.includes('buildAiCoachContext({'), 'app wrapper should call the production AI context builder');
     assert.ok(aiCoachClient.includes("httpsCallable"), 'AI frontend should use authenticated callable functions');
     assert.ok(aiCoachUi.includes("text.textContent = message.content"), 'AI responses should render as text, not raw HTML');
     assert.ok(!aiCoachUi.includes('innerHTML = message.content'), 'AI response must not be assigned as raw HTML');
-    assert.ok(!aiCoachUi.includes('sessionStorage'), 'v152/v153 should not persist chat history in browser storage');
+    assert.ok(!aiCoachUi.includes('sessionStorage'), 'v152-v154 should not persist chat history in browser storage');
+    assert.ok(aiCoachUi.includes("connectionStatus === 'connected'"), 'AI status should distinguish a verified connection');
+    assert.ok(aiCoachUi.includes('api-connection-badge'), 'AI status should update the Setup connection badge');
+    assert.ok(read('styles.css').includes('grid-template-columns: repeat(6, minmax(0, 1fr));'), 'bottom navigation should reserve stable space for six tabs');
   });
 
   test('AI coach backend keeps keys server-side and chat structurally read-only', () => {
     assert.ok(functionsIndex.includes('request.auth?.uid'), 'AI callables must require Firebase Auth');
     assert.ok(aiCoachKeys.includes('apiKeys/'), 'OpenAI key should use server-side apiKeys collection');
     assert.ok(aiCoachKeys.includes('users/" + uid + "/settings/openai'), 'masked OpenAI status document is missing');
+    assert.ok(aiCoachKeys.includes('lastTestedAt'), 'OpenAI connection tests should persist their latest status');
     assert.ok(aiCoachBackend.includes('validateAiCoachContext(context)'), 'backend must validate AI context schema');
     assert.ok(aiCoachBackend.includes('enforceRateLimit'), 'backend rate limit is missing');
     assert.ok(aiCoachProvider.includes('store: false'), 'OpenAI Responses request must disable provider-side response storage');

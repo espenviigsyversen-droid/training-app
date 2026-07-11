@@ -674,6 +674,19 @@ Implementerte v153-beslutninger:
 
 Web-søk, skrivehandlinger og automatisk planlegging ligger utenfor v150-v153 og krever egne designrunder.
 
+## 16B. Videre chatprodukt v154-v158
+
+Brukeren har valgt at Chat skal bli en egen navigasjonsdestinasjon etter Mål, med fritekstspørsmål, synkronisert historikk, flere samtaler, prosjekter og egne prosjektinstrukser. Detaljert modell og rekkefølge ligger i `AI_CHAT_PROJECTS_DESIGN.md`.
+
+Viktige tillegg til dette dokumentets sikkerhetsmodell:
+
+- `Server-side` beskriver nøkkelhåndtering; bare en vellykket backendstatus/test kan gi grønn `Tilkoblet`-status.
+- Vedvarende historikk bygges først etter egen Firestore Rules- og slettedesignrunde.
+- Hele samtalehistorikken sendes ikke til modellen. Backend bruker et kontrollert sammendrag og et begrenset nylig meldingsvindu.
+- Prosjektinstruksjoner er brukerpreferanser med lavere prioritet enn systeminstruks, coachDecision og guardrails.
+- Chatten kan diskutere økter, planforslag og generell mat/restitusjon, men forblir read-only og ikke-medisinsk.
+- v154 har implementert den dynamiske status-taggen og gjort Chat til sjette hovedfane. Vedvarende historikk er fortsatt bevisst utsatt til v155-designet er låst.
+
 ## 17. Akseptansekriterier for v150-design
 
 - AI-rollen er tydelig avgrenset mot appens regelstyrte coach.

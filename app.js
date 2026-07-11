@@ -80,7 +80,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     import { createAiCoachClient } from './ai-coach-client.js';
     import { createAiCoachUi } from './ai-coach-ui.js';
 
-    const APP_VERSION = 'v153';
+    const APP_VERSION = 'v154';
     const APP_CACHE_NAME = `treningsapp-${APP_VERSION}`;
 
     const firebaseConfig = {
@@ -1387,7 +1387,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       if (navBtn) {
         document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
         navBtn.classList.add('active');
-      } else if (tabId === 'settings' || tabId === 'aiCoach') {
+      } else if (tabId === 'settings') {
         document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
       }
       document.getElementById('userMenu').classList.add('hidden');

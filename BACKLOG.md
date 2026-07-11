@@ -142,9 +142,31 @@ Prioritert backlog for videre utvikling av Treningsapp.
 31. **v153 - Chat polish og kontroll** - Implementert lokalt, deploytest gjenstår
     - Context/provenance, usage, kostnadsfeedback, rate-limit-feedback og personvernpolish.
     - Meldingshistorikk beholdes bare i minnet i denne versjonen; det lagres ikke chatinnhold i Firestore eller lokal lagring.
-    - Chatten åpnes som sekundær side fra Hjem uten å utvide bunnnavigasjonen.
+    - I v153 åpnes chatten som sekundær side fra Hjem; egen navigasjonsfane er senere besluttet for v154.
 
-32. **Mobil polish og mikro-UX**
+32. **v154 - AI-status og egen Chat-fane** - Implementert lokalt, deploytest gjenstår
+    - Dynamisk grønn `Tilkoblet`-tag som er forskjellig fra nøytral `Server-side`-merking.
+    - Chat legges etter Mål i bunnnavigasjonen og beholder fritekstspørsmål.
+    - Mobil, desktop, PWA og ekte ende-til-ende-svar verifiseres.
+
+33. **v155 - Chat persistence design og sikkerhetsgrunnlag**
+    - Firestore-modell, Rules, callable-kontrakter, retention, arkiv, sletting og separat eksport.
+    - Emulator-/regeltester skal være på plass før vedvarende historikk aktiveres.
+
+34. **v156 - Synkroniserte samtaler v1**
+    - Samtaler og meldinger lagres sikkert og kan fortsettes på PC og mobil.
+    - Samtaler kan opprettes, navngis, arkiveres og slettes.
+    - Begrenset meldingsvindu og samtalesammendrag hindrer ukontrollert context/kostnad.
+
+35. **v157 - Prosjekter og egne instrukser**
+    - Flere prosjekter med egne samtaler og instruksjoner for fokus, tone og preferanser.
+    - Instrukser kan ikke overstyre coachens sikkerhetsregler.
+
+36. **v158 - Kontrollert langtidskontekst og kvalitet**
+    - Bedre oppsummering av lange samtaler og eventuelt eksplisitt brukeradministrert minne.
+    - Personvern, innsyn, sletting, eksport, kostnad og tematester for trening/mat/restitusjon.
+
+37. **Mobil polish og mikro-UX**
     - Små forbedringer som gjør appen mer behagelig i daglig bruk.
     - Eksempler: kortere tekster, bedre prioritering på Hjem/Mål, sticky handlinger i modaler og bedre tomtilstander.
 
@@ -166,7 +188,7 @@ Disse punktene var del av den tidlige v142-idéen, men er bevisst flyttet ut av 
 
 ## Anbefalt neste steg
 
-Neste anbefalte punkt er **AI-backendens sikkerhets- og deployport for v151-v153**. Følg `FIREBASE_AI_BACKEND_DEPLOY.md` før frontend med AI-chat lastes opp som en ferdig funksjon.
+Neste anbefalte punkt er **deploy og smoke-test av v154**, fulgt av v155 datamodell/sikkerhetsdesign før Firestore-historikk bygges.
 
 Begrunnelse:
 - v143b har etablert en validert parameterkilde med trygg fallback
@@ -178,4 +200,5 @@ Begrunnelse:
 - v148 har implementert en liten manuell fryskort-v1
 - v150-v153 er implementert lokalt med whitelistet context, server-side nøkkel, read-only chat og kontrollert feil-/forbruksvisning
 - eksisterende produksjonsregler for Firestore må verifiseres slik at `apiKeys/{uid}` og `aiUsage/{uid}` aldri kan leses eller skrives fra frontend
-- Functions-avhengigheter, emulator/deploy og en ekte OpenAI ende-til-ende-test gjenstår
+- v154 har bygget tydelig dynamisk tilkoblingsstatus og egen Chat-fane; praktisk OpenAI ende-til-ende-test gjenstår etter deploy
+- samtalehistorikk skal ikke aktiveres før v155 har låst Firestore Rules, sletting og context-policy
