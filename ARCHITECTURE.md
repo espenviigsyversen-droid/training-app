@@ -13,6 +13,7 @@ Treningsapp er en installbar PWA uten build-step. Appen kjøres direkte fra stat
 - Hosting: GitHub Pages
 - Auth: Firebase Google Auth
 - Database: Firestore
+- Serverfunksjoner: Firebase Callable Functions for AI-backend (lokalt klargjort, deploy gjenstår)
 - Offline: Firestore IndexedDB persistence + egen lokal snapshot i `localStorage`
 - Build: Ingen
 
@@ -24,6 +25,10 @@ Treningsapp/
 ├── app.js
 ├── domain-core.js
 ├── domain-goals.js
+├── domain-coach-rules.js
+├── domain-coach.js
+├── ai-coach-client.js
+├── ai-coach-ui.js
 ├── styles.css
 ├── manifest.json
 ├── service-worker.js
@@ -36,6 +41,10 @@ Treningsapp/
 ├── RELEASE_CHECKLIST.md
 ├── tests/
 │   └── stability-tests.js
+├── functions/
+│   ├── index.js
+│   ├── ai/
+│   └── tests/
 ├── data/
 │   └── coach-rules.json
 ├── icons/
@@ -99,6 +108,18 @@ Inneholder ren konkurranse- og mål-logikk uten DOM, Firebase eller direkte `sta
 
 `app.js` importerer race-/mål-funksjoner direkte herfra. `domain-core.js` re-eksporterer dem foreløpig for bakoverkompatibilitet med eldre tester/importmønster.
 
+### Coach- og AI-moduler
+
+- `domain-coach-rules.js` validerer og leverer aktive coach-regler med trygg fallback.
+- `domain-coach.js` inneholder ren beslutningslogikk og bygger den whitelistede `AI Coach Context v1`.
+- `ai-coach-client.js` kaller autentiserte Firebase Callable Functions, men kjenner aldri den lagrede OpenAI-nøkkelen.
+- `ai-coach-ui.js` eier read-only chatflyt, feiltilstander og session-forbruk. Meldingshistorikk lagres ikke vedvarende.
+- `functions/` validerer Auth og context, håndterer server-side nøkkel, rate limit og OpenAI-kall. Systeminstruks, modell og sikkerhetspolicy eies av serveren.
+
+Dataflyten er `app state -> buildAiCoachContext() -> callable backend -> OpenAI Responses API -> read-only svar`. AI-en forklarer appens strukturerte coach-beslutning og får ikke tools eller skriveadgang til treningsdata.
+
+Backend kan deployes mens frontend fortsatt hostes på GitHub Pages. Før deploy må eksisterende Firestore Rules kontrolleres slik at nøkkel- og usage-dokumenter ikke er tilgjengelige for klienten; se `FIREBASE_AI_BACKEND_DEPLOY.md`.
+
 ### `styles.css`
 
 Inneholder design tokens, layout, komponentstiler og responsive regler.
@@ -114,7 +135,7 @@ Ikke gjør en stor rewrite. Del heller appen gradvis i tydelige soner:
 1. `storage` - Firestore, local snapshot, import/export
 2. `domain-core.js` / senere `domain/dates` - datoer, uker, perioder
 3. `domain-goals.js` - konkurranser, personlige rekorder, mål-løp og målplan
-4. senere `domain/coach` - coach-context, anbefalinger, Bakken-regler
+4. `domain-coach.js` - coach-context, anbefalinger og prioritert beslutningsmodell
 5. senere `domain/training` - økter, roller, belastning, intensitet
 6. `ui/render` - render-funksjoner og DOM-hjelpere
 7. `tests` - rene tester for kritiske regler

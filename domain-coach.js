@@ -411,6 +411,290 @@ export function coachDecisionEngine(input = {}) {
   };
 }
 
+const AI_CONTEXT_SCHEMA_VERSION = 1;
+const AI_CONTEXT_MAX_TEXT = 500;
+const AI_CONTEXT_MAX_REASONS = 8;
+const AI_CONTEXT_MAX_ACTIONS = 12;
+
+function aiPlainObject(value) {
+  return value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+}
+
+function aiText(value, maxLength = AI_CONTEXT_MAX_TEXT) {
+  return String(value ?? '').trim().slice(0, maxLength);
+}
+
+function aiNullableText(value, maxLength = AI_CONTEXT_MAX_TEXT) {
+  const text = aiText(value, maxLength);
+  return text || null;
+}
+
+function aiNumber(value, options = {}) {
+  if (value === '' || value === null || value === undefined) return null;
+  const number = Number(value);
+  if (!Number.isFinite(number)) return null;
+  const min = Number.isFinite(options.min) ? options.min : -Infinity;
+  const max = Number.isFinite(options.max) ? options.max : Infinity;
+  return Math.min(max, Math.max(min, number));
+}
+
+function aiBoolean(value) {
+  return value === true;
+}
+
+function aiTextList(values, maxItems = AI_CONTEXT_MAX_ACTIONS, maxLength = 160) {
+  return uniqueValues((Array.isArray(values) ? values : [])
+    .map(value => aiText(value, maxLength))
+    .filter(Boolean))
+    .slice(0, maxItems);
+}
+
+function aiReasonList(values) {
+  return (Array.isArray(values) ? values : [])
+    .slice(0, AI_CONTEXT_MAX_REASONS)
+    .map(value => {
+      const reason = aiPlainObject(value);
+      return {
+        id: aiNullableText(reason.id, 80),
+        label: aiNullableText(reason.label || reason.title, 160),
+        detail: aiNullableText(reason.detail || reason.summary, AI_CONTEXT_MAX_TEXT),
+        severity: aiNullableText(reason.severity, 40),
+        priority: aiNumber(reason.priority, { min: 0, max: 9999 })
+      };
+    })
+    .filter(reason => reason.id || reason.label || reason.detail);
+}
+
+function aiSecondarySignals(values) {
+  return (Array.isArray(values) ? values : [])
+    .slice(0, AI_CONTEXT_MAX_REASONS)
+    .map(value => {
+      const signal = aiPlainObject(value);
+      return {
+        id: aiNullableText(signal.id, 80),
+        severity: aiNullableText(signal.severity, 40),
+        title: aiNullableText(signal.title, 160),
+        summary: aiNullableText(signal.summary, AI_CONTEXT_MAX_TEXT),
+        recommendation: aiNullableText(signal.recommendation, AI_CONTEXT_MAX_TEXT)
+      };
+    })
+    .filter(signal => signal.id || signal.title || signal.summary);
+}
+
+function aiCoachDecision(value) {
+  const decision = aiPlainObject(value);
+  return {
+    primarySignal: aiNullableText(decision.primarySignal, 80) || 'normal_plan',
+    severity: aiNullableText(decision.severity, 40) || 'neutral',
+    recommendation: aiNullableText(decision.recommendation, AI_CONTEXT_MAX_TEXT),
+    title: aiNullableText(decision.title, 160),
+    summary: aiNullableText(decision.summary, AI_CONTEXT_MAX_TEXT),
+    reasons: aiReasonList(decision.reasons),
+    secondarySignals: aiSecondarySignals(decision.secondarySignals),
+    blockedActions: aiTextList(decision.blockedActions),
+    allowedActions: aiTextList(decision.allowedActions),
+    guardrails: aiTextList(decision.guardrails, AI_CONTEXT_MAX_ACTIONS, AI_CONTEXT_MAX_TEXT)
+  };
+}
+
+function aiReadiness(value) {
+  const readiness = aiPlainObject(value);
+  return {
+    light: aiNullableText(readiness.light || readiness.level, 40),
+    sleepScore: aiNumber(readiness.sleepScore ?? readiness.sleep, { min: 1, max: 5 }),
+    energyScore: aiNumber(readiness.energyScore ?? readiness.energy, { min: 1, max: 5 }),
+    stairsOk: readiness.stairsOk === true ? true : readiness.stairsOk === false ? false : null,
+    restingHeartRate: aiNumber(readiness.restingHeartRate, { min: 20, max: 250 })
+  };
+}
+
+function aiBodySignal(value) {
+  const signal = aiPlainObject(value);
+  return {
+    active: aiBoolean(signal.active),
+    region: aiNullableText(signal.region, 80),
+    side: aiNullableText(signal.side, 40),
+    area: aiNullableText(signal.area, 120),
+    painNow: aiNumber(signal.painNow, { min: 0, max: 10 }),
+    trend: aiNullableText(signal.trend, 40),
+    status: aiNullableText(signal.status, 40)
+  };
+}
+
+function aiWorkout(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const workout = aiPlainObject(value);
+  const result = {
+    date: aiNullableText(workout.date, 10),
+    label: aiNullableText(workout.label || workout.name, 180),
+    type: aiNullableText(workout.type, 80),
+    intensity: aiNullableText(workout.intensity, 80),
+    role: aiNullableText(workout.role, 80),
+    purpose: aiNullableText(workout.purpose, 80),
+    load: aiNullableText(workout.load, 80),
+    durationSeconds: aiNumber(workout.durationSeconds, { min: 0, max: 172800 }),
+    distanceKm: aiNumber(workout.distanceKm, { min: 0, max: 1000 }),
+    averageHeartRate: aiNumber(workout.averageHeartRate, { min: 20, max: 250 }),
+    rpe: aiNumber(workout.rpe, { min: 0, max: 10 }),
+    structuredWorkSeconds: aiNumber(workout.structuredWorkSeconds, { min: 0, max: 86400 }),
+    completionStatus: aiNullableText(workout.completionStatus, 60)
+  };
+  return Object.values(result).some(value => value !== null) ? result : null;
+}
+
+function aiTrainingWindow(value) {
+  const summary = aiPlainObject(value);
+  return {
+    sessions: aiNumber(summary.sessions, { min: 0, max: 1000 }) || 0,
+    durationSeconds: aiNumber(summary.durationSeconds ?? summary.seconds, { min: 0, max: 31536000 }) || 0,
+    distanceKm: aiNumber(summary.distanceKm ?? summary.km, { min: 0, max: 100000 }) || 0,
+    easyCount: aiNumber(summary.easyCount, { min: 0, max: 1000 }) || 0,
+    hardCount: aiNumber(summary.hardCount, { min: 0, max: 1000 }) || 0,
+    structuredIntervalCount: aiNumber(summary.structuredIntervalCount, { min: 0, max: 1000 }) || 0,
+    structuredWorkSeconds: aiNumber(summary.structuredWorkSeconds, { min: 0, max: 31536000 }) || 0
+  };
+}
+
+function aiIntensityBalance(value) {
+  const balance = aiPlainObject(value);
+  return {
+    windowDays: aiNumber(balance.windowDays, { min: 1, max: 90 }),
+    easyCount: aiNumber(balance.easyCount, { min: 0, max: 1000 }) || 0,
+    hardCount: aiNumber(balance.hardCount, { min: 0, max: 1000 }) || 0,
+    highPulseBaseCount: aiNumber(balance.highPulseBaseCount, { min: 0, max: 1000 }) || 0,
+    totalCount: aiNumber(balance.totalCount, { min: 0, max: 1000 }) || 0,
+    easyShare: aiNumber(balance.easyShare, { min: 0, max: 1 }),
+    hardShare: aiNumber(balance.hardShare, { min: 0, max: 1 }),
+    verdict: aiNullableText(balance.verdict, 60),
+    explanation: aiNullableText(balance.explanation, AI_CONTEXT_MAX_TEXT)
+  };
+}
+
+function aiVolumeRamp(value) {
+  const ramp = aiPlainObject(value);
+  return {
+    status: aiNullableText(ramp.status, 60),
+    level: aiNullableText(ramp.level, 40),
+    label: aiNullableText(ramp.label, 120),
+    explanation: aiNullableText(ramp.explanation, AI_CONTEXT_MAX_TEXT),
+    metric: aiNullableText(ramp.metric, 40),
+    factor: aiNumber(ramp.factor, { min: 0, max: 10 }),
+    percentChange: aiNumber(ramp.percentChange, { min: -100, max: 1000 }),
+    enoughData: aiBoolean(ramp.enoughData)
+  };
+}
+
+function aiComeback(value) {
+  const comeback = aiPlainObject(value);
+  return {
+    active: aiBoolean(comeback.active),
+    phase: aiNullableText(comeback.phase, 60),
+    level: aiNullableText(comeback.level, 40),
+    label: aiNullableText(comeback.label, 120),
+    explanation: aiNullableText(comeback.explanation, AI_CONTEXT_MAX_TEXT),
+    gapDays: aiNumber(comeback.gapDays, { min: 0, max: 3650 }),
+    daysSinceReturn: aiNumber(comeback.daysSinceReturn, { min: 0, max: 3650 }),
+    weekFactor: aiNumber(comeback.weekFactor, { min: 0, max: 1 }),
+    effectiveWeeklyTarget: aiNumber(comeback.effectiveWeeklyTarget, { min: 0, max: 100 })
+  };
+}
+
+function aiProfile(value) {
+  const profile = aiPlainObject(value);
+  const goldenZone = aiPlainObject(profile.goldenZone);
+  return {
+    primaryFocus: aiNullableText(profile.primaryFocus, 80),
+    level: aiNullableText(profile.level, 80),
+    philosophy: aiNullableText(profile.philosophy, 80),
+    priority: aiNullableText(profile.priority, 80),
+    trainingFocus: aiNullableText(profile.trainingFocus, 80),
+    weeklySessionTarget: aiNumber(profile.weeklySessionTarget, { min: 0, max: 100 }),
+    goldenZone: {
+      low: aiNumber(goldenZone.low, { min: 20, max: 250 }),
+      high: aiNumber(goldenZone.high, { min: 20, max: 250 })
+    }
+  };
+}
+
+function aiGoals(value) {
+  const goals = aiPlainObject(value);
+  return {
+    active: aiBoolean(goals.active),
+    raceName: aiNullableText(goals.raceName || goals.name, 160),
+    raceDate: aiNullableText(goals.raceDate || goals.date, 10),
+    distanceKm: aiNumber(goals.distanceKm, { min: 0, max: 1000 }),
+    targetTimeSeconds: aiNumber(goals.targetTimeSeconds, { min: 0, max: 604800 }),
+    phase: aiNullableText(goals.phase, 120),
+    score: aiNumber(goals.score, { min: 0, max: 100 }),
+    scoreTrend: aiNumber(goals.scoreTrend, { min: -100, max: 100 }),
+    nextMilestone: aiNullableText(goals.nextMilestone, 240),
+    nextStep: aiNullableText(goals.nextStep, AI_CONTEXT_MAX_TEXT)
+  };
+}
+
+function aiContinuity(value) {
+  const continuity = aiPlainObject(value);
+  return {
+    streakWeeks: aiNumber(continuity.streakWeeks, { min: 0, max: 5200 }) || 0,
+    freezeActiveToday: aiBoolean(continuity.freezeActiveToday),
+    weekProtected: aiBoolean(continuity.weekProtected),
+    freezeReason: aiNullableText(continuity.freezeReason, 80),
+    freezeIsTraining: false
+  };
+}
+
+function aiDataQuality(value) {
+  const quality = aiPlainObject(value);
+  return {
+    missing: aiTextList(quality.missing, 20, 120),
+    stale: aiTextList(quality.stale, 20, 120),
+    assumptions: aiTextList(quality.assumptions, 20, 240)
+  };
+}
+
+export function buildAiCoachContext(input = {}, options = {}) {
+  const source = aiPlainObject(input);
+  const today = aiPlainObject(source.today);
+  const training = aiPlainObject(source.trainingSummary);
+  const highlights = aiPlainObject(source.recentHighlights);
+  const generatedAtValue = options.generatedAt || source.generatedAt || new Date().toISOString();
+  const generatedAtDate = new Date(generatedAtValue);
+  const generatedAt = Number.isNaN(generatedAtDate.getTime())
+    ? new Date(0).toISOString()
+    : generatedAtDate.toISOString();
+
+  return {
+    schemaVersion: AI_CONTEXT_SCHEMA_VERSION,
+    generatedAt,
+    locale: 'nb-NO',
+    coachDecision: aiCoachDecision(source.coachDecision),
+    today: {
+      date: aiNullableText(today.date, 10),
+      readiness: aiReadiness(today.readiness),
+      bodySignal: aiBodySignal(today.bodySignal),
+      plannedToday: aiWorkout(today.plannedToday),
+      plannedTomorrow: aiWorkout(today.plannedTomorrow)
+    },
+    trainingSummary: {
+      days7: aiTrainingWindow(training.days7),
+      days14: aiTrainingWindow(training.days14),
+      days28: aiTrainingWindow(training.days28),
+      intensityBalance: aiIntensityBalance(training.intensityBalance),
+      volumeRamp: aiVolumeRamp(training.volumeRamp),
+      comeback: aiComeback(training.comeback)
+    },
+    profile: aiProfile(source.profile),
+    goals: aiGoals(source.goals),
+    continuity: aiContinuity(source.continuity),
+    recentHighlights: {
+      latestWorkout: aiWorkout(highlights.latestWorkout),
+      latestRelevantTest: aiWorkout(highlights.latestRelevantTest),
+      latestPb: aiWorkout(highlights.latestPb)
+    },
+    dataQuality: aiDataQuality(source.dataQuality)
+  };
+}
+
 export function homeHeroState(input = {}) {
   const rules = input.rules && typeof input.rules === 'object' ? input.rules : getCoachRules();
   const hardShareLimit = Number(rules?.thresholds?.intensityBalance?.heroConflictHardShare || 0.65) * 100;

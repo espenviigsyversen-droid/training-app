@@ -38,6 +38,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       weekPlanDatesInRange as weekPlanDatesInRangeCore
     } from './domain-core.js';
     import {
+      buildAiCoachContext,
       coachDecisionEngine,
       coachDecisionBasis,
       continuityFreezeDays,
@@ -76,8 +77,10 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       getCoachRules,
       loadCoachRules
     } from './domain-coach-rules.js';
+    import { createAiCoachClient } from './ai-coach-client.js';
+    import { createAiCoachUi } from './ai-coach-ui.js';
 
-    const APP_VERSION = 'v149';
+    const APP_VERSION = 'v153';
     const APP_CACHE_NAME = `treningsapp-${APP_VERSION}`;
 
     const firebaseConfig = {
@@ -92,6 +95,8 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
     const db = getFirestore(app);
+    const aiCoachClient = createAiCoachClient(app, { region: 'europe-west1' });
+    let aiCoachUi = null;
     enableIndexedDbPersistence(db).catch((err) => {
       console.warn('Firestore offline persistence unavailable:', err);
     });
@@ -1351,6 +1356,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         trainingProfile: document.getElementById('setupTrainingProfile'),
         personProfile: document.getElementById('setupPersonProfile'),
         wellness: document.getElementById('setupWellness'),
+        ai: document.getElementById('setupAi'),
         data: document.getElementById('setupData'),
         danger: document.getElementById('setupDanger')
       };
@@ -1361,6 +1367,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         overview?.classList.add('hidden');
         sections[section].classList.remove('hidden');
       }
+      if (section === 'ai') ensureAiCoachUi().refreshStatus();
       document.getElementById('settings')?.scrollIntoView({ block: 'start' });
     };
 
@@ -1380,7 +1387,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       if (navBtn) {
         document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
         navBtn.classList.add('active');
-      } else if (tabId === 'settings') {
+      } else if (tabId === 'settings' || tabId === 'aiCoach') {
         document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
       }
       document.getElementById('userMenu').classList.add('hidden');
@@ -1393,6 +1400,30 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       showTab('settings');
       openSetupSection('overview');
       scrollAppToTop();
+    };
+
+    function ensureAiCoachUi() {
+      if (aiCoachUi) return aiCoachUi;
+      aiCoachUi = createAiCoachUi({
+        client: aiCoachClient,
+        appVersion: APP_VERSION,
+        buildContext: buildCurrentAiCoachContext,
+        navigate: tabId => {
+          showTab(tabId);
+          scrollAppToTop();
+        },
+        openSettings: () => {
+          showTab('settings');
+          openSetupSection('ai');
+          scrollAppToTop();
+        }
+      });
+      aiCoachUi.bind();
+      return aiCoachUi;
+    }
+
+    window.openAiCoach = function() {
+      ensureAiCoachUi().open();
     };
 
     window.openPlan = function(dateIso = '', allowBlocked = false) {
@@ -5856,7 +5887,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       const painImproving = improvingPainFollowup(ctx);
       const plannedMeta = plannedWorkoutAdviceMeta(firstPlanned);
       const tomorrowMeta = plannedWorkoutAdviceMeta(ctx.tomorrowPlanned);
-      const decisionPackage = coachDecisionEngine({
+      const decisionEngineInput = {
         rules: getCoachRules(),
         dailyReadinessLevel: ctx.dailyReadiness?.level || null,
         highestPainTier: ctx.gradedPain?.highestTier || null,
@@ -5872,7 +5903,8 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         volumeRamp: ctx.volumeRamp,
         intensityBalance: ctx.intensityBalance14,
         continuityFreezeToday: isDateFrozen(ctx.today, state.continuityFreezes, { rules: getCoachRules() })
-      });
+      };
+      const decisionPackage = coachDecisionEngine(decisionEngineInput);
       let decision = todayDecision({
         dailyReadinessLevel: ctx.dailyReadiness?.level || null,
         highestPainTier: ctx.gradedPain?.highestTier || null,
@@ -5930,7 +5962,12 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
             dailyReadinessLevel: ctx.dailyReadiness?.level || null
           })
         : null;
-      return completedFeedback || enrichedDecision;
+      return completedFeedback
+        ? {
+            ...completedFeedback,
+            coachDecision: coachDecisionEngine({ ...decisionEngineInput, completedFeedback })
+          }
+        : enrichedDecision;
     }
 
     function buildCompletedTodayCoachNote(ctx) {
@@ -7063,6 +7100,180 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       };
     }
 
+    function aiWorkoutFromPlanned(planned) {
+      if (!planned) return null;
+      const template = getTemplate(planned.templateId);
+      return {
+        date: planned.date || '',
+        label: template.name || 'Planlagt økt',
+        type: template.type || '',
+        intensity: template.intensity || '',
+        role: template.role || '',
+        purpose: template.purpose || '',
+        load: template.load || ''
+      };
+    }
+
+    function aiWorkoutFromCompleted(completed) {
+      if (!completed) return null;
+      const template = completedTemplate(completed);
+      return {
+        date: completed.date || '',
+        label: template.name || completed.manualName || 'Gjennomført økt',
+        type: template.type || '',
+        intensity: template.intensity || '',
+        role: template.role || '',
+        purpose: template.purpose || '',
+        load: completedLoadAssessment(completed).level || template.load || '',
+        durationSeconds: completedDurationSeconds(completed),
+        distanceKm: Number(completed.distanceKm) || 0,
+        averageHeartRate: Number(completed.averageHeartRate || completed.avgHeartRate) || null,
+        rpe: Number(completed.rpe) || null,
+        structuredWorkSeconds: Number(template.structuredWorkout ? structuredWorkoutBreakdown(template.structuredWorkout)?.workSeconds : 0) || 0,
+        completionStatus: completed.execution || 'completed'
+      };
+    }
+
+    function aiTrainingWindow(items = [], structuredWindow = {}, windowDays = 14) {
+      const summary = summarizeCompleted(items);
+      const balance = canonicalBalanceForCompleted(items, todayISO(), windowDays);
+      return {
+        sessions: summary.sessions,
+        durationSeconds: summary.seconds,
+        distanceKm: summary.km,
+        easyCount: balance.easyCount,
+        hardCount: balance.hardCount,
+        structuredIntervalCount: Number(structuredWindow.count) || 0,
+        structuredWorkSeconds: Number(structuredWindow.totalWorkSeconds) || 0
+      };
+    }
+
+    function buildCurrentAiCoachContext() {
+      const ctx = buildCoachContext();
+      const plannedActive = (state.planned || []).filter(item => item.status !== 'done');
+      const todayItems = plannedActive
+        .filter(item => item.date === ctx.today)
+        .sort((a, b) => String(a.createdAt || '').localeCompare(String(b.createdAt || '')));
+      const upcomingItems = plannedActive
+        .filter(item => item.date > ctx.today)
+        .sort((a, b) => String(a.date || '').localeCompare(String(b.date || '')));
+      const nextDate = upcomingItems[0]?.date || '';
+      const nextDateItems = nextDate ? upcomingItems.filter(item => item.date === nextDate) : [];
+      const primaryItems = todayItems.length ? todayItems : nextDateItems;
+      const decision = buildTodayDecision(ctx, primaryItems, todayItems);
+      const raceGoal = normalizeRaceGoal(state.settings.raceGoal);
+      const milestones = goalMilestones({
+        goal: raceGoal,
+        readiness: ctx.raceReadiness,
+        plan: ctx.racePlan,
+        injurySummary: ctx.injurySummary7,
+        last7: summarizeCompleted(ctx.last7Days),
+        last28: summarizeCompleted(ctx.last28Days)
+      }, ctx.today);
+      const nextMilestone = (milestones || []).find(item => ['current', 'blocked'].includes(item.status))
+        || (milestones || []).find(item => item.status !== 'done')
+        || null;
+      const weekStart = startOfWeek(ctx.today);
+      const freezeWeek = continuityFreezeWeekSummary(weekStart, state.continuityFreezes, { rules: getCoachRules() });
+      const todayFreeze = activeContinuityFreezeForDate(ctx.today);
+      const pbSummary = personalBestSummary(completedRaceItems(), state.raceResults);
+      const latestPb = (pbSummary.entries || [])
+        .map(entry => entry.best ? { ...entry.best, distanceKm: entry.km, label: `${entry.label} PB` } : null)
+        .filter(Boolean)
+        .sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')))[0] || null;
+      const latestRace = pbSummary.latest || null;
+      const latestCheckin = ctx.injuryCheckins14?.[ctx.injuryCheckins14.length - 1] || null;
+      const missing = [];
+      if (!ctx.dailyReadiness) missing.push('dagsform i dag');
+      if (!ctx.lastWorkout) missing.push('tidligere økt');
+      if (!raceGoal.name) missing.push('aktivt mål-løp');
+      if (!ctx.latestHrv) missing.push('HRV');
+
+      return buildAiCoachContext({
+        coachDecision: decision.coachDecision || coachDecisionEngine({
+          completedFeedback: decision,
+          dailyReadinessLevel: ctx.dailyReadiness?.level || null
+        }),
+        today: {
+          date: ctx.today,
+          readiness: ctx.dailyReadiness ? {
+            level: ctx.dailyReadiness.level,
+            sleep: ctx.dailyReadiness.sleep,
+            energy: ctx.dailyReadiness.energy,
+            stairsOk: ctx.dailyReadiness.stairsOk,
+            restingHeartRate: ctx.dailyReadiness.restingHR
+          } : null,
+          bodySignal: latestCheckin || ctx.injurySummary7?.hasSignal ? {
+            active: Boolean(ctx.injurySummary7?.hasSignal),
+            region: latestCheckin?.areaRegion || '',
+            side: latestCheckin?.areaSide || '',
+            area: latestCheckin?.area || ctx.injurySummary7?.area || '',
+            painNow: latestCheckin?.painNow ?? ctx.injurySummary7?.latestScore ?? null,
+            trend: latestCheckin?.trend || '',
+            status: ctx.injurySummary7?.status || ''
+          } : null,
+          plannedToday: aiWorkoutFromPlanned(todayItems[0] || null),
+          plannedTomorrow: aiWorkoutFromPlanned(ctx.tomorrowPlanned)
+        },
+        trainingSummary: {
+          days7: aiTrainingWindow(ctx.last7Days, ctx.structuredIntervals?.last7, 7),
+          days14: aiTrainingWindow(ctx.last14Days, ctx.structuredIntervals?.last14, 14),
+          days28: aiTrainingWindow(ctx.last28Days, ctx.structuredIntervals?.last28, 28),
+          intensityBalance: ctx.intensityBalance14,
+          volumeRamp: ctx.volumeRamp,
+          comeback: ctx.comeback
+        },
+        profile: {
+          primaryFocus: ctx.trainingProfile.primaryFocus,
+          level: ctx.trainingProfile.level,
+          philosophy: ctx.trainingProfile.philosophy,
+          priority: ctx.trainingProfile.priority,
+          trainingFocus: ctx.trainingProfile.trainingFocus,
+          weeklySessionTarget: ctx.effectiveWeeklyTarget || ctx.goals.weeklySessionsTarget,
+          goldenZone: ctx.goldenZone
+        },
+        goals: {
+          active: Boolean(raceGoal.name && raceGoal.date),
+          raceName: raceGoal.name,
+          raceDate: raceGoal.date,
+          distanceKm: raceGoal.distanceKm,
+          targetTimeSeconds: raceGoal.targetTimeSeconds,
+          phase: ctx.racePlan?.phaseLabel || '',
+          score: ctx.goalScore?.percent ?? null,
+          scoreTrend: ctx.goalScore?.trend?.delta ?? null,
+          nextMilestone: nextMilestone?.title || '',
+          nextStep: ctx.racePlan?.nextStep || ctx.racePlan?.focus || ctx.goalScore?.nextImprovement || ''
+        },
+        continuity: {
+          streakWeeks: calculateWeeklyStreak(weekStart, ctx.goals.weeklySessionsTarget),
+          freezeActiveToday: Boolean(todayFreeze),
+          weekProtected: freezeWeek.protected,
+          freezeReason: todayFreeze ? continuityFreezeReasonLabel(todayFreeze.reason) : freezeWeek.reasonLabels?.[0] || '',
+          freezeIsTraining: false
+        },
+        recentHighlights: {
+          latestWorkout: aiWorkoutFromCompleted(ctx.lastWorkout),
+          latestRelevantTest: latestRace ? {
+            date: latestRace.date,
+            label: latestRace.name || latestRace.workoutName || 'Race/test',
+            type: 'Løping',
+            role: 'race_test',
+            durationSeconds: latestRace.resultSeconds,
+            distanceKm: latestRace.distanceKm
+          } : null,
+          latestPb: latestPb ? {
+            date: latestPb.date,
+            label: latestPb.label,
+            type: 'Løping',
+            role: 'race_test',
+            durationSeconds: latestPb.resultSeconds,
+            distanceKm: latestPb.distanceKm
+          } : null
+        },
+        dataQuality: { missing, stale: [], assumptions: [] }
+      });
+    }
+
     function buildCoachNote(ctx) {
       const completedTodayNote = buildCompletedTodayCoachNote(ctx);
       if (completedTodayNote) return completedTodayNote;
@@ -7987,7 +8198,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
           const keys = await caches.keys();
           await Promise.all(keys.filter(key => key.startsWith('treningsapp-')).map(key => caches.delete(key)));
         }
-        await Promise.all(['./index.html', './styles.css', './app.js', './domain-core.js', './domain-coach.js', './domain-goals.js', './domain-coach-rules.js', './data/coach-rules.json', './service-worker.js'].map(path =>
+        await Promise.all(['./index.html', './styles.css', './app.js', './ai-coach-client.js', './ai-coach-ui.js', './domain-core.js', './domain-coach.js', './domain-goals.js', './domain-coach-rules.js', './data/coach-rules.json', './service-worker.js'].map(path =>
           fetch(path, { cache: 'reload' }).catch(() => null)
         ));
       } finally {

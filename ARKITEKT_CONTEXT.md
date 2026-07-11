@@ -1,6 +1,6 @@
 # ARKITEKT_CONTEXT.md
 
-Kontekstfil for ChatGPT som app-arkitekt for Treningsapp.
+Kontekstfil for Codex/ChatGPT som app-arkitekt og utvikler for Treningsapp.
 
 Denne filen skal legges som source i ChatGPT-prosjektet og brukes sammen med prosjektfilene. Formålet er å gi arkitekten riktig arbeidsmåte, produktforståelse, tekniske prinsipper og standard for utviklerbeskjeder.
 
@@ -8,7 +8,7 @@ Denne filen skal legges som source i ChatGPT-prosjektet og brukes sammen med pro
 
 ## 1. Formål med arkitektrollen
 
-ChatGPT skal fungere som brukerens app-arkitekt, produktpartner og teknisk kvalitetssikrer for videreutvikling av Treningsapp.
+Codex/ChatGPT skal fungere som brukerens app-arkitekt, produktpartner, utvikler og teknisk kvalitetssikrer for videreutvikling av Treningsapp.
 
 Arkitekten skal hjelpe med å:
 
@@ -168,6 +168,8 @@ Typisk struktur:
 - `app.js` — hovedorchestrator, state, Firebase, DOM-wiring, render og wrappers
 - `domain-core.js` — rene testbare domenehjelpere uten DOM/Firebase/state
 - `domain-goals.js` — rene testbare mål-/race-/PB-hjelpere uten DOM/Firebase/state
+- `domain-coach-rules.js` — versjonerte coach-regler, validering og trygg fallback
+- `domain-coach.js` — ren coach-logikk, beslutningsmotor, volum-ramp og comeback
 - `styles.css` — design, mobil-first, desktop media queries
 - `service-worker.js` — PWA-cache/offline
 - `manifest.json` — PWA-manifest
@@ -178,7 +180,7 @@ Typisk struktur:
 - `BACKLOG.md` — prioritert backlog
 - `DEVELOPMENT_ROADMAP.md` — strategisk retning
 - `dashboard-spesifikasjon.md` — designretning for dashboard
-- relevante designfiler som `INTERVALS_DESIGN.md`, fremtidig `AI_COACH_DESIGN.md`, `GARMIN_SYNC_DESIGN.md` osv.
+- relevante designfiler som `INTERVALS_DESIGN.md`, `AI_COACH_DESIGN.md`, `STREAK_FREEZE_DESIGN.md`, fremtidig `GARMIN_SYNC_DESIGN.md` osv.
 
 Backend/data:
 
@@ -813,7 +815,7 @@ Design først.
 
 Krav:
 
-- ingen secrets i frontend
+- secrets kan skrives inn kortvarig i et passordfelt, men skal aldri lagres eller kunne leses tilbake av frontend
 - backend/proxy
 - feature flag
 - rate limit
@@ -823,12 +825,16 @@ Krav:
 - tydelig brukerbekreftelse ved eventuelle skrivehandlinger
 - svar på norsk
 - AI-råd er støtte, ikke fasit
+- AI skal bruke `coachDecisionEngine()` som autoritativ sikkerhetsprioritet
+- `primarySignal`, `blockedActions` og `guardrails` skal ikke overstyres
+- følg `AI_COACH_DESIGN.md` for context, nøkkelhåndtering, backend og v150-v153
 
 Første AI-MVP bør normalt være:
 
-- manuell knapp
-- analyse av siste 14/28 dager
-- fast svarstruktur
+- manuell `Spør coachen`-inngang fra Hjem/Grunnlag
+- read-only chat basert på minimert AI Coach Context v1
+- fast, kort svarstruktur med forklaring og ett praktisk neste steg
+- ingen web-søk i første MVP
 - ingen automatisk endring av plan/data
 
 ### 12.5 Garmin/import

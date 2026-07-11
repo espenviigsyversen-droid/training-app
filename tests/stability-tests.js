@@ -9,6 +9,13 @@ const read = file => fs.readFileSync(path.join(root, file), 'utf8');
 const app = read('app.js');
 const index = read('index.html');
 const serviceWorker = read('service-worker.js');
+const aiCoachClient = read('ai-coach-client.js');
+const aiCoachUi = read('ai-coach-ui.js');
+const aiCoachBackend = read('functions/ai/ai-chat.js');
+const aiCoachKeys = read('functions/ai/keys.js');
+const aiCoachProvider = read('functions/ai/openai-provider.js');
+const aiCoachPrompt = read('functions/ai/system-prompt.js');
+const functionsIndex = read('functions/index.js');
 const coachRulesJson = JSON.parse(read('data/coach-rules.json'));
 
 function test(name, fn) {
@@ -63,6 +70,7 @@ function test(name, fn) {
     weekPlanDatesInRange
   } = domain;
   const {
+    buildAiCoachContext,
     coachDecisionEngine,
     coachDecisionBasis,
     comebackProtocol,
@@ -152,9 +160,35 @@ function test(name, fn) {
   });
 
   test('service worker caches required app shell files', () => {
-    ['./index.html', './styles.css', './app.js', './domain-core.js', './domain-coach.js', './domain-goals.js', './domain-coach-rules.js', './data/coach-rules.json', './manifest.json'].forEach(file => {
+    ['./index.html', './styles.css', './app.js', './ai-coach-client.js', './ai-coach-ui.js', './domain-core.js', './domain-coach.js', './domain-goals.js', './domain-coach-rules.js', './data/coach-rules.json', './manifest.json'].forEach(file => {
       assert.ok(serviceWorker.includes(file), `${file} is missing from service worker app shell`);
     });
+    assert.ok(serviceWorker.includes('firebase-functions.js'), 'Firebase Functions browser module is missing from app shell');
+  });
+
+  test('AI coach frontend is read-only, context-based and wired into Setup', () => {
+    assert.ok(index.includes('id="aiCoach"'), 'AI coach page is missing');
+    assert.ok(index.includes('onclick="openAiCoach()"'), 'AI coach entry from Home is missing');
+    assert.ok(index.includes("openSetupSection('ai')"), 'AI integrations entry is missing from Setup');
+    assert.ok(index.includes('id="aiCoachApiKey" type="password"'), 'OpenAI key field must be a password input');
+    assert.ok(app.includes('buildCurrentAiCoachContext()'), 'app wrapper should build current AI coach context');
+    assert.ok(app.includes('buildAiCoachContext({'), 'app wrapper should call the production AI context builder');
+    assert.ok(aiCoachClient.includes("httpsCallable"), 'AI frontend should use authenticated callable functions');
+    assert.ok(aiCoachUi.includes("text.textContent = message.content"), 'AI responses should render as text, not raw HTML');
+    assert.ok(!aiCoachUi.includes('innerHTML = message.content'), 'AI response must not be assigned as raw HTML');
+    assert.ok(!aiCoachUi.includes('sessionStorage'), 'v152/v153 should not persist chat history in browser storage');
+  });
+
+  test('AI coach backend keeps keys server-side and chat structurally read-only', () => {
+    assert.ok(functionsIndex.includes('request.auth?.uid'), 'AI callables must require Firebase Auth');
+    assert.ok(aiCoachKeys.includes('apiKeys/'), 'OpenAI key should use server-side apiKeys collection');
+    assert.ok(aiCoachKeys.includes('users/" + uid + "/settings/openai'), 'masked OpenAI status document is missing');
+    assert.ok(aiCoachBackend.includes('validateAiCoachContext(context)'), 'backend must validate AI context schema');
+    assert.ok(aiCoachBackend.includes('enforceRateLimit'), 'backend rate limit is missing');
+    assert.ok(aiCoachProvider.includes('store: false'), 'OpenAI Responses request must disable provider-side response storage');
+    assert.ok(!aiCoachProvider.includes('tools:'), 'first AI coach MVP must not expose model tools');
+    assert.ok(aiCoachPrompt.includes('blockedActions'), 'system prompt must preserve blocked actions');
+    assert.ok(!aiCoachBackend.includes('.set('), 'chat handler must not write training data');
   });
 
   test('coach rules v2 validates and supplies the active framework', () => {
@@ -229,7 +263,7 @@ function test(name, fn) {
 
   test('coach domain helpers live in domain-coach module', () => {
     assert.ok(app.includes("from './domain-coach.js'"), 'app should import pure coach helpers from domain-coach.js');
-    ['coachDecisionEngine', 'todayDecision', 'homeHeroState', 'coachDecisionBasis', 'trainingVolumeRamp', 'comebackProtocol', 'normalizeContinuityFreeze', 'isWeekProtectedByFreeze'].forEach(name => {
+    ['buildAiCoachContext', 'coachDecisionEngine', 'todayDecision', 'homeHeroState', 'coachDecisionBasis', 'trainingVolumeRamp', 'comebackProtocol', 'normalizeContinuityFreeze', 'isWeekProtectedByFreeze'].forEach(name => {
       assert.strictEqual(typeof coach[name], 'function', `${name} should be exported from domain-coach.js`);
       assert.ok(!domainCoreExports.includes(name), `${name} should not still be exported from domain-core.js`);
     });
@@ -1608,6 +1642,89 @@ function test(name, fn) {
     assert.strictEqual(decision.primarySignal, 'normal_plan');
     assert.strictEqual(decision.severity, 'green');
     assert.match(decision.recommendation, /Rolig Kort Tur|planlagt/i);
+  });
+
+  test('AI coach context preserves decision guardrails and whitelisted summaries', () => {
+    const decision = coachDecisionEngine({
+      dailyReadinessLevel: 'red',
+      planned: { label: 'Intervall', intensity: 'Intervall' },
+      hasPlannedToday: true
+    });
+    const context = buildAiCoachContext({
+      coachDecision: decision,
+      today: {
+        date: '2026-07-11',
+        readiness: { level: 'red', sleep: 2, energy: 2, stairsOk: false },
+        bodySignal: { active: true, region: 'knee', side: 'left', painNow: 4, trend: 'worse' },
+        plannedToday: { id: 'secret-doc-id', label: 'Intervall', date: '2026-07-11', type: 'Løping', intensity: 'Intervall' }
+      },
+      trainingSummary: {
+        days7: { sessions: 3, seconds: 7200, km: 18, easyCount: 1, hardCount: 2 },
+        intensityBalance: { windowDays: 14, easyCount: 1, hardCount: 4, totalCount: 5, easyShare: 0.2, hardShare: 0.8, verdict: 'too_hard' },
+        volumeRamp: { status: 'high', explanation: 'Rask økning.', factor: 1.5, enoughData: true },
+        comeback: { active: false, phase: 'none' }
+      },
+      profile: { primaryFocus: 'running', level: 'intermediate', philosophy: 'bakken_threshold', weeklySessionTarget: 3, goldenZone: { low: 147, high: 160 }, name: 'skal ikke med' },
+      goals: { active: true, raceName: 'Halv-Birken', distanceKm: 12, score: 80, nextStep: 'Bygg rolig volum.' },
+      continuity: { streakWeeks: 11, freezeActiveToday: true, weekProtected: false, freezeReason: 'Reise', freezeIsTraining: true },
+      dataQuality: { missing: ['HRV'], stale: [], assumptions: [] }
+    }, { generatedAt: '2026-07-11T10:00:00.000Z' });
+
+    assert.strictEqual(context.schemaVersion, 1);
+    assert.strictEqual(context.coachDecision.primarySignal, 'readiness_red');
+    assert.ok(context.coachDecision.blockedActions.includes('hard_quality'));
+    assert.ok(context.coachDecision.guardrails.length > 0);
+    assert.strictEqual(context.trainingSummary.days7.sessions, 3);
+    assert.strictEqual(context.trainingSummary.intensityBalance.verdict, 'too_hard');
+    assert.strictEqual(context.profile.primaryFocus, 'running');
+    assert.ok(!Object.hasOwn(context.profile, 'name'));
+    assert.strictEqual(context.continuity.freezeIsTraining, false);
+    assert.deepStrictEqual(context.dataQuality.missing, ['HRV']);
+  });
+
+  test('AI coach context excludes identity, secrets, Firestore metadata and raw notes', () => {
+    const context = buildAiCoachContext({
+      uid: 'firebase-user-id',
+      email: 'person@example.com',
+      openAiKey: 'sk-secret',
+      createdAt: 'private-metadata',
+      coachDecision: { primarySignal: 'normal_plan', blockedActions: [], allowedActions: ['normal_plan'] },
+      today: {
+        date: '2026-07-11',
+        plannedToday: {
+          id: 'firestore-id',
+          label: 'Rolig tur',
+          notes: 'Dette notatet skal ikke sendes',
+          createdAt: 'metadata',
+          apiKey: 'secret'
+        }
+      },
+      rawCompleted: [{ notes: 'full historikk' }],
+      backup: { state: 'all data' }
+    }, { generatedAt: '2026-07-11T10:00:00.000Z' });
+    const serialized = JSON.stringify(context);
+
+    ['firebase-user-id', 'person@example.com', 'sk-secret', 'firestore-id', 'Dette notatet', 'private-metadata', 'full historikk', 'all data'].forEach(secret => {
+      assert.ok(!serialized.includes(secret), `AI context leaked excluded value: ${secret}`);
+    });
+  });
+
+  test('AI coach context safely normalizes missing and malformed legacy input', () => {
+    const context = buildAiCoachContext({
+      coachDecision: null,
+      today: { readiness: { sleep: 99, energy: -4, stairsOk: 'yes' } },
+      trainingSummary: { days7: { sessions: -2, seconds: 'invalid' } },
+      continuity: null
+    }, { generatedAt: 'invalid-date' });
+
+    assert.strictEqual(context.coachDecision.primarySignal, 'normal_plan');
+    assert.strictEqual(context.today.readiness.sleepScore, 5);
+    assert.strictEqual(context.today.readiness.energyScore, 1);
+    assert.strictEqual(context.today.readiness.stairsOk, null);
+    assert.strictEqual(context.trainingSummary.days7.sessions, 0);
+    assert.strictEqual(context.continuity.freezeIsTraining, false);
+    assert.strictEqual(context.generatedAt, '1970-01-01T00:00:00.000Z');
+    assert.doesNotThrow(() => JSON.stringify(context));
   });
 
   test('today decision prioritizes red readiness and body signals', () => {

@@ -91,6 +91,7 @@
             <summary>Grunnlag</summary>
             <div id="homeDecision" class="today-decision neutral"></div>
             <div id="homeCoachBasis" class="coach-basis-list"></div>
+            <button class="btn-soft btn-full home-ask-coach" type="button" onclick="openAiCoach()">Spør AI-coachen</button>
           </details>
         </div>
         <div class="dashboard-motivation-grid">
@@ -551,6 +552,42 @@
         </div>
       </section>
 
+      <section id="aiCoach" class="tab">
+        <div class="ai-coach-shell">
+          <div class="ai-coach-header">
+            <button id="aiCoachBackBtn" class="btn-soft" type="button">Tilbake</button>
+            <div>
+              <h2>Spør AI-coachen</h2>
+              <p>Forklarer appens coach-vurdering. Endrer aldri planen eller dataene dine.</p>
+            </div>
+            <button id="aiCoachClearBtn" class="btn-soft" type="button">Tøm</button>
+          </div>
+          <div class="ai-coach-trust-row">
+            <span id="aiCoachConnectionStatus" class="ai-coach-status offline">OpenAI ikke konfigurert</span>
+            <span>Appens sikkerhetsregler gjelder alltid</span>
+          </div>
+          <div id="aiCoachMissingKey" class="card ai-coach-missing-key hidden">
+            <strong>Koble til OpenAI først</strong>
+            <p>Legg inn API-nøkkelen under Setup. Nøkkelen lagres bare på Firebase-backend og kan ikke leses tilbake av appen.</p>
+            <button id="aiCoachOpenSettingsBtn" class="btn-primary" type="button">Åpne API-integrasjoner</button>
+          </div>
+          <div id="aiCoachSuggestions" class="ai-coach-suggestions"></div>
+          <div id="aiCoachMessages" class="ai-coach-messages" aria-live="polite"></div>
+          <p id="aiCoachError" class="ai-coach-error" role="alert"></p>
+          <details class="ai-coach-context-details">
+            <summary>Grunnlag brukt</summary>
+            <p id="aiCoachContextUsed" class="small-note">Ingen context er sendt ennå.</p>
+            <p id="aiCoachUsage" class="small-note">Ingen AI-kall i denne appøkten.</p>
+            <p class="small-note">Chatten lagres ikke i Firestore. API-nøkkel, UID, e-post, backup og komplett historikk sendes ikke til modellen.</p>
+          </details>
+          <div id="aiCoachComposer" class="ai-coach-composer hidden">
+            <label for="aiCoachInput">Spørsmål</label>
+            <textarea id="aiCoachInput" maxlength="2000" placeholder="F.eks. Hvorfor anbefaler appen rolig trening i dag?"></textarea>
+            <button id="aiCoachSendBtn" class="btn-primary" type="button">Send</button>
+          </div>
+        </div>
+      </section>
+
       <section id="settings" class="tab">
         <div id="setupOverview">
         <div class="card">
@@ -596,6 +633,7 @@
           <p class="small-note">Oppdater appen, ta backup eller administrer konto.</p>
           <div class="setup-menu">
             <button class="setup-menu-item" onclick="openSetupSection('data')"><span>Backup og oppdatering</span><small>Eksport, import, demo og appoppdatering</small></button>
+            <button class="setup-menu-item" onclick="openSetupSection('ai')"><span>API-integrasjoner</span><small>OpenAI-status og sikker nøkkeladministrasjon</small></button>
             <button class="setup-menu-item danger" onclick="openSetupSection('danger')"><span>Faresone</span><small>Slett data eller logg ut</small></button>
           </div>
         </div>
@@ -949,6 +987,36 @@
             <button id="cancelEditWellnessBtn" class="btn-soft btn-full hidden" onclick="clearWellnessForm()">Avbryt redigering</button>
           </div>
           <div id="wellnessList" class="settings-list"></div>
+        </div>
+        </div>
+
+        <div id="setupAi" class="setup-section hidden">
+        <div class="card">
+          <button class="btn-soft setup-back" onclick="openSetupSection('overview')">Tilbake til Setup</button>
+          <h2 class="section-title">API-integrasjoner</h2>
+          <p class="small-note">OpenAI brukes bare når du selv sender et spørsmål til AI-coachen.</p>
+          <div class="api-integration-card">
+            <div class="api-integration-head">
+              <div>
+                <strong>OpenAI</strong>
+                <p id="aiCoachSetupStatus" class="small-note">Sjekker tilkobling ...</p>
+              </div>
+              <span class="api-security-badge">Server-side</span>
+            </div>
+            <label for="aiCoachApiKey">Ny API-nøkkel</label>
+            <input id="aiCoachApiKey" type="password" autocomplete="off" spellcheck="false" placeholder="sk-..." />
+            <p class="small-note">Nøkkelen sendes kryptert til Firebase, valideres og fjernes fra feltet. Den lagres ikke i appen, nettleseren, backup eller GitHub Pages.</p>
+            <div class="button-row">
+              <button id="aiCoachSaveKeyBtn" class="btn-primary" type="button">Lagre og valider</button>
+              <button id="aiCoachTestKeyBtn" class="btn-soft" type="button">Test tilkobling</button>
+              <button id="aiCoachDeleteKeyBtn" class="btn-soft danger-text" type="button">Slett nøkkel</button>
+            </div>
+            <p id="aiCoachSetupFeedback" class="small-note" role="status"></p>
+          </div>
+          <div class="ai-privacy-note">
+            <strong>Data som kan sendes ved chat</strong>
+            <p>Coach-beslutning, dagsform, relevante kroppssignaler, aggregerte 7/14/28-dagerssummer, mål og siste relevante økt. Identitet, secrets, backup og full historikk er ekskludert.</p>
+          </div>
         </div>
         </div>
 

@@ -27,7 +27,7 @@ Standard Bakken-uke: Hoved-terskel → Støtte-terskel → Lang rolig → Valgfr
 **Hosting:** GitHub Pages.  
 **Backend:** Firebase (prosjekt `home-tasks-app-18de3`) — Firestore + Google Auth.  
 **Frontend:** Vanilla JS + HTML + CSS, single-page app, tab-navigasjon.  
-**Versjon:** v149 (konstant i `app.js`).
+**Versjon:** v153 (konstant i `app.js`).
 
 ### Filer
 
@@ -136,6 +136,12 @@ Treningsapp/
 - **Fryskort Hjem-feedback** (v148b): Hjem viser nå en tydelig status når dagens dato ligger innenfor et aktivt fryskort, også når én dags fryskort ikke beskytter hele uken etter policy. Kontinuitet-kortet skiller mellom “Fryskort aktivt i dag” og “Kontinuitet beskyttet denne uken”, og `Denne uken`-notatet sier at uken fortsatt teller etter vanlig mål når kun dagens dato er fryst. Fryskortmodalen har norsk periodeforhåndsvisning under dato-inputene.
 - **Fryskort modal mobilpatch** (v148c): Lagrede fryskort i modalen er mobiltilpasset. På små skjermer vises hvert fryskort som én kolonne med årsak/dato/status og notat øverst, og Arkiver/Slett som kompakte knapper nederst. Tekst og lange notater brytes innenfor kortet, og knappene presser ikke lenger innholdet sammen.
 - **Coach Decision Engine v1** (v149): Ny ren `coachDecisionEngine()` i `domain-coach.js` samler flere samtidige coach-signaler i én strukturert pakke med `primarySignal`, sekundærsignaler, `blockedActions`, `allowedActions` og `guardrails`. Hovedsignal velges etter eksplisitt prioritet: skadesignal, dagsform, comeback/volum-ramp, intensitetsbalanse, morgendagens kvalitet og normal plan. Hjem-wrapperen bruker pakken uten stor UI-endring. Planlagt kvalitet i morgen kan nå gi mykt råd om lett dag i dag, og kontrollert kvalitetsøkt uten smerteøkning gir grønnere post-workout-feedback.
+- **AI Coach Context v1** (v150, implementert lokalt): `buildAiCoachContext()` i `domain-coach.js` bygger en versjonert, whitelistet og størrelsesbegrenset pakke fra den samme `coachDecisionEngine()` som appen bruker. Context inkluderer relevante 7/14/28-dagerssummer, dagsform, plan, mål, kontinuitet og høydepunkter, men utelater uid, e-post, secrets, rå Firestore-metadata, fritekstnotater og komplett historikk.
+- **Sikker AI-backend og nøkkeladministrasjon** (v151, implementert lokalt - ikke deployet): Ny `functions/`-backend bruker Firebase Callable Functions med Auth, server-side OpenAI-nøkkel, maskert status, kontekstvalidering, rate limit, timeout og sanitert metadata-logging. Nøkkelen skrives inn i Setup, men returneres aldri til frontend og lagres ikke i appens localStorage eller repo.
+- **Read-only AI-coach chat** (v152, implementert lokalt - ikke ende-til-ende-testet): Ny sekundær chatflate åpnes fra Hjem/Grunnlag. Den bruker serverbygget systeminstruks og coach-context, har ingen web-søk, tools, dataskriving eller automatisk planendring, og meldinger beholdes kun i minnet.
+- **Chat-polish, personvern og brukskontroll** (v153, implementert lokalt - deploytest gjenstår): Chatten viser tilkoblingsstatus, datagrunnlag, session-forbruk, forslag, tydelige feiltilstander og eksplisitt samtykke. OpenAI-kallet er stateless (`store: false`), bruker ingen tools og sender en pseudonym sikkerhetsidentifikator.
+- **AI deploy-port**: `FIREBASE_AI_BACKEND_DEPLOY.md` beskriver påkrevd kontroll av eksisterende Firestore Rules, Functions-installasjon/deploy og ekte ende-til-ende-test. Ingen Firebase-deploy, npm-installasjon eller ekte OpenAI-kall er gjort fra denne prosjektkopien.
+- **Arkitekturkontekst indeksert** (dokumentasjon): `AGENTS.md` peker nå eksplisitt på `ARKITEKT_CONTEXT.md` som veiledende beslutningsramme når Codex arbeider som både utvikler og arkitekt. Den overstyrer ikke prosjektregler eller nyere brukerbeslutninger.
 - **Fjernet «Foreslå neste økt»** (v92): Kortet er fjernet fra Kalender-fanen. Ukeplanen dekker samme behov bedre og er rollebevisst. `renderWorkoutSuggestion`-kallet er fjernet fra render-løkken for å unngå krasj.
 - **Coach: smertegradering + priority-felt + X-økt** (v91): Tre coach-forbedringer: (1) `bodySignalState` skiller nå mellom mild smerte (1–2/10 → `cooling`, foreslår terskel etter en rolig økt) og bekymringsfull smerte (3+/10 → `caution`, kun recovery). Løser at mild smerte blokkerte terskelforslag for hele neste uke. (2) `priority`-feltet i treningsprofilen er nå aktivt: `performance` foreslår terskel straks det er rom, `injury_free_progression` krever 2 rolige øyer før terskel. (3) X-økt vises alltid som 4. forslag i normaluke når det er rom — sikrer at VO2max/teknikk/styrke alltid er synlig som alternativ.
 - **Hjem: alle økter samme dag** (v90): «Neste økt» / «Dagens økt» viser nå alle planlagte økter på samme dato, ikke bare én. For fremtidige dager grupperes etter første kommende dato (`nextDateItems`). Tittelen skifter til «Dagens økt» automatisk når det finnes økter på dagens dato (eksisterende logikk).
@@ -170,14 +176,14 @@ Treningsapp/
 
 ## Neste steg (prioritert)
 
-1. **AI-chat design og sikkerhetsramme**
-   - Dokumenter rolle, dataflyt, API/backend, personvern og hvordan AI skal bruke `coachDecisionEngine()` uten å overstyre guardrails.
-2. **Fryskort polish hvis praktisk bruk viser behov**
-   - Kalenderinngang, egen Setup-oversikt eller målscore-nøytralisering bør designes separat før de bygges.
-3. **Senere integrasjoner**
-   - Strava/Firebase/OpenAI-design tas når coach-context og sikker dataflyt er tydelig nok.
+1. **Kontroller Firestore Rules før AI-deploy**
+   - Verifiser at ingen bredere wildcard-regel gir frontend tilgang til `apiKeys/{uid}` eller `aiUsage/{uid}`.
+2. **Installer og deploy Firebase Functions kontrollert**
+   - Installer avhengigheter, kjør backendtestene, deploy nøkkel/status-funksjonene først og test maskering/sletting før chatfunksjonen deployes.
+3. **Last opp v153-frontend og kjør ende-til-ende-test**
+   - Test Setup, nøkkelstatus, chat, rate limit, timeout, mobil/PWA, offline og at resten av appen fungerer uten AI-backend.
 
-HRV-signaler og øvrige coach-utvidelser kan tas etter AI-chat-designen eller hvis praktisk bruk viser at rådene trenger dem først.
+Nye AI-features og øvrige coach-utvidelser bør vente til denne sikkerhets- og deployporten er bestått.
 
 ---
 

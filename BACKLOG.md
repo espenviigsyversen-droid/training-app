@@ -122,14 +122,29 @@ Prioritert backlog for videre utvikling av Treningsapp.
     - Små støttepåminnelser i Dagens råd/heltekort.
     - Ikke full ernæringsapp.
 
-28. **AI-chat design og sikkerhetsramme** - Neste anbefalte designrunde
-    - Dokumenter rolle, dataflyt, API-sikkerhet og grenser etter Coach foundation.
+28. **v150 - AI Coach Context og sikkerhetsdesign** - Implementert lokalt
+    - `AI_COACH_DESIGN.md` definerer AI-rolle, context schema v1, whitelist, personvern, systeminstruks, guardrails, backend, nøkkelhåndtering, kostnad, logging og første chat-UI.
+    - `buildAiCoachContext()` bygger en versjonert og størrelsesbegrenset context-pakke uten uid, e-post, secrets, rå Firestore-metadata eller komplett historikk.
+    - AI skal forklare `coachDecisionEngine()` og kan ikke overstyre `primarySignal`, `blockedActions` eller `guardrails`.
+    - Produksjonsfunksjonen testes direkte fra `domain-coach.js`.
 
-29. **AI-chat MVP** - Senere
-    - Enkel rådgivende chat basert på samme regler og coach-context som appen.
-    - Ingen automatisk planendring.
+29. **v151 - Sikker backend og nøkkeladministrasjon** - Implementert lokalt, deploy gjenstår
+    - Firebase Auth-verifiserte Callable Functions er klargjort i `functions/`.
+    - OpenAI-nøkkel skrives inn i Setup, men lagres bare server-side og vises senere kun maskert.
+    - Rate limit, størrelsesgrense, timeout, budsjettvern og sanitert logging.
+    - Ingen chat- eller treningsdata-skriving.
+    - Produksjonsbruk er blokkert til eksisterende Firestore Rules er kontrollert og backend er installert/deployet.
 
-30. **Mobil polish og mikro-UX**
+30. **v152 - Read-only AI-coach chat MVP** - Implementert lokalt, ende-til-ende-test gjenstår
+    - Enkel rådgivende chat basert på AI Coach Context v1 og serverbygget systeminstruks.
+    - Ingen web-søk, write-tools, automatisk planendring eller vedvarende historikk.
+
+31. **v153 - Chat polish og kontroll** - Implementert lokalt, deploytest gjenstår
+    - Context/provenance, usage, kostnadsfeedback, rate-limit-feedback og personvernpolish.
+    - Meldingshistorikk beholdes bare i minnet i denne versjonen; det lagres ikke chatinnhold i Firestore eller lokal lagring.
+    - Chatten åpnes som sekundær side fra Hjem uten å utvide bunnnavigasjonen.
+
+32. **Mobil polish og mikro-UX**
     - Små forbedringer som gjør appen mer behagelig i daglig bruk.
     - Eksempler: kortere tekster, bedre prioritering på Hjem/Mål, sticky handlinger i modaler og bedre tomtilstander.
 
@@ -151,7 +166,7 @@ Disse punktene var del av den tidlige v142-idéen, men er bevisst flyttet ut av 
 
 ## Anbefalt neste steg
 
-Neste anbefalte punkt er **AI-chat design og sikkerhetsramme** før første AI-MVP.
+Neste anbefalte punkt er **AI-backendens sikkerhets- og deployport for v151-v153**. Følg `FIREBASE_AI_BACKEND_DEPLOY.md` før frontend med AI-chat lastes opp som en ferdig funksjon.
 
 Begrunnelse:
 - v143b har etablert en validert parameterkilde med trygg fallback
@@ -161,4 +176,6 @@ Begrunnelse:
 - v149 har etablert en strukturert beslutningspakke med hovedsignal, sekundærsignaler og guardrails
 - v147 har dokumentert design/policy for fryskort
 - v148 har implementert en liten manuell fryskort-v1
-- neste verdi bør være å designe AI-chat slik at den forklarer og diskuterer samme coach-vurdering uten å overstyre sikkerhetsreglene
+- v150-v153 er implementert lokalt med whitelistet context, server-side nøkkel, read-only chat og kontrollert feil-/forbruksvisning
+- eksisterende produksjonsregler for Firestore må verifiseres slik at `apiKeys/{uid}` og `aiUsage/{uid}` aldri kan leses eller skrives fra frontend
+- Functions-avhengigheter, emulator/deploy og en ekte OpenAI ende-til-ende-test gjenstår

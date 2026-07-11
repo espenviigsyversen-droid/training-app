@@ -11,7 +11,12 @@ node --check app.js
 node --check service-worker.js
 node --check domain-core.js
 node --check domain-goals.js
+node --check domain-coach-rules.js
+node --check domain-coach.js
+node --check ai-coach-client.js
+node --check ai-coach-ui.js
 node tests\stability-tests.js
+node functions\tests\ai-backend-tests.js
 ```
 
 ## Versjon/cache
@@ -41,6 +46,9 @@ Ved vanlig appendring:
 
 - `app.js`
 - `domain-core.js`
+- `domain-coach.js`
+- `ai-coach-client.js`
+- `ai-coach-ui.js`
 - `index.html`
 - `styles.css`
 - `service-worker.js`
@@ -55,6 +63,20 @@ Ved dokumentasjon/testendring:
 - `TESTING.md`
 - `RELEASE_CHECKLIST.md`
 - `tests/stability-tests.js`
+
+## AI-backend
+
+Ved release med AI-coach:
+
+- følg `FIREBASE_AI_BACKEND_DEPLOY.md`
+- kontroller eksisterende Firestore Rules før Functions deployes
+- bekreft at frontend ikke kan lese/skrive `apiKeys/{uid}` eller `aiUsage/{uid}`
+- deploy og test nøkkel/status-funksjonene før chatfunksjonen
+- bekreft at nøkkelen kun vises maskert og kan slettes
+- test Auth-feil, manglende nøkkel, rate limit, timeout og normal chat
+- bekreft at chatten ikke endrer plan, logg eller andre treningsdata
+- kontroller at logger ikke inneholder API-nøkkel, prompt, context eller chatinnhold
+- last opp `functions/`, `firebase.json` og `.firebaserc` via Firebase-verktøy/deployflyt, ikke som GitHub Pages-filer
 
 ## Etter opplasting
 
