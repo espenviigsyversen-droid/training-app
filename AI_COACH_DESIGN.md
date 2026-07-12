@@ -636,7 +636,7 @@ Første MVP skal ikke ha:
 - ingen fungerende nøkkellagring
 - ingen chat-UI
 
-### v151 - Sikker backend og nøkkeladministrasjon - Implementert lokalt, ikke deployet
+### v151 - Sikker backend og nøkkeladministrasjon - Deployet
 
 - opprett Firebase Functions/Cloud Run-struktur
 - velg callable eller HTTP + CORS
@@ -658,7 +658,7 @@ Første MVP skal ikke ha:
 - ingen vedvarende chat-historikk
 - tydelig grunnlag, usikkerhet og feiltilstander
 
-### v153 - Chat polish og kontroll - Implementert lokalt, deploytest gjenstår
+### v153 - Chat polish og kontroll - Deployverifisert gjennom v154
 
 - forbedret samtaleflyt og context-debug for bruker
 - beslutning om lokal eller Firestore-basert historikk
@@ -722,3 +722,4 @@ Før deploy må dette fortsatt avklares/verifiseres:
 3. App Check er foreløpig av fordi frontend ikke er konfigurert for det; aktivering krever en koordinert sikkerhetsrunde.
 4. Per-user-nøkkel i server-only Firestore kan senere forsterkes med Cloud KMS hvis risikobildet eller antall brukere øker.
 5. Modell, rate limits og tokenrammer bør evalueres på representative coach-spørsmål etter første ekte test.
+
