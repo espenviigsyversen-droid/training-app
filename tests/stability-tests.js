@@ -146,7 +146,9 @@ function test(name, fn) {
     assert.ok(chatPersistence.includes('recursive-backend-only'), 'chat deletion policy must be recursive and backend-only');
     assert.ok(firestoreRules.includes('match /apiKeys/{userId}'), 'API key rule is missing');
     assert.ok(firestoreRules.includes('match /aiUsage/{userId}'), 'AI usage rule is missing');
-    assert.ok(firestoreRules.includes('match /aiProjects/{projectId}'), 'AI project rules are missing');
+    assert.ok(firestoreRules.includes('match /aiChatUsers/{userId}'), 'isolated AI chat root is missing');
+    assert.ok(firestoreRules.includes('match /users/{userId}/{document=**}'), 'shared-project user rules must be preserved');
+    assert.ok(firestoreRules.includes('match /families/{familyId}/{document=**}'), 'shared family app rules must be preserved');
     assert.ok(firestoreRules.includes('allow write: if false;'), 'chat and AI status writes must not be client-controlled');
   });
 
