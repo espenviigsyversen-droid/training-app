@@ -21,7 +21,12 @@ export function createAiCoachClient(firebaseApp, options = {}) {
     saveKey: callable('aiCoachSaveOpenAiKey'),
     testKey: callable('aiCoachTestOpenAiKey'),
     deleteKey: callable('aiCoachDeleteOpenAiKey'),
-    chat: callable('aiCoachChat')
+    chat: callable('aiCoachChat'),
+    listConversations: callable('aiChatListConversations'),
+    getConversation: callable('aiChatGetConversation'),
+    createConversation: callable('aiChatCreateConversation'),
+    archiveConversation: callable('aiChatArchiveConversation'),
+    deleteConversation: callable('aiChatDeleteConversation')
   };
 
   async function call(endpoint, payload = {}) {
@@ -40,6 +45,12 @@ export function createAiCoachClient(firebaseApp, options = {}) {
     saveKey: key => call('saveKey', { key }),
     testKey: () => call('testKey'),
     deleteKey: () => call('deleteKey'),
-    chat: payload => call('chat', payload)
+    chat: payload => call('chat', payload),
+    listConversations: projectId => call('listConversations', { projectId }),
+    getConversation: (projectId, conversationId) => call('getConversation', { projectId, conversationId }),
+    createConversation: (projectId, title) => call('createConversation', { projectId, title }),
+    archiveConversation: (projectId, conversationId, archived = true) => call('archiveConversation', { projectId, conversationId, archived }),
+    deleteConversation: (projectId, conversationId) => call('deleteConversation', { projectId, conversationId, confirmed: true })
   };
 }
+
