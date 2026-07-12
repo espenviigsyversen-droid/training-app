@@ -975,7 +975,7 @@ Detaljert datamodell, sikkerhetsgrenser og rekkefølge ligger i `AI_CHAT_PROJECT
 - Chat er fortsatt utenfor treningsbackup/import, og sletting er definert som rekursiv backendoperasjon.
 - Aktiv historikk beholdes til eksplisitt sletting; arkivert innhold har anbefalt 365 dagers retention før senere, synlig oppryddingsmekanisme.
 
-### v156 - Synkroniserte samtaler v1
+### v156 - Synkroniserte samtaler v1 - Backend deployet, frontendtest gjenstår
 
 - Lagre meldinger via autentisert backend og les dem på tvers av PC/mobil.
 - Opprett, fortsett, gi navn til, arkiver og slett samtaler.
