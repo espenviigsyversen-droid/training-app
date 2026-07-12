@@ -149,7 +149,7 @@ Prioritert backlog for videre utvikling av Treningsapp.
     - Chat legges etter Mål i bunnnavigasjonen og beholder fritekstspørsmål.
     - Mobil, desktop, PWA og ekte ende-til-ende-svar verifiseres.
 
-33. **v155 - Chat persistence design og sikkerhetsgrunnlag** - Implementert og emulatortestet lokalt
+33. **v155 - Chat persistence design og sikkerhetsgrunnlag** - Ferdig og Rules deployet
     - Firestore-modell, Rules, callable-kontrakter, retention, arkiv, sletting og separat eksport.
     - Emulator-/regeltester skal være på plass før vedvarende historikk aktiveres.
 
@@ -188,7 +188,7 @@ Disse punktene var del av den tidlige v142-idéen, men er bevisst flyttet ut av 
 
 ## Anbefalt neste steg
 
-Neste anbefalte punkt er **v156 - synkroniserte samtaler v1**. v154 er verifisert med ekte OpenAI-svar, og v155 har låst datamodell, backend-eide writes, Rules, retention og rekursiv sletting før Firestore-historikk aktiveres.
+Neste anbefalte punkt er **v156 - synkroniserte samtaler v1**. v154 er verifisert med ekte OpenAI-svar, og v155 har låst og deployet datamodellens sikkerhetsgrunnlag før Firestore-historikk aktiveres.
 
 Begrunnelse:
 - v143b har etablert en validert parameterkilde med trygg fallback
@@ -201,5 +201,5 @@ Begrunnelse:
 - v150-v153 er implementert lokalt med whitelistet context, server-side nøkkel, read-only chat og kontrollert feil-/forbruksvisning
 - v155-reglene er testet i Firestore-emulator: eierens appdata fungerer, andre brukere avvises, chat-writes er backend-only og `apiKeys/{uid}` / `aiUsage/{uid}` er sperret
 - v154 har fungerende dynamisk tilkoblingsstatus, egen Chat-fane og bestått ende-til-ende-test med ekte OpenAI-svar
-- Produksjonsdeploy av `firestore.rules` avventer sammenligning med eksisterende regler i Firebase-prosjektet, slik at andre apper/collections ikke blokkeres.
+- Produksjonsreglene er sammenlignet og deployet. Chat ligger i isolert `aiChatUsers/{uid}`-rot, og den sammenslåtte regelfilen bevarer eksisterende regler for `users`, `households`, `families`, `familyCodes` og `adminFamilyHealth`.
 
