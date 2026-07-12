@@ -1,0 +1,82 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function owns(userId) {
+      return signedIn() && request.auth.uid == userId;
+    }
+
+    // Secrets and usage counters are backend-only. Admin SDK bypasses Rules.
+    match /apiKeys/{userId} {
+      allow read, write: if false;
+    }
+
+    match /aiUsage/{userId} {
+      allow read, write: if false;
+    }
+
+    match /users/{userId} {
+      match /templates/{documentId} {
+        allow read, write: if owns(userId);
+      }
+      match /planned/{documentId} {
+        allow read, write: if owns(userId);
+      }
+      match /completed/{documentId} {
+        allow read, write: if owns(userId);
+      }
+      match /wellness/{documentId} {
+        allow read, write: if owns(userId);
+      }
+      match /challenges/{documentId} {
+        allow read, write: if owns(userId);
+      }
+      match /blockedDays/{documentId} {
+        allow read, write: if owns(userId);
+      }
+      match /raceResults/{documentId} {
+        allow read, write: if owns(userId);
+      }
+      match /continuityFreezes/{documentId} {
+        allow read, write: if owns(userId);
+      }
+
+      match /settings/preferences {
+        allow read, write: if owns(userId);
+      }
+
+      // The owner may read masked AI status, but only backend may write it.
+      match /settings/openai {
+        allow read: if owns(userId);
+        allow write: if false;
+      }
+
+      // v155: chat history can be read by its owner after backend creation.
+      // All mutations remain callable/backend-only so validation, limits and
+      // recursive deletion cannot be bypassed by a modified frontend.
+      match /aiProjects/{projectId} {
+        allow read: if owns(userId);
+        allow write: if false;
+
+        match /conversations/{conversationId} {
+          allow read: if owns(userId);
+          allow write: if false;
+
+          match /messages/{messageId} {
+            allow read: if owns(userId);
+            allow write: if false;
+          }
+        }
+      }
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
+
