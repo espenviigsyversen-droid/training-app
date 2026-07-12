@@ -1,6 +1,6 @@
 # AI Chat Projects - design og utviklingsplan
 
-**Status:** v154 er deployet og ende-til-ende-verifisert. v155-sikkerhetsgrunnlaget er implementert, emulatortestet og Firestore Rules er deployet; v156-v158 gjenstår.  
+**Status:** v154-v155 er deployet og verifisert. v156-backend er deployet og frontend er klar for GitHub Pages-test; v157-v158 gjenstår.  
 **Foreslått spor:** v154-v158.  
 **Forutsetning:** Sikkerhets- og deployporten i `FIREBASE_AI_BACKEND_DEPLOY.md` skal være bestått.
 
@@ -177,6 +177,8 @@ Callable-kontrakter som v156 skal bygge:
 - Vis siste samtaler og fortsett dem på PC og mobil.
 - Send sammendrag og begrenset meldingsvindu, ikke full historikk.
 - Behold én standardprosjektflate for å redusere første scope.
+
+Status: Backend deployet 12. juli 2026. Den bruker isolert `aiChatUsers/{uid}/projects/general-training`, lagrer bare vellykkede bruker-/assistentsvar, og tilbyr autentiserte callables for liste, åpne, opprette, arkivere/gjenåpne og rekursivt slette. Chat-UI har samtalevelger og synkronisert historikk uten browserlagring. Frontenddeploy og praktisk PC/mobil-test gjenstår.
 
 ### v157 - Prosjekter og egne instrukser
 
