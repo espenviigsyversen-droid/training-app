@@ -135,21 +135,21 @@ Prioritert backlog for videre utvikling av Treningsapp.
     - Ingen chat- eller treningsdata-skriving.
     - Produksjonsbruk er blokkert til eksisterende Firestore Rules er kontrollert og backend er installert/deployet.
 
-30. **v152 - Read-only AI-coach chat MVP** - Implementert lokalt, ende-til-ende-test gjenstår
+30. **v152 - Read-only AI-coach chat MVP** - Ferdig og verifisert gjennom v154
     - Enkel rådgivende chat basert på AI Coach Context v1 og serverbygget systeminstruks.
     - Ingen web-søk, write-tools, automatisk planendring eller vedvarende historikk.
 
-31. **v153 - Chat polish og kontroll** - Implementert lokalt, deploytest gjenstår
+31. **v153 - Chat polish og kontroll** - Ferdig og deployverifisert gjennom v154
     - Context/provenance, usage, kostnadsfeedback, rate-limit-feedback og personvernpolish.
     - Meldingshistorikk beholdes bare i minnet i denne versjonen; det lagres ikke chatinnhold i Firestore eller lokal lagring.
     - I v153 åpnes chatten som sekundær side fra Hjem; egen navigasjonsfane er senere besluttet for v154.
 
-32. **v154 - AI-status og egen Chat-fane** - Implementert lokalt, deploytest gjenstår
+32. **v154 - AI-status og egen Chat-fane** - Ferdig og ende-til-ende-verifisert
     - Dynamisk grønn `Tilkoblet`-tag som er forskjellig fra nøytral `Server-side`-merking.
     - Chat legges etter Mål i bunnnavigasjonen og beholder fritekstspørsmål.
     - Mobil, desktop, PWA og ekte ende-til-ende-svar verifiseres.
 
-33. **v155 - Chat persistence design og sikkerhetsgrunnlag**
+33. **v155 - Chat persistence design og sikkerhetsgrunnlag** - Implementert og emulatortestet lokalt
     - Firestore-modell, Rules, callable-kontrakter, retention, arkiv, sletting og separat eksport.
     - Emulator-/regeltester skal være på plass før vedvarende historikk aktiveres.
 
@@ -188,7 +188,7 @@ Disse punktene var del av den tidlige v142-idéen, men er bevisst flyttet ut av 
 
 ## Anbefalt neste steg
 
-Neste anbefalte punkt er **deploy og smoke-test av v154**, fulgt av v155 datamodell/sikkerhetsdesign før Firestore-historikk bygges.
+Neste anbefalte punkt er **v156 - synkroniserte samtaler v1**. v154 er verifisert med ekte OpenAI-svar, og v155 har låst datamodell, backend-eide writes, Rules, retention og rekursiv sletting før Firestore-historikk aktiveres.
 
 Begrunnelse:
 - v143b har etablert en validert parameterkilde med trygg fallback
@@ -199,6 +199,7 @@ Begrunnelse:
 - v147 har dokumentert design/policy for fryskort
 - v148 har implementert en liten manuell fryskort-v1
 - v150-v153 er implementert lokalt med whitelistet context, server-side nøkkel, read-only chat og kontrollert feil-/forbruksvisning
-- eksisterende produksjonsregler for Firestore må verifiseres slik at `apiKeys/{uid}` og `aiUsage/{uid}` aldri kan leses eller skrives fra frontend
-- v154 har bygget tydelig dynamisk tilkoblingsstatus og egen Chat-fane; praktisk OpenAI ende-til-ende-test gjenstår etter deploy
-- samtalehistorikk skal ikke aktiveres før v155 har låst Firestore Rules, sletting og context-policy
+- v155-reglene er testet i Firestore-emulator: eierens appdata fungerer, andre brukere avvises, chat-writes er backend-only og `apiKeys/{uid}` / `aiUsage/{uid}` er sperret
+- v154 har fungerende dynamisk tilkoblingsstatus, egen Chat-fane og bestått ende-til-ende-test med ekte OpenAI-svar
+- Produksjonsdeploy av `firestore.rules` avventer sammenligning med eksisterende regler i Firebase-prosjektet, slik at andre apper/collections ikke blokkeres.
+
