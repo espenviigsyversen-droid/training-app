@@ -10,6 +10,43 @@ service cloud.firestore {
       return signedIn() && request.auth.uid == userId;
     }
 
+    // Existing shared-project rules. Keep these compatible with the other apps.
+    match /users/{userId}/{document=**} {
+      allow read, write: if owns(userId);
+    }
+
+    match /households/home/{document=**} {
+      allow read, write: if signedIn();
+    }
+
+    match /families/familieoppdrag/{document=**} {
+      allow read, write: if signedIn();
+    }
+
+    match /families/familie-esyvers/{document=**} {
+      allow read, write: if signedIn();
+    }
+
+    match /families/{familyId}/{document=**} {
+      allow read, write: if signedIn();
+    }
+
+    match /familyCodes/{code} {
+      allow read, write: if signedIn();
+    }
+
+    match /adminFamilyHealth/{familyId} {
+      allow read: if signedIn()
+        && request.auth.token.email == "espen.viig.syversen@gmail.com";
+      allow create, update: if signedIn()
+        && request.resource.data.cloudFamilyId == familyId;
+      allow delete: if false;
+    }
+
+    match /families/familien/{document=**} {
+      allow read, write: if signedIn();
+    }
+
     // Secrets and usage counters are backend-only. Admin SDK bypasses Rules.
     match /apiKeys/{userId} {
       allow read, write: if false;
@@ -19,46 +56,13 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
-    match /users/{userId} {
-      match /templates/{documentId} {
-        allow read, write: if owns(userId);
-      }
-      match /planned/{documentId} {
-        allow read, write: if owns(userId);
-      }
-      match /completed/{documentId} {
-        allow read, write: if owns(userId);
-      }
-      match /wellness/{documentId} {
-        allow read, write: if owns(userId);
-      }
-      match /challenges/{documentId} {
-        allow read, write: if owns(userId);
-      }
-      match /blockedDays/{documentId} {
-        allow read, write: if owns(userId);
-      }
-      match /raceResults/{documentId} {
-        allow read, write: if owns(userId);
-      }
-      match /continuityFreezes/{documentId} {
-        allow read, write: if owns(userId);
-      }
+    // Chat is deliberately outside users/{uid}; the existing recursive owner
+    // rule there would otherwise make backend-only writes impossible to enforce.
+    match /aiChatUsers/{userId} {
+      allow read: if owns(userId);
+      allow write: if false;
 
-      match /settings/preferences {
-        allow read, write: if owns(userId);
-      }
-
-      // The owner may read masked AI status, but only backend may write it.
-      match /settings/openai {
-        allow read: if owns(userId);
-        allow write: if false;
-      }
-
-      // v155: chat history can be read by its owner after backend creation.
-      // All mutations remain callable/backend-only so validation, limits and
-      // recursive deletion cannot be bypassed by a modified frontend.
-      match /aiProjects/{projectId} {
+      match /projects/{projectId} {
         allow read: if owns(userId);
         allow write: if false;
 
