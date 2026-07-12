@@ -27,7 +27,7 @@ Standard Bakken-uke: Hoved-terskel → Støtte-terskel → Lang rolig → Valgfr
 **Hosting:** GitHub Pages.  
 **Backend:** Firebase (prosjekt `home-tasks-app-18de3`) — Firestore + Google Auth.  
 **Frontend:** Vanilla JS + HTML + CSS, single-page app, tab-navigasjon.  
-**Versjon:** v154 (konstant i `app.js`).
+**Versjon:** v156 (konstant i `app.js`).
 
 ### Filer
 
@@ -144,6 +144,7 @@ Treningsapp/
 - **AI-status og egen Chat-fane** (v154, implementert lokalt): Chat er nå sjette hoveddestinasjon etter Mål og har fortsatt fritekstfelt, forslag og read-only adferd. Setup skiller nøytral `Server-side`-merking fra en dynamisk status-tag med `Tilkoblet`, `Ikke tilkoblet`, `Nøkkel avvist` eller `Utilgjengelig`. Lagring og eksplisitt tilkoblingstest persisterer siste status i det maskerte serverdokumentet, uten å eksponere nøkkelen. Seks-fane-layouten har egne mobilregler. Automatisk test er bestått; manuell innlogget mobil/PWA-test gjenstår etter deploy.
 - **v154 ende-til-ende godkjent** (12. juli 2026): Setup viser `Tilkoblet`, alle seks faner fungerer, og Chat har svart på et ekte fritekstspørsmål med data fra appens coach-context. Punktvis Markdown-stil i svarene er notert som senere svar-/render-polish.
 - **Chat persistence sikkerhetsgrunnlag** (v155, ferdig og deployet 12. juli 2026): Ny ren `functions/ai/chat-persistence.js` låser schema v1, ID-/feltvalidering, backend-only sletting, separat backup-policy og begrenset modellvindu. Produksjonsreglene ble lest i Firebase Console og viste at prosjektet deles med familie-/husholdningsapper og har rekursiv eiertilgang under `users/{uid}`. Chatmodellen er derfor isolert til `aiChatUsers/{uid}/projects/...`. Ny `firestore.rules` bevarer eksisterende appregler, nekter klienttilgang til AI-nøkler/usage og gjør chat skrivebeskyttet fra frontend. Emulatoren tester både isolasjonen og regresjonsvern for de delte appene. Den sammenslåtte regelfilen kompilerte og ble deployet til `home-tasks-app-18de3`.
+- **Synkroniserte AI-samtaler v1** (v156, backend deployet 12. juli 2026): Ny `functions/ai/chat-store.js` håndterer standardprosjekt, samtaleliste, åpning, oppretting, arkiv/gjenåpning, vellykkede meldingspar og rekursiv sletting. `aiChatListConversations`, `aiChatGetConversation`, `aiChatCreateConversation`, `aiChatArchiveConversation` og `aiChatDeleteConversation` er opprettet i `europe-west1`; `aiCoachChat` er oppdatert med kontrollert persistens. Chat-fanen har samtalevelger, ny samtale og bekreftet arkiv/slett; full historikk sendes aldri automatisk til modellen. Frontenddeploy og praktisk PC/mobil-test gjenstår.
 - **Kryptert OpenAI-nøkkellagring** (v154 backend-sikkerhet): Før AI-deploy er nøkkellagringen oppgradert til AES-256-GCM. Firestore lagrer bare `openaiEncrypted` med ciphertext, IV, autentiseringstag, algoritme og versjon. Krypteringshemmeligheten bindes fra Firebase Secret Manager og finnes ikke i repo eller frontend. Eventuell eldre klartekst migreres ved første serverlesing. Backendtester dekker round-trip, feil hemmelighet, fravær av klartekst og statusflyt.
 - **AI backend deployet** (12. juli 2026): Blaze er aktivert for `home-tasks-app-18de3`. `AI_KEY_ENCRYPTION_SECRET` er opprettet i Firebase Secret Manager, og `aiCoachStatus`, `aiCoachSaveOpenAiKey`, `aiCoachTestOpenAiKey`, `aiCoachDeleteOpenAiKey` og `aiCoachChat` er deployet som Node 22 2nd Gen callable-funksjoner i `europe-west1`. Artifact Registry har 7-dagers oppryddingspolicy. Ekte OpenAI-test fra innlogget app er bestått.
 - **Arkitekturkontekst indeksert** (dokumentasjon): `AGENTS.md` peker nå eksplisitt på `ARKITEKT_CONTEXT.md` som veiledende beslutningsramme når Codex arbeider som både utvikler og arkitekt. Den overstyrer ikke prosjektregler eller nyere brukerbeslutninger.
@@ -181,8 +182,8 @@ Treningsapp/
 
 ## Neste steg (prioritert)
 
-1. **v156 - Synkroniserte samtaler v1**
-   - Bygg backend-eid lagring, listing, arkiv og rekursiv sletting i standardprosjektet.
+1. **Deploy og smoke-test v156**
+   - Deploy callables og frontend, opprett en samtale på én enhet og fortsett den på en annen. Test arkiv/gjenåpne og bekreftet sletting.
 2. **v157 - Prosjekter og egne instrukser**
    - Utvid med flere prosjekter først etter at enhetssynk og sletting er praktisk verifisert.
 3. **v158 - Kontrollert langtidskontekst og kvalitet**
