@@ -1,6 +1,6 @@
 # AI Chat Projects - design og utviklingsplan
 
-**Status:** v154 implementert lokalt; v155-v158 er design før implementering.  
+**Status:** v154 er deployet og ende-til-ende-verifisert. v155-sikkerhetsgrunnlaget er implementert og emulatortestet lokalt; v156-v158 gjenstår.  
 **Foreslått spor:** v154-v158.  
 **Forutsetning:** Sikkerhets- og deployporten i `FIREBASE_AI_BACKEND_DEPLOY.md` skal være bestått.
 
@@ -137,7 +137,7 @@ Instruksene kan ikke slå av sikkerhetsregler, kreve medisinsk diagnose eller ti
 - Behold fritekstfelt, forslag, context-visning og read-only adferd.
 - Verifiser seks faner på liten mobil, desktop og PWA.
 
-Status: Implementert lokalt i v154. Automatisk test er bestått; innlogget deploy-/mobiltest gjenstår.
+Status: Ferdig. Egen Chat-fane, dynamisk `Tilkoblet`-status og ekte svar basert på appdata er verifisert 12. juli 2026.
 
 ### v155 - Chat persistence design og sikkerhetsgrunnlag
 
@@ -145,6 +145,29 @@ Status: Implementert lokalt i v154. Automatisk test er bestått; innlogget deplo
 - Avklar retention, arkiv, rekursiv sletting og separat eksport.
 - Lag emulator-/regeltester før vedvarende meldinger aktiveres.
 - Ingen stor UI-utvidelse i denne runden.
+
+Status: Implementert og emulatortestet lokalt. Vedvarende historikk er fortsatt ikke aktivert i klienten.
+
+Låste beslutninger i v155:
+
+- `schemaVersion: 1` brukes på prosjekt-, samtale- og meldingsdokumenter.
+- Klienten kan lese egne chatdokumenter, men kan ikke skrive dem direkte. Oppretting, endring, arkivering og sletting skal gå via autentiserte Callable Functions.
+- `apiKeys/{uid}` og `aiUsage/{uid}` er utilgjengelige fra klienten. `users/{uid}/settings/openai` er kun lesbar for eieren og skrives av backend.
+- Første prosjekt i v156 bruker stabil ID `general-training`; øvrige dokument-ID-er skal valideres eller genereres av backend.
+- Aktiv samtalehistorikk beholdes til brukeren sletter den. Arkiverte samtaler/prosjekter har anbefalt retention på 365 dager før backendstyrt opprydding; automatisk sletting bygges ikke før brukeren har tydelig innsyn.
+- Arkivering er reversibel. Sletting krever eksplisitt bekreftelse og utføres rekursivt av backend i kontrollerte batcher.
+- Chat holdes utenfor dagens treningsbackup/import. Separat chat-eksport og personvernflate tas i v158.
+- Modellen får aldri full historikk automatisk. Policyen er kort sammendrag og maksimalt 10 nylige meldinger.
+- Meldingsinnhold begrenses til 6000 tegn, prosjektinstruks til 2000 tegn og sammendrag til 4000 tegn.
+- Prosjektinstruksjoner er brukerdata og kan ikke bli systeminstruks eller overstyre coachens guardrails.
+
+Callable-kontrakter som v156 skal bygge:
+
+- `aiChatCreateConversation`: valider prosjekt-ID og tittel, opprett backend-eid samtale.
+- `aiChatSendMessage`: valider eierskap, context og tekst; lagre bruker-/assistentsvar atomisk nok til å kunne gjenoppta samtalen.
+- `aiChatArchiveConversation`: sett status uten å slette meldinger.
+- `aiChatDeleteConversation`: krev bekreftelse og slett meldinger rekursivt før samtaledokumentet.
+- Senere prosjektfunksjoner følger samme kontrakt, men introduseres først i v157.
 
 ### v156 - Synkroniserte samtaler v1
 
@@ -178,3 +201,4 @@ Status: Implementert lokalt i v154. Automatisk test er bestått; innlogget deplo
 - Prosjektinstruksjoner kan ikke overstyre serverens systeminstruks.
 - Rekursiv sletting er testet.
 - Maks meldingslengde, rate limit og context-størrelse håndheves på server.
+
