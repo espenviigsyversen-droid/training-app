@@ -1,0 +1,13 @@
+# Generated dependencies
+functions/node_modules/
+
+# Firebase CLI output and temporary secret material
+.firebase/
+firebase-debug.log
+firebase-debug.*.log
+.firebase-ai-secret.tmp
+
+# Local environment files
+functions/.env
+functions/.env.*
+!functions/.env.example
