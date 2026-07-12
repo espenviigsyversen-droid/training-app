@@ -920,7 +920,7 @@ Scope:
 - Ingen faktisk chatflyt eller appskriving i denne runden.
 - Lokal Functions-struktur, callable auth, nøkkellagring/status, rate limit og deployguide er bygget. Produksjonsregler må kontrolleres før deploy.
 
-### v152 - Read-only AI-coach chat MVP - Implementert lokalt, ende-til-ende-test gjenstår
+### v152 - Read-only AI-coach chat MVP - Ferdig og ende-til-ende-verifisert gjennom v154
 
 Mål:
 
@@ -937,7 +937,7 @@ Scope:
 - Brukeren kan se hvilke datakategorier svaret bygget på, uten å vise hele rå-contexten.
 - OpenAI Responses API bruker `store: false`, ingen tools og serverstyrt modell/prompt.
 
-### v153 - Chat polish, personvern og kostnadskontroll - Implementert lokalt, deploytest gjenstår
+### v153 - Chat polish, personvern og kostnadskontroll - Ferdig og deployverifisert gjennom v154
 
 Mål:
 
@@ -957,7 +957,7 @@ Scope:
 
 Detaljert datamodell, sikkerhetsgrenser og rekkefølge ligger i `AI_CHAT_PROJECTS_DESIGN.md`.
 
-### v154 - AI-status og egen Chat-fane - Implementert lokalt, deploytest gjenstår
+### v154 - AI-status og egen Chat-fane - Ferdig og ende-til-ende-verifisert
 
 - Skill tydelig mellom nøytral `Server-side`-merking og dynamisk grønn `Tilkoblet`-status.
 - Legg Chat som sjette bunnnavigasjonspunkt etter Mål.
@@ -965,12 +965,15 @@ Detaljert datamodell, sikkerhetsgrenser og rekkefølge ligger i `AI_CHAT_PROJECT
 - Verifiser mobilbredde, desktop og PWA etter navigasjonsendringen.
 - Gjennomfør praktisk ende-til-ende-test med ekte nøkkel og dagens coach-context.
 
-### v155 - Chat persistence design og sikkerhetsgrunnlag
+### v155 - Chat persistence design og sikkerhetsgrunnlag - Implementert og emulatortestet lokalt
 
 - Lås Firestore-modell for prosjekter, samtaler og meldinger.
 - Etabler Rules-/emulatortester, normalisering og callable-kontrakter før historikk skrives.
 - Avklar retention, arkivering, rekursiv sletting og separat eksport/personvern.
 - Ikke kombiner designrunden med full prosjekt-UI.
+- Klientskriving til chat er sperret; v156 skal bruke autentiserte Callable Functions.
+- Chat er fortsatt utenfor treningsbackup/import, og sletting er definert som rekursiv backendoperasjon.
+- Aktiv historikk beholdes til eksplisitt sletting; arkivert innhold har anbefalt 365 dagers retention før senere, synlig oppryddingsmekanisme.
 
 ### v156 - Synkroniserte samtaler v1
 
@@ -1064,9 +1067,9 @@ Hvis svaret er ja på flere av disse, bør ideen prioriteres.
 
 ### Neste 3 runder
 
-1. Deploy og smoke-test v154
-2. v155 - Chat persistence design og sikkerhetsgrunnlag
-3. v156 - Synkroniserte samtaler v1
+1. Sammenlign og flett v155 Firestore Rules mot produksjonsreglene
+2. v156 - Synkroniserte samtaler v1
+3. v157 - Prosjekter og egne instrukser
 
 ### Neste 10 runder
 
@@ -1079,7 +1082,7 @@ Hvis svaret er ja på flere av disse, bør ideen prioriteres.
 7. v147 - Fryskort design - Dokumentert
 8. v148 - Fryskort implementering - Bygget
 9. v150 - AI Coach Context og sikkerhetsdesign - Bygget lokalt
-10. v151-v154 - Implementert lokalt, oppdatert deploy og ende-til-ende-test gjenstår
+10. v151-v155 - Backend, chat-MVP og persistence-sikkerhetsgrunnlag bygget; v155-regeldeploy avventer produksjonssammenligning
 
 ## Hva vi bør vente med
 
@@ -1169,6 +1172,7 @@ Neste store verdiøkning er en bedre daglig coach.
 
 Anbefalt neste implementeringsrunde:
 
-> Deploy og smoke-test v154, deretter v155 Firestore-design
+> Produksjonsport for v155-regler, deretter v156 synkroniserte samtaler
 
-v154 er implementert lokalt. Etter deploy og manuell test skal v155 låse Firestore-modellen og sikkerhetsreglene før vedvarende samtalehistorikk bygges i v156. Prosjekter og egne instrukser kommer i v157, mens kontrollert langtidskontekst og personvernpolish kommer i v158.
+v154 er deployet og ende-til-ende-testet. v155 har låst Firestore-modell, validering, Rules, retention og rekursiv sletting lokalt. Før reglene deployes må de sammenlignes med produksjonsreglene i det delte Firebase-prosjektet. Deretter bygges vedvarende samtalehistorikk i v156, prosjekter i v157 og kontrollert langtidskontekst/personvern i v158.
+
