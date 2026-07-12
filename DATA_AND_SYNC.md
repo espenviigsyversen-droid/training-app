@@ -19,7 +19,7 @@ users/{uid}/
 └── settings/preferences
 ```
 
-AI-chat lagres separat under `users/{uid}/aiProjects/...` og inngår ikke i vanlig treningsbackup/import. Frontend kan lese egne chatdokumenter, mens oppretting, endring, arkivering og rekursiv sletting skal gå via autentisert backend.
+AI-chat lagres separat under `aiChatUsers/{uid}/projects/...` og inngår ikke i vanlig treningsbackup/import. Den separate roten er nødvendig fordi Firebase-prosjektet deles med andre apper og har en eksisterende rekursiv eierregel under `users/{uid}`. Frontend kan lese egne chatdokumenter, mens oppretting, endring, arkivering og rekursiv sletting skal gå via autentisert backend.
 
 ## Lokal state
 
