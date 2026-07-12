@@ -16,6 +16,8 @@ const aiCoachKeys = read('functions/ai/keys.js');
 const aiCoachProvider = read('functions/ai/openai-provider.js');
 const aiCoachPrompt = read('functions/ai/system-prompt.js');
 const functionsIndex = read('functions/index.js');
+const chatPersistence = read('functions/ai/chat-persistence.js');
+const firestoreRules = read('firestore.rules');
 const coachRulesJson = JSON.parse(read('data/coach-rules.json'));
 
 function test(name, fn) {
@@ -138,6 +140,16 @@ function test(name, fn) {
     assert.strictEqual(appVersion, cacheVersion);
   });
 
+  test('v155 chat persistence is backend-owned and excluded from training backup', () => {
+    assert.ok(chatPersistence.includes('clientWritesAllowed: false'), 'chat persistence must remain backend-owned');
+    assert.ok(chatPersistence.includes('trainingBackupIncludesChat: false'), 'chat must stay outside training backup');
+    assert.ok(chatPersistence.includes('recursive-backend-only'), 'chat deletion policy must be recursive and backend-only');
+    assert.ok(firestoreRules.includes('match /apiKeys/{userId}'), 'API key rule is missing');
+    assert.ok(firestoreRules.includes('match /aiUsage/{userId}'), 'AI usage rule is missing');
+    assert.ok(firestoreRules.includes('match /aiProjects/{projectId}'), 'AI project rules are missing');
+    assert.ok(firestoreRules.includes('allow write: if false;'), 'chat and AI status writes must not be client-controlled');
+  });
+
   test('all user data collections are included in replacement import', () => {
     const collections = app.match(/DATA_COLLECTIONS\s*=\s*\[([^\]]+)\]/)?.[1] || '';
     ['templates', 'planned', 'completed', 'wellness', 'challenges', 'blockedDays', 'raceResults', 'continuityFreezes'].forEach(collection => {
@@ -192,6 +204,10 @@ function test(name, fn) {
     assert.ok(aiCoachKeys.includes('apiKeys/'), 'OpenAI key should use server-side apiKeys collection');
     assert.ok(aiCoachKeys.includes('users/" + uid + "/settings/openai'), 'masked OpenAI status document is missing');
     assert.ok(aiCoachKeys.includes('lastTestedAt'), 'OpenAI connection tests should persist their latest status');
+    assert.ok(aiCoachKeys.includes('aes-256-gcm'), 'OpenAI keys should be encrypted before Firestore storage');
+    assert.ok(aiCoachKeys.includes('openaiEncrypted'), 'encrypted OpenAI key payload is missing');
+    assert.ok(functionsIndex.includes('defineSecret("AI_KEY_ENCRYPTION_SECRET")'), 'Firebase Secret Manager binding is missing');
+    assert.ok(functionsIndex.includes('secrets: [aiKeyEncryptionSecret]'), 'key and chat callables should receive the encryption secret');
     assert.ok(aiCoachBackend.includes('validateAiCoachContext(context)'), 'backend must validate AI context schema');
     assert.ok(aiCoachBackend.includes('enforceRateLimit'), 'backend rate limit is missing');
     assert.ok(aiCoachProvider.includes('store: false'), 'OpenAI Responses request must disable provider-side response storage');
@@ -2134,3 +2150,4 @@ function test(name, fn) {
   console.error(err);
   process.exit(1);
 });
+
