@@ -4,13 +4,15 @@ Arbeidsregler for Codex/AI-agenter som jobber på Treningsapp.
 
 ## Prosjekt
 
-Dette er en lokal kopi av en PWA som lastes opp manuelt til GitHub Pages.
+Dette er en lokal kopi av en PWA som normalt kan synkroniseres direkte til GitHub via Codex/GitHub-connector når skrivetilgang er aktiv.
 
 - Ikke bruk Git-kommandoer i denne mappen.
 - Ikke anta at mappen er et Git-repository.
 - Jobb kun innenfor prosjektmappen:
   `C:\Users\espen\Downloads\00_Organisert\02_Prosjekter_og_apper\Treningsapp`
 - Ikke bruk nettverk, full access eller tilgang utenfor prosjektmappen uten å forklare hvorfor og spørre først.
+- Etter kode- eller dokumentasjonsendringer skal relevante endrede filer deployes/synkroniseres direkte til GitHub-repoet via GitHub-connectoren når connectoren har skrivetilgang. Hvis direkte GitHub-synk ikke er mulig, skal brukeren få en presis opplastingsliste.
+- Last aldri opp `node_modules`, `.firebase`, lokale secrets, `.env`-filer, debug-logger eller midlertidige nøkkelfiler til GitHub.
 
 ## Veiledende arbeidskontekst
 
@@ -118,5 +120,5 @@ Oppsummer alltid:
 
 - hvilke filer som er endret
 - hvilke sjekker som er kjørt
-- hvilke filer brukeren må laste opp til GitHub
+- hvilke filer som er synkronisert direkte til GitHub, eller hvilke filer brukeren må laste opp manuelt hvis direkte synk ikke var mulig
 - om noe ikke ble testet
