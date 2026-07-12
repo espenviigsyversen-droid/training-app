@@ -3,6 +3,7 @@
 const { initializeApp } = require("firebase-admin/app");
 const { getFirestore } = require("firebase-admin/firestore");
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
+const { defineSecret } = require("firebase-functions/params");
 const logger = require("firebase-functions/logger");
 const { handleAiCoachChat } = require("./ai/ai-chat");
 const {
@@ -14,11 +15,16 @@ const {
 
 initializeApp();
 const db = getFirestore();
+const aiKeyEncryptionSecret = defineSecret("AI_KEY_ENCRYPTION_SECRET");
 const CALL_OPTIONS = {
   region: "europe-west1",
   timeoutSeconds: 70,
   memory: "256MiB",
   enforceAppCheck: false
+};
+const SECRET_CALL_OPTIONS = {
+  ...CALL_OPTIONS,
+  secrets: [aiKeyEncryptionSecret]
 };
 
 function requireUid(request) {
@@ -33,7 +39,10 @@ function internalFailure(error, operation) {
     name: error?.name || "Error",
     code: error?.code || "INTERNAL_ERROR"
   });
-  throw new HttpsError("internal", "AI-tjenesten kunne ikke fullføre forespørselen. Ingen appdata ble endret.", { code: "INTERNAL_ERROR" });
+  throw new HttpsError("internal", "AI-tjenesten kunne ikke fullføre forespørselen. Ingen appdata ble endret.", {
+    code: "INTERNAL_ERROR",
+    message: "AI-backend fikk en intern feil. Prøv igjen etter at backend er kontrollert."
+  });
 }
 
 exports.aiCoachStatus = onCall(CALL_OPTIONS, async request => {
@@ -45,19 +54,19 @@ exports.aiCoachStatus = onCall(CALL_OPTIONS, async request => {
   }
 });
 
-exports.aiCoachSaveOpenAiKey = onCall(CALL_OPTIONS, async request => {
+exports.aiCoachSaveOpenAiKey = onCall(SECRET_CALL_OPTIONS, async request => {
   const uid = requireUid(request);
   try {
-    return await saveOpenAiKey(db, uid, request.data?.key);
+    return await saveOpenAiKey(db, uid, request.data?.key, aiKeyEncryptionSecret.value());
   } catch (error) {
     return internalFailure(error, "save_key");
   }
 });
 
-exports.aiCoachTestOpenAiKey = onCall(CALL_OPTIONS, async request => {
+exports.aiCoachTestOpenAiKey = onCall(SECRET_CALL_OPTIONS, async request => {
   const uid = requireUid(request);
   try {
-    return await testOpenAiKey(db, uid);
+    return await testOpenAiKey(db, uid, aiKeyEncryptionSecret.value());
   } catch (error) {
     return internalFailure(error, "test_key");
   }
@@ -72,10 +81,16 @@ exports.aiCoachDeleteOpenAiKey = onCall(CALL_OPTIONS, async request => {
   }
 });
 
-exports.aiCoachChat = onCall(CALL_OPTIONS, async request => {
+exports.aiCoachChat = onCall(SECRET_CALL_OPTIONS, async request => {
   const uid = requireUid(request);
   try {
-    return await handleAiCoachChat({ db, uid, data: request.data || {}, logger });
+    return await handleAiCoachChat({
+      db,
+      uid,
+      data: request.data || {},
+      logger,
+      encryptionSecret: aiKeyEncryptionSecret.value()
+    });
   } catch (error) {
     return internalFailure(error, "chat");
   }
