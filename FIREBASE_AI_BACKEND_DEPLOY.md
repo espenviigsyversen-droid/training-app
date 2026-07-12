@@ -2,7 +2,7 @@
 
 ## Status
 
-v151-v154-koden er klargjort og de fem AI-funksjonene er deployet 12. juli 2026. `AI_KEY_ENCRYPTION_SECRET` finnes i Firebase Secret Manager, funksjonene kjører som Node 22 2nd Gen i `europe-west1`, og Artifact Registry sletter automatisk containerbilder eldre enn 7 dager. Ekte OpenAI-test fra en innlogget app gjenstår.
+v151-v154-koden og de fem AI-funksjonene er deployet. `AI_KEY_ENCRYPTION_SECRET` finnes i Firebase Secret Manager, funksjonene kjører som Node 22 2nd Gen i `europe-west1`, og Artifact Registry sletter automatisk containerbilder eldre enn 7 dager. Ekte OpenAI-test fra en innlogget app er bestått 12. juli 2026. v155-reglene er emulator-testet lokalt, men ikke deployet før eksisterende produksjonsregler er hentet og sammenlignet.
 
 GitHub Pages kan beholdes. Frontend bruker Firebase Callable Functions i region `europe-west1`, slik at Firebase Auth-token og CORS håndteres av Firebase SDK.
 
@@ -120,3 +120,4 @@ Før bredere bruk bør Firebase App Check designes og aktiveres i en egen sikker
 - kontroll av produksjonsregler
 - ekte OpenAI-kall
 - kontroll av faktiske kostnader
+
