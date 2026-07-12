@@ -94,4 +94,5 @@ Dette er ikke en erstatning for manuell eksport, men et ekstra sikkerhetsnett.
 - Import av gamle backupfiler som mangler nyere collections
 - Endringer i dataformat uten bakoverkompatibel normalisering
 - Offline-visning som forveksles med redigerbar sync-modus
+- `localStorage` kan nå kvoten når komplett state-snapshot vokser. Firestore/IndexedDB fortsetter, men den egne fallback-snapshoten kan bli utdatert; dette er registrert som eget backlogpunkt.
 
