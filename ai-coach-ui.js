@@ -1,5 +1,6 @@
 const CONSENT_KEY = 'treningsapp:ai-coach-consent:v1';
 const MAX_HISTORY_MESSAGES = 8;
+const DEFAULT_PROJECT_ID = 'general-training';
 
 const SUGGESTIONS = [
   'Hvorfor anbefaler appen dette i dag?',
@@ -48,12 +49,53 @@ export function createAiCoachUi(options = {}) {
   const navigate = options.navigate;
   const openSettings = options.openSettings;
   let messages = [];
+  let conversations = [];
+  let activeConversationId = null;
+  let activeConversationStatus = 'active';
   let configured = false;
   let backendAvailable = true;
   let connectionStatus = 'checking';
   let loading = false;
   let usage = { inputTokens: 0, outputTokens: 0, requests: 0 };
   let lastContextLabels = [];
+
+  function conversationTitleFromQuestion(question) {
+    const compact = String(question || '').replace(/\s+/g, ' ').trim();
+    return compact.length > 54 ? `${compact.slice(0, 51)}...` : compact || 'Ny samtale';
+  }
+
+  function renderConversationToolbar() {
+    const select = byId('aiCoachConversationSelect');
+    if (select) {
+      select.replaceChildren();
+      const fresh = document.createElement('option');
+      fresh.value = '';
+      fresh.textContent = 'Ny samtale';
+      select.append(fresh);
+      conversations.forEach(conversation => {
+        const option = document.createElement('option');
+        option.value = conversation.id;
+        option.textContent = `${conversation.title}${conversation.status === 'archived' ? ' (arkivert)' : ''}`;
+        select.append(option);
+      });
+      select.value = activeConversationId || '';
+    }
+    const hasActive = Boolean(activeConversationId);
+    const archive = byId('aiCoachArchiveConversationBtn');
+    const remove = byId('aiCoachDeleteConversationBtn');
+    if (archive) {
+      archive.disabled = !hasActive;
+      archive.textContent = activeConversationStatus === 'archived' ? 'Gjenåpne' : 'Arkiver';
+    }
+    if (remove) remove.disabled = !hasActive;
+    setText('aiCoachConversationFeedback', activeConversationId
+      ? activeConversationStatus === 'archived'
+        ? 'Arkivert samtale. Gjenåpne den for å fortsette.'
+        : 'Samtalen synkroniseres mellom enhetene dine.'
+      : 'En ny samtale lagres når du sender første spørsmål.');
+    const composer = byId('aiCoachComposer');
+    composer?.classList.toggle('conversation-readonly', activeConversationStatus === 'archived');
+  }
 
   function renderMessages() {
     const list = byId('aiCoachMessages');
@@ -116,6 +158,78 @@ export function createAiCoachUi(options = {}) {
     }
     composer?.classList.toggle('hidden', !configured);
     missing?.classList.toggle('hidden', configured || !backendAvailable);
+  }
+
+  function resetConversation() {
+    activeConversationId = null;
+    activeConversationStatus = 'active';
+    messages = [];
+    usage = { inputTokens: 0, outputTokens: 0, requests: 0 };
+    lastContextLabels = [];
+    setText('aiCoachError', '');
+    renderConversationToolbar();
+    renderMessages();
+    renderUsage();
+  }
+
+  async function refreshConversations(options = {}) {
+    setText('aiCoachConversationFeedback', 'Henter samtaler ...');
+    const result = await client.listConversations(DEFAULT_PROJECT_ID);
+    if (!result.ok) {
+      setText('aiCoachConversationFeedback', result.message || 'Kunne ikke hente samtaler. Du kan fortsatt starte en ny.');
+      return result;
+    }
+    conversations = Array.isArray(result.conversations) ? result.conversations : [];
+    if (activeConversationId && !conversations.some(item => item.id === activeConversationId)) {
+      activeConversationId = null;
+      activeConversationStatus = 'active';
+    }
+    renderConversationToolbar();
+    if (options.openFirst && !activeConversationId && conversations.length) {
+      await openConversation(conversations[0].id);
+    }
+    return result;
+  }
+
+  async function openConversation(conversationId) {
+    const id = String(conversationId || '').trim();
+    if (!id) return resetConversation();
+    setText('aiCoachConversationFeedback', 'Åpner samtalen ...');
+    const result = await client.getConversation(DEFAULT_PROJECT_ID, id);
+    if (!result.ok) {
+      setText('aiCoachConversationFeedback', result.message || 'Kunne ikke åpne samtalen.');
+      return;
+    }
+    activeConversationId = result.conversation?.id || id;
+    activeConversationStatus = result.conversation?.status === 'archived' ? 'archived' : 'active';
+    messages = (Array.isArray(result.messages) ? result.messages : [])
+      .filter(message => ['user', 'assistant'].includes(message.role) && message.content)
+      .map(message => ({ role: message.role, content: String(message.content) }));
+    usage = { inputTokens: 0, outputTokens: 0, requests: 0 };
+    lastContextLabels = [];
+    renderConversationToolbar();
+    renderMessages();
+    renderUsage();
+  }
+
+  async function archiveActiveConversation() {
+    if (!activeConversationId) return;
+    const reopening = activeConversationStatus === 'archived';
+    if (!reopening && !window.confirm('Arkivere denne samtalen? Den kan åpnes igjen senere.')) return;
+    const result = await client.archiveConversation(DEFAULT_PROJECT_ID, activeConversationId, !reopening);
+    if (!result.ok) return setText('aiCoachConversationFeedback', result.message || 'Kunne ikke oppdatere samtalen.');
+    activeConversationStatus = reopening ? 'active' : 'archived';
+    await refreshConversations();
+    renderConversationToolbar();
+  }
+
+  async function deleteActiveConversation() {
+    if (!activeConversationId) return;
+    if (!window.confirm('Slette denne samtalen og alle meldingene permanent?')) return;
+    const result = await client.deleteConversation(DEFAULT_PROJECT_ID, activeConversationId);
+    if (!result.ok) return setText('aiCoachConversationFeedback', result.message || 'Kunne ikke slette samtalen.');
+    resetConversation();
+    await refreshConversations({ openFirst: true });
   }
 
   function renderUsage() {
@@ -197,12 +311,25 @@ export function createAiCoachUi(options = {}) {
   }
 
   async function send() {
-    if (loading || !configured) return;
+    if (loading || !configured || activeConversationStatus === 'archived') return;
     const input = byId('aiCoachInput');
     const question = String(input?.value || '').trim();
     if (!question) return;
     if (question.length > 2000) return setText('aiCoachError', 'Spørsmålet kan være maks 2 000 tegn.');
     if (!ensureConsent()) return;
+
+    if (!activeConversationId) {
+      setLoading(true);
+      const created = await client.createConversation(DEFAULT_PROJECT_ID, conversationTitleFromQuestion(question));
+      setLoading(false);
+      if (!created.ok || !created.conversation?.id) {
+        return setText('aiCoachError', created.message || 'Kunne ikke opprette samtalen.');
+      }
+      activeConversationId = created.conversation.id;
+      activeConversationStatus = 'active';
+      conversations = [created.conversation, ...conversations];
+      renderConversationToolbar();
+    }
 
     setText('aiCoachError', '');
     const context = buildContext();
@@ -216,6 +343,8 @@ export function createAiCoachUi(options = {}) {
     const result = await client.chat({
       context,
       messages: outgoing,
+      projectId: DEFAULT_PROJECT_ID,
+      conversationId: activeConversationId,
       client: { appVersion: options.appVersion || '', contextSchemaVersion: context.schemaVersion }
     });
     setLoading(false);
@@ -233,15 +362,11 @@ export function createAiCoachUi(options = {}) {
     };
     renderMessages();
     renderUsage();
+    await refreshConversations();
   }
 
   function clear() {
-    messages = [];
-    usage = { inputTokens: 0, outputTokens: 0, requests: 0 };
-    lastContextLabels = [];
-    setText('aiCoachError', '');
-    renderMessages();
-    renderUsage();
+    resetConversation();
   }
 
   async function open() {
@@ -250,6 +375,7 @@ export function createAiCoachUi(options = {}) {
     renderMessages();
     renderUsage();
     await refreshStatus();
+    if (configured) await refreshConversations({ openFirst: true });
   }
 
   function bind() {
@@ -260,12 +386,16 @@ export function createAiCoachUi(options = {}) {
         send();
       }
     });
-    byId('aiCoachClearBtn')?.addEventListener('click', clear);
+    byId('aiCoachNewConversationBtn')?.addEventListener('click', clear);
+    byId('aiCoachConversationSelect')?.addEventListener('change', event => openConversation(event.target.value));
+    byId('aiCoachArchiveConversationBtn')?.addEventListener('click', archiveActiveConversation);
+    byId('aiCoachDeleteConversationBtn')?.addEventListener('click', deleteActiveConversation);
     byId('aiCoachOpenSettingsBtn')?.addEventListener('click', openSettings);
     byId('aiCoachSaveKeyBtn')?.addEventListener('click', saveKey);
     byId('aiCoachTestKeyBtn')?.addEventListener('click', testKey);
     byId('aiCoachDeleteKeyBtn')?.addEventListener('click', deleteKey);
   }
 
-  return { bind, clear, deleteKey, open, refreshStatus, saveKey, send, testKey };
+  return { bind, clear, deleteKey, open, openConversation, refreshConversations, refreshStatus, saveKey, send, testKey };
 }
+
