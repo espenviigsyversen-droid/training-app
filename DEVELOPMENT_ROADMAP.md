@@ -975,7 +975,7 @@ Detaljert datamodell, sikkerhetsgrenser og rekkefølge ligger i `AI_CHAT_PROJECT
 - Chat er fortsatt utenfor treningsbackup/import, og sletting er definert som rekursiv backendoperasjon.
 - Aktiv historikk beholdes til eksplisitt sletting; arkivert innhold har anbefalt 365 dagers retention før senere, synlig oppryddingsmekanisme.
 
-### v156 - Synkroniserte samtaler v1 - Backend deployet, frontendtest gjenstår
+### v156 - Synkroniserte samtaler v1 - Deployet, manuell kryssenhetstest gjenstår
 
 - Lagre meldinger via autentisert backend og les dem på tvers av PC/mobil.
 - Opprett, fortsett, gi navn til, arkiver og slett samtaler.
@@ -1067,7 +1067,7 @@ Hvis svaret er ja på flere av disse, bør ideen prioriteres.
 
 ### Neste 3 runder
 
-1. v156 - Synkroniserte samtaler v1
+1. Fullfør v156 - kryssenhetssynk, gjenåpning, arkiv og sletting
 2. v157 - Prosjekter og egne instrukser
 3. v158 - Kontrollert langtidskontekst og kvalitet
 
@@ -1172,7 +1172,7 @@ Neste store verdiøkning er en bedre daglig coach.
 
 Anbefalt neste implementeringsrunde:
 
-> v156 - synkroniserte samtaler v1
+> Fullfør manuell v156-akseptansetest, deretter v157 - prosjekter og egne instrukser
 
-v154 er deployet og ende-til-ende-testet. v155 har låst Firestore-modell, validering, Rules, retention og rekursiv sletting. Reglene er flettet mot det delte Firebase-prosjektet, emulator-testet og deployet. Neste runde bygger vedvarende samtalehistorikk i v156, deretter prosjekter i v157 og kontrollert langtidskontekst/personvern i v158.
+v154 er deployet og ende-til-ende-testet. v155 har låst Firestore-modell, validering, Rules, retention og rekursiv sletting. v156-backend og frontend er deployet; synlig versjon/cache, tilkoblingsstatus og samtale-UI er smoke-testet. Kryssenhetssynk, gjenåpning, arkiv og sletting skal bekreftes manuelt før v157 bygger prosjekter og egne instrukser.
 
