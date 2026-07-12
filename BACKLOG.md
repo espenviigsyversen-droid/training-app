@@ -153,7 +153,7 @@ Prioritert backlog for videre utvikling av Treningsapp.
     - Firestore-modell, Rules, callable-kontrakter, retention, arkiv, sletting og separat eksport.
     - Emulator-/regeltester skal være på plass før vedvarende historikk aktiveres.
 
-34. **v156 - Synkroniserte samtaler v1** - Backend deployet, frontendtest gjenstår
+34. **v156 - Synkroniserte samtaler v1** - Deployet, manuell kryssenhetstest gjenstår
     - Samtaler og meldinger lagres sikkert og kan fortsettes på PC og mobil.
     - Samtaler kan opprettes, navngis, arkiveres og slettes.
     - Begrenset meldingsvindu og samtalesammendrag hindrer ukontrollert context/kostnad.
@@ -197,7 +197,7 @@ Disse punktene var del av den tidlige v142-idéen, men er bevisst flyttet ut av 
 
 ## Anbefalt neste steg
 
-Neste anbefalte punkt er **v156 - synkroniserte samtaler v1**. v154 er verifisert med ekte OpenAI-svar, og v155 har låst og deployet datamodellens sikkerhetsgrunnlag før Firestore-historikk aktiveres.
+Neste anbefalte punkt er å **fullføre manuell v156-akseptansetest** for kryssenhetssynk, gjenåpning, arkiv og sletting. Deretter starter v157 med prosjekter og egne instrukser.
 
 Begrunnelse:
 - v143b har etablert en validert parameterkilde med trygg fallback
