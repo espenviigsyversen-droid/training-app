@@ -6,6 +6,7 @@ const { resolveOpenAiKey } = require("./keys");
 const { runOpenAiCoach } = require("./openai-provider");
 const { enforceRateLimit } = require("./rate-limit");
 const { buildAiCoachSystemPrompt } = require("./system-prompt");
+const { persistConversationExchange } = require("./chat-store");
 
 const MAX_HISTORY_MESSAGES = 8;
 const MAX_USER_TEXT = 2000;
@@ -74,6 +75,19 @@ async function handleAiCoachChat(options = {}) {
   else logger?.warn?.("AI coach request failed", logData);
 
   if (!result.ok) return { ...result, requestId };
+  let persisted = null;
+  if (data?.conversationId) {
+    persisted = await persistConversationExchange(db, uid, {
+      projectId: data.projectId,
+      conversationId: data.conversationId,
+      userContent: messages[messages.length - 1].content,
+      assistantContent: result.answer,
+      requestId,
+      modelLabel: result.model,
+      usage
+    });
+    if (!persisted.ok) return { ...persisted, requestId };
+  }
   return {
     ok: true,
     answer: result.answer,
@@ -81,8 +95,11 @@ async function handleAiCoachChat(options = {}) {
     requestId,
     modelLabel: result.model,
     contextSchemaVersion: context.schemaVersion,
-    remainingToday: rate.remainingToday
+    remainingToday: rate.remainingToday,
+    conversationId: persisted?.conversationId || null,
+    persisted: Boolean(persisted?.ok)
   };
 }
 
 module.exports = { MAX_HISTORY_MESSAGES, handleAiCoachChat, normalizeMessages, safetyIdentifier };
+
