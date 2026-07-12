@@ -80,7 +80,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     import { createAiCoachClient } from './ai-coach-client.js';
     import { createAiCoachUi } from './ai-coach-ui.js';
 
-    const APP_VERSION = 'v154';
+    const APP_VERSION = 'v156';
     const APP_CACHE_NAME = `treningsapp-${APP_VERSION}`;
 
     const firebaseConfig = {
@@ -8314,3 +8314,4 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         navigator.serviceWorker.register(`./service-worker.js?v=${APP_VERSION}`).catch(() => {});
       });
     };
+
