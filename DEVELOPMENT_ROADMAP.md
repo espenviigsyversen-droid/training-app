@@ -965,7 +965,7 @@ Detaljert datamodell, sikkerhetsgrenser og rekkefølge ligger i `AI_CHAT_PROJECT
 - Verifiser mobilbredde, desktop og PWA etter navigasjonsendringen.
 - Gjennomfør praktisk ende-til-ende-test med ekte nøkkel og dagens coach-context.
 
-### v155 - Chat persistence design og sikkerhetsgrunnlag - Implementert og emulatortestet lokalt
+### v155 - Chat persistence design og sikkerhetsgrunnlag - Ferdig og Rules deployet
 
 - Lås Firestore-modell for prosjekter, samtaler og meldinger.
 - Etabler Rules-/emulatortester, normalisering og callable-kontrakter før historikk skrives.
@@ -1067,9 +1067,9 @@ Hvis svaret er ja på flere av disse, bør ideen prioriteres.
 
 ### Neste 3 runder
 
-1. Sammenlign og flett v155 Firestore Rules mot produksjonsreglene
-2. v156 - Synkroniserte samtaler v1
-3. v157 - Prosjekter og egne instrukser
+1. v156 - Synkroniserte samtaler v1
+2. v157 - Prosjekter og egne instrukser
+3. v158 - Kontrollert langtidskontekst og kvalitet
 
 ### Neste 10 runder
 
@@ -1082,7 +1082,7 @@ Hvis svaret er ja på flere av disse, bør ideen prioriteres.
 7. v147 - Fryskort design - Dokumentert
 8. v148 - Fryskort implementering - Bygget
 9. v150 - AI Coach Context og sikkerhetsdesign - Bygget lokalt
-10. v151-v155 - Backend, chat-MVP og persistence-sikkerhetsgrunnlag bygget; v155-regeldeploy avventer produksjonssammenligning
+10. v151-v155 - Backend, chat-MVP og persistence-sikkerhetsgrunnlag bygget og deployet
 
 ## Hva vi bør vente med
 
@@ -1172,7 +1172,7 @@ Neste store verdiøkning er en bedre daglig coach.
 
 Anbefalt neste implementeringsrunde:
 
-> Produksjonsport for v155-regler, deretter v156 synkroniserte samtaler
+> v156 - synkroniserte samtaler v1
 
-v154 er deployet og ende-til-ende-testet. v155 har låst Firestore-modell, validering, Rules, retention og rekursiv sletting lokalt. Før reglene deployes må de sammenlignes med produksjonsreglene i det delte Firebase-prosjektet. Deretter bygges vedvarende samtalehistorikk i v156, prosjekter i v157 og kontrollert langtidskontekst/personvern i v158.
+v154 er deployet og ende-til-ende-testet. v155 har låst Firestore-modell, validering, Rules, retention og rekursiv sletting. Reglene er flettet mot det delte Firebase-prosjektet, emulator-testet og deployet. Neste runde bygger vedvarende samtalehistorikk i v156, deretter prosjekter i v157 og kontrollert langtidskontekst/personvern i v158.
 
