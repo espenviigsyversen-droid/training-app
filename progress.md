@@ -137,13 +137,15 @@ Treningsapp/
 - **Fryskort modal mobilpatch** (v148c): Lagrede fryskort i modalen er mobiltilpasset. På små skjermer vises hvert fryskort som én kolonne med årsak/dato/status og notat øverst, og Arkiver/Slett som kompakte knapper nederst. Tekst og lange notater brytes innenfor kortet, og knappene presser ikke lenger innholdet sammen.
 - **Coach Decision Engine v1** (v149): Ny ren `coachDecisionEngine()` i `domain-coach.js` samler flere samtidige coach-signaler i én strukturert pakke med `primarySignal`, sekundærsignaler, `blockedActions`, `allowedActions` og `guardrails`. Hovedsignal velges etter eksplisitt prioritet: skadesignal, dagsform, comeback/volum-ramp, intensitetsbalanse, morgendagens kvalitet og normal plan. Hjem-wrapperen bruker pakken uten stor UI-endring. Planlagt kvalitet i morgen kan nå gi mykt råd om lett dag i dag, og kontrollert kvalitetsøkt uten smerteøkning gir grønnere post-workout-feedback.
 - **AI Coach Context v1** (v150, implementert lokalt): `buildAiCoachContext()` i `domain-coach.js` bygger en versjonert, whitelistet og størrelsesbegrenset pakke fra den samme `coachDecisionEngine()` som appen bruker. Context inkluderer relevante 7/14/28-dagerssummer, dagsform, plan, mål, kontinuitet og høydepunkter, men utelater uid, e-post, secrets, rå Firestore-metadata, fritekstnotater og komplett historikk.
-- **Sikker AI-backend og nøkkeladministrasjon** (v151, implementert lokalt - ikke deployet): Ny `functions/`-backend bruker Firebase Callable Functions med Auth, server-side OpenAI-nøkkel, maskert status, kontekstvalidering, rate limit, timeout og sanitert metadata-logging. Nøkkelen skrives inn i Setup, men returneres aldri til frontend og lagres ikke i appens localStorage eller repo.
-- **Read-only AI-coach chat** (v152, implementert lokalt - ikke ende-til-ende-testet): Ny sekundær chatflate åpnes fra Hjem/Grunnlag. Den bruker serverbygget systeminstruks og coach-context, har ingen web-søk, tools, dataskriving eller automatisk planendring, og meldinger beholdes kun i minnet.
-- **Chat-polish, personvern og brukskontroll** (v153, implementert lokalt - deploytest gjenstår): Chatten viser tilkoblingsstatus, datagrunnlag, session-forbruk, forslag, tydelige feiltilstander og eksplisitt samtykke. OpenAI-kallet er stateless (`store: false`), bruker ingen tools og sender en pseudonym sikkerhetsidentifikator.
+- **Sikker AI-backend og nøkkeladministrasjon** (v151, deployet): Ny `functions/`-backend bruker Firebase Callable Functions med Auth, server-side OpenAI-nøkkel, maskert status, kontekstvalidering, rate limit, timeout og sanitert metadata-logging. Nøkkelen skrives inn i Setup, men returneres aldri til frontend og lagres ikke i appens localStorage eller repo.
+- **Read-only AI-coach chat** (v152, ende-til-ende-verifisert gjennom v154): Chatflaten bruker serverbygget systeminstruks og coach-context, har ingen web-søk, tools, dataskriving eller automatisk planendring. Før v156 beholdes meldinger kun i minnet.
+- **Chat-polish, personvern og brukskontroll** (v153, deployverifisert gjennom v154): Chatten viser tilkoblingsstatus, datagrunnlag, session-forbruk, forslag, tydelige feiltilstander og eksplisitt samtykke. OpenAI-kallet er stateless (`store: false`), bruker ingen tools og sender en pseudonym sikkerhetsidentifikator.
 - **AI-chat videre produktspor** (v154-v158, planlagt): `AI_CHAT_PROJECTS_DESIGN.md` dokumenterer neste runder. v154 gir tydelig dynamisk `Tilkoblet`-status og egen Chat-fane etter Mål. v155 låser Firestore-modell, Rules, retention og rekursiv sletting. v156 bygger synkroniserte samtaler på PC/mobil. v157 legger til prosjekter med egne instrukser. v158 innfører kontrollert samtalesammendrag, eventuelt eksplisitt minne, personvern og kostnadskontroll. Prosjektinstrukser kan aldri overstyre coachens guardrails.
 - **AI-status og egen Chat-fane** (v154, implementert lokalt): Chat er nå sjette hoveddestinasjon etter Mål og har fortsatt fritekstfelt, forslag og read-only adferd. Setup skiller nøytral `Server-side`-merking fra en dynamisk status-tag med `Tilkoblet`, `Ikke tilkoblet`, `Nøkkel avvist` eller `Utilgjengelig`. Lagring og eksplisitt tilkoblingstest persisterer siste status i det maskerte serverdokumentet, uten å eksponere nøkkelen. Seks-fane-layouten har egne mobilregler. Automatisk test er bestått; manuell innlogget mobil/PWA-test gjenstår etter deploy.
+- **v154 ende-til-ende godkjent** (12. juli 2026): Setup viser `Tilkoblet`, alle seks faner fungerer, og Chat har svart på et ekte fritekstspørsmål med data fra appens coach-context. Punktvis Markdown-stil i svarene er notert som senere svar-/render-polish.
+- **Chat persistence sikkerhetsgrunnlag** (v155, implementert og emulator-testet lokalt): Ny ren `functions/ai/chat-persistence.js` låser schema v1, ID-/feltvalidering, backend-only sletting, separat backup-policy og begrenset modellvindu. Ny `firestore.rules` bevarer eierens treningsdata, nekter klienttilgang til AI-nøkler/usage og gjør chat skrivebeskyttet fra frontend. Offisiell Firestore Rules-emulator bekrefter eierisolasjon og backend-grenser. Produksjonsdeploy av regler avventer sammenligning med eksisterende regler i det delte Firebase-prosjektet.
 - **Kryptert OpenAI-nøkkellagring** (v154 backend-sikkerhet): Før AI-deploy er nøkkellagringen oppgradert til AES-256-GCM. Firestore lagrer bare `openaiEncrypted` med ciphertext, IV, autentiseringstag, algoritme og versjon. Krypteringshemmeligheten bindes fra Firebase Secret Manager og finnes ikke i repo eller frontend. Eventuell eldre klartekst migreres ved første serverlesing. Backendtester dekker round-trip, feil hemmelighet, fravær av klartekst og statusflyt.
-- **AI backend deployet** (12. juli 2026): Blaze er aktivert for `home-tasks-app-18de3`. `AI_KEY_ENCRYPTION_SECRET` er opprettet i Firebase Secret Manager, og `aiCoachStatus`, `aiCoachSaveOpenAiKey`, `aiCoachTestOpenAiKey`, `aiCoachDeleteOpenAiKey` og `aiCoachChat` er deployet som Node 22 2nd Gen callable-funksjoner i `europe-west1`. Artifact Registry har 7-dagers oppryddingspolicy. Ekte OpenAI-test fra innlogget app gjenstår.
+- **AI backend deployet** (12. juli 2026): Blaze er aktivert for `home-tasks-app-18de3`. `AI_KEY_ENCRYPTION_SECRET` er opprettet i Firebase Secret Manager, og `aiCoachStatus`, `aiCoachSaveOpenAiKey`, `aiCoachTestOpenAiKey`, `aiCoachDeleteOpenAiKey` og `aiCoachChat` er deployet som Node 22 2nd Gen callable-funksjoner i `europe-west1`. Artifact Registry har 7-dagers oppryddingspolicy. Ekte OpenAI-test fra innlogget app er bestått.
 - **Arkitekturkontekst indeksert** (dokumentasjon): `AGENTS.md` peker nå eksplisitt på `ARKITEKT_CONTEXT.md` som veiledende beslutningsramme når Codex arbeider som både utvikler og arkitekt. Den overstyrer ikke prosjektregler eller nyere brukerbeslutninger.
 - **Fjernet «Foreslå neste økt»** (v92): Kortet er fjernet fra Kalender-fanen. Ukeplanen dekker samme behov bedre og er rollebevisst. `renderWorkoutSuggestion`-kallet er fjernet fra render-løkken for å unngå krasj.
 - **Coach: smertegradering + priority-felt + X-økt** (v91): Tre coach-forbedringer: (1) `bodySignalState` skiller nå mellom mild smerte (1–2/10 → `cooling`, foreslår terskel etter en rolig økt) og bekymringsfull smerte (3+/10 → `caution`, kun recovery). Løser at mild smerte blokkerte terskelforslag for hele neste uke. (2) `priority`-feltet i treningsprofilen er nå aktivt: `performance` foreslår terskel straks det er rom, `injury_free_progression` krever 2 rolige øyer før terskel. (3) X-økt vises alltid som 4. forslag i normaluke når det er rom — sikrer at VO2max/teknikk/styrke alltid er synlig som alternativ.
@@ -171,7 +173,7 @@ Treningsapp/
 | **3. Coach-note** | Kjører ekte logikk via `buildCoachContext` + `buildCoachNote` | Bygget (v75) |
 | **4. Innsikt = mønstre** | «Bakken-mønstre»-kort i Innsikt med 4 mønstre siste 30 dager | Bygget (v81) |
 | **5. Interval-struktur** | Valgfri strukturert info for oppvarming, én intervallblokk, arbeid/hvile og nedjogg på øktmaler. Coach-grunnlaget forstår nå strukturert intervallarbeid. | Bygget (v102–v104) |
-| **6. AI-integrasjon** | Read-only OpenAI-chat, sikker backend og dynamisk status er bygget lokalt; deploy og ekte ende-til-ende-test gjenstår | Pågår |
+| **6. AI-integrasjon** | Read-only OpenAI-chat, sikker backend og dynamisk status er deployet og ende-til-ende-testet. Vedvarende historikk er neste spor. | Pågår |
 | **7. Gradert smerte** | Smerte vurderes nå etter alvorlighetsgrad med forfallslogikk | Bygget (v76) |
 | **8. Strukturert lokasjon** | Fritekst erstattet med kroppsdel+side-dropdown, lagres strukturert | Bygget (v77) |
 
@@ -179,12 +181,12 @@ Treningsapp/
 
 ## Neste steg (prioritert)
 
-1. **Deploy og smoke-test v154**
-   - Last opp frontend, deploy oppdaterte nøkkel/status-funksjoner og kontroller `Tilkoblet`, Chat-fanen og et ekte fritekstsvar på PC/mobil/PWA.
-2. **v155 - Firestore-design og sikkerhetsgrunnlag for historikk**
-   - Lås datamodell, Rules, callable-kontrakter, retention, arkiv og rekursiv sletting før meldinger lagres.
-3. **v156/v157 - Synkroniserte samtaler og prosjekter**
-   - Bygg samtalehistorikk på tvers av enheter først, deretter prosjekter med egne instrukser.
+1. **Produksjonsport for v155-regler**
+   - Sammenlign `firestore.rules` med gjeldende produksjonsregler og flett uten å blokkere andre collections i Firebase-prosjektet.
+2. **v156 - Synkroniserte samtaler v1**
+   - Bygg backend-eid lagring, listing, arkiv og rekursiv sletting i standardprosjektet.
+3. **v157 - Prosjekter og egne instrukser**
+   - Utvid med flere prosjekter først etter at enhetssynk og sletting er praktisk verifisert.
 
 Kontrollert langtidskontekst, personvern og kostnadspolish følger i v158.
 
@@ -196,3 +198,4 @@ Kontrollert langtidskontekst, personvern og kostnadspolish følger i v158.
 - Lokal kopi — ikke et Git-repo. Filer lastes opp manuelt til GitHub Pages.
 - Filer som typisk endres per økt: `app.js`, `index.html`, `styles.css`, `service-worker.js`
 - Husk alltid å bumpe `APP_VERSION` i `app.js` og `CACHE_NAME` i `service-worker.js`
+
