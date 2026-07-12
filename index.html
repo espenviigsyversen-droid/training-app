@@ -559,7 +559,7 @@
               <h2>AI-coach</h2>
               <p>Forklarer appens coach-vurdering. Endrer aldri planen eller dataene dine.</p>
             </div>
-            <button id="aiCoachClearBtn" class="btn-soft" type="button">Tøm</button>
+            <button id="aiCoachNewConversationBtn" class="btn-soft" type="button">Ny samtale</button>
           </div>
           <div class="ai-coach-trust-row">
             <span id="aiCoachConnectionStatus" class="ai-coach-status offline">OpenAI ikke konfigurert</span>
@@ -570,6 +570,19 @@
             <p>Legg inn API-nøkkelen under Setup. Nøkkelen lagres bare på Firebase-backend og kan ikke leses tilbake av appen.</p>
             <button id="aiCoachOpenSettingsBtn" class="btn-primary" type="button">Åpne API-integrasjoner</button>
           </div>
+          <div class="ai-conversation-toolbar">
+            <div>
+              <label for="aiCoachConversationSelect">Samtale</label>
+              <select id="aiCoachConversationSelect" aria-label="Velg samtale">
+                <option value="">Ny samtale</option>
+              </select>
+            </div>
+            <div class="ai-conversation-actions">
+              <button id="aiCoachArchiveConversationBtn" class="btn-soft" type="button" disabled>Arkiver</button>
+              <button id="aiCoachDeleteConversationBtn" class="btn-soft danger-text" type="button" disabled>Slett</button>
+            </div>
+          </div>
+          <p id="aiCoachConversationFeedback" class="small-note ai-conversation-feedback"></p>
           <div id="aiCoachSuggestions" class="ai-coach-suggestions"></div>
           <div id="aiCoachMessages" class="ai-coach-messages" aria-live="polite"></div>
           <p id="aiCoachError" class="ai-coach-error" role="alert"></p>
@@ -577,7 +590,7 @@
             <summary>Grunnlag brukt</summary>
             <p id="aiCoachContextUsed" class="small-note">Ingen context er sendt ennå.</p>
             <p id="aiCoachUsage" class="small-note">Ingen AI-kall i denne appøkten.</p>
-            <p class="small-note">Chatten lagres ikke i Firestore. API-nøkkel, UID, e-post, backup og komplett historikk sendes ikke til modellen.</p>
+            <p class="small-note">Samtalen lagres under din innloggede Firebase-bruker og kan åpnes på andre enheter. API-nøkkel, e-post, backup og komplett historikk sendes ikke til modellen.</p>
           </details>
           <div id="aiCoachComposer" class="ai-coach-composer hidden">
             <label for="aiCoachInput">Spørsmål</label>
@@ -1403,3 +1416,4 @@
   <script type="module" src="app.js"></script>
 </body>
 </html>
+
