@@ -27,7 +27,7 @@ function safetyIdentifier(uid) {
 }
 
 async function handleAiCoachChat(options = {}) {
-  const { db, uid, data, logger } = options;
+  const { db, uid, data, logger, encryptionSecret } = options;
   const requestId = crypto.randomUUID();
   const context = data?.context;
   const validation = validateAiCoachContext(context);
@@ -40,7 +40,7 @@ async function handleAiCoachChat(options = {}) {
     return { ok: false, code: "REQUEST_INVALID", message: "Siste melding må være et spørsmål fra brukeren.", requestId };
   }
 
-  const apiKey = await resolveOpenAiKey(db, uid);
+  const apiKey = await resolveOpenAiKey(db, uid, encryptionSecret);
   if (!apiKey) return { ok: false, code: "AI_NOT_CONFIGURED", message: "Legg inn OpenAI-nøkkelen under Setup først.", requestId };
 
   const rate = await enforceRateLimit(db, uid);

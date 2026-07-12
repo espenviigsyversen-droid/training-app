@@ -3,9 +3,18 @@
 const assert = require("assert");
 const { handleAiCoachChat, normalizeMessages, safetyIdentifier } = require("../ai/ai-chat");
 const { validateAiCoachContext } = require("../ai/context-schema");
-const { maskKey, testOpenAiKey, validateOpenAiKey } = require("../ai/keys");
+const {
+  decryptOpenAiKey,
+  encryptOpenAiKey,
+  maskKey,
+  saveOpenAiKey,
+  testOpenAiKey,
+  validateOpenAiKey
+} = require("../ai/keys");
 const { extractOutputText, runOpenAiCoach } = require("../ai/openai-provider");
 const { buildAiCoachSystemPrompt } = require("../ai/system-prompt");
+
+const TEST_ENCRYPTION_SECRET = "test-encryption-secret-that-is-longer-than-thirty-two-characters";
 
 function test(name, fn) {
   return Promise.resolve()
@@ -64,6 +73,14 @@ function fakeDb(initial = {}) {
   });
   return {
     doc: ref,
+    batch: () => {
+      const operations = [];
+      return {
+        set: (document, value, options = {}) => operations.push(() => store.set(document.path, options.merge ? { ...(store.get(document.path) || {}), ...value } : value)),
+        delete: document => operations.push(() => store.delete(document.path)),
+        commit: async () => operations.forEach(operation => operation())
+      };
+    },
     runTransaction: async callback => callback({
       get: async document => ({ exists: store.has(document.path), data: () => store.get(document.path) }),
       set: (document, value, options = {}) => store.set(document.path, options.merge ? { ...(store.get(document.path) || {}), ...value } : value)
@@ -98,17 +115,45 @@ function fakeDb(initial = {}) {
     assert.strictEqual(rejected.code, "INVALID_API_KEY");
   });
 
+  await test("OpenAI key encryption round-trips and rejects the wrong secret", () => {
+    const plaintext = "sk-test-1234567890";
+    const encrypted = encryptOpenAiKey(plaintext, TEST_ENCRYPTION_SECRET);
+    assert.strictEqual(encrypted.version, 1);
+    assert.strictEqual(encrypted.algorithm, "aes-256-gcm");
+    assert.ok(!JSON.stringify(encrypted).includes(plaintext));
+    assert.strictEqual(decryptOpenAiKey(encrypted, TEST_ENCRYPTION_SECRET), plaintext);
+    assert.throws(() => decryptOpenAiKey(encrypted, TEST_ENCRYPTION_SECRET + "-wrong"), /could not be decrypted/);
+  });
+
+  await test("saving an OpenAI key stores ciphertext instead of plaintext", async () => {
+    const db = fakeDb();
+    const saved = await saveOpenAiKey(
+      db,
+      "user-1",
+      "sk-test-1234567890",
+      TEST_ENCRYPTION_SECRET,
+      async () => response({ data: [] })
+    );
+    assert.strictEqual(saved.ok, true);
+    const stored = db._store.get("apiKeys/user-1");
+    assert.ok(stored.openaiEncrypted);
+    assert.strictEqual(stored.openai, null);
+    assert.ok(!JSON.stringify(stored).includes("sk-test-1234567890"));
+  });
+
   await test("OpenAI connection test persists connected and invalid status", async () => {
     const db = fakeDb({
       "apiKeys/user-1": { openai: "sk-test-1234567890" },
       "users/user-1/settings/openai": { configured: true, maskedKey: "sk-t…7890", status: "connected" }
     });
-    const connected = await testOpenAiKey(db, "user-1", async () => response({ data: [] }));
+    const connected = await testOpenAiKey(db, "user-1", TEST_ENCRYPTION_SECRET, async () => response({ data: [] }));
     assert.strictEqual(connected.ok, true);
+    assert.strictEqual(db._store.get("apiKeys/user-1").openai, null);
+    assert.ok(db._store.get("apiKeys/user-1").openaiEncrypted);
     assert.strictEqual(db._store.get("users/user-1/settings/openai").status, "connected");
     assert.ok(db._store.get("users/user-1/settings/openai").lastTestedAt instanceof Date);
 
-    const invalid = await testOpenAiKey(db, "user-1", async () => response({ error: {} }, 401));
+    const invalid = await testOpenAiKey(db, "user-1", TEST_ENCRYPTION_SECRET, async () => response({ error: {} }, 401));
     assert.strictEqual(invalid.ok, false);
     assert.strictEqual(invalid.status, "invalid");
     assert.strictEqual(db._store.get("users/user-1/settings/openai").status, "invalid");
@@ -157,13 +202,14 @@ function fakeDb(initial = {}) {
   });
 
   await test("chat handler validates, rate-limits and returns sanitized usage", async () => {
-    const db = fakeDb({ "apiKeys/user-1": { openai: "sk-test" } });
+    const db = fakeDb({ "apiKeys/user-1": { openaiEncrypted: encryptOpenAiKey("sk-test", TEST_ENCRYPTION_SECRET) } });
     const logs = [];
     const result = await handleAiCoachChat({
       db,
       uid: "user-1",
       data: { context: validContext(), messages: [{ role: "user", content: "Hvorfor hvile?" }] },
       logger: { info: (message, data) => logs.push({ message, data }), warn: () => {} },
+      encryptionSecret: TEST_ENCRYPTION_SECRET,
       fetchImpl: async () => response({ id: "resp_2", output_text: "Fordi dagsformen er rød.", usage: { input_tokens: 90, output_tokens: 12, total_tokens: 102 } })
     });
     assert.strictEqual(result.ok, true);
