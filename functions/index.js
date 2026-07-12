@@ -12,6 +12,13 @@ const {
   saveOpenAiKey,
   testOpenAiKey
 } = require("./ai/keys");
+const {
+  archiveConversation,
+  createConversation,
+  deleteConversation,
+  getConversation,
+  listConversations
+} = require("./ai/chat-store");
 
 initializeApp();
 const db = getFirestore();
@@ -95,3 +102,49 @@ exports.aiCoachChat = onCall(SECRET_CALL_OPTIONS, async request => {
     return internalFailure(error, "chat");
   }
 });
+
+exports.aiChatListConversations = onCall(CALL_OPTIONS, async request => {
+  const uid = requireUid(request);
+  try {
+    return await listConversations(db, uid, request.data || {});
+  } catch (error) {
+    return internalFailure(error, "list_conversations");
+  }
+});
+
+exports.aiChatGetConversation = onCall(CALL_OPTIONS, async request => {
+  const uid = requireUid(request);
+  try {
+    return await getConversation(db, uid, request.data || {});
+  } catch (error) {
+    return internalFailure(error, "get_conversation");
+  }
+});
+
+exports.aiChatCreateConversation = onCall(CALL_OPTIONS, async request => {
+  const uid = requireUid(request);
+  try {
+    return await createConversation(db, uid, request.data || {});
+  } catch (error) {
+    return internalFailure(error, "create_conversation");
+  }
+});
+
+exports.aiChatArchiveConversation = onCall(CALL_OPTIONS, async request => {
+  const uid = requireUid(request);
+  try {
+    return await archiveConversation(db, uid, request.data || {});
+  } catch (error) {
+    return internalFailure(error, "archive_conversation");
+  }
+});
+
+exports.aiChatDeleteConversation = onCall(CALL_OPTIONS, async request => {
+  const uid = requireUid(request);
+  try {
+    return await deleteConversation(db, uid, request.data || {});
+  } catch (error) {
+    return internalFailure(error, "delete_conversation");
+  }
+});
+
