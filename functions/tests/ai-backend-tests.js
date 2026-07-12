@@ -9,6 +9,14 @@ const {
   validateConversationRequest,
   validateDeleteRequest
 } = require("../ai/chat-persistence");
+const {
+  archiveConversation,
+  createConversation,
+  deleteConversation,
+  getConversation,
+  listConversations,
+  persistConversationExchange
+} = require("../ai/chat-store");
 const { validateAiCoachContext } = require("../ai/context-schema");
 const {
   decryptOpenAiKey,
@@ -92,6 +100,52 @@ function fakeDb(initial = {}) {
       get: async document => ({ exists: store.has(document.path), data: () => store.get(document.path) }),
       set: (document, value, options = {}) => store.set(document.path, options.merge ? { ...(store.get(document.path) || {}), ...value } : value)
     }),
+    _store: store
+  };
+}
+
+function fakeChatDb() {
+  const store = new Map();
+  let nextId = 1;
+  const snapshot = (path, value) => ({
+    id: path.split("/").pop(),
+    exists: value !== undefined,
+    data: () => value
+  });
+  const collection = path => {
+    const query = {
+      path,
+      doc: id => document(path + "/" + (id || "generated-" + nextId++)),
+      orderBy: () => query,
+      limit: () => query,
+      get: async () => ({
+        docs: [...store.entries()]
+          .filter(([key]) => key.startsWith(path + "/") && key.slice(path.length + 1).split("/").length === 1)
+          .map(([key, value]) => snapshot(key, value))
+          .sort((a, b) => Number(b.data()?.updatedAt || 0) - Number(a.data()?.updatedAt || 0))
+      })
+    };
+    return query;
+  };
+  const document = path => ({
+    path,
+    id: path.split("/").pop(),
+    get: async () => snapshot(path, store.get(path)),
+    set: async (value, options = {}) => store.set(path, options.merge ? { ...(store.get(path) || {}), ...value } : value),
+    collection: name => collection(path + "/" + name)
+  });
+  return {
+    doc: document,
+    batch: () => {
+      const operations = [];
+      return {
+        set: (ref, value, options = {}) => operations.push(() => store.set(ref.path, options.merge ? { ...(store.get(ref.path) || {}), ...value } : value)),
+        commit: async () => operations.forEach(operation => operation())
+      };
+    },
+    recursiveDelete: async ref => {
+      [...store.keys()].filter(key => key === ref.path || key.startsWith(ref.path + "/")).forEach(key => store.delete(key));
+    },
     _store: store
   };
 }
@@ -255,6 +309,38 @@ function fakeDb(initial = {}) {
     assert.strictEqual(policy.deleteMode, "recursive-backend-only");
     assert.strictEqual(policy.modelContext.fullHistory, false);
     assert.ok(policy.modelContext.recentMessages <= 12);
+  });
+
+  await test("v156 chat store creates, resumes, archives and recursively deletes a conversation", async () => {
+    const db = fakeChatDb();
+    const created = await createConversation(db, "user-1", { title: "Dagens økt" });
+    assert.strictEqual(created.ok, true);
+    assert.ok(created.conversation.id);
+
+    const persisted = await persistConversationExchange(db, "user-1", {
+      conversationId: created.conversation.id,
+      userContent: "Hva bør jeg gjøre?",
+      assistantContent: "Velg rolig trening.",
+      requestId: "request-1",
+      modelLabel: "test-model",
+      usage: { inputTokens: 10, outputTokens: 5, totalTokens: 15 }
+    });
+    assert.strictEqual(persisted.messageCount, 2);
+
+    const loaded = await getConversation(db, "user-1", { conversationId: created.conversation.id });
+    assert.deepStrictEqual(loaded.messages.map(message => message.role), ["user", "assistant"]);
+    assert.strictEqual(loaded.messages[1].content, "Velg rolig trening.");
+
+    const listed = await listConversations(db, "user-1");
+    assert.strictEqual(listed.conversations.length, 1);
+    assert.strictEqual(listed.conversations[0].messageCount, 2);
+
+    const archived = await archiveConversation(db, "user-1", { conversationId: created.conversation.id, archived: true });
+    assert.strictEqual(archived.status, "archived");
+
+    const removed = await deleteConversation(db, "user-1", { conversationId: created.conversation.id, confirmed: true });
+    assert.strictEqual(removed.ok, true);
+    assert.strictEqual((await listConversations(db, "user-1")).conversations.length, 0);
   });
 })();
 
