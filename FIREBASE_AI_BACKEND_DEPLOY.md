@@ -2,7 +2,7 @@
 
 ## Status
 
-v151-v154-koden er klargjort lokalt. Brukeren har rapportert at nøkkel kan lagres og testes i den deployede appen, men oppdatert v154-statuspersistens må fortsatt deployes og smoke-testes.
+v151-v154-koden er klargjort og de fem AI-funksjonene er deployet 12. juli 2026. `AI_KEY_ENCRYPTION_SECRET` finnes i Firebase Secret Manager, funksjonene kjører som Node 22 2nd Gen i `europe-west1`, og Artifact Registry sletter automatisk containerbilder eldre enn 7 dager. Ekte OpenAI-test fra en innlogget app gjenstår.
 
 GitHub Pages kan beholdes. Frontend bruker Firebase Callable Functions i region `europe-west1`, slik at Firebase Auth-token og CORS håndteres av Firebase SDK.
 
@@ -13,17 +13,19 @@ Ikke ta nøkkellagringen i bruk før eksisterende Firestore Rules for Firebase-p
 Backend lagrer:
 
 ```text
-apiKeys/{uid}.openai
+apiKeys/{uid}.openaiEncrypted
 aiUsage/{uid}
 users/{uid}/settings/openai
 ```
 
 Krav:
 
-- `apiKeys/{uid}` skal ikke kunne leses eller skrives av frontend.
+- `apiKeys/{uid}` skal ikke kunne leses eller skrives av frontend. OpenAI-nøkkelen lagres som AES-256-GCM-ciphertext, ikke klartekst.
 - `aiUsage/{uid}` skal ikke kunne leses eller skrives av frontend.
 - `users/{uid}/settings/openai` kan eventuelt være lesbar for eieren, men skal bare inneholde maskert status og aldri klartekstnøkkelen.
 - Cloud Functions bruker Admin SDK og trenger ingen frontend-tillatelse i Rules.
+- Krypteringshemmeligheten `AI_KEY_ENCRYPTION_SECRET` ligger i Firebase Secret Manager og bindes bare til funksjonene som lagrer, tester eller bruker OpenAI-nøkkelen.
+- Eventuell eldre `openai`-klartekst migreres til `openaiEncrypted` ved første serverlesing og klartekstfeltet overskrives med `null`.
 
 En eksplisitt `allow false` er ikke nok dersom en bredere wildcard-regel samtidig gir tilgang, fordi Firestore-tillatelser evalueres som OR. Kontroller derfor hele den eksisterende regelfilen.
 
@@ -60,12 +62,13 @@ Ikke kjør deploy før Firestore Rules-porten over er godkjent.
 1. Kontroller og test eksisterende Firestore Rules.
 2. Installer Functions-avhengigheter.
 3. Kjør backendtestene.
-4. Deploy nøkkel/statusfunksjonene først.
-5. Test lagre, maskert status, test og slett nøkkel.
-6. Verifiser at frontend ikke kan lese `apiKeys/{uid}` eller `aiUsage/{uid}`.
-7. Deploy `aiCoachChat`.
-8. Last opp frontendfilene til GitHub Pages.
-9. Test v154 på mobil/PWA og desktop, inkludert dynamisk `Tilkoblet`-tag og Chat som sjette fane.
+4. Opprett `AI_KEY_ENCRYPTION_SECRET` i Firebase Secret Manager.
+5. Deploy nøkkel/statusfunksjonene først.
+6. Test lagre, maskert status, test og slett nøkkel.
+7. Verifiser at frontend ikke kan lese `apiKeys/{uid}` eller `aiUsage/{uid}`.
+8. Deploy `aiCoachChat`.
+9. Last opp frontendfilene til GitHub Pages.
+10. Test v154 på mobil/PWA og desktop, inkludert dynamisk `Tilkoblet`-tag og Chat som sjette fane.
 
 Foreslått Functions-deploy:
 
@@ -100,6 +103,8 @@ Før bredere bruk bør Firebase App Check designes og aktiveres i en egen sikker
 - `Server-side` er nøytral sikkerhetsmerking; grønn `Tilkoblet` vises bare når serverstatus er `connected`.
 - En mislykket eksplisitt tilkoblingstest oppdaterer status til `invalid` eller `unavailable` uten å returnere nøkkelen.
 - Klartekst finnes ikke i `users/{uid}/settings/openai`.
+- Klartekst finnes ikke i `apiKeys/{uid}`; bare versjonert AES-GCM-payload lagres.
+- Dekryptering med feil Secret Manager-hemmelighet skal feile lukket.
 - Frontendlesing av `apiKeys/{uid}` avvises.
 - Backup og lokal snapshot inneholder ikke nøkkel eller chat.
 - Backendlogger inneholder ikke spørsmål, context eller API-nøkkel.
@@ -109,9 +114,9 @@ Før bredere bruk bør Firebase App Check designes og aktiveres i en egen sikker
 
 ## Ikke utført i lokal runde
 
-- `npm install`
+- `npm install` er gjennomført lokalt; `package-lock.json` er opprettet.
 - Firebase emulator
-- deploy
+- Secret Manager-opprettelse og Functions-deploy ble fullført 12. juli 2026 etter Blaze-oppgradering. Den lokale tempfilen ble slettet straks hemmeligheten var opprettet. Alle fem callable-funksjoner er verifisert med `firebase functions:list`.
 - kontroll av produksjonsregler
 - ekte OpenAI-kall
 - kontroll av faktiske kostnader

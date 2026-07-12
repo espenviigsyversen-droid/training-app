@@ -346,6 +346,14 @@ Kontroller:
 - Fryskort skal ikke overstyre skadesignal, dagsform, volum-ramp eller comeback-protokoll.
 - Datamodell og implementering skal følge `STREAK_FREEZE_DESIGN.md`.
 
+### 6.11 Vedvarende AI-chat krever eksplisitt minnearkitektur
+
+- AI-prosjektinstruksjoner er brukerpreferanser og skal aldri overstyre serverstyrt systeminstruks, coachens `blockedActions` eller øvrige guardrails.
+- Vedvarende AI-historikk skal ha eksplisitt Firestore-modell, eierregler, retention og rekursiv sletting før implementering.
+- Hele samtalehistorikken skal ikke sendes til modellen ved hvert spørsmål. Bruk kontrollert sammendrag og et begrenset nylig meldingsvindu.
+- Langtidsminne på tvers av samtaler skal være eksplisitt, synlig og slettbart for brukeren.
+- Følg `AI_CHAT_PROJECTS_DESIGN.md` for v154-v158.
+
 ---
 
 ## 7. UI/UX-prinsipper
@@ -828,6 +836,7 @@ Krav:
 - AI skal bruke `coachDecisionEngine()` som autoritativ sikkerhetsprioritet
 - `primarySignal`, `blockedActions` og `guardrails` skal ikke overstyres
 - følg `AI_COACH_DESIGN.md` for context, nøkkelhåndtering, backend og v150-v153
+- følg `AI_CHAT_PROJECTS_DESIGN.md` for navigasjon, historikk, prosjekter, prosjektinstrukser og langtidskontekst i v154-v158
 
 Første AI-MVP bør normalt være:
 

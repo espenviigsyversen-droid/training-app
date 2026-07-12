@@ -1,6 +1,6 @@
 # AI Coach - design, context og sikkerhet
 
-**Status:** v150-v153 implementert lokalt; Firebase installasjon, Rules-kontroll, deploy og ekte OpenAI-test gjenstår.  
+**Status:** v150-v154 implementert; sikker Firebase-backend og Secret Manager ble deployet 12. juli 2026. Rules-kontroll og ekte OpenAI-test fra innlogget app gjenstår.
 **Designrunde:** v150.  
 **Runtime:** Frontend, context, Functions-kode og tester er bygget. Se `FIREBASE_AI_BACKEND_DEPLOY.md` før deploy.  
 **Hovedprinsipp:** AI skal forklare og utdype appens regelstyrte coach. AI skal ikke bli en parallell coach som tolker rådata fritt.
@@ -110,7 +110,12 @@ Foreslått Firestore-mønster:
 
 ```text
 apiKeys/{uid}
-  openai: <secret>
+  openaiEncrypted:
+    version: 1
+    algorithm: "aes-256-gcm"
+    iv: <base64>
+    authTag: <base64>
+    ciphertext: <base64>
 
 users/{uid}/settings/openai
   configured: true
@@ -119,7 +124,7 @@ users/{uid}/settings/openai
   updatedAt: <server timestamp>
 ```
 
-`apiKeys/{uid}` skal ha deny-all for frontend i Firestore Rules. Bare Admin SDK i autentiserte backendfunksjoner skal lese eller skrive dokumentet. Statusdokumentet skal aldri inneholde hemmeligheten.
+`apiKeys/{uid}` skal ha deny-all for frontend i Firestore Rules. Bare Admin SDK i autentiserte backendfunksjoner skal lese eller skrive dokumentet. OpenAI-nøkkelen lagres som en versjonert AES-256-GCM-payload i `openaiEncrypted`; krypteringshemmeligheten ligger i Firebase Secret Manager. Statusdokumentet skal aldri inneholde hemmeligheten.
 
 Sterkere kryptering med Cloud KMS kan vurderes senere. Det er ikke nødvendig for første single-user MVP dersom server-only collection, strenge regler, auth og begrensede funksjoner er korrekt implementert.
 

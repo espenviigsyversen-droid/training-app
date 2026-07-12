@@ -73,6 +73,8 @@ Ved release med AI-coach:
 - bekreft at frontend ikke kan lese/skrive `apiKeys/{uid}` eller `aiUsage/{uid}`
 - deploy og test nøkkel/status-funksjonene før chatfunksjonen
 - bekreft at nøkkelen kun vises maskert og kan slettes
+- bekreft at `apiKeys/{uid}` bare inneholder `openaiEncrypted`, aldri klartekstnøkkelen
+- bekreft at `AI_KEY_ENCRYPTION_SECRET` er bundet via Firebase Secret Manager og ikke finnes i repo/config
 - bekreft at `Server-side` er nøytral og at grønn `Tilkoblet` styres av backendstatus
 - test Auth-feil, manglende nøkkel, rate limit, timeout og normal chat
 - test at Chat ligger etter Mål og at alle seks bunnfaner er lesbare på liten mobil

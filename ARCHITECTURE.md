@@ -115,6 +115,7 @@ Inneholder ren konkurranse- og mål-logikk uten DOM, Firebase eller direkte `sta
 - `ai-coach-client.js` kaller autentiserte Firebase Callable Functions, men kjenner aldri den lagrede OpenAI-nøkkelen.
 - `ai-coach-ui.js` eier read-only chatflyt, feiltilstander og session-forbruk. Meldingshistorikk lagres ikke vedvarende.
 - `functions/` validerer Auth og context, håndterer server-side nøkkel, rate limit og OpenAI-kall. Systeminstruks, modell og sikkerhetspolicy eies av serveren.
+- OpenAI-nøkler krypteres med AES-256-GCM før Firestore-lagring. Krypteringshemmeligheten leveres fra Firebase Secret Manager bare til relevante Functions; klienten ser kun maskert status.
 
 Dataflyten er `app state -> buildAiCoachContext() -> callable backend -> OpenAI Responses API -> read-only svar`. AI-en forklarer appens strukturerte coach-beslutning og får ikke tools eller skriveadgang til treningsdata.
 

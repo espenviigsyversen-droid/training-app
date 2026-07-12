@@ -64,6 +64,7 @@ node functions\tests\ai-backend-tests.js
 - `progress.md` - historikk og utviklingsnotater
 - `INTERVALS_DESIGN.md` - designnotat for strukturert intervallstøtte
 - `AI_COACH_DESIGN.md` - sikkerhets-, context-, backend- og MVP-design for AI-coach
+- `AI_CHAT_PROJECTS_DESIGN.md` - datamodell, sikkerhet og roadmap for chat-historikk, prosjekter og egne instrukser
 - `FIREBASE_AI_BACKEND_DEPLOY.md` - obligatorisk sikkerhets- og deployport for AI-backend
 - `ARKITEKT_CONTEXT.md` - veiledende produkt- og arkitekturkontekst
 - `tests/stability-tests.js` - lokal stabilitetstest
