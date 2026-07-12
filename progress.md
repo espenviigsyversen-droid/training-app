@@ -143,7 +143,7 @@ Treningsapp/
 - **AI-chat videre produktspor** (v154-v158, planlagt): `AI_CHAT_PROJECTS_DESIGN.md` dokumenterer neste runder. v154 gir tydelig dynamisk `Tilkoblet`-status og egen Chat-fane etter Mål. v155 låser Firestore-modell, Rules, retention og rekursiv sletting. v156 bygger synkroniserte samtaler på PC/mobil. v157 legger til prosjekter med egne instrukser. v158 innfører kontrollert samtalesammendrag, eventuelt eksplisitt minne, personvern og kostnadskontroll. Prosjektinstrukser kan aldri overstyre coachens guardrails.
 - **AI-status og egen Chat-fane** (v154, implementert lokalt): Chat er nå sjette hoveddestinasjon etter Mål og har fortsatt fritekstfelt, forslag og read-only adferd. Setup skiller nøytral `Server-side`-merking fra en dynamisk status-tag med `Tilkoblet`, `Ikke tilkoblet`, `Nøkkel avvist` eller `Utilgjengelig`. Lagring og eksplisitt tilkoblingstest persisterer siste status i det maskerte serverdokumentet, uten å eksponere nøkkelen. Seks-fane-layouten har egne mobilregler. Automatisk test er bestått; manuell innlogget mobil/PWA-test gjenstår etter deploy.
 - **v154 ende-til-ende godkjent** (12. juli 2026): Setup viser `Tilkoblet`, alle seks faner fungerer, og Chat har svart på et ekte fritekstspørsmål med data fra appens coach-context. Punktvis Markdown-stil i svarene er notert som senere svar-/render-polish.
-- **Chat persistence sikkerhetsgrunnlag** (v155, implementert og emulator-testet lokalt): Ny ren `functions/ai/chat-persistence.js` låser schema v1, ID-/feltvalidering, backend-only sletting, separat backup-policy og begrenset modellvindu. Ny `firestore.rules` bevarer eierens treningsdata, nekter klienttilgang til AI-nøkler/usage og gjør chat skrivebeskyttet fra frontend. Offisiell Firestore Rules-emulator bekrefter eierisolasjon og backend-grenser. Produksjonsdeploy av regler avventer sammenligning med eksisterende regler i det delte Firebase-prosjektet.
+- **Chat persistence sikkerhetsgrunnlag** (v155, ferdig og deployet 12. juli 2026): Ny ren `functions/ai/chat-persistence.js` låser schema v1, ID-/feltvalidering, backend-only sletting, separat backup-policy og begrenset modellvindu. Produksjonsreglene ble lest i Firebase Console og viste at prosjektet deles med familie-/husholdningsapper og har rekursiv eiertilgang under `users/{uid}`. Chatmodellen er derfor isolert til `aiChatUsers/{uid}/projects/...`. Ny `firestore.rules` bevarer eksisterende appregler, nekter klienttilgang til AI-nøkler/usage og gjør chat skrivebeskyttet fra frontend. Emulatoren tester både isolasjonen og regresjonsvern for de delte appene. Den sammenslåtte regelfilen kompilerte og ble deployet til `home-tasks-app-18de3`.
 - **Kryptert OpenAI-nøkkellagring** (v154 backend-sikkerhet): Før AI-deploy er nøkkellagringen oppgradert til AES-256-GCM. Firestore lagrer bare `openaiEncrypted` med ciphertext, IV, autentiseringstag, algoritme og versjon. Krypteringshemmeligheten bindes fra Firebase Secret Manager og finnes ikke i repo eller frontend. Eventuell eldre klartekst migreres ved første serverlesing. Backendtester dekker round-trip, feil hemmelighet, fravær av klartekst og statusflyt.
 - **AI backend deployet** (12. juli 2026): Blaze er aktivert for `home-tasks-app-18de3`. `AI_KEY_ENCRYPTION_SECRET` er opprettet i Firebase Secret Manager, og `aiCoachStatus`, `aiCoachSaveOpenAiKey`, `aiCoachTestOpenAiKey`, `aiCoachDeleteOpenAiKey` og `aiCoachChat` er deployet som Node 22 2nd Gen callable-funksjoner i `europe-west1`. Artifact Registry har 7-dagers oppryddingspolicy. Ekte OpenAI-test fra innlogget app er bestått.
 - **Arkitekturkontekst indeksert** (dokumentasjon): `AGENTS.md` peker nå eksplisitt på `ARKITEKT_CONTEXT.md` som veiledende beslutningsramme når Codex arbeider som både utvikler og arkitekt. Den overstyrer ikke prosjektregler eller nyere brukerbeslutninger.
@@ -181,12 +181,12 @@ Treningsapp/
 
 ## Neste steg (prioritert)
 
-1. **Produksjonsport for v155-regler**
-   - Sammenlign `firestore.rules` med gjeldende produksjonsregler og flett uten å blokkere andre collections i Firebase-prosjektet.
-2. **v156 - Synkroniserte samtaler v1**
+1. **v156 - Synkroniserte samtaler v1**
    - Bygg backend-eid lagring, listing, arkiv og rekursiv sletting i standardprosjektet.
-3. **v157 - Prosjekter og egne instrukser**
+2. **v157 - Prosjekter og egne instrukser**
    - Utvid med flere prosjekter først etter at enhetssynk og sletting er praktisk verifisert.
+3. **v158 - Kontrollert langtidskontekst og kvalitet**
+   - Legg til kontrollert sammendrag, personvern, eksport og kostnadsgrenser etter praktisk historikktest.
 
 Kontrollert langtidskontekst, personvern og kostnadspolish følger i v158.
 
