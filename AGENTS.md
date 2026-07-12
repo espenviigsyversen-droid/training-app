@@ -45,6 +45,7 @@ node --check domain-coach-rules.js
 node --check domain-coach.js
 node --check ai-coach-client.js
 node --check ai-coach-ui.js
+node --check functions\ai\chat-store.js
 node tests\stability-tests.js
 node functions\tests\ai-backend-tests.js
 ```
@@ -60,6 +61,7 @@ node functions\tests\ai-backend-tests.js
 - `ai-coach-client.js` - autentisert frontend-klient mot AI Callable Functions; skal aldri lagre API-nøkkel
 - `ai-coach-ui.js` - read-only chat- og nøkkelstatus-UI uten vedvarende meldingshistorikk
 - `functions/` - Firebase-backend for nøkkeladministrasjon, rate limit, context-validering og OpenAI-kall
+- `functions/ai/chat-store.js` - backend-eid Firestore-lagring, listing, arkiv og rekursiv sletting av AI-samtaler
 - `styles.css` - styling
 - `service-worker.js` - PWA-cache
 - `manifest.json` - PWA-manifest
@@ -84,6 +86,7 @@ node --check domain-coach-rules.js
 node --check domain-coach.js
 node --check ai-coach-client.js
 node --check ai-coach-ui.js
+node --check functions\ai\chat-store.js
 node tests\stability-tests.js
 node functions\tests\ai-backend-tests.js
 ```
@@ -122,3 +125,4 @@ Oppsummer alltid:
 - hvilke sjekker som er kjørt
 - hvilke filer som er synkronisert direkte til GitHub, eller hvilke filer brukeren må laste opp manuelt hvis direkte synk ikke var mulig
 - om noe ikke ble testet
+
