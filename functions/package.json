@@ -6,7 +6,7 @@
     "node": "22"
   },
   "scripts": {
-    "check": "node --check index.js && node --check ai/ai-chat.js && node --check ai/chat-persistence.js && node --check ai/context-schema.js && node --check ai/keys.js && node --check ai/openai-provider.js && node --check ai/rate-limit.js && node --check ai/system-prompt.js",
+    "check": "node --check index.js && node --check ai/ai-chat.js && node --check ai/chat-persistence.js && node --check ai/chat-store.js && node --check ai/context-schema.js && node --check ai/keys.js && node --check ai/openai-provider.js && node --check ai/rate-limit.js && node --check ai/system-prompt.js",
     "test": "node tests/ai-backend-tests.js",
     "test:rules": "firebase emulators:exec --only firestore \"node functions/tests/firestore-rules-tests.js\""
   },
