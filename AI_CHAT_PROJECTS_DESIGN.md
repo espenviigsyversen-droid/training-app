@@ -1,6 +1,6 @@
 # AI Chat Projects - design og utviklingsplan
 
-**Status:** v154-v155 er deployet og verifisert. v156-backend er deployet og frontend er klar for GitHub Pages-test; v157-v158 gjenstår.  
+**Status:** v154-v156 er deployet. v156 viser riktig versjon/cache, tilkoblet OpenAI og ny samtale-UI; praktisk kryssenhetssynk, gjenåpning, arkiv og sletting gjenstår før v157.  
 **Foreslått spor:** v154-v158.  
 **Forutsetning:** Sikkerhets- og deployporten i `FIREBASE_AI_BACKEND_DEPLOY.md` skal være bestått.
 
