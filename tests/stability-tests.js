@@ -201,6 +201,18 @@ function test(name, fn) {
     assert.ok(read('styles.css').includes('grid-template-columns: repeat(6, minmax(0, 1fr));'), 'bottom navigation should reserve stable space for six tabs');
   });
 
+  test('v156 chat history uses backend-owned conversations without browser persistence', () => {
+    ['aiChatListConversations', 'aiChatGetConversation', 'aiChatCreateConversation', 'aiChatArchiveConversation', 'aiChatDeleteConversation']
+      .forEach(name => assert.ok(aiCoachClient.includes(name), `${name} is missing from client`));
+    ['aiCoachConversationSelect', 'aiCoachNewConversationBtn', 'aiCoachArchiveConversationBtn', 'aiCoachDeleteConversationBtn']
+      .forEach(id => assert.ok(index.includes(`id="${id}"`), `${id} is missing from Chat UI`));
+    assert.ok(aiCoachUi.includes("DEFAULT_PROJECT_ID = 'general-training'"), 'v156 default project is missing');
+    assert.ok(aiCoachUi.includes('refreshConversations'), 'conversation refresh flow is missing');
+    assert.ok(aiCoachUi.includes('conversationId: activeConversationId'), 'chat requests must carry the active conversation id');
+    assert.ok(!aiCoachUi.includes('sessionStorage'), 'chat history must not use sessionStorage');
+    assert.ok(!aiCoachUi.includes('localStorage.setItem') || aiCoachUi.includes('CONSENT_KEY'), 'only consent may use localStorage');
+  });
+
   test('AI coach backend keeps keys server-side and chat structurally read-only', () => {
     assert.ok(functionsIndex.includes('request.auth?.uid'), 'AI callables must require Firebase Auth');
     assert.ok(aiCoachKeys.includes('apiKeys/'), 'OpenAI key should use server-side apiKeys collection');
