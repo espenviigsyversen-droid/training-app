@@ -153,7 +153,7 @@ Prioritert backlog for videre utvikling av Treningsapp.
     - Firestore-modell, Rules, callable-kontrakter, retention, arkiv, sletting og separat eksport.
     - Emulator-/regeltester skal være på plass før vedvarende historikk aktiveres.
 
-34. **v156 - Synkroniserte samtaler v1**
+34. **v156 - Synkroniserte samtaler v1** - Backend deployet, frontendtest gjenstår
     - Samtaler og meldinger lagres sikkert og kan fortsettes på PC og mobil.
     - Samtaler kan opprettes, navngis, arkiveres og slettes.
     - Begrenset meldingsvindu og samtalesammendrag hindrer ukontrollert context/kostnad.
@@ -165,6 +165,15 @@ Prioritert backlog for videre utvikling av Treningsapp.
 36. **v158 - Kontrollert langtidskontekst og kvalitet**
     - Bedre oppsummering av lange samtaler og eventuelt eksplisitt brukeradministrert minne.
     - Personvern, innsyn, sletting, eksport, kostnad og tematester for trening/mat/restitusjon.
+
+37. **Datatrygghet - lokal snapshot-kvote**
+    - Produksjonssjekk 12. juli 2026 viste `QuotaExceededError` for `treningsapp:last-state:v1` i localStorage mens Firestore fortsatt synkroniserte.
+    - Vurder komprimert/minimert snapshot, størrelsesmåling og tydelig fallback til IndexedDB slik at offline-sikkerhetsnettet ikke blir stille utdatert.
+    - Behandles som egen lavrisiko datatrygghetsrunde og skal ikke blandes inn i chat-persistence.
+
+38. **Vedlikehold - oppgrader Firebase Functions SDK**
+    - Firebase CLI varslet under v156-deploy at `firebase-functions` er utdatert.
+    - Gjør dette som egen testet vedlikeholdsrunde fordi ny hovedversjon kan ha breaking changes; ikke bland oppgraderingen inn i chatfunksjonalitet.
 
 37. **Mobil polish og mikro-UX**
     - Små forbedringer som gjør appen mer behagelig i daglig bruk.
