@@ -2,7 +2,7 @@
 
 ## Status
 
-v151-v154-koden og de fem AI-funksjonene er deployet. `AI_KEY_ENCRYPTION_SECRET` finnes i Firebase Secret Manager, funksjonene kjører som Node 22 2nd Gen i `europe-west1`, og Artifact Registry sletter automatisk containerbilder eldre enn 7 dager. Ekte OpenAI-test fra en innlogget app er bestått 12. juli 2026. v155-reglene er emulator-testet lokalt, men ikke deployet før eksisterende produksjonsregler er hentet og sammenlignet.
+v151-v154-koden og de fem AI-funksjonene er deployet. `AI_KEY_ENCRYPTION_SECRET` finnes i Firebase Secret Manager, funksjonene kjører som Node 22 2nd Gen i `europe-west1`, og Artifact Registry sletter automatisk containerbilder eldre enn 7 dager. Ekte OpenAI-test fra en innlogget app er bestått 12. juli 2026. Produksjonsreglene er sammenlignet med v155, chat er isolert til `aiChatUsers/{uid}`, og den sammenslåtte regelfilen er emulator-testet og deployet 12. juli 2026.
 
 GitHub Pages kan beholdes. Frontend bruker Firebase Callable Functions i region `europe-west1`, slik at Firebase Auth-token og CORS håndteres av Firebase SDK.
 
@@ -22,7 +22,7 @@ Krav:
 
 - `apiKeys/{uid}` skal ikke kunne leses eller skrives av frontend. OpenAI-nøkkelen lagres som AES-256-GCM-ciphertext, ikke klartekst.
 - `aiUsage/{uid}` skal ikke kunne leses eller skrives av frontend.
-- `users/{uid}/settings/openai` kan eventuelt være lesbar for eieren, men skal bare inneholde maskert status og aldri klartekstnøkkelen.
+- `users/{uid}/settings/openai` ligger under prosjektets eksisterende eierregel og kan leses/skrives av eieren. Dokumentet skal derfor bare inneholde maskert, ikke-autoritativ UI-status og aldri klartekstnøkkel. Callable-status er fasit.
 - Cloud Functions bruker Admin SDK og trenger ingen frontend-tillatelse i Rules.
 - Krypteringshemmeligheten `AI_KEY_ENCRYPTION_SECRET` ligger i Firebase Secret Manager og bindes bare til funksjonene som lagrer, tester eller bruker OpenAI-nøkkelen.
 - Eventuell eldre `openai`-klartekst migreres til `openaiEncrypted` ved første serverlesing og klartekstfeltet overskrives med `null`.
