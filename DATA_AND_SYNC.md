@@ -14,8 +14,12 @@ users/{uid}/
 ├── wellness/
 ├── challenges/
 ├── blockedDays/
+├── raceResults/
+├── continuityFreezes/
 └── settings/preferences
 ```
+
+AI-chat lagres separat under `users/{uid}/aiProjects/...` og inngår ikke i vanlig treningsbackup/import. Frontend kan lese egne chatdokumenter, mens oppretting, endring, arkivering og rekursiv sletting skal gå via autentisert backend.
 
 ## Lokal state
 
