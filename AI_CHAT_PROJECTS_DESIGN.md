@@ -1,6 +1,6 @@
 # AI Chat Projects - design og utviklingsplan
 
-**Status:** v154 er deployet og ende-til-ende-verifisert. v155-sikkerhetsgrunnlaget er implementert og emulatortestet lokalt; v156-v158 gjenstår.  
+**Status:** v154 er deployet og ende-til-ende-verifisert. v155-sikkerhetsgrunnlaget er implementert, emulatortestet og Firestore Rules er deployet; v156-v158 gjenstår.  
 **Foreslått spor:** v154-v158.  
 **Forutsetning:** Sikkerhets- og deployporten i `FIREBASE_AI_BACKEND_DEPLOY.md` skal være bestått.
 
@@ -59,7 +59,7 @@ Mobilbredden må verifiseres særskilt. Ikon og kort label skal ha stabile dimen
 Chatdata holdes adskilt fra treningsdata og normal backup/import.
 
 ```text
-users/{uid}/aiProjects/{projectId}
+aiChatUsers/{uid}/projects/{projectId}
   title
   instructions
   status              // active | archived
@@ -67,7 +67,7 @@ users/{uid}/aiProjects/{projectId}
   updatedAt
   lastConversationAt
 
-users/{uid}/aiProjects/{projectId}/conversations/{conversationId}
+aiChatUsers/{uid}/projects/{projectId}/conversations/{conversationId}
   title
   status              // active | archived
   summary
@@ -76,7 +76,7 @@ users/{uid}/aiProjects/{projectId}/conversations/{conversationId}
   updatedAt
   lastMessageAt
 
-users/{uid}/aiProjects/{projectId}/conversations/{conversationId}/messages/{messageId}
+aiChatUsers/{uid}/projects/{projectId}/conversations/{conversationId}/messages/{messageId}
   role                // user | assistant
   content
   createdAt
@@ -146,13 +146,14 @@ Status: Ferdig. Egen Chat-fane, dynamisk `Tilkoblet`-status og ekte svar basert 
 - Lag emulator-/regeltester før vedvarende meldinger aktiveres.
 - Ingen stor UI-utvidelse i denne runden.
 
-Status: Implementert og emulatortestet lokalt. Vedvarende historikk er fortsatt ikke aktivert i klienten.
+Status: Ferdig. Modell og kontrakter er låst, Rules er emulator-testet og deployet 12. juli 2026. Vedvarende historikk er fortsatt ikke aktivert i klienten.
 
 Låste beslutninger i v155:
 
 - `schemaVersion: 1` brukes på prosjekt-, samtale- og meldingsdokumenter.
+- Chat bruker isolert rot `aiChatUsers/{uid}/projects/...`. Dette unngår konflikt med det delte Firebase-prosjektets eksisterende rekursive eierregel under `users/{uid}`.
 - Klienten kan lese egne chatdokumenter, men kan ikke skrive dem direkte. Oppretting, endring, arkivering og sletting skal gå via autentiserte Callable Functions.
-- `apiKeys/{uid}` og `aiUsage/{uid}` er utilgjengelige fra klienten. `users/{uid}/settings/openai` er kun lesbar for eieren og skrives av backend.
+- `apiKeys/{uid}` og `aiUsage/{uid}` er utilgjengelige fra klienten. `users/{uid}/settings/openai` inneholder bare maskert, ikke-autoritativ UI-status; backendens statuskall er fasit for faktisk tilkobling.
 - Første prosjekt i v156 bruker stabil ID `general-training`; øvrige dokument-ID-er skal valideres eller genereres av backend.
 - Aktiv samtalehistorikk beholdes til brukeren sletter den. Arkiverte samtaler/prosjekter har anbefalt retention på 365 dager før backendstyrt opprydding; automatisk sletting bygges ikke før brukeren har tydelig innsyn.
 - Arkivering er reversibel. Sletting krever eksplisitt bekreftelse og utføres rekursivt av backend i kontrollerte batcher.
