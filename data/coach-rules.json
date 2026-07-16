@@ -23,9 +23,9 @@
       },
       "golden_zone": {
         "title": "Den gylne sonen",
-        "explanation": "En nivåtilpasset pulssone for kontrollert løpskvalitet, beregnet fra registrert makspuls.",
+        "explanation": "En nivåtilpasset pulssone for kontrollert løpskvalitet, beregnet fra registrert makspuls. Nybegynner bruker 77–84 %, viderekommen 78–85 % og erfaren 80–87 %.",
         "use": "Bruk sonen som veiledning for kontrollert terskel og kvalitetsarbeid.",
-        "limit": "Sonen er ikke et generelt pulsmål for rolige/baseøkter, og manglende pulsdata skal ikke gi falsk fasit."
+        "limit": "God dagsform eller midlertidig toppform endrer ikke sonen alene; en varig endring i treningsnivå kan gjøre det. Sonen er ikke et generelt pulsmål for rolige/baseøkter."
       },
       "easy_support": {
         "title": "Rolig volum støtter kvalitet",
