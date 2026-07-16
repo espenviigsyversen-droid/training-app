@@ -86,7 +86,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       normalizeTrainingLevelProgress
     } from './domain-fitness.js';
 
-    const APP_VERSION = 'v161';
+    const APP_VERSION = 'v163';
     const APP_CACHE_NAME = `treningsapp-${APP_VERSION}`;
 
     const firebaseConfig = {
@@ -7117,14 +7117,26 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     function aiWorkoutFromPlanned(planned) {
       if (!planned) return null;
       const template = getTemplate(planned.templateId);
+      const structured = template.structuredWorkout ? structuredWorkoutBreakdown(template.structuredWorkout) : null;
       return {
         date: planned.date || '',
+        plannedTime: String(planned.time || planned.startTime || ''),
         label: template.name || 'Planlagt økt',
         type: template.type || '',
         intensity: template.intensity || '',
         role: template.role || '',
         purpose: template.purpose || '',
-        load: template.load || ''
+        load: template.load || '',
+        structure: String(template.structure || '').slice(0, 500),
+        estimatedDurationSeconds: Number(structured?.totalSeconds) || null,
+        structuredInterval: structured ? {
+          compact: structured.compact || '',
+          workSeconds: Number(structured.workSeconds) || 0,
+          restSeconds: Number(structured.restSeconds) || 0,
+          totalSeconds: Number(structured.totalSeconds) || 0,
+          intensity: structured.intensity || '',
+          restType: structured.restType || ''
+        } : null
       };
     }
 
