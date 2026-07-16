@@ -8,6 +8,7 @@ const read = file => fs.readFileSync(path.join(root, file), 'utf8');
 
 const app = read('app.js');
 const index = read('index.html');
+const styles = read('styles.css');
 const serviceWorker = read('service-worker.js');
 const aiCoachClient = read('ai-coach-client.js');
 const aiCoachUi = read('ai-coach-ui.js');
@@ -181,7 +182,7 @@ function test(name, fn) {
     assert.strictEqual(result.bestImprovement.improvementPercent, 10);
   });
 
-  test('v160 level assessment combines continuity, quality, body, VO2 and PB', () => {
+  test('v160f twelve-week evidence is useful but cannot claim the highest maturity levels', () => {
     const completed = [];
     for (let week = 0; week < 12; week += 1) {
       const base = new Date(Date.UTC(2026, 6, 16 - week * 7));
@@ -214,10 +215,72 @@ function test(name, fn) {
       comeback: { active: false },
       activeInjury: false
     });
-    assert.ok(result.level.rank >= 4, `expected level 4+, got ${result.level.rank}`);
+    assert.strictEqual(result.level.rank, 3);
     assert.strictEqual(result.dimensions.length, 5);
     assert.strictEqual(result.eligibleForConfirmation, true);
-    assert.strictEqual(result.recommendedCoachLevel, result.level.coachLevel);
+    assert.strictEqual(result.confirmationLevel.rank, 2);
+    assert.strictEqual(result.recommendedCoachLevel, result.confirmationLevel.coachLevel);
+    assert.strictEqual(result.evidence.observedWeeks, 12);
+  });
+
+  test('v160f quality without RPE and post-workout response stays unknown', () => {
+    const result = assessTrainingLevel({
+      todayIso: '2026-07-16',
+      completed: Array.from({ length: 18 }, (_, index) => ({
+        date: new Date(Date.UTC(2026, 6, 16 - index * 3)).toISOString().slice(0, 10),
+        intensityContext: index % 3 === 0 ? 'quality' : 'easy',
+        rpe: null,
+        feelingScore: null,
+        painBefore: null,
+        painAfter: null
+      })),
+      currentCoachLevel: 'building_beginner',
+      progress: { highestTier: 'foundation', history: [] }
+    });
+    assert.ok(result.evidence.qualityCount > 0);
+    assert.strictEqual(result.evidence.qualityEvidenceCount, 0);
+    assert.strictEqual(result.evidence.controlledQualityCount, 0);
+    assert.strictEqual(result.evidence.qualityCoverage, 0);
+    assert.ok(result.dimensions.find(item => item.id === 'quality').summary.includes('uten nok signaldata'));
+  });
+
+  test('v160f level five requires long-term active weeks and documented quality', () => {
+    const completed = [];
+    for (let week = 0; week < 26; week += 1) {
+      const base = new Date(Date.UTC(2026, 6, 16 - week * 7));
+      for (let session = 0; session < 3; session += 1) {
+        const date = new Date(base);
+        date.setUTCDate(date.getUTCDate() - session);
+        completed.push({
+          date: date.toISOString().slice(0, 10),
+          intensityContext: session === 0 ? 'quality' : 'easy',
+          rpe: session === 0 ? 6 : 4,
+          feelingScore: 4,
+          painBefore: 0,
+          painAfter: 0
+        });
+      }
+    }
+    const result = assessTrainingLevel({
+      todayIso: '2026-07-16',
+      completed,
+      vo2Max: 55,
+      age: 45,
+      sex: 'male',
+      raceResults: [
+        { date: '2025-09-01', distanceKm: 5, resultSeconds: 1800 },
+        { date: '2026-06-01', distanceKm: 5, resultSeconds: 1600 }
+      ],
+      currentCoachLevel: 'building_beginner',
+      progress: { highestTier: 'foundation', history: [] },
+      volumeRamp: { status: 'stable' },
+      comeback: { active: false },
+      activeInjury: false
+    });
+    assert.strictEqual(result.level.rank, 5);
+    assert.ok(result.evidence.activeWeeks26 >= 20);
+    assert.ok(result.evidence.observedWeeks >= 24);
+    assert.strictEqual(result.confirmationLevel.rank, 2, 'confirmation must advance only one level');
   });
 
   test('v160 safety signals block promotion without removing achieved level', () => {
@@ -264,6 +327,13 @@ function test(name, fn) {
       highestTier: 'foundation',
       history: []
     });
+  });
+
+  test('v160f production UI separates calculated and confirmed level', () => {
+    assert.ok(app.includes('Beregnet nivå'));
+    assert.ok(app.includes('Bekreftet progresjon'));
+    assert.ok(app.includes('Bekreft neste nivå'));
+    assert.ok(styles.includes('.fitness-confirmed-level'));
   });
 
   test('v155 chat persistence is backend-owned and excluded from training backup', () => {
@@ -2342,3 +2412,4 @@ function test(name, fn) {
   console.error(err);
   process.exit(1);
 });
+
