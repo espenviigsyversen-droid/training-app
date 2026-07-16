@@ -1080,7 +1080,7 @@ Status:
 - Webinnhold er eksplisitt underordnet appens coach-beslutning og sikkerhetsregler.
 - Full kontrakt er dokumentert i `AI_WEB_SEARCH_DESIGN.md`.
 
-## v162 - Etterprøvbar webbruk og mer presise ernærings-/varmesvar - Planlagt
+## v162 - Etterprøvbar webbruk og mer presise ernærings-/varmesvar - Implementert
 
 ### Mål
 
@@ -1114,7 +1114,7 @@ Når brukeren ber om nettsøk, skal appen kunne vise om søket faktisk ble utfø
 - Manglende varighet gir trygg, eksplisitt generell anbefaling.
 - Firestore-lagring, rate limit, coach-guardrails og read-only-policy fungerer videre.
 
-## v163 - Modell- og resonneringsvalg under Administrer - Planlagt
+## v163 - Modell- og resonneringsvalg under Administrer - Implementert
 
 ### Mål
 
@@ -1362,4 +1362,3 @@ v154-v156 er deployet og manuelt verifisert, inkludert kryssenhetssynk, arkiv og
 - assistant-svar vises roligere og mindre kortpreget; brukermeldinger beholdes som diskrete bobler
 - grunnlag og personvern ligger under den eksisterende samtale-/prosjektadministrasjonen
 - backend, Firestore-modell, synkronisering, coach-context og sikkerhetsregler er uendret
-
