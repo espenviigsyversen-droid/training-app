@@ -1,4 +1,4 @@
-export const FITNESS_ASSESSMENT_VERSION = 1;
+export const FITNESS_ASSESSMENT_VERSION = 2;
 
 export const FITNESS_LEVELS = Object.freeze([
   { id: 'foundation', rank: 1, label: 'Fundament', coachLevel: 'building_beginner' },
@@ -56,6 +56,12 @@ const HUNT_VO2_REFERENCE = Object.freeze({
 function finiteNumber(value, fallback = 0) {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function optionalNumber(value) {
+  if (value === null || value === undefined || value === '') return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
 }
 
 function clamp(value, min, max) {
@@ -204,33 +210,74 @@ function completedWindow(completed, todayIso, days) {
   return (Array.isArray(completed) ? completed : []).filter(item => item?.date >= from && item?.date <= todayIso);
 }
 
+function activeWeekCount(completed) {
+  const weekCounts = new Map();
+  completed.forEach(item => {
+    const key = mondayKey(item.date);
+    if (key) weekCounts.set(key, (weekCounts.get(key) || 0) + 1);
+  });
+  return [...weekCounts.values()].filter(count => count >= 2).length;
+}
+
+function observationWeeks(completed, todayIso) {
+  const dates = completed
+    .map(item => String(item?.date || '').slice(0, 10))
+    .filter(date => parseDate(date) && date <= todayIso)
+    .sort();
+  if (!dates.length) return 0;
+  const first = parseDate(dates[0]);
+  const today = parseDate(todayIso);
+  return Math.max(1, Math.floor((today - first) / 604800000) + 1);
+}
+
+function qualityEvidence(item = {}) {
+  const rpe = optionalNumber(item.rpe);
+  const feeling = optionalNumber(item.feelingScore);
+  const painBefore = optionalNumber(item.painBefore);
+  const painAfter = optionalNumber(item.painAfter);
+  const hasPainResponse = painBefore !== null && painAfter !== null;
+  const hasBodyResponse = feeling !== null || hasPainResponse;
+  const sufficient = rpe !== null && hasBodyResponse;
+  const painControlled = !hasPainResponse || (painAfter <= 2 && painAfter <= painBefore + 1);
+  const feelingControlled = feeling === null || feeling >= 3;
+  return {
+    sufficient,
+    controlled: sufficient && rpe <= 7 && painControlled && feelingControlled
+  };
+}
+
 function dimension(id, label, score, status, summary, evidence = []) {
   return { id, label, score: clamp(Math.round(score), 0, 100), status, summary, evidence };
 }
 
 export function assessTrainingLevel(input = {}) {
   const todayIso = String(input.todayIso || new Date().toISOString().slice(0, 10));
+  const completedAll = (Array.isArray(input.completed) ? input.completed : [])
+    .filter(item => item?.date && item.date <= todayIso);
   const completed84 = completedWindow(input.completed, todayIso, 84);
   const completed28 = completedWindow(completed84, todayIso, 28);
-  const weekCounts = new Map();
-  completed84.forEach(item => {
-    const key = mondayKey(item.date);
-    if (key) weekCounts.set(key, (weekCounts.get(key) || 0) + 1);
-  });
-  const activeWeeks = [...weekCounts.values()].filter(count => count >= 2).length;
+  const completed182 = completedWindow(completedAll, todayIso, 182);
+  const activeWeeks = activeWeekCount(completed84);
+  const activeWeeks26 = activeWeekCount(completed182);
+  const observedWeeks = observationWeeks(completedAll, todayIso);
   const qualityItems = completed84.filter(item => item.intensityContext === 'quality');
-  const qualityWithSignals = qualityItems.filter(item => finiteNumber(item.rpe) > 0 || finiteNumber(item.painBefore) > 0 || finiteNumber(item.painAfter) > 0);
-  const controlledQuality = qualityItems.filter(item => {
-    const rpe = finiteNumber(item.rpe);
-    const before = finiteNumber(item.painBefore);
-    const after = finiteNumber(item.painAfter);
-    return (!rpe || rpe <= 7) && after <= 2 && after <= before + 1;
+  const qualityWithSignals = qualityItems.filter(item => qualityEvidence(item).sufficient);
+  const controlledQuality = qualityWithSignals.filter(item => qualityEvidence(item).controlled);
+  const unknownQualityCount = qualityItems.length - qualityWithSignals.length;
+  const qualityTolerance = qualityWithSignals.length ? controlledQuality.length / qualityWithSignals.length : 0;
+  const qualityCoverage = qualityItems.length ? qualityWithSignals.length / qualityItems.length : 0;
+  const bodyObservedItems = completed28.filter(item => {
+    const feeling = optionalNumber(item.feelingScore);
+    const before = optionalNumber(item.painBefore);
+    const after = optionalNumber(item.painAfter);
+    return feeling !== null || (before !== null && after !== null);
   });
-  const qualityTolerance = qualityItems.length ? controlledQuality.length / qualityItems.length : 0;
+  const bodyCoverage = completed28.length ? bodyObservedItems.length / completed28.length : 0;
   const negativeBodySignals = completed28.filter(item => {
-    const before = finiteNumber(item.painBefore);
-    const after = finiteNumber(item.painAfter);
-    return after >= 4 || after > before + 1;
+    const before = optionalNumber(item.painBefore);
+    const after = optionalNumber(item.painAfter);
+    const feeling = optionalNumber(item.feelingScore);
+    return (after !== null && before !== null && (after >= 4 || after > before + 1)) || (feeling !== null && feeling <= 2);
   }).length;
   const vo2 = vo2AgeBenchmark({ vo2Max: input.vo2Max, age: input.age, sex: input.sex });
   const performance = personalBestEvidence(input.raceResults);
@@ -245,9 +292,11 @@ export function assessTrainingLevel(input = {}) {
 
   const continuityScore = clamp((activeWeeks / 10) * 100, 0, 100);
   const qualityScore = qualityItems.length
-    ? clamp((Math.min(qualityItems.length, 6) / 6) * 45 + qualityTolerance * 55, 0, 100)
+    ? qualityWithSignals.length
+      ? clamp((Math.min(qualityWithSignals.length, 8) / 8) * 40 + qualityTolerance * 45 + qualityCoverage * 15, 0, 100)
+      : 20
     : 15;
-  const bodyScore = clamp(100 - negativeBodySignals * 24 - (activeInjury ? 35 : 0), 0, 100);
+  const bodyScore = clamp(55 + Math.min(1, bodyCoverage / 0.6) * 45 - negativeBodySignals * 24 - (activeInjury ? 35 : 0), 0, 100);
   const capacityScore = vo2.available
     ? clamp(55 + vo2.zScore * 24, 10, 100)
     : 45;
@@ -257,8 +306,8 @@ export function assessTrainingLevel(input = {}) {
 
   const dimensions = [
     dimension('continuity', 'Kontinuitet', continuityScore, activeWeeks >= 8 ? 'good' : activeWeeks >= 4 ? 'watch' : 'neutral', `${activeWeeks} aktive uker av de siste 12`, [`${completed84.length} økter siste 12 uker`]),
-    dimension('quality', 'Kontrollert kvalitet', qualityScore, qualityItems.length >= 2 && qualityTolerance >= 0.7 ? 'good' : qualityItems.length ? 'watch' : 'neutral', qualityItems.length ? `${controlledQuality.length} av ${qualityItems.length} kvalitetsøkter ser kontrollerte ut` : 'Ingen tydelig kvalitetsserie ennå', qualityWithSignals.length < qualityItems.length ? ['Noen kvalitetsøkter mangler RPE eller kroppssignal'] : []),
-    dimension('body', 'Tåleevne og kroppssignal', bodyScore, activeInjury || negativeBodySignals ? 'watch' : 'good', activeInjury ? 'Aktivt kroppssignal blokkerer nivåoppgradering' : negativeBodySignals ? `${negativeBodySignals} negativ${negativeBodySignals === 1 ? 't' : 'e'} signal siste 28 dager` : 'Ingen negative signaler siste 28 dager', []),
+    dimension('quality', 'Kontrollert kvalitet', qualityScore, qualityWithSignals.length >= 4 && qualityTolerance >= 0.7 && qualityCoverage >= 0.5 ? 'good' : qualityItems.length ? 'watch' : 'neutral', qualityItems.length ? `${controlledQuality.length} av ${qualityWithSignals.length} dokumenterte kvalitetsøkter var kontrollerte${unknownQualityCount ? ` · ${unknownQualityCount} uten nok signaldata` : ''}` : 'Ingen tydelig kvalitetsserie ennå', unknownQualityCount ? ['Manglende RPE eller respons etter økten regnes som ukjent, ikke kontrollert'] : []),
+    dimension('body', 'Tåleevne og kroppssignal', bodyScore, activeInjury || negativeBodySignals ? 'watch' : bodyObservedItems.length >= 4 ? 'good' : 'neutral', activeInjury ? 'Aktivt kroppssignal blokkerer nivåoppgradering' : negativeBodySignals ? `${negativeBodySignals} negativ${negativeBodySignals === 1 ? 't' : 'e'} signal siste 28 dager` : bodyObservedItems.length ? `Ingen negative signaler i ${bodyObservedItems.length} registrerte responser siste 28 dager` : 'For lite registrert respons etter øktene', []),
     dimension('capacity', 'Kapasitet mot alder', capacityScore, vo2.available ? (['above', 'high'].includes(vo2.status) ? 'good' : vo2.status === 'low' ? 'watch' : 'neutral') : 'neutral', vo2.available ? `${vo2.value} VO2max: ${vo2.label.toLowerCase()} for ${vo2.ageLabel} år` : vo2.reason, vo2.available ? [`HUNT-referanse ${vo2.mean} +/- ${vo2.sd}`] : []),
     dimension('performance', 'PB og testløp', performanceScore, performance.bestImprovement ? 'good' : performance.available ? 'neutral' : 'neutral', performance.note, [])
   ];
@@ -269,29 +318,32 @@ export function assessTrainingLevel(input = {}) {
   let rank = 1;
   if (score >= 40 && completed84.length >= 8 && activeWeeks >= 4) rank = 2;
   if (score >= 58 && completed84.length >= 16 && activeWeeks >= 7 && controlledQuality.length >= 2) rank = 3;
-  if (score >= 72 && completed84.length >= 24 && activeWeeks >= 9 && controlledQuality.length >= 4 && qualityTolerance >= 0.7 && (vo2.available || performance.available)) rank = 4;
-  if (score >= 86 && completed84.length >= 30 && activeWeeks >= 11 && controlledQuality.length >= 6 && qualityTolerance >= 0.8 && vo2.available && performance.available) rank = 5;
+  if (score >= 72 && completed84.length >= 24 && activeWeeks >= 9 && activeWeeks26 >= 14 && observedWeeks >= 16 && controlledQuality.length >= 4 && qualityTolerance >= 0.7 && qualityCoverage >= 0.5 && (vo2.available || performance.available)) rank = 4;
+  if (score >= 86 && completed84.length >= 30 && activeWeeks >= 11 && activeWeeks26 >= 20 && observedWeeks >= 24 && controlledQuality.length >= 8 && qualityTolerance >= 0.8 && qualityCoverage >= 0.7 && bodyCoverage >= 0.5 && vo2.available && performance.repeatedDistanceCount) rank = 5;
 
   const level = levelByRank(rank);
   const progress = normalizeTrainingLevelProgress(input.progress, input.currentCoachLevel);
   const highestLevel = levelById(progress.highestTier);
   const nextLevel = FITNESS_LEVELS.find(candidate => candidate.rank === rank + 1) || null;
   const currentCoachLevel = String(input.currentCoachLevel || 'building_beginner');
-  const recommendedCoachLevel = level.coachLevel;
   const hasNewAchievement = level.rank > highestLevel.rank;
+  const confirmationLevel = hasNewAchievement ? levelByRank(Math.min(level.rank, highestLevel.rank + 1)) : highestLevel;
+  const recommendedCoachLevel = confirmationLevel.coachLevel;
   const coachUpgrade = ['building_beginner', 'intermediate', 'experienced'].indexOf(recommendedCoachLevel) > ['building_beginner', 'intermediate', 'experienced'].indexOf(currentCoachLevel);
   const eligibleForConfirmation = (hasNewAchievement || coachUpgrade) && safetyBlockers.length === 0;
   const missingData = [
     vo2.available ? '' : 'VO2max med alder og kjønn',
-    qualityWithSignals.length >= 2 ? '' : 'RPE/kroppssignal fra flere kvalitetsøkter',
+    qualityWithSignals.length >= 4 ? '' : 'RPE og respons etter flere kvalitetsøkter',
     performance.repeatedDistanceCount ? '' : 'gjentatt testløp på samme distanse'
   ].filter(Boolean);
-  const confidencePoints = [completed84.length >= 12, activeWeeks >= 6, vo2.available, qualityWithSignals.length >= 2, performance.available].filter(Boolean).length;
-  const confidence = confidencePoints >= 4 ? 'high' : confidencePoints >= 2 ? 'medium' : 'low';
+  const confidencePoints = [completed84.length >= 12, activeWeeks >= 6, observedWeeks >= 12, vo2.available, qualityWithSignals.length >= 4, qualityCoverage >= 0.5, bodyCoverage >= 0.4, performance.available].filter(Boolean).length;
+  const confidence = confidencePoints >= 6 ? 'high' : confidencePoints >= 3 ? 'medium' : 'low';
 
   const nextCriteria = [];
   if (nextLevel) {
     if (activeWeeks < Math.min(11, rank + 5)) nextCriteria.push('Flere stabile uker med minst to økter');
+    if (nextLevel.rank >= 4 && activeWeeks26 < 14) nextCriteria.push('Lengre observasjon med minst 14 aktive uker over flere måneder');
+    if (nextLevel.rank >= 5 && activeWeeks26 < 20) nextCriteria.push('Langsiktig kontinuitet med minst 20 aktive uker siste halvår');
     if (controlledQuality.length < Math.min(6, rank + 2)) nextCriteria.push('Flere repeterbare kvalitetsøkter med kontrollert RPE og kroppssignal');
     if (!vo2.available) nextCriteria.push('Oppdatert VO2max for aldersreferanse');
     if (!performance.repeatedDistanceCount) nextCriteria.push('Et nytt kontrollert testløp på samme distanse');
@@ -302,6 +354,7 @@ export function assessTrainingLevel(input = {}) {
     todayIso,
     score,
     level,
+    confirmationLevel,
     highestLevel,
     currentCoachLevel,
     recommendedCoachLevel,
@@ -314,7 +367,7 @@ export function assessTrainingLevel(input = {}) {
     vo2,
     performance,
     summary: eligibleForConfirmation
-      ? `${level.label} er klart for bekreftelse.`
+      ? `Datagrunnlaget peker mot ${level.label}. Neste nivå kan bekreftes trinnvis.`
       : safetyBlockers.length ? `${level.label} i datagrunnlaget, men oppgradering venter til sikkerhetssignalene er stabile.`
         : `Datagrunnlaget peker mot nivå ${level.rank}: ${level.label}.`,
     nextLevel,
@@ -324,9 +377,14 @@ export function assessTrainingLevel(input = {}) {
       sessions84: completed84.length,
       sessions28: completed28.length,
       activeWeeks,
+      activeWeeks26,
+      observedWeeks,
       qualityCount: qualityItems.length,
+      qualityEvidenceCount: qualityWithSignals.length,
       controlledQualityCount: controlledQuality.length,
       qualityTolerance: Math.round(qualityTolerance * 100),
+      qualityCoverage: Math.round(qualityCoverage * 100),
+      bodyCoverage: Math.round(bodyCoverage * 100),
       negativeBodySignals
     },
     references: FITNESS_REFERENCE_SOURCES
@@ -337,7 +395,8 @@ export function confirmedTrainingLevelProgress(assessment, currentProgress = {})
   const normalized = normalizeTrainingLevelProgress(currentProgress, assessment?.currentCoachLevel);
   if (!assessment?.eligibleForConfirmation) return normalized;
   const from = levelById(normalized.highestTier);
-  const to = assessment.level.rank > from.rank ? assessment.level : from;
+  const proposed = assessment.confirmationLevel || assessment.level;
+  const to = proposed.rank > from.rank ? levelByRank(Math.min(proposed.rank, from.rank + 1)) : from;
   const entry = {
     id: `fitness-${assessment.todayIso}-${to.id}`,
     date: assessment.todayIso,
@@ -354,3 +413,4 @@ export function confirmedTrainingLevelProgress(assessment, currentProgress = {})
     history: [...normalized.history, entry]
   }, entry.toCoachLevel);
 }
+
