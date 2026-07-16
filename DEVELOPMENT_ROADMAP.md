@@ -1080,6 +1080,92 @@ Status:
 - Webinnhold er eksplisitt underordnet appens coach-beslutning og sikkerhetsregler.
 - Full kontrakt er dokumentert i `AI_WEB_SEARCH_DESIGN.md`.
 
+## v162 - Etterprøvbar webbruk og mer presise ernærings-/varmesvar - Planlagt
+
+### Mål
+
+Når brukeren ber om nettsøk, skal appen kunne vise om søket faktisk ble utført, hvilke kilder som ble brukt og hvilke opplysninger som bare kom fra brukeren eller appens treningsdata. Ernærings- og varmeråd skal samtidig bruke planlagt økt mer presist.
+
+### Scope
+
+- Backend returnerer eksplisitt `webSearchRequested`, `webSearchUsed`, `sourceCount` og sanitiserte kilder.
+- UI viser `Nettsøk brukt`, `Nettsøk ikke brukt` eller en tydelig feil-/retry-tilstand. Appen skal aldri antyde at web ble brukt uten et faktisk verktøykall.
+- Når brukeren aktivt velger nettsøk, skal backend enten kreve minst ett kontrollert søk eller forklare tydelig hvorfor søk ikke kunne gjennomføres.
+- Svar skiller mellom verifiserte nettkilder, brukeroppgitt informasjon og appdata, for eksempel brukeroppgitt vær mot verifisert prognose.
+- Kilder vises nær relevante påstander og prioriterer primærkilder, offentlige helse-/idrettsorganer og fagfellevurdert materiale.
+- AI-contexten bruker strukturert øktvarighet, intervallstruktur, intensitet og planlagt tidspunkt når data finnes.
+- Hvis nødvendig øktvarighet eller annen avgjørende informasjon mangler, skal AI-en stille ett kort oppklaringsspørsmål eller tydelig merke rådet som generelt.
+- Ernærings- og væskemengder omtales som veiledende og knyttes til varighet, intensitet, varme, svetterate og individuell toleranse.
+
+### Arkitektur og sikkerhet
+
+- Webverktøyet forblir server-side. Frontend sender bare brukerens eksplisitte valg.
+- `coachDecision`, `blockedActions`, medisinske guardrails og prosjektets kunnskapsgrunnlag har høyere prioritet enn nettsider.
+- Rå søkeresultater lagres ikke. Bare sanitert kildeproveniens kan lagres sammen med meldingen.
+- Manglende webstøtte hos valgt modell skal gi kontrollert fallback, ikke skjult modellbytte eller falsk kildevisning.
+
+### Tester og akseptanse
+
+- Web valgt + faktisk verktøykall viser kilder og `Nettsøk brukt`.
+- Web valgt + intet verktøykall gir tydelig status eller kontrollert retry.
+- Web ikke valgt sender ingen tools og viser ingen webmerking.
+- Brukeroppgitt vær omtales ikke som verifisert prognose uten kilde.
+- Planlagt strukturert økt med varighet gir mer presist før-/under-økt-råd.
+- Manglende varighet gir trygg, eksplisitt generell anbefaling.
+- Firestore-lagring, rate limit, coach-guardrails og read-only-policy fungerer videre.
+
+## v163 - Modell- og resonneringsvalg under Administrer - Planlagt
+
+### Mål
+
+La brukeren velge ønsket balanse mellom svartid, kostnad og grundighet uten å eksponere frie modellnavn eller flytte leverandørkontroll til frontend.
+
+### Anbefalt UI
+
+Legg en komprimert seksjon `Svarinnstillinger` under Chat -> `Administrer +`:
+
+- **Modell**
+  - `Automatisk / anbefalt`
+  - `GPT-5.6 Luna - rask og rimelig`
+  - `GPT-5.6 Terra - balansert`
+  - `GPT-5.6 Sol - mest grundig`
+  - `GPT-5.5 - tidligere toppmodell`, bare dersom brukerens nøkkel faktisk har tilgang og modellen består kompatibilitetstest
+- **Resonneringsnivå**
+  - `Lav - raskere og rimeligere`
+  - `Medium - balansert` (anbefalt for de fleste coach-spørsmål)
+  - `Høy - grundigere og dyrere`
+- Vis valgt profil kompakt i chatten, men hold kontrollene sammenfoldet som standard.
+- Vis en enkel relativ kostnadsmerking og advarsel før `Sol + Høy` brukes som permanent standard.
+
+Begrepet i UI skal være `Resonneringsnivå`, ikke hvor "smart" modellen er. Høyere effort kan bruke mer tid og kostnad, men garanterer ikke et bedre svar.
+
+### Arkitektur
+
+- Frontend sender stabile profil-ID-er, ikke vilkårlige modellstrenger eller API-parametere.
+- Backend har en eksplisitt allowlist som mapper profil-ID til modell-ID, støttede reasoning-nivåer, webstøtte, outputgrense og kostnadsprofil.
+- Backend validerer modelltilgang med brukerens serverlagrede nøkkel og faller trygt tilbake til serverstandard med synlig beskjed.
+- Første versjon lagrer ett globalt brukerstandardvalg. Prosjektspesifikke overrides vurderes senere dersom det gir reell verdi.
+- Hver AI-melding lagrer hvilken modellprofil og reasoning-profil som faktisk ble brukt, uten å lagre secrets.
+- Systemprompt, coach-context, guardrails, rate limit og `store: false` er identiske på tvers av modeller.
+- Modellkatalogen er serverstyrt slik at utgåtte modeller kan fjernes uten ny frontend-release.
+
+### Evaluering før standard endres
+
+- Kjør et fast eval-sett med spørsmål om dagens råd, skade, mål, gylne-sone, ernæring, varme og oppfølgingsspørsmål.
+- Sammenlign korrekt bruk av appcontext, kildebruk, sikkerhet, språk, latency og estimert kostnad.
+- Behold dagens `GPT-5.6 Luna + low` som teknisk fallback til evalueringen viser hvilken profil som bør være anbefalt standard.
+
+### Tester og akseptanse
+
+- Ukjent eller manipulert profil avvises av backend.
+- Alle tillatte modell-/reasoning-kombinasjoner bygger gyldig Responses API-request.
+- Modell uten webstøtte kan ikke brukes til skjult eller falskt nettsøk.
+- Manglende modelltilgang gir trygg fallback og tydelig UI-status.
+- Valget synkroniseres mellom PC og mobil.
+- Samme coach-guardrails gjelder for alle profiler.
+
+Etter v162/v163 går prioriteringen tilbake til **Datatrygghet - lokal snapshot-kvote**, etterfulgt av isolert oppgradering av Firebase Functions SDK.
+
 Utenfor v150-v153:
 
 - web-søk
@@ -1276,3 +1362,4 @@ v154-v156 er deployet og manuelt verifisert, inkludert kryssenhetssynk, arkiv og
 - assistant-svar vises roligere og mindre kortpreget; brukermeldinger beholdes som diskrete bobler
 - grunnlag og personvern ligger under den eksisterende samtale-/prosjektadministrasjonen
 - backend, Firestore-modell, synkronisering, coach-context og sikkerhetsregler er uendret
+
