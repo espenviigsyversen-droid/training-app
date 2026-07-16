@@ -67,6 +67,23 @@ function validateAiCoachContext(value) {
         errors.push("profile.goldenZone values must be numeric or null");
       }
     }
+    const levelAssessment = value.profile?.trainingLevelAssessment;
+    if (levelAssessment !== undefined) {
+      if (!isPlainObject(levelAssessment)) {
+        errors.push("profile.trainingLevelAssessment must be an object");
+      } else {
+        if (levelAssessment.score !== null && levelAssessment.score !== undefined
+          && (!Number.isFinite(levelAssessment.score) || levelAssessment.score < 0 || levelAssessment.score > 100)) {
+          errors.push("profile.trainingLevelAssessment.score must be between 0 and 100");
+        }
+        if (levelAssessment.dimensions !== undefined && !Array.isArray(levelAssessment.dimensions)) {
+          errors.push("profile.trainingLevelAssessment.dimensions must be an array");
+        }
+        if (levelAssessment.safetyBlockers !== undefined && !Array.isArray(levelAssessment.safetyBlockers)) {
+          errors.push("profile.trainingLevelAssessment.safetyBlockers must be an array");
+        }
+      }
+    }
   }
 
   let bytes = 0;
