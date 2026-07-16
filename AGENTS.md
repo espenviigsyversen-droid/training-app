@@ -47,6 +47,8 @@ node --check domain-fitness.js
 node --check ai-coach-client.js
 node --check ai-coach-ui.js
 node --check functions\ai\chat-store.js
+node --check functions\ai\model-profiles.js
+node --check functions\ai\ai-preferences.js
 node tests\stability-tests.js
 node functions\tests\ai-backend-tests.js
 ```
@@ -64,6 +66,8 @@ node functions\tests\ai-backend-tests.js
 - `ai-coach-ui.js` - read-only chat-, prosjekt-, historikk-, eksport- og nøkkelstatus-UI; renderer AI-svar som sikker ren tekst
 - `functions/` - Firebase-backend for nøkkeladministrasjon, rate limit, context-validering og OpenAI-kall
 - `functions/ai/chat-store.js` - backend-eid Firestore-lagring, listing, arkiv og rekursiv sletting av AI-samtaler
+- `functions/ai/model-profiles.js` - serverstyrt allowlist og trygg fallback for OpenAI-modell og resonneringsnivå
+- `functions/ai/ai-preferences.js` - backend-eid, synkronisert lagring av brukerens AI-svarprofil
 - `styles.css` - styling
 - `service-worker.js` - PWA-cache
 - `manifest.json` - PWA-manifest
@@ -93,6 +97,8 @@ node --check domain-fitness.js
 node --check ai-coach-client.js
 node --check ai-coach-ui.js
 node --check functions\ai\chat-store.js
+node --check functions\ai\model-profiles.js
+node --check functions\ai\ai-preferences.js
 node tests\stability-tests.js
 node functions\tests\ai-backend-tests.js
 ```
