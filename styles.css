@@ -265,6 +265,33 @@
   line-height: 1.5;
 }
 
+.ai-coach-message p a {
+  color: #087a4c;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.ai-coach-web-sources {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px 9px;
+  margin-top: 9px;
+  padding-top: 8px;
+  border-top: 1px solid #ece6e1;
+  font-size: 0.75rem;
+}
+
+.ai-coach-web-sources span {
+  width: 100%;
+  color: #5f5852;
+  font-weight: 800;
+}
+
+.ai-coach-web-sources a {
+  color: #087a4c;
+  overflow-wrap: anywhere;
+}
+
 .ai-coach-error {
   min-height: 20px;
   margin: 8px 0 0;
@@ -361,8 +388,28 @@
   padding-top: 2px;
 }
 
-.ai-coach-composer label {
+.ai-coach-composer > label[for="aiCoachInput"] {
   grid-column: 1 / -1;
+}
+
+.ai-coach-web-toggle {
+  grid-column: 1 / -1;
+  display: inline-flex;
+  align-items: center;
+  justify-self: start;
+  gap: 7px;
+  margin: 0;
+  color: #514a45;
+  font-size: 0.78rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.ai-coach-web-toggle input {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: #15945b;
 }
 
 .ai-coach-composer textarea {
@@ -522,7 +569,7 @@
     box-shadow: 0 8px 24px rgba(17,17,17,0.08);
   }
 
-  .ai-coach-composer label {
+  .ai-coach-composer > label[for="aiCoachInput"] {
     position: absolute;
     width: 1px;
     height: 1px;
@@ -6258,7 +6305,7 @@
       box-shadow: 0 8px 24px rgba(50, 40, 34, 0.1);
     }
 
-    .app.chat-mode .ai-coach-composer label {
+    .app.chat-mode .ai-coach-composer > label[for="aiCoachInput"] {
       position: absolute;
       width: 1px;
       height: 1px;
@@ -6279,6 +6326,18 @@
       background: transparent;
       resize: none;
       box-shadow: none;
+    }
+
+    .app.chat-mode .ai-coach-web-toggle {
+      position: static;
+      width: auto;
+      height: auto;
+      padding: 0 8px 2px;
+      margin: 0;
+      overflow: visible;
+      clip: auto;
+      white-space: normal;
+      border: 0;
     }
 
     .app.chat-mode .ai-coach-composer textarea:focus {
@@ -6374,4 +6433,3 @@
         padding: 0 12px;
       }
     }
-
