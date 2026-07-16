@@ -59,7 +59,7 @@ node functions\tests\ai-backend-tests.js
 - `domain-coach-rules.js` - validering, defaults og runtime-fallback for coach-regler
 - `domain-coach.js` - ren coach-logikk og prioritert beslutningsmodell
 - `ai-coach-client.js` - autentisert frontend-klient mot AI Callable Functions; skal aldri lagre API-nøkkel
-- `ai-coach-ui.js` - read-only chat- og nøkkelstatus-UI uten vedvarende meldingshistorikk
+- `ai-coach-ui.js` - read-only chat-, prosjekt-, historikk-, eksport- og nøkkelstatus-UI; renderer AI-svar som sikker ren tekst
 - `functions/` - Firebase-backend for nøkkeladministrasjon, rate limit, context-validering og OpenAI-kall
 - `functions/ai/chat-store.js` - backend-eid Firestore-lagring, listing, arkiv og rekursiv sletting av AI-samtaler
 - `styles.css` - styling
@@ -69,6 +69,7 @@ node functions\tests\ai-backend-tests.js
 - `INTERVALS_DESIGN.md` - designnotat for strukturert intervallstøtte
 - `AI_COACH_DESIGN.md` - sikkerhets-, context-, backend- og MVP-design for AI-coach
 - `AI_CHAT_PROJECTS_DESIGN.md` - datamodell, sikkerhet og roadmap for chat-historikk, prosjekter og egne instrukser
+- `COACH_KNOWLEDGE_DESIGN.md` - validert kunnskapsgrunnlag, AI-context v2 og grenser for prosjektinstrukser/langtidskontekst
 - `FIREBASE_AI_BACKEND_DEPLOY.md` - obligatorisk sikkerhets- og deployport for AI-backend
 - `ARKITEKT_CONTEXT.md` - veiledende produkt- og arkitekturkontekst
 - `tests/stability-tests.js` - lokal stabilitetstest
@@ -125,4 +126,3 @@ Oppsummer alltid:
 - hvilke sjekker som er kjørt
 - hvilke filer som er synkronisert direkte til GitHub, eller hvilke filer brukeren må laste opp manuelt hvis direkte synk ikke var mulig
 - om noe ikke ble testet
-
