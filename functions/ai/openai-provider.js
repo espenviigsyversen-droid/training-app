@@ -3,6 +3,13 @@
 const DEFAULT_MODEL = process.env.OPENAI_COACH_MODEL || "gpt-5.6-luna";
 const MAX_OUTPUT_TOKENS = 3000;
 const REQUEST_TIMEOUT_MS = 55000;
+const MAX_WEB_SOURCES = 8;
+const BLOCKED_WEB_DOMAINS = Object.freeze([
+  "reddit.com",
+  "quora.com",
+  "pinterest.com",
+  "tiktok.com"
+]);
 
 function extractOutputText(data) {
   if (typeof data?.output_text === "string" && data.output_text.trim()) return data.output_text.trim();
@@ -24,6 +31,57 @@ function normalizedUsage(data) {
     outputTokens: Number(data?.usage?.output_tokens) || 0,
     totalTokens: Number(data?.usage?.total_tokens) || 0
   };
+}
+
+function safeWebUrl(value) {
+  try {
+    const url = new URL(String(value || ""));
+    return ["http:", "https:"].includes(url.protocol) ? url.href.slice(0, 1600) : "";
+  } catch {
+    return "";
+  }
+}
+
+function extractWebMetadata(data) {
+  const citations = [];
+  const sources = [];
+  const seenSources = new Set();
+  let webUsed = false;
+
+  const addSource = (value = {}) => {
+    const url = safeWebUrl(value.url || value.url_citation?.url);
+    if (!url || seenSources.has(url) || sources.length >= MAX_WEB_SOURCES) return;
+    seenSources.add(url);
+    sources.push({
+      url,
+      title: String(value.title || value.url_citation?.title || new URL(url).hostname).trim().slice(0, 180)
+    });
+  };
+
+  for (const item of Array.isArray(data?.output) ? data.output : []) {
+    if (item?.type === "web_search_call") {
+      webUsed = true;
+      for (const source of Array.isArray(item?.action?.sources) ? item.action.sources : []) addSource(source);
+      continue;
+    }
+    if (item?.type !== "message") continue;
+    for (const content of Array.isArray(item.content) ? item.content : []) {
+      for (const annotation of Array.isArray(content?.annotations) ? content.annotations : []) {
+        if (annotation?.type !== "url_citation") continue;
+        const value = annotation.url_citation || annotation;
+        const url = safeWebUrl(value.url);
+        if (!url) continue;
+        citations.push({
+          url,
+          title: String(value.title || new URL(url).hostname).trim().slice(0, 180),
+          startIndex: Math.max(0, Number(value.start_index) || 0),
+          endIndex: Math.max(0, Number(value.end_index) || 0)
+        });
+        addSource(value);
+      }
+    }
+  }
+  return { webUsed, citations: citations.slice(0, MAX_WEB_SOURCES), sources };
 }
 
 function providerError(status, data) {
@@ -68,6 +126,15 @@ async function runOpenAiCoach(options = {}) {
     text: { verbosity: "low" },
     safety_identifier: String(options.safetyIdentifier || "")
   };
+  if (options.webSearchEnabled === true) {
+    body.tools = [{
+      type: "web_search",
+      search_context_size: "low",
+      filters: { blocked_domains: [...BLOCKED_WEB_DOMAINS] }
+    }];
+    body.tool_choice = "auto";
+    body.include = ["web_search_call.action.sources"];
+  }
 
   for (let attempt = 0; attempt < 2; attempt += 1) {
     const controller = new AbortController();
@@ -102,9 +169,11 @@ async function runOpenAiCoach(options = {}) {
 
     const answer = extractOutputText(data);
     if (!answer) return { ok: false, code: "AI_EMPTY_RESPONSE", message: "OpenAI returnerte ikke noe lesbart svar." };
+    const web = extractWebMetadata(data);
     return {
       ok: true,
       answer,
+      ...web,
       usage: normalizedUsage(data),
       model: body.model,
       responseId: String(data?.id || "")
@@ -114,8 +183,11 @@ async function runOpenAiCoach(options = {}) {
 }
 
 module.exports = {
+  BLOCKED_WEB_DOMAINS,
   DEFAULT_MODEL,
+  MAX_WEB_SOURCES,
   MAX_OUTPUT_TOKENS,
+  extractWebMetadata,
   extractOutputText,
   normalizedUsage,
   runOpenAiCoach
