@@ -27,7 +27,7 @@ Standard Bakken-uke: Hoved-terskel → Støtte-terskel → Lang rolig → Valgfr
 **Hosting:** GitHub Pages.  
 **Backend:** Firebase (prosjekt `home-tasks-app-18de3`) — Firestore + Google Auth.  
 **Frontend:** Vanilla JS + HTML + CSS, single-page app, tab-navigasjon.  
-**Versjon:** v159d (konstant i `app.js`).
+**Versjon:** v159e (konstant i `app.js`).
 
 ### Filer
 
@@ -146,6 +146,7 @@ Treningsapp/
 - **Nivåforklaring for gylne-sone** (v159b): AI-contexten sender nå hele den validerte nivåmodellen (77–84 %, 78–85 %, 80–87 %) i tillegg til brukerens aktive sone. Systeminstruksen skiller midlertidig dagsform/toppform fra varig treningsnivå og beregner hypotetisk bpm fra registrert makspuls.
 - **Presis fakta-/vurderingsmerking** (v159c): AI-contexten markerer profilnivå som manuelt konfigurert og sender norsk nivåetikett. Systeminstruksen forbyr interne enum-verdier, automatisk nivåendring og oppdiktede tidskrav, og skal skille appfakta fra faglig vurdering og praktiske forslag.
 - **AI-chat oversikts-polish** (v159d): Chatflaten prioriterer nå selve samtalen og skrivefeltet. Prosjektvalg, samtalevalg, arkivering og sletting er samlet i en kollapset `Samtale og prosjekt`-rad som fortsatt viser aktiv kontekst. Forslagsknapper skjules etter at samtalen har startet, skrivefeltet ligger før valgfritt grunnlag og er kompakt/sticky på mobil. Dataflyt, Firestore-synk og backend er uendret.
+- **AI-chat fullhøyde arbeidsflate** (v159e): Chat bruker nå en egen viewport-tilstand der meldingshistorikken er det eneste skrollområdet og skrivefeltet alltid er synlig over bunnnavigasjonen. Mobil skjuler det generelle apphodet mens Chat er aktiv, meldinger har et roligere og mindre kortpreget uttrykk, og grunnlag/personvern er flyttet inn under samtaleadministrasjonen. Dataflyt, Firebase-synk, coach-context og backend er uendret.
 - **Transparent nivåvurdering planlagt** (v160a-v160b): Roadmapen definerer design først, deretter ren regelstyrt vurdering og en forklarbar UI-flyt med eksplisitt brukerbekreftelse før profilnivå kan endres.
 - **AI-prosjekter og kontrollert langtidskontekst** (v159): Chat støtter flere prosjekter med egne preferanseinstrukser, backend-eid og begrenset samtalesammendrag, tømming av samtaleminne, separat JSON-eksport, rekursiv sletting og tokenoversikt. Instrukser og sammendrag er data med lavere prioritet enn coachDecision og sikkerhetsreglene.
 - **AI-svarpolish** (v159): Serverprompten krever naturlig norsk ren tekst uten rå Markdown-markører. Frontend normaliserer også enkle markører fra eldre svar og renderer fortsatt sikkert med `textContent`.
@@ -190,8 +191,8 @@ Treningsapp/
 
 ## Neste steg (prioritert)
 
-1. **Manuell v159d Chat-UI-prøve**
-   - Verifiser komprimert mobil/desktop, prosjekt-/samtaleadministrasjon, sticky skrivefelt og eksisterende synk/arkiv/slett.
+1. **Manuell v159e Chat-UI-prøve**
+   - Verifiser fullhøyde Chat på mobil/desktop, alltid synlig skrivefelt, intern meldingsskroll og eksisterende prosjekt-/samtalesynk, arkiv og sletting.
 2. **v160a - Transparent nivåvurdering design**
    - Lås kriterier, vinduer, datakvalitet, domeneoutput og bakoverkompatibilitet.
 3. **v160b - Transparent nivåvurdering implementering**
@@ -207,3 +208,4 @@ Treningsapp/
 - Lokal kopi — ikke et Git-repo. Endrede filer synkroniseres til GitHub Pages via GitHub-connectoren når skrivetilgang er tilgjengelig.
 - Filer som typisk endres per økt: `app.js`, `index.html`, `styles.css`, `service-worker.js`
 - Husk alltid å bumpe `APP_VERSION` i `app.js` og `CACHE_NAME` i `service-worker.js`
+
