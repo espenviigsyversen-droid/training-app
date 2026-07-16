@@ -64,7 +64,7 @@ export const DEFAULT_COACH_RULES = deepFreeze({
     sourceLabel: 'Coach-rammeverk for Treningsdagboka',
     concepts: {
       controlled_threshold: { title: 'Kontrollert terskel', explanation: 'Terskelarbeid skal være kontrollert og repeterbart, ikke maksimalt.', use: 'Avslutt med følelsen av at du kunne gjort litt mer, slik at kvalitet kan gjentas over tid.', limit: 'Smerte, tung dagsform eller blokkert hard kvalitet går foran planlagt terskel.' },
-      golden_zone: { title: 'Den gylne sonen', explanation: 'En nivåtilpasset pulssone for kontrollert løpskvalitet, beregnet fra registrert makspuls.', use: 'Bruk sonen som veiledning for kontrollert terskel og kvalitetsarbeid.', limit: 'Sonen er ikke et generelt pulsmål for rolige/baseøkter, og manglende pulsdata skal ikke gi falsk fasit.' },
+      golden_zone: { title: 'Den gylne sonen', explanation: 'En nivåtilpasset pulssone for kontrollert løpskvalitet, beregnet fra registrert makspuls. Nybegynner bruker 77–84 %, viderekommen 78–85 % og erfaren 80–87 %.', use: 'Bruk sonen som veiledning for kontrollert terskel og kvalitetsarbeid.', limit: 'God dagsform eller midlertidig toppform endrer ikke sonen alene; en varig endring i treningsnivå kan gjøre det. Sonen er ikke et generelt pulsmål for rolige/baseøkter.' },
       easy_support: { title: 'Rolig volum støtter kvalitet', explanation: 'Rolige økter bygger aerob base og gjør kvalitetsarbeidet mer repeterbart.', use: 'La hoveddelen av treningen være lett nok til å bevare kontinuitet og friske bein.', limit: 'Gåtur og svært lett aktivitet er nyttig styring, men er ikke alene full løpsspesifikk stimulus.' },
       fresh_legs: { title: 'Friske bein', explanation: 'Kvalitet gir mest verdi når kroppen er klar til å absorbere belastningen.', use: 'Møt terskel, intervall og race/test med overskudd og kontrollerte signaler.', limit: 'Tunge bein, smerteøkning, høy RPE eller svak dagsform trekker anbefalingen ned.' },
       body_signals_first: { title: 'Kroppssignaler først', explanation: 'Smerte og tydelige kroppssignaler trumfer planen og målpress.', use: 'Juster, velg alternativ trening eller hvil når signalene tilsier det.', limit: 'AI gir ikke diagnose; alvorlige eller vedvarende symptomer bør vurderes av fagperson.' },
@@ -316,7 +316,19 @@ export function coachKnowledgeFromRules(rules = getCoachRules()) {
     version: rules.knowledge?.version || 1,
     framework: rules.framework,
     sourceLabel: rules.knowledge?.sourceLabel || rules.source,
-    concepts
+    concepts,
+    goldenZoneModel: {
+      basis: 'training_level_and_registered_max_hr',
+      dailyReadinessChangesRange: false,
+      ranges: ['beginner', 'intermediate', 'experienced'].map(level => {
+        const range = rules.thresholds?.goldenZone?.[level] || DEFAULT_COACH_RULES.thresholds.goldenZone[level];
+        return {
+          level,
+          lowPct: Number(range[0]),
+          highPct: Number(range[1])
+        };
+      })
+    }
   };
 }
 
