@@ -80,8 +80,13 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     } from './domain-coach-rules.js';
     import { createAiCoachClient } from './ai-coach-client.js';
     import { createAiCoachUi } from './ai-coach-ui.js';
+    import {
+      assessTrainingLevel,
+      confirmedTrainingLevelProgress,
+      normalizeTrainingLevelProgress
+    } from './domain-fitness.js';
 
-    const APP_VERSION = 'v159e';
+    const APP_VERSION = 'v160';
     const APP_CACHE_NAME = `treningsapp-${APP_VERSION}`;
 
     const firebaseConfig = {
@@ -140,6 +145,11 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         weightKg: '',
         maxHeartRate: '',
         thresholdHeartRate: ''
+      },
+      trainingLevelProgress: {
+        version: 1,
+        highestTier: 'foundation',
+        history: []
       },
       features: {
         structuredIntervals: true
@@ -526,6 +536,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
 
     function normalizeSettings(settings = {}) {
       const source = settings && typeof settings === 'object' && !Array.isArray(settings) ? settings : {};
+      const trainingProfile = normalizeTrainingProfile(source.trainingProfile);
       return {
         activityTypes: Array.isArray(source.activityTypes) && source.activityTypes.length
           ? source.activityTypes
@@ -535,8 +546,9 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
           : [...defaultSettings.intensities],
         goals: normalizeGoals(source.goals),
         raceGoal: normalizeRaceGoal(source.raceGoal),
-        trainingProfile: normalizeTrainingProfile(source.trainingProfile),
+        trainingProfile,
         personProfile: normalizePersonProfile(source.personProfile),
+        trainingLevelProgress: normalizeTrainingLevelProgress(source.trainingLevelProgress, trainingProfile.level),
         features: normalizeFeatures(source.features),
         dailyReadiness: normalizeDailyReadinessMap(source.dailyReadiness)
       };
@@ -7152,6 +7164,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
 
     function buildCurrentAiCoachContext() {
       const ctx = buildCoachContext();
+      const trainingLevelAssessment = buildTrainingLevelAssessment(ctx);
       const plannedActive = (state.planned || []).filter(item => item.status !== 'done');
       const todayItems = plannedActive
         .filter(item => item.date === ctx.today)
@@ -7232,7 +7245,23 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
           priority: ctx.trainingProfile.priority,
           trainingFocus: ctx.trainingProfile.trainingFocus,
           weeklySessionTarget: ctx.effectiveWeeklyTarget || ctx.goals.weeklySessionsTarget,
-          goldenZone: ctx.goldenZone
+          goldenZone: ctx.goldenZone,
+          trainingLevelAssessment: {
+            version: trainingLevelAssessment.version,
+            level: trainingLevelAssessment.level.id,
+            levelLabel: trainingLevelAssessment.level.label,
+            score: trainingLevelAssessment.score,
+            confidence: trainingLevelAssessment.confidence,
+            recommendedCoachLevel: trainingLevelAssessment.recommendedCoachLevel,
+            eligibleForConfirmation: trainingLevelAssessment.eligibleForConfirmation,
+            safetyBlockers: trainingLevelAssessment.safetyBlockers,
+            dimensions: trainingLevelAssessment.dimensions.map(item => ({
+              id: item.id,
+              score: item.score,
+              status: item.status,
+              summary: item.summary
+            }))
+          }
         },
         coachKnowledge: coachKnowledgeFromRules(getCoachRules()),
         goals: {
@@ -7566,6 +7595,138 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         </div>`).join('');
     }
 
+    function currentAge(personProfile, today = todayISO()) {
+      const birthYear = Number(personProfile?.birthYear);
+      const currentYear = Number(String(today).slice(0, 4));
+      return birthYear >= 1900 && currentYear >= birthYear ? currentYear - birthYear : null;
+    }
+
+    function trainingLevelCompletedItems(profile) {
+      return (state.completed || []).map(completed => {
+        const template = completedTemplate(completed);
+        const context = classifyWorkoutIntensityContext({
+          completed,
+          template,
+          profile: normalizePersonProfile(state.settings.personProfile),
+          rules: getCoachRules()
+        });
+        return {
+          date: completed.date,
+          durationSeconds: completedDurationSeconds(completed),
+          distanceKm: Number(completed.distanceKm) || 0,
+          rpe: Number(completed.rpe) || 0,
+          painBefore: Number(completed.bodyStatus?.painBefore) || 0,
+          painAfter: Number(completed.bodyStatus?.painAfter) || 0,
+          intensityContext: context.category === 'quality' ? 'quality' : context.countsAsEasySupport ? 'easy' : 'other'
+        };
+      });
+    }
+
+    function buildTrainingLevelAssessment(coachCtx = buildCoachContext()) {
+      const person = normalizePersonProfile(state.settings.personProfile);
+      const latestVo2 = latestMetric('vo2Max');
+      const raceResults = personalBestSummary(completedRaceItems(), state.raceResults).raceResults;
+      return assessTrainingLevel({
+        todayIso: coachCtx.today,
+        completed: trainingLevelCompletedItems(coachCtx.trainingProfile),
+        raceResults,
+        vo2Max: latestVo2?.vo2Max,
+        age: currentAge(person, coachCtx.today),
+        sex: person.sex,
+        currentCoachLevel: coachCtx.trainingProfile.level,
+        progress: state.settings.trainingLevelProgress,
+        volumeRamp: coachCtx.volumeRamp,
+        comeback: coachCtx.comeback,
+        activeInjury: Boolean(coachCtx.injurySummary7?.hasSignal)
+      });
+    }
+
+    function fitnessStatusLabel(status) {
+      if (status === 'good') return 'Godt grunnlag';
+      if (status === 'watch') return 'Følg med';
+      return 'Under bygging';
+    }
+
+    function renderTrainingLevelAssessment(coachCtx) {
+      const container = document.getElementById('fitnessLevelAssessment');
+      const confidence = document.getElementById('fitnessLevelConfidence');
+      if (!container || !confidence) return;
+      const assessment = buildTrainingLevelAssessment(coachCtx);
+      const confidenceLabels = { high: 'Høy datadekning', medium: 'Middels datadekning', low: 'Lav datadekning' };
+      confidence.textContent = confidenceLabels[assessment.confidence] || confidenceLabels.low;
+      confidence.className = `fitness-confidence ${assessment.confidence}`;
+      const dimensions = assessment.dimensions.map(item => `
+        <div class="fitness-dimension ${escapeHtml(item.status)}">
+          <div class="fitness-dimension-head">
+            <span>${escapeHtml(item.label)}</span>
+            <strong>${escapeHtml(fitnessStatusLabel(item.status))}</strong>
+          </div>
+          <div class="fitness-dimension-track"><span style="width:${item.score}%"></span></div>
+          <p>${escapeHtml(item.summary)}</p>
+        </div>`).join('');
+      const blockers = assessment.safetyBlockers.length
+        ? `<div class="fitness-safety"><strong>Oppgradering venter</strong><span>${escapeHtml(assessment.safetyBlockers.join(' · '))}</span></div>`
+        : '';
+      const action = assessment.eligibleForConfirmation
+        ? `<button class="btn-primary fitness-level-action" onclick="confirmTrainingLevelUpgrade()">Bekreft nivå ${assessment.level.rank}: ${escapeHtml(assessment.level.label)}</button>`
+        : '';
+      const nextCriteria = assessment.nextLevel && assessment.nextCriteria.length
+        ? `<div class="fitness-next"><span>Neste nivå: ${escapeHtml(assessment.nextLevel.label)}</span><strong>${escapeHtml(assessment.nextCriteria[0])}</strong></div>`
+        : '';
+      const vo2 = assessment.vo2.available
+        ? `<div class="fitness-reference-note"><strong>VO2 mot alder:</strong> ${escapeHtml(assessment.vo2.value)} mot HUNT-snitt ${escapeHtml(assessment.vo2.mean)} for ${escapeHtml(assessment.vo2.ageLabel)} år. ${escapeHtml(assessment.vo2.caveat)}</div>`
+        : `<div class="fitness-reference-note"><strong>Aldersreferanse:</strong> ${escapeHtml(assessment.vo2.reason)}.</div>`;
+      const history = normalizeTrainingLevelProgress(state.settings.trainingLevelProgress, assessment.currentCoachLevel).history;
+      const historyHtml = history.length
+        ? history.slice(-5).reverse().map(entry => {
+            const level = assessment.level.id === entry.toTier ? assessment.level.label : entry.toTier.replaceAll('_', ' ');
+            return `<li>${escapeHtml(formatDate(entry.date))}: ${escapeHtml(level)}</li>`;
+          }).join('')
+        : '<li>Ingen bekreftede nivåendringer ennå.</li>';
+      container.innerHTML = `
+        <div class="fitness-level-hero">
+          <div class="fitness-level-rank"><span>Nivå ${assessment.level.rank}</span><strong>${escapeHtml(assessment.level.label)}</strong></div>
+          <div class="fitness-level-score"><strong>${assessment.score}</strong><span>/100 grunnlag</span></div>
+        </div>
+        <p class="fitness-level-summary">${escapeHtml(assessment.summary)}</p>
+        ${blockers}
+        ${action}
+        <div class="fitness-dimensions">${dimensions}</div>
+        ${nextCriteria}
+        <details class="fitness-level-details">
+          <summary>Se vurderingsgrunnlag</summary>
+          <div class="fitness-level-details-content">
+            ${vo2}
+            <p><strong>PB/test:</strong> ${escapeHtml(assessment.performance.note)}</p>
+            <p><strong>Sikkerhetsregel:</strong> PB og VO2 støtter vurderingen, men kan aldri alene oppgradere coach-profilen.</p>
+            <p><strong>Aldersgradering av løp:</strong> Ikke aktivert før komplett WMA-tabell er verifisert.</p>
+            <ul>${historyHtml}</ul>
+          </div>
+        </details>`;
+    }
+
+    window.confirmTrainingLevelUpgrade = async function() {
+      const coachCtx = buildCoachContext();
+      const assessment = buildTrainingLevelAssessment(coachCtx);
+      if (!assessment.eligibleForConfirmation) {
+        showToast('Nivået er ikke klart for bekreftelse nå', 'info');
+        return;
+      }
+      const coachChange = assessment.coachUpgrade
+        ? ` Dette endrer coach-nivå fra ${assessment.currentCoachLevel} til ${assessment.recommendedCoachLevel}.`
+        : ' Coach-nivået endres ikke.';
+      if (!confirm(`Bekreft nivå ${assessment.level.rank}: ${assessment.level.label}?${coachChange}`)) return;
+      state.settings.trainingLevelProgress = confirmedTrainingLevelProgress(assessment, state.settings.trainingLevelProgress);
+      if (assessment.coachUpgrade) {
+        state.settings.trainingProfile = normalizeTrainingProfile({
+          ...state.settings.trainingProfile,
+          level: assessment.recommendedCoachLevel
+        });
+      }
+      await saveSettings();
+      showToast(`Nivå ${assessment.level.rank} bekreftet - bra jobbet!`);
+    };
+
     function renderInsights() {
       const today = todayISO();
       const goals = normalizeGoals(state.settings.goals);
@@ -7624,11 +7785,12 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
           </div>`;
       }).join('');
 
+      const coachCtx = buildCoachContext();
+      renderTrainingLevelAssessment(coachCtx);
       renderBakkenPatterns();
       renderStructuredIntervalInsights(today);
       renderInjurySignalInsight(today);
       renderWellnessInsights();
-      const coachCtx = buildCoachContext();
       const insightCoachNote = document.getElementById('insightCoachNote');
       const insightCoachBasis = document.getElementById('insightCoachBasis');
       if (insightCoachNote) insightCoachNote.textContent = buildCoachNote(coachCtx);
@@ -8317,4 +8479,3 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         navigator.serviceWorker.register(`./service-worker.js?v=${APP_VERSION}`).catch(() => {});
       });
     };
-
