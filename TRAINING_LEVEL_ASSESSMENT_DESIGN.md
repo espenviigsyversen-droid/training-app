@@ -1,4 +1,4 @@
-# Transparent treningsnivåvurdering v1
+# Transparent treningsnivåvurdering v2
 
 ## Formål
 
@@ -64,13 +64,22 @@ AI-coachen får bare et sanitert sammendrag av nivåvurderingen:
 
 AI kan forklare vurderingen, men kan aldri bekrefte nivå, skrive profilendringer eller overstyre skadesignal, comeback eller belastningsvern.
 
+### v160f - Kalibrering og trinnvis progresjon
+
+- Manglende RPE eller registrert respons etter en kvalitetsøkt er `ukjent`, aldri automatisk kontrollert.
+- Kontrollert kvalitet krever RPE og enten følelse etter økten eller eksplisitt smerte før/etter. Registrert smerteøkning eller tung respons kan fortsatt gjøre økten ukontrollert.
+- Nivå 4 krever minst 16 ukers observasjon og 14 aktive uker siste halvår. Nivå 5 krever minst 24 ukers observasjon, 20 aktive uker siste halvår og bred dokumentasjon av kontrollert kvalitet og kroppssignal.
+- Beregnet nivå og høyeste bekreftede nivå vises separat.
+- Bekreftelse skjer ett nivå om gangen. Et høyt beregnet nivå kan derfor ikke hoppe direkte fra Fundament til Erfaren.
+- Assessment-versjonen er økt til 2. Gamle settings normaliseres fortsatt trygt.
+
 ## Dimensjoner og vekting
 
 | Dimensjon | Vekt | Hovedgrunnlag |
 |---|---:|---|
 | Kontinuitet | 30 % | Aktive uker og økter siste 12 uker |
-| Kontrollert kvalitet | 25 % | Repeterbare kvalitetsøkter, RPE og smerterespons |
-| Tåleevne og kroppssignal | 20 % | Aktive/negative signaler siste 28 dager |
+| Kontrollert kvalitet | 25 % | Repeterbare kvalitetsøkter med dokumentert RPE og respons etter økten |
+| Tåleevne og kroppssignal | 20 % | Datadekning og aktive/negative signaler siste 28 dager |
 | Kapasitet mot alder | 15 % | VO2max mot relevant alders-/kjønnsreferanse |
 | PB og testløp | 10 % | Egen forbedring på gjentatt distanse |
 
@@ -106,7 +115,7 @@ PB/testløp brukes i v1 til å vise brukerens egen fremgang på samme distanse. 
 
 ```js
 settings.trainingLevelProgress = {
-  version: 1,
+  version: 2,
   highestTier: 'foundation',
   history: [
     {
@@ -116,8 +125,8 @@ settings.trainingLevelProgress = {
       toTier: 'developing',
       fromCoachLevel: 'building_beginner',
       toCoachLevel: 'intermediate',
-      assessmentVersion: 1,
-      reason: 'I utvikling er klart for bekreftelse.'
+      assessmentVersion: 2,
+      reason: 'Datagrunnlaget peker mot I utvikling. Neste nivå kan bekreftes trinnvis.'
     }
   ]
 }
@@ -141,8 +150,11 @@ Blokkeringen skal være synlig og forklart. Den påvirker ikke registrerte økte
 - Manglende personprofil gir trygg fallback.
 - Gjentatt PB på samme distanse gir egen fremgang.
 - Kontinuitet, kvalitet, kropp, kapasitet og prestasjon kombineres deterministisk.
+- Manglende RPE/respons teller som ukjent kvalitet, ikke kontrollert kvalitet.
+- Tolv ukers data kan ikke alene gi nivå 4 eller 5.
+- Nivå 5 krever minst 24 ukers observasjon og langsiktig aktiv kontinuitet.
 - Sikkerhetssignal blokkerer oppgradering.
-- Bekreftelse er eksplisitt, versjonert og begrenset.
+- Bekreftelse er eksplisitt, versjonert og begrenset til ett nivå om gangen.
 - AI-context inneholder bare sanitert vurdering.
 - Backend avviser ugyldig assessment-score eller form.
 - Gamle settings fungerer uendret.
