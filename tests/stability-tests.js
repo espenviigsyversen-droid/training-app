@@ -1750,6 +1750,8 @@ function test(name, fn) {
     assert.strictEqual(context.trainingSummary.days7.sessions, 3);
     assert.strictEqual(context.trainingSummary.intensityBalance.verdict, 'too_hard');
     assert.strictEqual(context.profile.primaryFocus, 'running');
+    assert.strictEqual(context.profile.levelLabel, 'Viderekommen');
+    assert.strictEqual(context.profile.levelSource, 'user_configured');
     assert.deepStrictEqual(context.profile.goldenZone, { low: 147, high: 160, maxHeartRate: 190, lowPct: 0.78, highPct: 0.85, appliesTo: 'controlled_running_quality' });
     assert.strictEqual(context.coachKnowledge.concepts[0].id, 'golden_zone');
     assert.deepStrictEqual(context.coachKnowledge.goldenZoneModel.ranges[2], { level: 'experienced', lowPct: 0.8, highPct: 0.87 });
