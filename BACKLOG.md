@@ -175,13 +175,20 @@ Prioritert backlog for videre utvikling av Treningsapp.
     - Firebase CLI varslet under v156-deploy at `firebase-functions` er utdatert.
     - Gjør dette som egen testet vedlikeholdsrunde fordi ny hovedversjon kan ha breaking changes; ikke bland oppgraderingen inn i chatfunksjonalitet.
 
-39. **v160a-v160f - Transparent treningsnivåvurdering** - Bygget og kalibrert
+39. **v160a-v160g - Transparent treningsnivåvurdering** - Bygget og kalibrert
     - Ren `domain-fitness.js` kombinerer kontinuitet, kontrollert kvalitet, RPE/kroppssignal, VO2 mot alder og egen PB-fremgang.
     - v160f krever faktisk signaldekning for kontrollert kvalitet, lengre historikk for nivå 4/5 og trinnvis bekreftelse.
     - Innsikt viser nivå, datadekning, fem forklarbare dimensjoner, manglende data og neste kriterium.
     - Fem motivasjonsnivåer kan oppnås og beholdes; profilendring krever eksplisitt bekreftelse.
     - AI får bare sanitert nivågrunnlag og kan ikke endre eller bekrefte nivå.
     - Biologisk alder, absolutt HRV-klasse, BMI-score og uverifisert WMA-aldersgradering er bevisst ikke implementert.
+    - v160g forklarer at vurderingspoeng ikke er nivå, viser konkrete krav til neste nivå og ett prioritert neste steg.
+
+40. **v161 - Kontrollert webtilgang for AI-chat** - Neste
+    - Design server-side nettsøk med tydelig kildevisning, personvern, rate limit og kostnadstak.
+    - Bevar coachDecision, blockedActions og medisinske guardrails som høyere prioritet enn eksternt innhold.
+    - Behandle nettsider som ubetrodd input og bygg trygg fallback når web ikke er tilgjengelig.
+    - Ikke legg søkenøkler, leverandørkonfigurasjon eller rå søkeresultater i frontend eller Firestore-chatloggen.
 
 37. **Mobil polish og mikro-UX**
     - Små forbedringer som gjør appen mer behagelig i daglig bruk.
@@ -207,7 +214,7 @@ Disse punktene var del av den tidlige v142-idéen, men er bevisst flyttet ut av 
 
 V160a-f er implementert som et forklarbart og konservativt nivåspor med brukerbekreftelse og AI-guardrails.
 
-Neste anbefalte punkt etter manuell v160f-test er **Datatrygghet - lokal snapshot-kvote**, fulgt av en isolert oppgradering av Firebase Functions SDK. WMA-aldersgradering kan vurderes senere dersom komplett offisiell standard kan implementeres og testes.
+Neste anbefalte punkt etter manuell v160g-test er **v161 - kontrollert webtilgang for AI-chat**. Deretter følger **Datatrygghet - lokal snapshot-kvote** og en isolert oppgradering av Firebase Functions SDK. WMA-aldersgradering kan vurderes senere dersom komplett offisiell standard kan implementeres og testes.
 
 Begrunnelse:
 - v143b har etablert en validert parameterkilde med trygg fallback
