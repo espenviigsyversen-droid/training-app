@@ -27,7 +27,7 @@ Standard Bakken-uke: Hoved-terskel → Støtte-terskel → Lang rolig → Valgfr
 **Hosting:** GitHub Pages.  
 **Backend:** Firebase (prosjekt `home-tasks-app-18de3`) — Firestore + Google Auth.  
 **Frontend:** Vanilla JS + HTML + CSS, single-page app, tab-navigasjon.  
-**Versjon:** v156 (konstant i `app.js`).
+**Versjon:** v159 (konstant i `app.js`).
 
 ### Filer
 
@@ -140,7 +140,11 @@ Treningsapp/
 - **Sikker AI-backend og nøkkeladministrasjon** (v151, deployet): Ny `functions/`-backend bruker Firebase Callable Functions med Auth, server-side OpenAI-nøkkel, maskert status, kontekstvalidering, rate limit, timeout og sanitert metadata-logging. Nøkkelen skrives inn i Setup, men returneres aldri til frontend og lagres ikke i appens localStorage eller repo.
 - **Read-only AI-coach chat** (v152, ende-til-ende-verifisert gjennom v154): Chatflaten bruker serverbygget systeminstruks og coach-context, har ingen web-søk, tools, dataskriving eller automatisk planendring. Før v156 beholdes meldinger kun i minnet.
 - **Chat-polish, personvern og brukskontroll** (v153, deployverifisert gjennom v154): Chatten viser tilkoblingsstatus, datagrunnlag, session-forbruk, forslag, tydelige feiltilstander og eksplisitt samtykke. OpenAI-kallet er stateless (`store: false`), bruker ingen tools og sender en pseudonym sikkerhetsidentifikator.
-- **AI-chat videre produktspor** (v154-v158, planlagt): `AI_CHAT_PROJECTS_DESIGN.md` dokumenterer neste runder. v154 gir tydelig dynamisk `Tilkoblet`-status og egen Chat-fane etter Mål. v155 låser Firestore-modell, Rules, retention og rekursiv sletting. v156 bygger synkroniserte samtaler på PC/mobil. v157 legger til prosjekter med egne instrukser. v158 innfører kontrollert samtalesammendrag, eventuelt eksplisitt minne, personvern og kostnadskontroll. Prosjektinstrukser kan aldri overstyre coachens guardrails.
+- **AI-chat videre produktspor** (v154-v159, gjennomført): `AI_CHAT_PROJECTS_DESIGN.md` dokumenterer produktsporet. v154 ga Chat-fane og tilkoblingsstatus, v155 sikker lagringsmodell, v156 synkroniserte samtaler, og v159 samler prosjekter, egne instrukser, kontrollert samtalesammendrag, eksport, sletting og kostnadsinnsyn. Prosjektinstrukser kan aldri overstyre coachens guardrails.
+- **v156 godkjent** (16. juli 2026): Samtaler er manuelt verifisert på mobil og PC med kryssenhetssynk, arkivering og sletting.
+- **Coach Knowledge Foundation og AI-context v2** (v159): `coach-rules.json` v3 er validert sannhetskilde for kuraterte coach-konsepter. AI-contexten sender eksakt makspulsgrunnlag, bpm- og prosentgrenser for gylne-sone samt nivå og kunnskapsbegrensninger. Rå Markdown-/PDF-/tekniske prosjektfiler sendes ikke til modellen.
+- **AI-prosjekter og kontrollert langtidskontekst** (v159): Chat støtter flere prosjekter med egne preferanseinstrukser, backend-eid og begrenset samtalesammendrag, tømming av samtaleminne, separat JSON-eksport, rekursiv sletting og tokenoversikt. Instrukser og sammendrag er data med lavere prioritet enn coachDecision og sikkerhetsreglene.
+- **AI-svarpolish** (v159): Serverprompten krever naturlig norsk ren tekst uten rå Markdown-markører. Frontend normaliserer også enkle markører fra eldre svar og renderer fortsatt sikkert med `textContent`.
 - **AI-status og egen Chat-fane** (v154, implementert lokalt): Chat er nå sjette hoveddestinasjon etter Mål og har fortsatt fritekstfelt, forslag og read-only adferd. Setup skiller nøytral `Server-side`-merking fra en dynamisk status-tag med `Tilkoblet`, `Ikke tilkoblet`, `Nøkkel avvist` eller `Utilgjengelig`. Lagring og eksplisitt tilkoblingstest persisterer siste status i det maskerte serverdokumentet, uten å eksponere nøkkelen. Seks-fane-layouten har egne mobilregler. Automatisk test er bestått; manuell innlogget mobil/PWA-test gjenstår etter deploy.
 - **v154 ende-til-ende godkjent** (12. juli 2026): Setup viser `Tilkoblet`, alle seks faner fungerer, og Chat har svart på et ekte fritekstspørsmål med data fra appens coach-context. Punktvis Markdown-stil i svarene er notert som senere svar-/render-polish.
 - **Chat persistence sikkerhetsgrunnlag** (v155, ferdig og deployet 12. juli 2026): Ny ren `functions/ai/chat-persistence.js` låser schema v1, ID-/feltvalidering, backend-only sletting, separat backup-policy og begrenset modellvindu. Produksjonsreglene ble lest i Firebase Console og viste at prosjektet deles med familie-/husholdningsapper og har rekursiv eiertilgang under `users/{uid}`. Chatmodellen er derfor isolert til `aiChatUsers/{uid}/projects/...`. Ny `firestore.rules` bevarer eksisterende appregler, nekter klienttilgang til AI-nøkler/usage og gjør chat skrivebeskyttet fra frontend. Emulatoren tester både isolasjonen og regresjonsvern for de delte appene. Den sammenslåtte regelfilen kompilerte og ble deployet til `home-tasks-app-18de3`.
@@ -182,14 +186,12 @@ Treningsapp/
 
 ## Neste steg (prioritert)
 
-1. **Fullfør manuell akseptansetest av v156**
-   - Fortsett en lagret samtale på en annen enhet. Test deretter arkiv/gjenåpne og bekreftet sletting før v157 starter.
-2. **v157 - Prosjekter og egne instrukser**
-   - Utvid med flere prosjekter først etter at enhetssynk og sletting er praktisk verifisert.
-3. **v158 - Kontrollert langtidskontekst og kvalitet**
-   - Legg til kontrollert sammendrag, personvern, eksport og kostnadsgrenser etter praktisk historikktest.
-
-Kontrollert langtidskontekst, personvern og kostnadspolish følger i v158.
+1. **Manuell v159-akseptanse**
+   - Verifiser eksakt gylne-sone-svar, prosjektinstrukser, prosjektsynk, sammendrag, eksport og sletting på mobil/PC.
+2. **AI-kvalitetsrunde**
+   - Test representative spørsmål om trening, mat, restitusjon og kroppssignal før eventuell ny funksjonalitet.
+3. **Vedlikehold og datatrygghet**
+   - Ta lokal snapshot-kvote og Firebase Functions SDK som separate, lavrisiko runder.
 
 ---
 
@@ -199,4 +201,3 @@ Kontrollert langtidskontekst, personvern og kostnadspolish følger i v158.
 - Lokal kopi — ikke et Git-repo. Filer lastes opp manuelt til GitHub Pages.
 - Filer som typisk endres per økt: `app.js`, `index.html`, `styles.css`, `service-worker.js`
 - Husk alltid å bumpe `APP_VERSION` i `app.js` og `CACHE_NAME` i `service-worker.js`
-
