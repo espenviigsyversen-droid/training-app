@@ -1056,7 +1056,7 @@ Detaljert datamodell, sikkerhetsgrenser og rekkefølge ligger i `AI_CHAT_PROJECT
 - Viser konkrete udekkede krav til neste nivå fra produksjonens nivåmotor.
 - Fremhever ett forsiktig neste steg basert på svakeste dimensjon; sikkerhetssignaler går foran.
 
-## v161 - Kontrollert webtilgang for AI-chat - Neste design- og sikkerhetsrunde
+## v161 - Kontrollert webtilgang for AI-chat - Implementert
 
 ### Mål
 
@@ -1071,6 +1071,14 @@ La brukeren stille spørsmål som trenger oppdatert kunnskap, blant annet om mat
 - Ernæringssvar skal skille generell informasjon fra individuell medisinsk rådgivning.
 - Backend skal ha domene-/resultatgrenser, timeout, rate limit, kostnadstak og logging uten sensitive treningsdata.
 - Før implementering skal OpenAI-verktøyvalg, personvern, kildesitering og fallback uten web dokumenteres og testes.
+
+Status:
+
+- Frivillig `Søk på nett` per melding med separat samtykke.
+- Server-side OpenAI `web_search` med lavt søkekontekstbudsjett og blokkerte lavtillit-domener.
+- Sanitert, klikkbar kildevisning og bakoverkompatibel Firestore-lagring.
+- Webinnhold er eksplisitt underordnet appens coach-beslutning og sikkerhetsregler.
+- Full kontrakt er dokumentert i `AI_WEB_SEARCH_DESIGN.md`.
 
 Utenfor v150-v153:
 
@@ -1268,4 +1276,3 @@ v154-v156 er deployet og manuelt verifisert, inkludert kryssenhetssynk, arkiv og
 - assistant-svar vises roligere og mindre kortpreget; brukermeldinger beholdes som diskrete bobler
 - grunnlag og personvern ligger under den eksisterende samtale-/prosjektadministrasjonen
 - backend, Firestore-modell, synkronisering, coach-context og sikkerhetsregler er uendret
-
