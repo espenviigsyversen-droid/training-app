@@ -570,6 +570,30 @@
             <p>Legg inn API-nøkkelen under Setup. Nøkkelen lagres bare på Firebase-backend og kan ikke leses tilbake av appen.</p>
             <button id="aiCoachOpenSettingsBtn" class="btn-primary" type="button">Åpne API-integrasjoner</button>
           </div>
+          <div class="ai-project-toolbar">
+            <div>
+              <label for="aiCoachProjectSelect">Prosjekt</label>
+              <select id="aiCoachProjectSelect" aria-label="Velg chatprosjekt">
+                <option value="general-training">Generell trening</option>
+              </select>
+            </div>
+            <button id="aiCoachManageProjectBtn" class="btn-soft" type="button">Prosjektvalg</button>
+          </div>
+          <div id="aiCoachProjectPanel" class="ai-project-panel hidden">
+            <label for="aiCoachProjectTitle">Prosjektnavn</label>
+            <input id="aiCoachProjectTitle" maxlength="80" placeholder="F.eks. Halv-Birken">
+            <label for="aiCoachProjectInstructions">Egne instrukser</label>
+            <textarea id="aiCoachProjectInstructions" maxlength="2000" placeholder="F.eks. Ta hensyn til at jeg trener best om morgenen og foretrekker korte, konkrete svar."></textarea>
+            <label class="inline-check"><input id="aiCoachProjectSummaryEnabled" type="checkbox" checked> Bruk begrenset samtalesammendrag som langtidskontekst</label>
+            <p class="small-note">Instruksene påvirker fokus og tone, men kan aldri overstyre skadesignal eller appens sikkerhetsregler.</p>
+            <div class="button-row ai-project-actions">
+              <button id="aiCoachSaveProjectBtn" class="btn-primary" type="button">Lagre prosjekt</button>
+              <button id="aiCoachNewProjectBtn" class="btn-soft" type="button">Nytt prosjekt</button>
+              <button id="aiCoachArchiveProjectBtn" class="btn-soft" type="button">Arkiver</button>
+              <button id="aiCoachDeleteProjectBtn" class="btn-soft danger-text" type="button">Slett</button>
+            </div>
+            <p id="aiCoachProjectFeedback" class="small-note"></p>
+          </div>
           <div class="ai-conversation-toolbar">
             <div>
               <label for="aiCoachConversationSelect">Samtale</label>
@@ -591,6 +615,12 @@
             <p id="aiCoachContextUsed" class="small-note">Ingen context er sendt ennå.</p>
             <p id="aiCoachUsage" class="small-note">Ingen AI-kall i denne appøkten.</p>
             <p class="small-note">Samtalen lagres under din innloggede Firebase-bruker og kan åpnes på andre enheter. API-nøkkel, e-post, backup og komplett historikk sendes ikke til modellen.</p>
+            <div class="button-row ai-privacy-actions">
+              <button id="aiCoachClearSummaryBtn" class="btn-soft" type="button">Tøm samtaleminne</button>
+              <button id="aiCoachExportBtn" class="btn-soft" type="button">Eksporter chat</button>
+              <button id="aiCoachDeleteAllBtn" class="btn-soft danger-text" type="button">Slett all chat</button>
+            </div>
+            <p id="aiCoachPrivacyFeedback" class="small-note"></p>
           </details>
           <div id="aiCoachComposer" class="ai-coach-composer hidden">
             <label for="aiCoachInput">Spørsmål</label>
@@ -1416,4 +1446,3 @@
   <script type="module" src="app.js"></script>
 </body>
 </html>
-
