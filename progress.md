@@ -27,7 +27,7 @@ Standard Bakken-uke: Hoved-terskel → Støtte-terskel → Lang rolig → Valgfr
 **Hosting:** GitHub Pages.  
 **Backend:** Firebase (prosjekt `home-tasks-app-18de3`) — Firestore + Google Auth.  
 **Frontend:** Vanilla JS + HTML + CSS, single-page app, tab-navigasjon.  
-**Versjon:** v160g (konstant i `app.js`).
+**Versjon:** v161 (konstant i `app.js`).
 
 ### Filer
 
@@ -150,6 +150,7 @@ Treningsapp/
 - **Transparent treningsnivåvurdering** (v160a-v160e): Ny ren `domain-fitness.js` kombinerer 12 ukers kontinuitet, kontrollert kvalitet, RPE/kroppssignal, VO2max mot alders-/kjønnsspesifikk HUNT-referanse og egen PB-fremgang. Innsikt viser fem forklarbare dimensjoner, datadekning, neste kriterium og sikkerhetsblokkering. Fem motivasjonsnivåer kan oppnås og beholdes, men coach-profilen endres bare etter eksplisitt bekreftelse. AI-contexten får kun et sanitert nivågrunnlag; backend validerer det og forbyr AI å bekrefte eller endre nivå. Biologisk alder, BMI-score, absolutt HRV-klasse og uverifisert WMA-aldersgradering er bevisst utelatt. `aiCoachChat` med v160e-validering og systeminstruks ble deployet til Firebase 16. juli 2026.
 - **Treningsnivå kalibreringspatch** (v160f): Manglende RPE eller respons etter kvalitetsøkten regnes nå som ukjent datagrunnlag, ikke kontrollert kvalitet. Tåleevne tar hensyn til faktisk registreringsdekning. Nivå 4 og 5 krever lengre observasjon og aktive uker over flere måneder, mens bekreftelse skjer ett nivå om gangen. Innsikt skiller beregnet nivå fra bekreftet progresjon og har fått et tydeligere mobilhierarki. Assessment-policyen er versjonert som v2 uten ny Firestore-modell.
 - **Treningsnivå forklaringspatch** (v160g): `89/100` omtales nå som vurderingsgrunnlag og forklares som noe annet enn nivå. Udekkede krav til neste nivå hentes fra nivåmotoren, og Innsikt viser ett anbefalt neste steg basert på svakeste dimensjon med sikkerhetssignaler foran. Assessment-policyen er versjonert som v3 uten ny Firestore-modell.
+- **Kontrollert webtilgang for AI-chat** (v161): Chatten har fått et frivillig `Søk på nett` per melding med eget samtykke. Nettsøk skjer bare server-side via OpenAI Responses API, med lavt søkekontekstbudsjett, blokkerte lavtillit-domener og eksisterende rate limit. Brukte kilder sanitiseres, vises klikkbart og lagres bakoverkompatibelt med samtalen, mens rå søkeresultater aldri lagres. Webinnhold er uttrykkelig underordnet `coachDecision`, `blockedActions`, guardrails og medisinske begrensninger.
 - **AI-prosjekter og kontrollert langtidskontekst** (v159): Chat støtter flere prosjekter med egne preferanseinstrukser, backend-eid og begrenset samtalesammendrag, tømming av samtaleminne, separat JSON-eksport, rekursiv sletting og tokenoversikt. Instrukser og sammendrag er data med lavere prioritet enn coachDecision og sikkerhetsreglene.
 - **AI-svarpolish** (v159): Serverprompten krever naturlig norsk ren tekst uten rå Markdown-markører. Frontend normaliserer også enkle markører fra eldre svar og renderer fortsatt sikkert med `textContent`.
 - **AI-status og egen Chat-fane** (v154, implementert lokalt): Chat er nå sjette hoveddestinasjon etter Mål og har fortsatt fritekstfelt, forslag og read-only adferd. Setup skiller nøytral `Server-side`-merking fra en dynamisk status-tag med `Tilkoblet`, `Ikke tilkoblet`, `Nøkkel avvist` eller `Utilgjengelig`. Lagring og eksplisitt tilkoblingstest persisterer siste status i det maskerte serverdokumentet, uten å eksponere nøkkelen. Seks-fane-layouten har egne mobilregler. Automatisk test er bestått; manuell innlogget mobil/PWA-test gjenstår etter deploy.
@@ -193,15 +194,13 @@ Treningsapp/
 
 ## Neste steg (prioritert)
 
-1. **Manuell v160g-prøve**
-   - Verifiser vurderingsgrunnlag, forklaring, konkrete krav til neste nivå og anbefalt neste steg på mobil/desktop.
-2. **v161 - kontrollert webtilgang for AI-chat**
-   - Design server-side nettsøk med klikkbare kilder, ubetrodd-input-vern, personvern, rate limit, kostnadstak og trygg fallback.
-3. **Datatrygghet - lokal snapshot-kvote**
+1. **Manuell v161-prøve**
+   - Test vanlig chat uten nettsøk og et ernæringsspørsmål med nettsøk på mobil/PC. Kontroller merking, klikkbare kilder og synkronisering.
+2. **Datatrygghet - lokal snapshot-kvote**
    - Gjør offline-sikkerhetsnettet robust mot `QuotaExceededError` uten å blande det inn i chat- eller coachlogikk.
-4. **Vedlikehold - Firebase Functions SDK**
+3. **Vedlikehold - Firebase Functions SDK**
    - Oppgrader isolert med backendtester og manuell AI-smoke-test.
-5. **Senere evidenspolish**
+4. **Senere evidenspolish**
    - Vurder offisiell WMA-aldersgradering bare dersom komplett og verifisert standard kan implementeres.
 
 ---
@@ -212,4 +211,3 @@ Treningsapp/
 - Lokal kopi — ikke et Git-repo. Endrede filer synkroniseres til GitHub Pages via GitHub-connectoren når skrivetilgang er tilgjengelig.
 - Filer som typisk endres per økt: `app.js`, `index.html`, `styles.css`, `service-worker.js`
 - Husk alltid å bumpe `APP_VERSION` i `app.js` og `CACHE_NAME` i `service-worker.js`
-
