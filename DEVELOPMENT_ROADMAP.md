@@ -1050,6 +1050,28 @@ Detaljert datamodell, sikkerhetsgrenser og rekkefølge ligger i `AI_CHAT_PROJECT
 - Beregnet nivå, bekreftet progresjon og neste bekreftbare nivå vises separat.
 - Bekreftelse skjer ett nivå om gangen, og mobilkortet har tydeligere hierarki og tekstvern.
 
+### v160g - Forklarbart vurderingsgrunnlag og neste steg - Bygget
+
+- Skiller eksplisitt poengsummen for vurderingsgrunnlag fra beregnet treningsnivå.
+- Viser konkrete udekkede krav til neste nivå fra produksjonens nivåmotor.
+- Fremhever ett forsiktig neste steg basert på svakeste dimensjon; sikkerhetssignaler går foran.
+
+## v161 - Kontrollert webtilgang for AI-chat - Neste design- og sikkerhetsrunde
+
+### Mål
+
+La brukeren stille spørsmål som trenger oppdatert kunnskap, blant annet om mat og ernæring, uten å gi modellen fri eller uoversiktlig nett-tilgang.
+
+### Retning
+
+- Websøk skal skje server-side via et eksplisitt søkeverktøy, aldri direkte fra frontend.
+- Modellen skal markere når web er brukt og vise klikkbare kilder nær påstandene.
+- CoachDecision, `blockedActions` og medisinske guardrails gjelder også når nettsøk brukes.
+- Søkeresultater er ekstern, ubetrodd tekst og kan aldri overstyre systeminstruks eller appdata.
+- Ernæringssvar skal skille generell informasjon fra individuell medisinsk rådgivning.
+- Backend skal ha domene-/resultatgrenser, timeout, rate limit, kostnadstak og logging uten sensitive treningsdata.
+- Før implementering skal OpenAI-verktøyvalg, personvern, kildesitering og fallback uten web dokumenteres og testes.
+
 Utenfor v150-v153:
 
 - web-søk
