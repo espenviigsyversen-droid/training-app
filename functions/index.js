@@ -14,10 +14,18 @@ const {
 } = require("./ai/keys");
 const {
   archiveConversation,
+  archiveProject,
+  clearConversationSummary,
   createConversation,
+  createProject,
+  deleteAllChatData,
   deleteConversation,
+  deleteProject,
+  exportChatData,
   getConversation,
-  listConversations
+  listConversations,
+  listProjects,
+  updateProject
 } = require("./ai/chat-store");
 
 initializeApp();
@@ -148,3 +156,42 @@ exports.aiChatDeleteConversation = onCall(CALL_OPTIONS, async request => {
   }
 });
 
+exports.aiChatListProjects = onCall(CALL_OPTIONS, async request => {
+  const uid = requireUid(request);
+  try { return await listProjects(db, uid); } catch (error) { return internalFailure(error, "list_projects"); }
+});
+
+exports.aiChatCreateProject = onCall(CALL_OPTIONS, async request => {
+  const uid = requireUid(request);
+  try { return await createProject(db, uid, request.data || {}); } catch (error) { return internalFailure(error, "create_project"); }
+});
+
+exports.aiChatUpdateProject = onCall(CALL_OPTIONS, async request => {
+  const uid = requireUid(request);
+  try { return await updateProject(db, uid, request.data || {}); } catch (error) { return internalFailure(error, "update_project"); }
+});
+
+exports.aiChatArchiveProject = onCall(CALL_OPTIONS, async request => {
+  const uid = requireUid(request);
+  try { return await archiveProject(db, uid, request.data || {}); } catch (error) { return internalFailure(error, "archive_project"); }
+});
+
+exports.aiChatDeleteProject = onCall(CALL_OPTIONS, async request => {
+  const uid = requireUid(request);
+  try { return await deleteProject(db, uid, request.data || {}); } catch (error) { return internalFailure(error, "delete_project"); }
+});
+
+exports.aiChatClearConversationSummary = onCall(CALL_OPTIONS, async request => {
+  const uid = requireUid(request);
+  try { return await clearConversationSummary(db, uid, request.data || {}); } catch (error) { return internalFailure(error, "clear_summary"); }
+});
+
+exports.aiChatExportData = onCall(CALL_OPTIONS, async request => {
+  const uid = requireUid(request);
+  try { return await exportChatData(db, uid); } catch (error) { return internalFailure(error, "export_chat"); }
+});
+
+exports.aiChatDeleteAllData = onCall(CALL_OPTIONS, async request => {
+  const uid = requireUid(request);
+  try { return await deleteAllChatData(db, uid, request.data || {}); } catch (error) { return internalFailure(error, "delete_all_chat"); }
+});
