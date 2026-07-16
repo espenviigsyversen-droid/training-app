@@ -1041,6 +1041,15 @@ Detaljert datamodell, sikkerhetsgrenser og rekkefølge ligger i `AI_CHAT_PROJECT
 - Systeminstruksen skiller beregnet nivågrunnlag fra bekreftet profilnivå.
 - AI kan forklare vurderingen, men aldri bekrefte nivå, skrive profilendring eller overstyre coachens sikkerhetsprioritet.
 
+### v160f - Kalibrering, datadekning og trinnvis nivåprogresjon - Bygget
+
+- Manglende RPE eller respons etter kvalitetsøkten behandles som ukjent datagrunnlag, ikke som kontrollert kvalitet.
+- Kvalitetsscoren skiller antall klassifiserte kvalitetsøkter fra antall økter med tilstrekkelig dokumentasjon.
+- Tåleevne får ikke full score uten registrerte responser etter økter.
+- Nivå 4 og 5 krever lengre observasjon og aktive uker over flere måneder; 12 gode uker kan ikke alene gi høyeste nivå.
+- Beregnet nivå, bekreftet progresjon og neste bekreftbare nivå vises separat.
+- Bekreftelse skjer ett nivå om gangen, og mobilkortet har tydeligere hierarki og tekstvern.
+
 Utenfor v150-v153:
 
 - web-søk
@@ -1113,7 +1122,7 @@ Hvis svaret er ja på flere av disse, bør ideen prioriteres.
 
 ### Neste 3 runder
 
-1. Manuell v160-test av Innsikt, mobil, bekreftelsesflyt og AI-forklaring
+1. Manuell v160f-test av Innsikt, mobil, datadekning og trinnvis bekreftelsesflyt
 2. Datatrygghet - gjør lokal snapshot robust mot localStorage-kvote
 3. Vedlikehold - oppgrader Firebase Functions SDK i en isolert og testet runde
 
@@ -1237,3 +1246,4 @@ v154-v156 er deployet og manuelt verifisert, inkludert kryssenhetssynk, arkiv og
 - assistant-svar vises roligere og mindre kortpreget; brukermeldinger beholdes som diskrete bobler
 - grunnlag og personvern ligger under den eksisterende samtale-/prosjektadministrasjonen
 - backend, Firestore-modell, synkronisering, coach-context og sikkerhetsregler er uendret
+
