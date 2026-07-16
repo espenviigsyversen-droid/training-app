@@ -995,6 +995,56 @@ Detaljert datamodell, sikkerhetsgrenser og rekkefølge ligger i `AI_CHAT_PROJECT
 - Legg til personvern-, eksport-, kostnads- og kvalitetskontroller.
 - Test trening, skade, mål-løp og generelle mat-/restitusjonsspørsmål mot samme sikkerhetsmodell.
 
+## v159c-v160 - Svarpresisjon og transparent nivåvurdering
+
+### v159c - Presise skiller mellom fakta, vurdering og forslag - Bygget
+
+- AI-contexten merker treningsnivå som manuelt konfigurert og sender norsk nivåetikett.
+- AI skal si «profilen er satt til», ikke hevde at appen automatisk har vurdert nivået.
+- Interne enum-verdier som `building_beginner` skal ikke vises til brukeren.
+- Forslag til ny vurdering skal ikke presenteres som formelle terskler eller appregler.
+- Treningsnivå eller andre appdata kan aldri endres uten eksplisitt brukerbekreftelse.
+
+### v160a - Transparent nivåvurdering: design og datamodell
+
+Mål: Definer en ren og etterprøvbar vurdering av om profilnivået fortsatt passer, uten automatisk endring.
+
+Datagrunnlaget skal vurderes over et regelstyrt flerukersvindu og kan omfatte:
+
+- kontinuitet og antall aktive treningsuker
+- mengde kontrollert kvalitetsarbeid
+- etterlevelse av aktiv gylne-sone på relevante kvalitetsøkter
+- RPE og om kvalitetsøkter er repeterbare uten unødvendig høy belastning
+- kroppssignaler, smerteutvikling og restitusjonsrespons
+- volumstabilitet, comeback-status og datakvalitet
+
+Den rene domenevurderingen bør returnere:
+
+- nåværende manuelt valgt nivå
+- foreslått nivå eller «behold nivå»
+- confidence/datadekning
+- strukturerte grunner for og imot
+- manglende data
+- hvilke konkrete signaler som bør observeres videre
+- tidligste anbefalte tidspunkt for ny vurdering, som forslag og ikke fasit
+
+Arkitektur og sikkerhet:
+
+- terskler og vinduer skal ligge i validerte coach-regler, ikke hardkodes i UI
+- ren logikk legges i `domain-coach.js` eller egen liten coach-modul
+- gamle profiler fungerer uendret
+- vurderingen skal være rådgivende og kan ikke skrive til profil eller Firestore
+- skadesignal og ustabil belastningsrespons skal trekke vurderingen konservativt
+
+### v160b - Transparent nivåvurdering: implementering og bekreftelsesflyt
+
+- Vis et kompakt «Nivågrunnlag» i Innsikt eller Setup med nåværende nivå, datadekning og viktigste grunner.
+- Vis både positive signaler og forhold som taler for å vente.
+- Brukeren kan åpne detaljgrunnlaget før eventuell endring.
+- Profilnivå endres bare etter en eksplisitt bekreftelse med konsekvensforklaring for gylne-sone.
+- Ingen AI-tekst skal alene kunne endre nivået.
+- Legg tester for lite data, stabil progresjon, høy RPE, aktive kroppssignaler og gamle profiler.
+
 Utenfor v150-v153:
 
 - web-søk
@@ -1067,9 +1117,9 @@ Hvis svaret er ja på flere av disse, bør ideen prioriteres.
 
 ### Neste 3 runder
 
-1. Manuell v159-akseptanse av kunnskap, prosjekter, sammendrag, eksport og sletting
-2. AI-kvalitetstest med representative trenings-, mat- og restitusjonsspørsmål
-3. Separate vedlikeholdsrunder for lokal snapshot-kvote og Firebase Functions SDK
+1. Manuell v159c-kvalitetstest av fakta/vurdering/forslag og norske nivåetiketter
+2. v160a - Transparent nivåvurdering: design, coach-regler og ren datamodell
+3. v160b - Transparent nivåvurdering: UI, forklarbart grunnlag og bekreftet nivåendring
 
 ### Neste 10 runder
 
