@@ -88,6 +88,7 @@ function providerError(status, data) {
   const detail = String(data?.error?.message || "OpenAI svarte med HTTP " + status).slice(0, 300);
   if (status === 401 || status === 403) return { ok: false, code: "INVALID_API_KEY", message: "OpenAI-nøkkelen ble avvist." };
   if (status === 429) return { ok: false, code: "RATE_LIMITED", message: "OpenAI har midlertidig begrenset antall kall. Prøv igjen senere." };
+  if (status === 404 || data?.error?.code === "model_not_found") return { ok: false, code: "MODEL_UNAVAILABLE", message: "Den valgte modellen er ikke tilgjengelig for denne OpenAI-nøkkelen." };
   if (status >= 500) return { ok: false, code: "PROVIDER_UNAVAILABLE", message: "OpenAI er midlertidig utilgjengelig." };
   return { ok: false, code: "PROVIDER_ERROR", message: detail };
 }
@@ -122,7 +123,7 @@ async function runOpenAiCoach(options = {}) {
     input,
     store: false,
     max_output_tokens: MAX_OUTPUT_TOKENS,
-    reasoning: { effort: "low" },
+    reasoning: { effort: String(options.reasoningEffort || "low") },
     text: { verbosity: "low" },
     safety_identifier: String(options.safetyIdentifier || "")
   };
@@ -132,7 +133,7 @@ async function runOpenAiCoach(options = {}) {
       search_context_size: "low",
       filters: { blocked_domains: [...BLOCKED_WEB_DOMAINS] }
     }];
-    body.tool_choice = "auto";
+    body.tool_choice = { type: "web_search" };
     body.include = ["web_search_call.action.sources"];
   }
 
@@ -170,10 +171,17 @@ async function runOpenAiCoach(options = {}) {
     const answer = extractOutputText(data);
     if (!answer) return { ok: false, code: "AI_EMPTY_RESPONSE", message: "OpenAI returnerte ikke noe lesbart svar." };
     const web = extractWebMetadata(data);
+    const webSearchRequested = options.webSearchEnabled === true;
+    const webSearchStatus = !webSearchRequested ? "not_requested" : web.webUsed ? "used" : "not_used";
     return {
       ok: true,
       answer,
       ...web,
+      webSearchRequested,
+      webSearchUsed: web.webUsed,
+      webSearchStatus,
+      sourceCount: web.sources.length,
+      webSourceCount: web.sources.length,
       usage: normalizedUsage(data),
       model: body.model,
       responseId: String(data?.id || "")
@@ -190,5 +198,6 @@ module.exports = {
   extractWebMetadata,
   extractOutputText,
   normalizedUsage,
+  providerError,
   runOpenAiCoach
 };
