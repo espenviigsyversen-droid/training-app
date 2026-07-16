@@ -35,6 +35,14 @@ Numeriske, personlige verdier beregnes fortsatt av appen. For gylne-sone skal AI
 - registrert makspuls
 - at sonen gjelder kontrollert løpskvalitet og ikke er taket for alle rolige økter
 
+Fra v159b inneholder contexten også hele den validerte nivåmodellen fra aktive coach-regler:
+
+- nybegynner/under oppbygging: 77–84 % av registrert makspuls
+- viderekommen: 78–85 %
+- erfaren/godt trent: 80–87 %
+
+Midlertidig god dagsform eller toppform endrer ikke nivåmodellen alene. Hvis brukeren spør hypotetisk om et annet varig treningsnivå, skal AI bruke riktig nivåintervall og beregne bpm fra registrert makspuls. Ved tvetydige spørsmål skal svaret forklare forskjellen mellom dagsform og treningsnivå.
+
 ## Prosjektinstrukser
 
 Prosjektinstrukser er brukerpreferanser for fokus, tone, tilgjengelig tid, utstyr og matpreferanser. De er data, ikke systeminstruks. De kan aldri:
@@ -67,6 +75,7 @@ Første versjon bruker ren tekst. Modellen instrueres til å unngå Markdown-mar
 ## Akseptanse
 
 - Gylne-sone-spørsmål besvares med appens eksakte prosent- og bpm-grenser.
+- Hypotetiske spørsmål om et annet treningsnivå besvares fra den komplette nivåmodellen, uten å forveksle dette med dagsform.
 - AI gjetter ikke manglende terskler.
 - Prosjektinstruks kan påvirke fokus og tone, men ikke sikkerhetsprioritet.
 - Samtale kan fortsettes med begrenset sammendrag uten at full historikk sendes.
