@@ -1,4 +1,4 @@
-export const FITNESS_ASSESSMENT_VERSION = 2;
+export const FITNESS_ASSESSMENT_VERSION = 3;
 
 export const FITNESS_LEVELS = Object.freeze([
   { id: 'foundation', rank: 1, label: 'Fundament', coachLevel: 'building_beginner' },
@@ -250,6 +250,28 @@ function dimension(id, label, score, status, summary, evidence = []) {
   return { id, label, score: clamp(Math.round(score), 0, 100), status, summary, evidence };
 }
 
+function recommendedStepForDimension(dimensionItem, { safetyBlockers = [] } = {}) {
+  if (safetyBlockers.length) {
+    return {
+      dimensionId: 'safety',
+      label: 'Stabiliser kroppssignalene',
+      text: 'La kroppssignaler og belastning bli stabile før du prøver å løfte treningsnivået.'
+    };
+  }
+  const steps = {
+    continuity: 'Prioriter to til tre gjennomførbare økter per uke og bygg flere stabile uker.',
+    quality: 'Hold neste kvalitetsøkt kontrollert, og registrer RPE og kroppens respons etterpå.',
+    body: 'Registrer RPE, følelse og eventuell smerte etter øktene, slik at tåleevnen kan vurderes tryggere.',
+    capacity: 'Bygg videre med rolig volum og kontrollert kvalitet, og følg VO2max eller et repeterbart testløp over tid.',
+    performance: 'Gjenta et kontrollert testløp på samme distanse for å gjøre fremgangen sammenlignbar.'
+  };
+  return {
+    dimensionId: dimensionItem?.id || 'continuity',
+    label: dimensionItem?.label || 'Kontinuitet',
+    text: steps[dimensionItem?.id] || steps.continuity
+  };
+}
+
 export function assessTrainingLevel(input = {}) {
   const todayIso = String(input.todayIso || new Date().toISOString().slice(0, 10));
   const completedAll = (Array.isArray(input.completed) ? input.completed : [])
@@ -315,16 +337,53 @@ export function assessTrainingLevel(input = {}) {
     continuityScore * 0.3 + qualityScore * 0.25 + bodyScore * 0.2 + capacityScore * 0.15 + performanceScore * 0.1
   );
 
+  const levelRequirements = {
+    2: [
+      { id: 'score', met: score >= 40, detail: `${Math.max(0, 40 - score)} poeng igjen til vurderingsgrunnlag 40` },
+      { id: 'sessions', met: completed84.length >= 8, detail: `${Math.max(0, 8 - completed84.length)} økter igjen siste 12 uker` },
+      { id: 'active-weeks', met: activeWeeks >= 4, detail: `${Math.max(0, 4 - activeWeeks)} aktive uker igjen` }
+    ],
+    3: [
+      { id: 'score', met: score >= 58, detail: `${Math.max(0, 58 - score)} poeng igjen til vurderingsgrunnlag 58` },
+      { id: 'sessions', met: completed84.length >= 16, detail: `${Math.max(0, 16 - completed84.length)} økter igjen siste 12 uker` },
+      { id: 'active-weeks', met: activeWeeks >= 7, detail: `${Math.max(0, 7 - activeWeeks)} aktive uker igjen` },
+      { id: 'quality', met: controlledQuality.length >= 2, detail: `${Math.max(0, 2 - controlledQuality.length)} dokumenterte, kontrollerte kvalitetsøkter igjen` }
+    ],
+    4: [
+      { id: 'score', met: score >= 72, detail: `${Math.max(0, 72 - score)} poeng igjen til vurderingsgrunnlag 72` },
+      { id: 'sessions', met: completed84.length >= 24, detail: `${Math.max(0, 24 - completed84.length)} økter igjen siste 12 uker` },
+      { id: 'active-weeks-12', met: activeWeeks >= 9, detail: `${Math.max(0, 9 - activeWeeks)} aktive uker igjen siste 12 uker` },
+      { id: 'active-weeks-26', met: activeWeeks26 >= 14, detail: `${Math.max(0, 14 - activeWeeks26)} flere aktive uker trengs i et lengre halvårsvindu` },
+      { id: 'observation', met: observedWeeks >= 16, detail: `${Math.max(0, 16 - observedWeeks)} flere uker med observasjon trengs` },
+      { id: 'quality', met: controlledQuality.length >= 4 && qualityTolerance >= 0.7 && qualityCoverage >= 0.5, detail: 'Minst 4 dokumenterte kvalitetsøkter med stabil RPE og kroppssignal' },
+      { id: 'capacity', met: vo2.available || performance.available, detail: 'VO2max eller et registrert test-/løpsresultat trengs' }
+    ],
+    5: [
+      { id: 'score', met: score >= 86, detail: `${Math.max(0, 86 - score)} poeng igjen til vurderingsgrunnlag 86` },
+      { id: 'sessions', met: completed84.length >= 30, detail: `${Math.max(0, 30 - completed84.length)} økter igjen siste 12 uker` },
+      { id: 'active-weeks-12', met: activeWeeks >= 11, detail: `${Math.max(0, 11 - activeWeeks)} aktive uker igjen siste 12 uker` },
+      { id: 'active-weeks-26', met: activeWeeks26 >= 20, detail: `${Math.max(0, 20 - activeWeeks26)} flere aktive uker trengs i et lengre halvårsvindu` },
+      { id: 'observation', met: observedWeeks >= 24, detail: `${Math.max(0, 24 - observedWeeks)} flere uker med observasjon trengs` },
+      { id: 'quality', met: controlledQuality.length >= 8 && qualityTolerance >= 0.8 && qualityCoverage >= 0.7, detail: 'Minst 8 dokumenterte kvalitetsøkter med høy kontroll og datadekning' },
+      { id: 'body', met: bodyCoverage >= 0.5, detail: 'Kroppsrespons må være registrert på minst halvparten av øktene siste 28 dager' },
+      { id: 'capacity', met: vo2.available, detail: 'Oppdatert VO2max med alder og kjønn trengs' },
+      { id: 'performance', met: performance.repeatedDistanceCount > 0, detail: 'Gjentatt testløp på samme distanse trengs' }
+    ]
+  };
+
   let rank = 1;
-  if (score >= 40 && completed84.length >= 8 && activeWeeks >= 4) rank = 2;
-  if (score >= 58 && completed84.length >= 16 && activeWeeks >= 7 && controlledQuality.length >= 2) rank = 3;
-  if (score >= 72 && completed84.length >= 24 && activeWeeks >= 9 && activeWeeks26 >= 14 && observedWeeks >= 16 && controlledQuality.length >= 4 && qualityTolerance >= 0.7 && qualityCoverage >= 0.5 && (vo2.available || performance.available)) rank = 4;
-  if (score >= 86 && completed84.length >= 30 && activeWeeks >= 11 && activeWeeks26 >= 20 && observedWeeks >= 24 && controlledQuality.length >= 8 && qualityTolerance >= 0.8 && qualityCoverage >= 0.7 && bodyCoverage >= 0.5 && vo2.available && performance.repeatedDistanceCount) rank = 5;
+  if (levelRequirements[2].every(item => item.met)) rank = 2;
+  if (levelRequirements[3].every(item => item.met)) rank = 3;
+  if (levelRequirements[4].every(item => item.met)) rank = 4;
+  if (levelRequirements[5].every(item => item.met)) rank = 5;
 
   const level = levelByRank(rank);
   const progress = normalizeTrainingLevelProgress(input.progress, input.currentCoachLevel);
   const highestLevel = levelById(progress.highestTier);
   const nextLevel = FITNESS_LEVELS.find(candidate => candidate.rank === rank + 1) || null;
+  const nextLevelRequirements = nextLevel
+    ? (levelRequirements[nextLevel.rank] || []).filter(item => !item.met)
+    : [];
   const currentCoachLevel = String(input.currentCoachLevel || 'building_beginner');
   const hasNewAchievement = level.rank > highestLevel.rank;
   const confirmationLevel = hasNewAchievement ? levelByRank(Math.min(level.rank, highestLevel.rank + 1)) : highestLevel;
@@ -338,6 +397,8 @@ export function assessTrainingLevel(input = {}) {
   ].filter(Boolean);
   const confidencePoints = [completed84.length >= 12, activeWeeks >= 6, observedWeeks >= 12, vo2.available, qualityWithSignals.length >= 4, qualityCoverage >= 0.5, bodyCoverage >= 0.4, performance.available].filter(Boolean).length;
   const confidence = confidencePoints >= 6 ? 'high' : confidencePoints >= 3 ? 'medium' : 'low';
+  const weakestDimension = [...dimensions].sort((a, b) => a.score - b.score)[0];
+  const recommendedNextStep = recommendedStepForDimension(weakestDimension, { safetyBlockers });
 
   const nextCriteria = [];
   if (nextLevel) {
@@ -371,7 +432,9 @@ export function assessTrainingLevel(input = {}) {
       : safetyBlockers.length ? `${level.label} i datagrunnlaget, men oppgradering venter til sikkerhetssignalene er stabile.`
         : `Datagrunnlaget peker mot nivå ${level.rank}: ${level.label}.`,
     nextLevel,
+    nextLevelRequirements,
     nextCriteria: [...new Set(nextCriteria)].slice(0, 3),
+    recommendedNextStep,
     missingData,
     evidence: {
       sessions84: completed84.length,
