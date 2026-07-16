@@ -46,6 +46,20 @@ function validateAiCoachContext(value) {
     if (!isPlainObject(value.coachKnowledge) || !Array.isArray(value.coachKnowledge.concepts)) {
       errors.push("coachKnowledge.concepts is required for schema version 2");
     }
+    const zoneModel = value.coachKnowledge?.goldenZoneModel;
+    if (zoneModel !== undefined) {
+      if (!isPlainObject(zoneModel) || !Array.isArray(zoneModel.ranges)) {
+        errors.push("coachKnowledge.goldenZoneModel.ranges must be an array");
+      } else {
+        const allowedLevels = new Set(["beginner", "intermediate", "experienced"]);
+        for (const range of zoneModel.ranges) {
+          if (!isPlainObject(range) || !allowedLevels.has(range.level) || !Number.isFinite(range.lowPct) || !Number.isFinite(range.highPct)) {
+            errors.push("coachKnowledge.goldenZoneModel contains an invalid range");
+            break;
+          }
+        }
+      }
+    }
     const zone = value.profile?.goldenZone;
     if (zone && isPlainObject(zone)) {
       const numeric = [zone.low, zone.high, zone.maxHeartRate, zone.lowPct, zone.highPct];
