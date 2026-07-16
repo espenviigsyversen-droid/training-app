@@ -212,6 +212,9 @@ async function getConversation(db, uid, value = {}) {
       id: snapshot.id,
       role: data.role === "assistant" ? "assistant" : "user",
       content: cleanText(data.content, LIMITS.messageContent),
+      webSearchRequested: data.webSearchRequested === true || data.webUsed === true,
+      webSearchStatus: ["used", "not_used", "not_requested"].includes(data.webSearchStatus) ? data.webSearchStatus : data.webUsed === true ? "used" : "not_requested",
+      profileFallback: data.profileFallback?.message ? { message: cleanText(data.profileFallback.message, 180) } : null,
       webUsed: data.webUsed === true,
       citations: normalizeMessageCitations(data.citations),
       sources: normalizeMessageSources(data.sources),
@@ -296,15 +299,20 @@ async function persistConversationExchange(db, uid, value = {}) {
   const batch = db.batch();
   batch.set(userRef, { schemaVersion: 1, role: "user", content: userText, createdAt: now, requestId: cleanText(value.requestId, 96) });
   batch.set(assistantRef, {
-    schemaVersion: 2,
+    schemaVersion: 3,
     role: "assistant",
     content: assistantText,
+    webSearchRequested: value.webSearchRequested === true,
+    webSearchStatus: ["used", "not_used", "not_requested"].includes(value.webSearchStatus) ? value.webSearchStatus : value.webUsed === true ? "used" : "not_requested",
     webUsed: value.webUsed === true,
     citations: normalizeMessageCitations(value.citations),
     sources: normalizeMessageSources(value.sources),
     createdAt: now,
     requestId: cleanText(value.requestId, 96),
     modelLabel: cleanText(value.modelLabel, 80),
+    modelProfileId: cleanText(value.modelProfileId, 40),
+    reasoningProfileId: cleanText(value.reasoningProfileId, 40),
+    profileFallback: value.profileFallback?.message ? { message: cleanText(value.profileFallback.message, 180) } : null,
     usage
   });
   batch.set(ref, { summary, messageCount: previousCount + 2, totalTokens: Math.max(0, Number(snapshot.data()?.totalTokens) || 0) + usage.totalTokens, updatedAt: now, lastMessageAt: now }, { merge: true });
