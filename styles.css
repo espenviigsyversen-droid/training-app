@@ -2407,6 +2407,182 @@
       gap: 10px;
     }
 
+    .fitness-level-card {
+      overflow: hidden;
+    }
+
+    .fitness-confidence {
+      flex: 0 0 auto;
+      padding: 5px 8px;
+      border-radius: 999px;
+      background: var(--warm-gray-1);
+      color: var(--warm-gray-3);
+      font-size: 0.7rem;
+      font-weight: 900;
+    }
+
+    .fitness-confidence.high { background: rgba(31,157,85,0.1); color: var(--success); }
+    .fitness-confidence.medium { background: rgba(240,122,22,0.1); color: #9a5b00; }
+
+    .fitness-level-hero {
+      display: flex;
+      justify-content: space-between;
+      align-items: end;
+      gap: 14px;
+      padding: 14px;
+      border: 1px solid rgba(40,169,128,0.18);
+      border-radius: 12px;
+      background: rgba(40,169,128,0.065);
+    }
+
+    .fitness-level-rank,
+    .fitness-level-score {
+      display: grid;
+      gap: 2px;
+    }
+
+    .fitness-level-rank span,
+    .fitness-level-score span {
+      color: var(--warm-gray-3);
+      font-size: 0.7rem;
+      font-weight: 900;
+      text-transform: uppercase;
+    }
+
+    .fitness-level-rank strong { font-size: 1.35rem; line-height: 1.1; }
+    .fitness-level-score { grid-template-columns: auto auto; align-items: baseline; }
+    .fitness-level-score strong { color: var(--success); font-size: 1.7rem; line-height: 1; }
+
+    .fitness-level-summary {
+      margin: 10px 0 0;
+      color: var(--black);
+      font-weight: 750;
+      line-height: 1.4;
+    }
+
+    .fitness-confirmed-level {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      align-items: baseline;
+      margin-top: 10px;
+      padding: 9px 11px;
+      border-radius: 9px;
+      background: var(--warm-gray-1);
+    }
+
+    .fitness-confirmed-level span {
+      color: var(--warm-gray-3);
+      font-size: 0.7rem;
+      font-weight: 850;
+      text-transform: uppercase;
+    }
+
+    .fitness-confirmed-level strong { text-align: right; }
+
+    .fitness-safety,
+    .fitness-next {
+      display: grid;
+      gap: 3px;
+      margin-top: 10px;
+      padding: 10px 12px;
+      border: 1px solid rgba(240,122,22,0.22);
+      border-radius: 10px;
+      background: rgba(240,122,22,0.07);
+    }
+
+    .fitness-safety span,
+    .fitness-next span {
+      color: var(--warm-gray-3);
+      font-size: 0.72rem;
+      font-weight: 850;
+    }
+
+    .fitness-level-action { width: 100%; margin-top: 10px; }
+
+    .fitness-dimensions {
+      display: grid;
+      gap: 9px;
+      margin-top: 12px;
+    }
+
+    .fitness-dimension {
+      min-width: 0;
+      padding: 10px;
+      border: 1px solid var(--warm-gray-2);
+      border-radius: 10px;
+      background: #fff;
+    }
+
+    .fitness-dimension-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      align-items: baseline;
+    }
+
+    .fitness-dimension-head span { font-weight: 900; }
+    .fitness-dimension-head strong { color: var(--warm-gray-3); font-size: 0.7rem; white-space: nowrap; }
+    .fitness-dimension.good .fitness-dimension-head strong { color: var(--success); }
+    .fitness-dimension.watch .fitness-dimension-head strong { color: #9a5b00; }
+
+    .fitness-dimension-track {
+      height: 6px;
+      margin-top: 7px;
+      overflow: hidden;
+      border-radius: 999px;
+      background: var(--warm-gray-1);
+    }
+
+    .fitness-dimension-track span { display: block; height: 100%; border-radius: inherit; background: var(--warm-gray-3); }
+    .fitness-dimension.good .fitness-dimension-track span { background: var(--success); }
+    .fitness-dimension.watch .fitness-dimension-track span { background: var(--warning); }
+    .fitness-dimension p { margin: 6px 0 0; color: var(--warm-gray-3); font-size: 0.78rem; line-height: 1.35; }
+
+    .fitness-level-details {
+      margin-top: 12px;
+      border-top: 1px solid var(--warm-gray-2);
+    }
+
+    .fitness-level-details summary {
+      padding: 11px 0 2px;
+      cursor: pointer;
+      font-weight: 900;
+    }
+
+    .fitness-level-details-content {
+      display: grid;
+      gap: 8px;
+      padding-top: 10px;
+      color: var(--warm-gray-3);
+      font-size: 0.8rem;
+      line-height: 1.4;
+    }
+
+    .fitness-level-details-content p,
+    .fitness-level-details-content ul { margin: 0; }
+    .fitness-level-details-content ul { padding-left: 18px; }
+    .fitness-reference-note { padding: 10px; border-radius: 9px; background: var(--warm-gray-1); }
+
+    @media (min-width: 700px) {
+      .fitness-dimensions { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+      .fitness-dimension-head { display: grid; }
+      .fitness-dimension-head strong { white-space: normal; }
+    }
+
+    @media (max-width: 699px) {
+      .fitness-level-card .section-title-row { align-items: flex-start; }
+      .fitness-level-card .fitness-confidence { max-width: 42%; text-align: center; line-height: 1.2; }
+      .fitness-level-hero { align-items: flex-start; padding: 12px; }
+      .fitness-level-rank strong { font-size: 1.15rem; }
+      .fitness-level-score strong { font-size: 1.45rem; }
+      .fitness-level-score span { font-size: 0.64rem; }
+      .fitness-dimension { padding: 9px 10px; }
+      .fitness-dimension-head { align-items: flex-start; }
+      .fitness-dimension-head span { min-width: 0; line-height: 1.25; }
+      .fitness-dimension-head strong { flex: 0 0 auto; }
+    }
+
     .insight-stat {
       border: 1px solid var(--warm-gray-2);
       border-radius: 16px;
