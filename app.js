@@ -86,7 +86,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       normalizeTrainingLevelProgress
     } from './domain-fitness.js';
 
-    const APP_VERSION = 'v160';
+    const APP_VERSION = 'v160f';
     const APP_CACHE_NAME = `treningsapp-${APP_VERSION}`;
 
     const firebaseConfig = {
@@ -147,7 +147,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         thresholdHeartRate: ''
       },
       trainingLevelProgress: {
-        version: 1,
+        version: 2,
         highestTier: 'foundation',
         history: []
       },
@@ -7610,13 +7610,17 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
           profile: normalizePersonProfile(state.settings.personProfile),
           rules: getCoachRules()
         });
+        const optionalMetric = value => value === '' || value === null || value === undefined
+          ? null
+          : Number.isFinite(Number(value)) ? Number(value) : null;
         return {
           date: completed.date,
           durationSeconds: completedDurationSeconds(completed),
           distanceKm: Number(completed.distanceKm) || 0,
-          rpe: Number(completed.rpe) || 0,
-          painBefore: Number(completed.bodyStatus?.painBefore) || 0,
-          painAfter: Number(completed.bodyStatus?.painAfter) || 0,
+          rpe: optionalMetric(completed.rpe),
+          feelingScore: optionalMetric(completed.feelingScore),
+          painBefore: optionalMetric(completed.bodyStatus?.painBefore),
+          painAfter: optionalMetric(completed.bodyStatus?.painAfter),
           intensityContext: context.category === 'quality' ? 'quality' : context.countsAsEasySupport ? 'easy' : 'other'
         };
       });
@@ -7668,7 +7672,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         ? `<div class="fitness-safety"><strong>Oppgradering venter</strong><span>${escapeHtml(assessment.safetyBlockers.join(' · '))}</span></div>`
         : '';
       const action = assessment.eligibleForConfirmation
-        ? `<button class="btn-primary fitness-level-action" onclick="confirmTrainingLevelUpgrade()">Bekreft nivå ${assessment.level.rank}: ${escapeHtml(assessment.level.label)}</button>`
+        ? `<button class="btn-primary fitness-level-action" onclick="confirmTrainingLevelUpgrade()">Bekreft neste nivå: ${assessment.confirmationLevel.rank} ${escapeHtml(assessment.confirmationLevel.label)}</button>`
         : '';
       const nextCriteria = assessment.nextLevel && assessment.nextCriteria.length
         ? `<div class="fitness-next"><span>Neste nivå: ${escapeHtml(assessment.nextLevel.label)}</span><strong>${escapeHtml(assessment.nextCriteria[0])}</strong></div>`
@@ -7685,13 +7689,14 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         : '<li>Ingen bekreftede nivåendringer ennå.</li>';
       container.innerHTML = `
         <div class="fitness-level-hero">
-          <div class="fitness-level-rank"><span>Nivå ${assessment.level.rank}</span><strong>${escapeHtml(assessment.level.label)}</strong></div>
+          <div class="fitness-level-rank"><span>Beregnet nivå</span><strong>Nivå ${assessment.level.rank} · ${escapeHtml(assessment.level.label)}</strong></div>
           <div class="fitness-level-score"><strong>${assessment.score}</strong><span>/100 grunnlag</span></div>
         </div>
+        <div class="fitness-confirmed-level"><span>Bekreftet progresjon</span><strong>Nivå ${assessment.highestLevel.rank} · ${escapeHtml(assessment.highestLevel.label)}</strong></div>
         <p class="fitness-level-summary">${escapeHtml(assessment.summary)}</p>
         ${blockers}
-        ${action}
         <div class="fitness-dimensions">${dimensions}</div>
+        ${action}
         ${nextCriteria}
         <details class="fitness-level-details">
           <summary>Se vurderingsgrunnlag</summary>
@@ -7715,7 +7720,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       const coachChange = assessment.coachUpgrade
         ? ` Dette endrer coach-nivå fra ${assessment.currentCoachLevel} til ${assessment.recommendedCoachLevel}.`
         : ' Coach-nivået endres ikke.';
-      if (!confirm(`Bekreft nivå ${assessment.level.rank}: ${assessment.level.label}?${coachChange}`)) return;
+      if (!confirm(`Bekreft neste nivå ${assessment.confirmationLevel.rank}: ${assessment.confirmationLevel.label}?${coachChange}`)) return;
       state.settings.trainingLevelProgress = confirmedTrainingLevelProgress(assessment, state.settings.trainingLevelProgress);
       if (assessment.coachUpgrade) {
         state.settings.trainingProfile = normalizeTrainingProfile({
@@ -7724,7 +7729,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         });
       }
       await saveSettings();
-      showToast(`Nivå ${assessment.level.rank} bekreftet - bra jobbet!`);
+      showToast(`Nivå ${assessment.confirmationLevel.rank} bekreftet - bra jobbet!`);
     };
 
     function renderInsights() {
@@ -8479,3 +8484,4 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         navigator.serviceWorker.register(`./service-worker.js?v=${APP_VERSION}`).catch(() => {});
       });
     };
+
