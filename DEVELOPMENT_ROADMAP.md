@@ -1005,45 +1005,41 @@ Detaljert datamodell, sikkerhetsgrenser og rekkefølge ligger i `AI_CHAT_PROJECT
 - Forslag til ny vurdering skal ikke presenteres som formelle terskler eller appregler.
 - Treningsnivå eller andre appdata kan aldri endres uten eksplisitt brukerbekreftelse.
 
-### v160a - Transparent nivåvurdering: design og datamodell
+### v160a - Evidens, begreper og datamodell - Bygget
 
-Mål: Definer en ren og etterprøvbar vurdering av om profilnivået fortsatt passer, uten automatisk endring.
+- Skiller treningsmodenhet, kapasitet/prestasjon og motivasjonsnivå.
+- Bruker 84-dagers treningsgrunnlag, HUNT 3 for VO2 mot alder/kjønn og egen PB-fremgang på gjentatt distanse.
+- Innfører bakoverkompatibel `settings.trainingLevelProgress` med høyeste bekreftede nivå og historikk.
+- Bruker ikke biologisk alder, absolutt HRV-klasse eller BMI som nivåscore.
+- Full modell og kildegrunnlag er dokumentert i `TRAINING_LEVEL_ASSESSMENT_DESIGN.md`.
 
-Datagrunnlaget skal vurderes over et regelstyrt flerukersvindu og kan omfatte:
+### v160b - Ren nivåmotor - Bygget
 
-- kontinuitet og antall aktive treningsuker
-- mengde kontrollert kvalitetsarbeid
-- etterlevelse av aktiv gylne-sone på relevante kvalitetsøkter
-- RPE og om kvalitetsøkter er repeterbare uten unødvendig høy belastning
-- kroppssignaler, smerteutvikling og restitusjonsrespons
-- volumstabilitet, comeback-status og datakvalitet
+- Ny `domain-fitness.js` vurderer fem forklarbare dimensjoner: kontinuitet, kontrollert kvalitet, kroppssignal, kapasitet mot alder og PB/testløp.
+- Motoren returnerer score, datadekning, nivå, sikkerhetsblokkeringer, manglende data og neste kriterier.
+- Aktive skadesignal, comeback eller høy volum-ramp blokkerer oppgradering.
+- Terskler og vekter er samlet som versjonert produktpolicy i domenemodulen og finnes ikke i UI.
 
-Den rene domenevurderingen bør returnere:
+### v160c - Forklarbar Innsikt-visning - Bygget
 
-- nåværende manuelt valgt nivå
-- foreslått nivå eller «behold nivå»
-- confidence/datadekning
-- strukturerte grunner for og imot
-- manglende data
-- hvilke konkrete signaler som bør observeres videre
-- tidligste anbefalte tidspunkt for ny vurdering, som forslag og ikke fasit
+- Innsikt viser nivågrunnlag, datadekning og fem dimensjoner i et mobilvennlig kort.
+- VO2 sammenlignes med relevant HUNT-referanse med målemetodeforbehold.
+- PB/testløp viser egen fremgang, og WMA-aldersgradering er eksplisitt deaktivert til komplett standard er verifisert.
+- Detaljer og historikk er sammenfoldet som standard.
 
-Arkitektur og sikkerhet:
+### v160d - Gamification og bekreftet progresjon - Bygget
 
-- terskler og vinduer skal ligge i validerte coach-regler, ikke hardkodes i UI
-- ren logikk legges i `domain-coach.js` eller egen liten coach-modul
-- gamle profiler fungerer uendret
-- vurderingen skal være rådgivende og kan ikke skrive til profil eller Firestore
-- skadesignal og ustabil belastningsrespons skal trekke vurderingen konservativt
+- Fem nivåer: Fundament, Stabil, I utvikling, Godt trent og Erfaren.
+- Nytt nivå krever eksplisitt brukerbekreftelse før coach-profil eventuelt endres.
+- Høyeste bekreftede nivå beholdes; svakere perioder gir sikkerhetsjustering, ikke demotiverende automatisk nedgradering.
+- Bekreftelser lagres versjonert i settings-historikken og synkroniseres med eksisterende dataflyt.
 
-### v160b - Transparent nivåvurdering: implementering og bekreftelsesflyt
+### v160e - AI-context og backend-guardrails - Bygget
 
-- Vis et kompakt «Nivågrunnlag» i Innsikt eller Setup med nåværende nivå, datadekning og viktigste grunner.
-- Vis både positive signaler og forhold som taler for å vente.
-- Brukeren kan åpne detaljgrunnlaget før eventuell endring.
-- Profilnivå endres bare etter en eksplisitt bekreftelse med konsekvensforklaring for gylne-sone.
-- Ingen AI-tekst skal alene kunne endre nivået.
-- Legg tester for lite data, stabil progresjon, høy RPE, aktive kroppssignaler og gamle profiler.
+- AI-context får et sanitert nivågrunnlag med score, dimensjoner, datadekning og sikkerhetsblokkeringer.
+- Backend validerer assessment-form og scoreområde.
+- Systeminstruksen skiller beregnet nivågrunnlag fra bekreftet profilnivå.
+- AI kan forklare vurderingen, men aldri bekrefte nivå, skrive profilendring eller overstyre coachens sikkerhetsprioritet.
 
 Utenfor v150-v153:
 
@@ -1117,9 +1113,9 @@ Hvis svaret er ja på flere av disse, bør ideen prioriteres.
 
 ### Neste 3 runder
 
-1. Manuell v159c-kvalitetstest av fakta/vurdering/forslag og norske nivåetiketter
-2. v160a - Transparent nivåvurdering: design, coach-regler og ren datamodell
-3. v160b - Transparent nivåvurdering: UI, forklarbart grunnlag og bekreftet nivåendring
+1. Manuell v160-test av Innsikt, mobil, bekreftelsesflyt og AI-forklaring
+2. Datatrygghet - gjør lokal snapshot robust mot localStorage-kvote
+3. Vedlikehold - oppgrader Firebase Functions SDK i en isolert og testet runde
 
 ### Neste 10 runder
 
@@ -1241,4 +1237,3 @@ v154-v156 er deployet og manuelt verifisert, inkludert kryssenhetssynk, arkiv og
 - assistant-svar vises roligere og mindre kortpreget; brukermeldinger beholdes som diskrete bobler
 - grunnlag og personvern ligger under den eksisterende samtale-/prosjektadministrasjonen
 - backend, Firestore-modell, synkronisering, coach-context og sikkerhetsregler er uendret
-
