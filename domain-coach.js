@@ -411,7 +411,7 @@ export function coachDecisionEngine(input = {}) {
   };
 }
 
-const AI_CONTEXT_SCHEMA_VERSION = 1;
+const AI_CONTEXT_SCHEMA_VERSION = 2;
 const AI_CONTEXT_MAX_TEXT = 500;
 const AI_CONTEXT_MAX_REASONS = 8;
 const AI_CONTEXT_MAX_ACTIONS = 12;
@@ -611,8 +611,35 @@ function aiProfile(value) {
     weeklySessionTarget: aiNumber(profile.weeklySessionTarget, { min: 0, max: 100 }),
     goldenZone: {
       low: aiNumber(goldenZone.low, { min: 20, max: 250 }),
-      high: aiNumber(goldenZone.high, { min: 20, max: 250 })
+      high: aiNumber(goldenZone.high, { min: 20, max: 250 }),
+      maxHeartRate: aiNumber(goldenZone.maxHeartRate ?? goldenZone.maxHR, { min: 20, max: 250 }),
+      lowPct: aiNumber(goldenZone.lowPct, { min: 0.4, max: 1 }),
+      highPct: aiNumber(goldenZone.highPct, { min: 0.4, max: 1 }),
+      appliesTo: 'controlled_running_quality'
     }
+  };
+}
+
+function aiCoachKnowledge(value) {
+  const knowledge = aiPlainObject(value);
+  const concepts = (Array.isArray(knowledge.concepts) ? knowledge.concepts : [])
+    .slice(0, 12)
+    .map(item => {
+      const concept = aiPlainObject(item);
+      return {
+        id: aiNullableText(concept.id, 80),
+        title: aiNullableText(concept.title, 120),
+        explanation: aiNullableText(concept.explanation, 400),
+        use: aiNullableText(concept.use, 400),
+        limit: aiNullableText(concept.limit, 400)
+      };
+    })
+    .filter(concept => concept.id && concept.title && concept.explanation);
+  return {
+    version: aiNumber(knowledge.version, { min: 1, max: 20 }) || 1,
+    framework: aiNullableText(knowledge.framework, 160),
+    sourceLabel: aiNullableText(knowledge.sourceLabel, 160),
+    concepts
   };
 }
 
@@ -684,6 +711,7 @@ export function buildAiCoachContext(input = {}, options = {}) {
       comeback: aiComeback(training.comeback)
     },
     profile: aiProfile(source.profile),
+    coachKnowledge: aiCoachKnowledge(source.coachKnowledge),
     goals: aiGoals(source.goals),
     continuity: aiContinuity(source.continuity),
     recentHighlights: {
