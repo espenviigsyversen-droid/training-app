@@ -1225,3 +1225,10 @@ Anbefalt neste implementeringsrunde:
 > Fullfør manuell v159-akseptanse og en tematisk AI-kvalitetstest før nytt feature-scope
 
 v154-v156 er deployet og manuelt verifisert, inkludert kryssenhetssynk, arkiv og sletting. v159 leverer Coach Knowledge Foundation, AI-context v2, prosjekter, egne instrukser, kontrollert samtalesammendrag og personvern-/kostnadskontroller i én samlet runde. v159b presiserer hele nivåmodellen for gylne-sone og skillet mellom dagsform og varig treningsnivå.
+### v159d - AI-chat oversikts- og mobilpolish - Bygget
+
+- prosjekt- og samtaleadministrasjon er komprimert bak én sekundær kontroll
+- aktivt prosjekt og samtale er fortsatt synlig uten å åpne kontrollen
+- forslag vises i tom samtale, men fjernes når dialogen er i gang
+- skrivefeltet er flyttet foran valgfritt grunnlag og gjort kompakt/sticky på mobil
+- backend, Firestore-modell, synkronisering og coach-context er uendret
