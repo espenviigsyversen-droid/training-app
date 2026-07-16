@@ -555,15 +555,14 @@
       <section id="aiCoach" class="tab">
         <div class="ai-coach-shell">
           <div class="ai-coach-header">
-            <div>
+            <div class="ai-coach-title">
               <h2>AI-coach</h2>
-              <p>Forklarer appens coach-vurdering. Endrer aldri planen eller dataene dine.</p>
+              <div class="ai-coach-trust-row">
+                <span id="aiCoachConnectionStatus" class="ai-coach-status offline">OpenAI ikke konfigurert</span>
+                <span>Appens sikkerhetsregler gjelder alltid</span>
+              </div>
             </div>
             <button id="aiCoachNewConversationBtn" class="btn-soft" type="button">Ny samtale</button>
-          </div>
-          <div class="ai-coach-trust-row">
-            <span id="aiCoachConnectionStatus" class="ai-coach-status offline">OpenAI ikke konfigurert</span>
-            <span>Appens sikkerhetsregler gjelder alltid</span>
           </div>
           <div id="aiCoachMissingKey" class="card ai-coach-missing-key hidden">
             <strong>Koble til OpenAI først</strong>
@@ -616,6 +615,18 @@
                 </div>
               </div>
               <p id="aiCoachConversationFeedback" class="small-note ai-conversation-feedback"></p>
+              <details class="ai-coach-context-details">
+                <summary>Grunnlag og personvern</summary>
+                <p id="aiCoachContextUsed" class="small-note">Ingen context er sendt ennå.</p>
+                <p id="aiCoachUsage" class="small-note">Ingen AI-kall i denne appøkten.</p>
+                <p class="small-note">Samtalen lagres under din innloggede Firebase-bruker og kan åpnes på andre enheter. API-nøkkel, e-post, backup og komplett historikk sendes ikke til modellen.</p>
+                <div class="button-row ai-privacy-actions">
+                  <button id="aiCoachClearSummaryBtn" class="btn-soft" type="button">Tøm samtaleminne</button>
+                  <button id="aiCoachExportBtn" class="btn-soft" type="button">Eksporter chat</button>
+                  <button id="aiCoachDeleteAllBtn" class="btn-soft danger-text" type="button">Slett all chat</button>
+                </div>
+                <p id="aiCoachPrivacyFeedback" class="small-note"></p>
+              </details>
             </div>
           </details>
           <div id="aiCoachSuggestions" class="ai-coach-suggestions"></div>
@@ -626,18 +637,6 @@
             <textarea id="aiCoachInput" maxlength="2000" placeholder="Skriv et spørsmål til AI-coachen ..."></textarea>
             <button id="aiCoachSendBtn" class="btn-primary" type="button">Send</button>
           </div>
-          <details class="ai-coach-context-details">
-            <summary>Grunnlag brukt</summary>
-            <p id="aiCoachContextUsed" class="small-note">Ingen context er sendt ennå.</p>
-            <p id="aiCoachUsage" class="small-note">Ingen AI-kall i denne appøkten.</p>
-            <p class="small-note">Samtalen lagres under din innloggede Firebase-bruker og kan åpnes på andre enheter. API-nøkkel, e-post, backup og komplett historikk sendes ikke til modellen.</p>
-            <div class="button-row ai-privacy-actions">
-              <button id="aiCoachClearSummaryBtn" class="btn-soft" type="button">Tøm samtaleminne</button>
-              <button id="aiCoachExportBtn" class="btn-soft" type="button">Eksporter chat</button>
-              <button id="aiCoachDeleteAllBtn" class="btn-soft danger-text" type="button">Slett all chat</button>
-            </div>
-            <p id="aiCoachPrivacyFeedback" class="small-note"></p>
-          </details>
         </div>
       </section>
 
@@ -1457,3 +1456,4 @@
   <script type="module" src="app.js"></script>
 </body>
 </html>
+
