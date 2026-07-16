@@ -35,6 +35,7 @@ function test(name, fn) {
   const domain = await import(pathToFileURL(path.join(root, 'domain-core.js')).href);
   const coach = await import(pathToFileURL(path.join(root, 'domain-coach.js')).href);
   const goals = await import(pathToFileURL(path.join(root, 'domain-goals.js')).href);
+  const fitness = await import(pathToFileURL(path.join(root, 'domain-fitness.js')).href);
   const coachRulesDomain = await import(pathToFileURL(path.join(root, 'domain-coach-rules.js')).href);
   const {
     assessTrafficLight,
@@ -120,6 +121,14 @@ function test(name, fn) {
     resolveCoachRules,
     validateCoachRules
   } = coachRulesDomain;
+  const {
+    FITNESS_ASSESSMENT_VERSION,
+    assessTrainingLevel,
+    confirmedTrainingLevelProgress,
+    normalizeTrainingLevelProgress,
+    personalBestEvidence,
+    vo2AgeBenchmark
+  } = fitness;
 
   const loadedRulesResult = await loadCoachRules('./data/coach-rules.json', async () => ({
     ok: true,
@@ -139,6 +148,122 @@ function test(name, fn) {
     assert.ok(appVersion, 'APP_VERSION was not found in app.js');
     assert.ok(cacheVersion, 'CACHE_NAME was not found in service-worker.js');
     assert.strictEqual(appVersion, cacheVersion);
+  });
+
+  test('v160 fitness module is cached and rendered from production logic', () => {
+    assert.ok(serviceWorker.includes('"./domain-fitness.js"'), 'domain-fitness.js must be part of APP_SHELL');
+    assert.ok(app.includes("from './domain-fitness.js'"), 'app must import the fitness domain module');
+    assert.ok(index.includes('id="fitnessLevelAssessment"'), 'Insights fitness assessment container is missing');
+    assert.ok(app.includes('renderTrainingLevelAssessment(coachCtx)'), 'Insights must render the assessment');
+  });
+
+  test('v160 VO2 benchmark uses age and sex specific HUNT reference', () => {
+    const result = vo2AgeBenchmark({ vo2Max: 47.2, age: 45, sex: 'male' });
+    assert.strictEqual(result.available, true);
+    assert.strictEqual(result.mean, 47.2);
+    assert.strictEqual(result.ageLabel, '40-49');
+    assert.strictEqual(result.source.id, 'hunt3-vo2max-2013');
+    assert.strictEqual(result.status, 'typical');
+  });
+
+  test('v160 VO2 benchmark has a safe fallback without profile data', () => {
+    const result = vo2AgeBenchmark({ vo2Max: 45 });
+    assert.strictEqual(result.available, false);
+    assert.ok(result.reason.includes('alder'));
+  });
+
+  test('v160 personal best evidence rewards own repeated improvement', () => {
+    const result = personalBestEvidence([
+      { date: '2026-01-01', distanceKm: 5, resultSeconds: 1800 },
+      { date: '2026-06-01', distanceKm: 5, resultSeconds: 1620 }
+    ]);
+    assert.strictEqual(result.repeatedDistanceCount, 1);
+    assert.strictEqual(result.bestImprovement.improvementPercent, 10);
+  });
+
+  test('v160 level assessment combines continuity, quality, body, VO2 and PB', () => {
+    const completed = [];
+    for (let week = 0; week < 12; week += 1) {
+      const base = new Date(Date.UTC(2026, 6, 16 - week * 7));
+      for (let session = 0; session < 3; session += 1) {
+        const date = new Date(base);
+        date.setUTCDate(date.getUTCDate() - session);
+        completed.push({
+          date: date.toISOString().slice(0, 10),
+          intensityContext: session === 0 && week % 2 === 0 ? 'quality' : 'easy',
+          rpe: session === 0 ? 6 : 4,
+          painBefore: 0,
+          painAfter: 0,
+          durationSeconds: 2700
+        });
+      }
+    }
+    const result = assessTrainingLevel({
+      todayIso: '2026-07-16',
+      completed,
+      vo2Max: 50,
+      age: 45,
+      sex: 'male',
+      raceResults: [
+        { date: '2025-09-01', distanceKm: 5, resultSeconds: 1800 },
+        { date: '2026-06-01', distanceKm: 5, resultSeconds: 1650 }
+      ],
+      currentCoachLevel: 'building_beginner',
+      progress: { highestTier: 'foundation', history: [] },
+      volumeRamp: { status: 'stable' },
+      comeback: { active: false },
+      activeInjury: false
+    });
+    assert.ok(result.level.rank >= 4, `expected level 4+, got ${result.level.rank}`);
+    assert.strictEqual(result.dimensions.length, 5);
+    assert.strictEqual(result.eligibleForConfirmation, true);
+    assert.strictEqual(result.recommendedCoachLevel, result.level.coachLevel);
+  });
+
+  test('v160 safety signals block promotion without removing achieved level', () => {
+    const result = assessTrainingLevel({
+      todayIso: '2026-07-16',
+      completed: Array.from({ length: 24 }, (_, index) => ({
+        date: new Date(Date.UTC(2026, 6, 16 - index * 3)).toISOString().slice(0, 10),
+        intensityContext: index % 5 === 0 ? 'quality' : 'easy',
+        rpe: 6,
+        painBefore: 0,
+        painAfter: 0
+      })),
+      vo2Max: 50,
+      age: 45,
+      sex: 'male',
+      currentCoachLevel: 'building_beginner',
+      progress: { highestTier: 'stable', history: [] },
+      volumeRamp: { status: 'stable' },
+      comeback: { active: false },
+      activeInjury: true
+    });
+    assert.ok(result.safetyBlockers.includes('Aktivt kroppssignal'));
+    assert.strictEqual(result.eligibleForConfirmation, false);
+    assert.strictEqual(result.highestLevel.id, 'stable');
+  });
+
+  test('v160 confirmed progression is explicit, bounded and versioned', () => {
+    const assessment = {
+      todayIso: '2026-07-16',
+      currentCoachLevel: 'building_beginner',
+      recommendedCoachLevel: 'intermediate',
+      level: { id: 'developing', rank: 3 },
+      eligibleForConfirmation: true,
+      coachUpgrade: true,
+      summary: 'Nivå klart for bekreftelse.'
+    };
+    const progress = confirmedTrainingLevelProgress(assessment, { highestTier: 'stable', history: [] });
+    assert.strictEqual(progress.version, FITNESS_ASSESSMENT_VERSION);
+    assert.strictEqual(progress.highestTier, 'developing');
+    assert.strictEqual(progress.history.length, 1);
+    assert.strictEqual(progress.history[0].toCoachLevel, 'intermediate');
+    assert.deepStrictEqual(normalizeTrainingLevelProgress(null), {
+      version: FITNESS_ASSESSMENT_VERSION,
+      highestTier: 'foundation',
+      history: []
+    });
   });
 
   test('v155 chat persistence is backend-owned and excluded from training backup', () => {
@@ -2217,4 +2342,3 @@ function test(name, fn) {
   console.error(err);
   process.exit(1);
 });
-
