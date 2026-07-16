@@ -70,6 +70,7 @@ node functions\tests\ai-backend-tests.js
 - `progress.md` - historikk og utviklingsnotater
 - `INTERVALS_DESIGN.md` - designnotat for strukturert intervallstøtte
 - `AI_COACH_DESIGN.md` - sikkerhets-, context-, backend- og MVP-design for AI-coach
+- `AI_WEB_SEARCH_DESIGN.md` - server-side nettsøk, kildevisning, personvern og sikkerhetsgrenser for AI-chat
 - `AI_CHAT_PROJECTS_DESIGN.md` - datamodell, sikkerhet og roadmap for chat-historikk, prosjekter og egne instrukser
 - `COACH_KNOWLEDGE_DESIGN.md` - validert kunnskapsgrunnlag, AI-context v2 og grenser for prosjektinstrukser/langtidskontekst
 - `TRAINING_LEVEL_ASSESSMENT_DESIGN.md` - modell, referanser, sikkerhet og datagrunnlag for transparent treningsnivå
