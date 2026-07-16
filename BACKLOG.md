@@ -175,6 +175,12 @@ Prioritert backlog for videre utvikling av Treningsapp.
     - Firebase CLI varslet under v156-deploy at `firebase-functions` er utdatert.
     - Gjør dette som egen testet vedlikeholdsrunde fordi ny hovedversjon kan ha breaking changes; ikke bland oppgraderingen inn i chatfunksjonalitet.
 
+39. **v160a-v160b - Transparent treningsnivåvurdering**
+    - Design først en regelstyrt vurdering basert på kontinuitet, kontrollert kvalitet, gylne-sone-etterlevelse, RPE, kroppssignaler, volumstabilitet og datakvalitet.
+    - Vis nåværende nivå, datadekning, grunner for og imot, manglende data og anbefalt nytt vurderingstidspunkt.
+    - Ingen automatisk oppgradering: brukeren må se konsekvensen for gylne-sone og bekrefte profilendringen eksplisitt.
+    - Legg terskler i coach-reglene og ren vurderingslogikk i coach-domenet.
+
 37. **Mobil polish og mikro-UX**
     - Små forbedringer som gjør appen mer behagelig i daglig bruk.
     - Eksempler: kortere tekster, bedre prioritering på Hjem/Mål, sticky handlinger i modaler og bedre tomtilstander.
@@ -197,9 +203,9 @@ Disse punktene var del av den tidlige v142-idéen, men er bevisst flyttet ut av 
 
 ## Anbefalt neste steg
 
-v159b retter hypotetiske spørsmål om gylne-sone: alle tre nivåintervaller følger AI-contexten, mens dagsform og varig treningsnivå behandles som ulike begreper.
+v159c presiserer at profilnivå er manuelt valgt, oversetter interne nivåverdier og skiller appfakta fra faglige vurderinger og forslag.
 
-Neste anbefalte punkt er **manuell v159-akseptanse og tematisk AI-kvalitetstest**. Test eksakte coachverdier, prosjektinstrukser, sammendrag, eksport og sletting før nytt feature-scope.
+Neste anbefalte punkt etter en kort v159c-test er **v160a - design og datamodell for transparent nivåvurdering**, fulgt av v160b implementering med synlig grunnlag og brukerbekreftelse.
 
 Begrunnelse:
 - v143b har etablert en validert parameterkilde med trygg fallback
