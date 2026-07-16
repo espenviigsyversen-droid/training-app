@@ -722,6 +722,24 @@ Følgende er valgt:
 2. Eksisterende Firebase-prosjekt `home-tasks-app-18de3` i lokal konfigurasjon.
 3. OpenAI Responses API med `store: false`, ingen tools og manuell historikk i request.
 4. Serverstandard `gpt-5.6-luna`, `reasoning.effort: low` og lav tekst-verbosity.
+
+## 20. v162-v163 - webproveniens og kontrollerte svarprofiler
+
+v162 skal gjøre nettsøk etterprøvbart. Backend må skille mellom at web ble forespurt og at et faktisk `web_search`-kall ble utført. Meldingsmetadata skal kunne uttrykke `webSearchRequested`, `webSearchUsed`, `sourceCount` og sanitiserte kilder. UI skal aldri vise eller antyde nettsøk uten faktisk verktøybruk. Brukeroppgitt vær, appdata og verifiserte nettkilder skal merkes som ulike informasjonskilder.
+
+v163 introduserer kontrollerte svarprofiler under Chat -> `Administrer +`. Frontend får ingen fri modellstreng. Den sender bare en modellprofil og en reasoning-profil, mens backend validerer en allowlist og mapper til faktisk OpenAI-konfigurasjon.
+
+Foreslåtte profiler:
+
+- `auto`: serveranbefalt standard
+- `fast`: GPT-5.6 Luna
+- `balanced`: GPT-5.6 Terra
+- `deep`: GPT-5.6 Sol
+- `legacy_gpt55`: GPT-5.5, bare når nøkkelen har tilgang og kompatibilitetstesten passerer
+
+Foreslåtte reasoning-profiler er `low`, `medium` og `high`. UI omtaler disse som resonneringsnivå, ikke intelligens. Systemprompt, minimert coach-context, guardrails, `store: false`, rate limit og read-only-policy skal være like for alle profiler.
+
+Backendens modellkatalog skal også angi webstøtte, maksimalt output, timeout og relativ kostnadsprofil. Ukjent profil, utilgjengelig modell eller ikke-støttet kombinasjon skal gi kontrollert fallback med synlig status. Faktisk brukt profil lagres som ufarlig meldingsmetadata, aldri API-nøkkel eller fri providerkonfigurasjon.
 5. Stabil, pseudonymisert `safety_identifier` fra SHA-256 av prosjektscope + Firebase UID.
 6. 10 kall per 10 minutter og 50 per dag som første servergrenser.
 
@@ -732,3 +750,4 @@ Før deploy må dette fortsatt avklares/verifiseres:
 3. App Check er foreløpig av fordi frontend ikke er konfigurert for det; aktivering krever en koordinert sikkerhetsrunde.
 4. Per-user-nøkkel i server-only Firestore kan senere forsterkes med Cloud KMS hvis risikobildet eller antall brukere øker.
 5. Modell, rate limits og tokenrammer bør evalueres på representative coach-spørsmål etter første ekte test.
+
