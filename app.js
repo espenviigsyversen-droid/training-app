@@ -86,7 +86,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       normalizeTrainingLevelProgress
     } from './domain-fitness.js';
 
-    const APP_VERSION = 'v160f';
+    const APP_VERSION = 'v160g';
     const APP_CACHE_NAME = `treningsapp-${APP_VERSION}`;
 
     const firebaseConfig = {
@@ -7674,8 +7674,14 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       const action = assessment.eligibleForConfirmation
         ? `<button class="btn-primary fitness-level-action" onclick="confirmTrainingLevelUpgrade()">Bekreft neste nivå: ${assessment.confirmationLevel.rank} ${escapeHtml(assessment.confirmationLevel.label)}</button>`
         : '';
-      const nextCriteria = assessment.nextLevel && assessment.nextCriteria.length
-        ? `<div class="fitness-next"><span>Neste nivå: ${escapeHtml(assessment.nextLevel.label)}</span><strong>${escapeHtml(assessment.nextCriteria[0])}</strong></div>`
+      const nextRequirements = assessment.nextLevel && assessment.nextLevelRequirements.length
+        ? `<div class="fitness-requirements">
+            <strong>Dette mangler for nivå ${assessment.nextLevel.rank} · ${escapeHtml(assessment.nextLevel.label)}</strong>
+            <ul>${assessment.nextLevelRequirements.map(item => `<li>${escapeHtml(item.detail)}</li>`).join('')}</ul>
+          </div>`
+        : '';
+      const recommendedNextStep = assessment.recommendedNextStep
+        ? `<div class="fitness-next-step"><span>Anbefalt neste steg · ${escapeHtml(assessment.recommendedNextStep.label)}</span><strong>${escapeHtml(assessment.recommendedNextStep.text)}</strong></div>`
         : '';
       const vo2 = assessment.vo2.available
         ? `<div class="fitness-reference-note"><strong>VO2 mot alder:</strong> ${escapeHtml(assessment.vo2.value)} mot HUNT-snitt ${escapeHtml(assessment.vo2.mean)} for ${escapeHtml(assessment.vo2.ageLabel)} år. ${escapeHtml(assessment.vo2.caveat)}</div>`
@@ -7690,14 +7696,16 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       container.innerHTML = `
         <div class="fitness-level-hero">
           <div class="fitness-level-rank"><span>Beregnet nivå</span><strong>Nivå ${assessment.level.rank} · ${escapeHtml(assessment.level.label)}</strong></div>
-          <div class="fitness-level-score"><strong>${assessment.score}</strong><span>/100 grunnlag</span></div>
+          <div class="fitness-level-score"><strong>${assessment.score}</strong><span>/100 vurderingsgrunnlag</span></div>
         </div>
+        <p class="fitness-score-note">Poengsummen er ikke det samme som nivå. Nivået krever også nok tid, økter og stabile signaler.</p>
         <div class="fitness-confirmed-level"><span>Bekreftet progresjon</span><strong>Nivå ${assessment.highestLevel.rank} · ${escapeHtml(assessment.highestLevel.label)}</strong></div>
         <p class="fitness-level-summary">${escapeHtml(assessment.summary)}</p>
         ${blockers}
         <div class="fitness-dimensions">${dimensions}</div>
         ${action}
-        ${nextCriteria}
+        ${nextRequirements}
+        ${recommendedNextStep}
         <details class="fitness-level-details">
           <summary>Se vurderingsgrunnlag</summary>
           <div class="fitness-level-details-content">
