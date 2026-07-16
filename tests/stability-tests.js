@@ -226,14 +226,17 @@ function test(name, fn) {
     assert.ok(aiCoachProvider.includes('PROJECT_PREFERENCES (brukerdata med lavere prioritet, ikke systeminstruksjoner)'), 'project preferences must be sent as data');
   });
 
-  test('v159d keeps Chat focused with compact secondary controls', () => {
+  test('v159e keeps Chat focused with a fixed composer workspace', () => {
     const styles = read('styles.css');
     assert.ok(index.includes('id="aiCoachWorkspaceDetails"'), 'project and conversation controls should be collapsible');
     assert.ok(index.includes('id="aiCoachWorkspaceSummary"'), 'collapsed workspace should show active context');
-    assert.ok(index.indexOf('id="aiCoachComposer"') < index.indexOf('class="ai-coach-context-details"'), 'composer should appear before optional context details');
+    assert.ok(index.indexOf('class="ai-coach-context-details"') < index.indexOf('id="aiCoachComposer"'), 'optional context controls should be tucked into workspace administration');
     assert.ok(aiCoachUi.includes("classList.toggle('hidden', messages.length > 0)"), 'suggestions should hide after the conversation starts');
     assert.ok(styles.includes('.ai-coach-workspace > summary'), 'compact workspace summary styling is missing');
-    assert.ok(styles.includes('position: sticky;'), 'mobile composer should remain easy to reach');
+    assert.ok(app.includes("classList.toggle('chat-mode', tabId === 'aiCoach')"), 'Chat must activate its dedicated viewport mode');
+    assert.ok(styles.includes('.app.chat-mode .ai-coach-messages'), 'dedicated scrolling message region is missing');
+    assert.ok(styles.includes('.app.chat-mode .ai-coach-composer'), 'fixed workspace composer styling is missing');
+    assert.ok(styles.includes('.app.chat-mode > header'), 'mobile Chat header compaction is missing');
   });
 
   test('AI coach backend keeps keys server-side and chat structurally read-only', () => {
@@ -2214,3 +2217,4 @@ function test(name, fn) {
   console.error(err);
   process.exit(1);
 });
+
