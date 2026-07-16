@@ -74,6 +74,13 @@ export function createAiCoachUi(options = {}) {
     return projects.find(project => project.id === activeProjectId) || null;
   }
 
+  function updateWorkspaceSummary() {
+    const projectTitle = activeProject()?.title || 'Generell trening';
+    const conversation = conversations.find(item => item.id === activeConversationId);
+    const conversationTitle = conversation?.title || 'Ny samtale';
+    setText('aiCoachWorkspaceSummary', `${projectTitle} · ${conversationTitle}`);
+  }
+
   function renderProjectToolbar() {
     const select = byId('aiCoachProjectSelect');
     if (select) {
@@ -101,6 +108,7 @@ export function createAiCoachUi(options = {}) {
       archive.textContent = project?.status === 'archived' ? 'Gjenåpne' : 'Arkiver';
     }
     if (remove) remove.disabled = isDefault || !project;
+    updateWorkspaceSummary();
   }
 
   async function refreshProjects() {
@@ -153,6 +161,7 @@ export function createAiCoachUi(options = {}) {
       : 'En ny samtale lagres når du sender første spørsmål.');
     const composer = byId('aiCoachComposer');
     composer?.classList.toggle('conversation-readonly', activeConversationStatus === 'archived' || activeProject()?.status === 'archived');
+    updateWorkspaceSummary();
   }
 
   function renderMessages() {
@@ -167,6 +176,7 @@ export function createAiCoachUi(options = {}) {
     } else {
       messages.forEach(message => list.append(createMessageElement(message)));
     }
+    byId('aiCoachSuggestions')?.classList.toggle('hidden', messages.length > 0);
     list.scrollTop = list.scrollHeight;
   }
 
@@ -509,6 +519,8 @@ export function createAiCoachUi(options = {}) {
 
   function clear() {
     resetConversation();
+    const workspace = byId('aiCoachWorkspaceDetails');
+    if (workspace) workspace.open = false;
   }
 
   async function open() {
