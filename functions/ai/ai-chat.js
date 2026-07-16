@@ -7,6 +7,8 @@ const { runOpenAiCoach } = require("./openai-provider");
 const { enforceRateLimit } = require("./rate-limit");
 const { buildAiCoachSystemPrompt } = require("./system-prompt");
 const { getChatScope, persistConversationExchange } = require("./chat-store");
+const { getAiPreferences } = require("./ai-preferences");
+const { resolveAiResponseProfile } = require("./model-profiles");
 
 const MAX_HISTORY_MESSAGES = 8;
 const MAX_USER_TEXT = 2000;
@@ -41,6 +43,9 @@ async function handleAiCoachChat(options = {}) {
     return { ok: false, code: "REQUEST_INVALID", message: "Siste melding må være et spørsmål fra brukeren.", requestId };
   }
   const webSearchEnabled = data?.webSearchEnabled === true;
+  const preferencesResult = await getAiPreferences(db, uid);
+  let responseProfile = resolveAiResponseProfile(preferencesResult.preferences);
+  if (!responseProfile.ok) return { ...responseProfile, requestId };
 
   const chatScope = data?.conversationId
     ? await getChatScope(db, uid, { projectId: data.projectId, conversationId: data.conversationId })
@@ -56,7 +61,7 @@ async function handleAiCoachChat(options = {}) {
   }
 
   const startedAt = Date.now();
-  const result = await runOpenAiCoach({
+  let result = await runOpenAiCoach({
     apiKey,
     context,
     messages,
@@ -64,9 +69,37 @@ async function handleAiCoachChat(options = {}) {
     projectInstructions: chatScope.projectInstructions,
     conversationSummary: chatScope.conversationSummary,
     webSearchEnabled,
+    model: responseProfile.model,
+    reasoningEffort: responseProfile.reasoningEffort,
     safetyIdentifier: safetyIdentifier(uid),
     fetchImpl: options.fetchImpl
   });
+  let profileFallback = null;
+  if (!result.ok && result.code === "MODEL_UNAVAILABLE" && responseProfile.modelProfileId !== "auto") {
+    const requestedModelProfileId = responseProfile.modelProfileId;
+    const fallbackProfile = resolveAiResponseProfile({ modelProfileId: "auto", reasoningProfileId: "low" });
+    result = await runOpenAiCoach({
+      apiKey,
+      context,
+      messages,
+      instructions: buildAiCoachSystemPrompt(),
+      projectInstructions: chatScope.projectInstructions,
+      conversationSummary: chatScope.conversationSummary,
+      webSearchEnabled,
+      model: fallbackProfile.model,
+      reasoningEffort: fallbackProfile.reasoningEffort,
+      safetyIdentifier: safetyIdentifier(uid),
+      fetchImpl: options.fetchImpl
+    });
+    responseProfile = fallbackProfile;
+    if (result.ok) {
+      profileFallback = {
+        requestedModelProfileId,
+        usedModelProfileId: fallbackProfile.modelProfileId,
+        message: "Valgt modell var ikke tilgjengelig. Svaret ble laget med Automatisk standardprofil."
+      };
+    }
+  }
   const latencyMs = Date.now() - startedAt;
   const usage = result.usage || { inputTokens: 0, outputTokens: 0, totalTokens: 0 };
   const logData = {
@@ -81,7 +114,9 @@ async function handleAiCoachChat(options = {}) {
     webSearchRequested: webSearchEnabled,
     webSearchUsed: Boolean(result.webUsed),
     webSourceCount: Array.isArray(result.sources) ? result.sources.length : 0,
-    model: result.model || "server-configured"
+    model: result.model || "server-configured",
+    modelProfileId: responseProfile.modelProfileId,
+    reasoningProfileId: responseProfile.reasoningProfileId
   };
   if (result.ok) logger?.info?.("AI coach request completed", logData);
   else logger?.warn?.("AI coach request failed", logData);
@@ -95,7 +130,12 @@ async function handleAiCoachChat(options = {}) {
       userContent: messages[messages.length - 1].content,
       assistantContent: result.answer,
       requestId,
-      modelLabel: result.model,
+      modelLabel: responseProfile.modelLabel,
+      modelProfileId: responseProfile.modelProfileId,
+      reasoningProfileId: responseProfile.reasoningProfileId,
+      profileFallback,
+      webSearchRequested: result.webSearchRequested,
+      webSearchStatus: result.webSearchStatus,
       webUsed: result.webUsed,
       citations: result.citations,
       sources: result.sources,
@@ -108,7 +148,15 @@ async function handleAiCoachChat(options = {}) {
     answer: result.answer,
     usage,
     requestId,
-    modelLabel: result.model,
+    modelLabel: responseProfile.modelLabel,
+    modelProfileId: responseProfile.modelProfileId,
+    reasoningProfileId: responseProfile.reasoningProfileId,
+    reasoningLabel: responseProfile.reasoningLabel,
+    profileFallback,
+    webSearchRequested: result.webSearchRequested === true,
+    webSearchUsed: Boolean(result.webUsed),
+    webSearchStatus: result.webSearchStatus,
+    sourceCount: Array.isArray(result.sources) ? result.sources.length : 0,
     webUsed: Boolean(result.webUsed),
     citations: Array.isArray(result.citations) ? result.citations : [],
     sources: Array.isArray(result.sources) ? result.sources : [],
