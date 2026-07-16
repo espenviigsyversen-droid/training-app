@@ -602,6 +602,7 @@ function aiComeback(value) {
 function aiProfile(value) {
   const profile = aiPlainObject(value);
   const goldenZone = aiPlainObject(profile.goldenZone);
+  const levelAssessment = aiPlainObject(profile.trainingLevelAssessment);
   const rawLevel = aiNullableText(profile.level, 80);
   const levelLabel = rawLevel === 'experienced'
     ? 'Erfaren/godt trent'
@@ -619,6 +620,29 @@ function aiProfile(value) {
     priority: aiNullableText(profile.priority, 80),
     trainingFocus: aiNullableText(profile.trainingFocus, 80),
     weeklySessionTarget: aiNumber(profile.weeklySessionTarget, { min: 0, max: 100 }),
+    trainingLevelAssessment: {
+      version: aiNumber(levelAssessment.version, { min: 1, max: 20 }),
+      level: aiNullableText(levelAssessment.level, 40),
+      levelLabel: aiNullableText(levelAssessment.levelLabel, 80),
+      score: aiNumber(levelAssessment.score, { min: 0, max: 100 }),
+      confidence: aiNullableText(levelAssessment.confidence, 20),
+      recommendedCoachLevel: aiNullableText(levelAssessment.recommendedCoachLevel, 40),
+      eligibleForConfirmation: Boolean(levelAssessment.eligibleForConfirmation),
+      safetyBlockers: (Array.isArray(levelAssessment.safetyBlockers) ? levelAssessment.safetyBlockers : [])
+        .slice(0, 5).map(item => aiNullableText(item, 120)).filter(Boolean),
+      dimensions: (Array.isArray(levelAssessment.dimensions) ? levelAssessment.dimensions : [])
+        .slice(0, 6)
+        .map(item => {
+          const dimension = aiPlainObject(item);
+          return {
+            id: aiNullableText(dimension.id, 40),
+            score: aiNumber(dimension.score, { min: 0, max: 100 }),
+            status: aiNullableText(dimension.status, 20),
+            summary: aiNullableText(dimension.summary, 240)
+          };
+        })
+        .filter(item => item.id)
+    },
     goldenZone: {
       low: aiNumber(goldenZone.low, { min: 20, max: 250 }),
       high: aiNumber(goldenZone.high, { min: 20, max: 250 }),
