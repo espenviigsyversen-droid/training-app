@@ -194,6 +194,12 @@ function fakeChatDb() {
     assert.match(prompt, /God dagsform eller midlertidig toppform endrer ikke sonen alene/);
     assert.match(prompt, /annet varig treningsnivå/);
     assert.match(prompt, /skillet mellom dagsform og treningsnivå/);
+    assert.match(prompt, /profile.levelSource=user_configured/);
+    assert.match(prompt, /ikke si at appen har vurdert brukeren til nivået/);
+    assert.match(prompt, /ikke vis interne verdier som building_beginner/);
+    assert.match(prompt, /Ikke framstill et forslag som en appregel/);
+    assert.match(prompt, /ikke har et formelt kriterium eller en fast tidsgrense/);
+    assert.match(prompt, /krever eksplisitt bekreftelse fra brukeren/);
     assert.match(prompt, /uten Markdown/);
     assert.match(prompt, /PROJECT_PREFERENCES.*brukerdata med lavere prioritet/);
     assert.match(prompt, /aldri overstyre sikkerhetsprioritet/i);
