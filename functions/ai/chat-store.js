@@ -5,6 +5,33 @@ const { DEFAULT_PROJECT_ID, LIMITS, cleanText, normalizeProjectInput, requireRes
 const MAX_LIST_PROJECTS = 30;
 const MAX_LIST_CONVERSATIONS = 40;
 const MAX_LOADED_MESSAGES = 100;
+const MAX_MESSAGE_SOURCES = 8;
+
+function normalizeMessageSources(values) {
+  const seen = new Set();
+  return (Array.isArray(values) ? values : []).flatMap(value => {
+    try {
+      const url = new URL(String(value?.url || ""));
+      if (!["http:", "https:"].includes(url.protocol) || seen.has(url.href)) return [];
+      seen.add(url.href);
+      return [{ url: url.href.slice(0, 1600), title: cleanText(value?.title, 180) || url.hostname }];
+    } catch {
+      return [];
+    }
+  }).slice(0, MAX_MESSAGE_SOURCES);
+}
+
+function normalizeMessageCitations(values) {
+  return (Array.isArray(values) ? values : []).flatMap(value => {
+    const source = normalizeMessageSources([value])[0];
+    if (!source) return [];
+    return [{
+      ...source,
+      startIndex: Math.max(0, Number(value?.startIndex) || 0),
+      endIndex: Math.max(0, Number(value?.endIndex) || 0)
+    }];
+  }).slice(0, MAX_MESSAGE_SOURCES);
+}
 
 function rootPath(uid) {
   return "aiChatUsers/" + requireResourceId(uid, "uid");
@@ -181,7 +208,15 @@ async function getConversation(db, uid, value = {}) {
   const messageSnapshot = await ref.collection("messages").orderBy("createdAt", "asc").limit(MAX_LOADED_MESSAGES).get();
   const messages = messageSnapshot.docs.map(snapshot => {
     const data = snapshot.data() || {};
-    return { id: snapshot.id, role: data.role === "assistant" ? "assistant" : "user", content: cleanText(data.content, LIMITS.messageContent), createdAt: isoDate(data.createdAt) };
+    return {
+      id: snapshot.id,
+      role: data.role === "assistant" ? "assistant" : "user",
+      content: cleanText(data.content, LIMITS.messageContent),
+      webUsed: data.webUsed === true,
+      citations: normalizeMessageCitations(data.citations),
+      sources: normalizeMessageSources(data.sources),
+      createdAt: isoDate(data.createdAt)
+    };
   }).filter(message => message.content);
   const data = conversationSnapshot.data() || {};
   return { ok: true, projectId, conversation: conversationSummary(conversationSnapshot), messages, summary: cleanText(data.summary, LIMITS.conversationSummary) };
@@ -260,7 +295,18 @@ async function persistConversationExchange(db, uid, value = {}) {
   const summary = project.data()?.summaryEnabled === false ? "" : buildRollingSummary(snapshot.data()?.summary, userText, assistantText);
   const batch = db.batch();
   batch.set(userRef, { schemaVersion: 1, role: "user", content: userText, createdAt: now, requestId: cleanText(value.requestId, 96) });
-  batch.set(assistantRef, { schemaVersion: 1, role: "assistant", content: assistantText, createdAt: now, requestId: cleanText(value.requestId, 96), modelLabel: cleanText(value.modelLabel, 80), usage });
+  batch.set(assistantRef, {
+    schemaVersion: 2,
+    role: "assistant",
+    content: assistantText,
+    webUsed: value.webUsed === true,
+    citations: normalizeMessageCitations(value.citations),
+    sources: normalizeMessageSources(value.sources),
+    createdAt: now,
+    requestId: cleanText(value.requestId, 96),
+    modelLabel: cleanText(value.modelLabel, 80),
+    usage
+  });
   batch.set(ref, { summary, messageCount: previousCount + 2, totalTokens: Math.max(0, Number(snapshot.data()?.totalTokens) || 0) + usage.totalTokens, updatedAt: now, lastMessageAt: now }, { merge: true });
   batch.set(projectRef(db, uid, projectId), { totalTokens: Math.max(0, Number(project.data()?.totalTokens) || 0) + usage.totalTokens, updatedAt: now, lastConversationAt: now }, { merge: true });
   await batch.commit();
@@ -293,6 +339,7 @@ module.exports = {
   archiveConversation, archiveProject, buildRollingSummary, clearConversationSummary,
   conversationRef, createConversation, createProject, deleteAllChatData, deleteConversation,
   deleteProject, ensureDefaultProject, exportChatData, getChatScope, getConversation,
-  listConversations, listProjects, persistConversationExchange, projectRef, rootPath,
+  listConversations, listProjects, normalizeMessageCitations, normalizeMessageSources,
+  persistConversationExchange, projectRef, rootPath,
   rootRef, updateProject
 };
