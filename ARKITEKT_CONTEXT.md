@@ -170,6 +170,7 @@ Typisk struktur:
 - `domain-goals.js` — rene testbare mål-/race-/PB-hjelpere uten DOM/Firebase/state
 - `domain-coach-rules.js` — versjonerte coach-regler, validering og trygg fallback
 - `domain-coach.js` — ren coach-logikk, beslutningsmotor, volum-ramp og comeback
+- `domain-fitness.js` — ren transparent nivåvurdering, aldersrelatert VO2-sammenligning og PB-progresjon
 - `styles.css` — design, mobil-first, desktop media queries
 - `service-worker.js` — PWA-cache/offline
 - `manifest.json` — PWA-manifest
