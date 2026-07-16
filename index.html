@@ -570,46 +570,62 @@
             <p>Legg inn API-nøkkelen under Setup. Nøkkelen lagres bare på Firebase-backend og kan ikke leses tilbake av appen.</p>
             <button id="aiCoachOpenSettingsBtn" class="btn-primary" type="button">Åpne API-integrasjoner</button>
           </div>
-          <div class="ai-project-toolbar">
-            <div>
-              <label for="aiCoachProjectSelect">Prosjekt</label>
-              <select id="aiCoachProjectSelect" aria-label="Velg chatprosjekt">
-                <option value="general-training">Generell trening</option>
-              </select>
+          <details id="aiCoachWorkspaceDetails" class="ai-coach-workspace">
+            <summary>
+              <span>
+                <small>Samtale og prosjekt</small>
+                <strong id="aiCoachWorkspaceSummary">Generell trening · Ny samtale</strong>
+              </span>
+              <span class="ai-coach-workspace-action">Administrer</span>
+            </summary>
+            <div class="ai-coach-workspace-body">
+              <div class="ai-project-toolbar">
+                <div>
+                  <label for="aiCoachProjectSelect">Prosjekt</label>
+                  <select id="aiCoachProjectSelect" aria-label="Velg chatprosjekt">
+                    <option value="general-training">Generell trening</option>
+                  </select>
+                </div>
+                <button id="aiCoachManageProjectBtn" class="btn-soft" type="button">Prosjektvalg</button>
+              </div>
+              <div id="aiCoachProjectPanel" class="ai-project-panel hidden">
+                <label for="aiCoachProjectTitle">Prosjektnavn</label>
+                <input id="aiCoachProjectTitle" maxlength="80" placeholder="F.eks. Halv-Birken">
+                <label for="aiCoachProjectInstructions">Egne instrukser</label>
+                <textarea id="aiCoachProjectInstructions" maxlength="2000" placeholder="F.eks. Ta hensyn til at jeg trener best om morgenen og foretrekker korte, konkrete svar."></textarea>
+                <label class="inline-check"><input id="aiCoachProjectSummaryEnabled" type="checkbox" checked> Bruk begrenset samtalesammendrag som langtidskontekst</label>
+                <p class="small-note">Instruksene påvirker fokus og tone, men kan aldri overstyre skadesignal eller appens sikkerhetsregler.</p>
+                <div class="button-row ai-project-actions">
+                  <button id="aiCoachSaveProjectBtn" class="btn-primary" type="button">Lagre prosjekt</button>
+                  <button id="aiCoachNewProjectBtn" class="btn-soft" type="button">Nytt prosjekt</button>
+                  <button id="aiCoachArchiveProjectBtn" class="btn-soft" type="button">Arkiver</button>
+                  <button id="aiCoachDeleteProjectBtn" class="btn-soft danger-text" type="button">Slett</button>
+                </div>
+                <p id="aiCoachProjectFeedback" class="small-note"></p>
+              </div>
+              <div class="ai-conversation-toolbar">
+                <div>
+                  <label for="aiCoachConversationSelect">Samtale</label>
+                  <select id="aiCoachConversationSelect" aria-label="Velg samtale">
+                    <option value="">Ny samtale</option>
+                  </select>
+                </div>
+                <div class="ai-conversation-actions">
+                  <button id="aiCoachArchiveConversationBtn" class="btn-soft" type="button" disabled>Arkiver</button>
+                  <button id="aiCoachDeleteConversationBtn" class="btn-soft danger-text" type="button" disabled>Slett</button>
+                </div>
+              </div>
+              <p id="aiCoachConversationFeedback" class="small-note ai-conversation-feedback"></p>
             </div>
-            <button id="aiCoachManageProjectBtn" class="btn-soft" type="button">Prosjektvalg</button>
-          </div>
-          <div id="aiCoachProjectPanel" class="ai-project-panel hidden">
-            <label for="aiCoachProjectTitle">Prosjektnavn</label>
-            <input id="aiCoachProjectTitle" maxlength="80" placeholder="F.eks. Halv-Birken">
-            <label for="aiCoachProjectInstructions">Egne instrukser</label>
-            <textarea id="aiCoachProjectInstructions" maxlength="2000" placeholder="F.eks. Ta hensyn til at jeg trener best om morgenen og foretrekker korte, konkrete svar."></textarea>
-            <label class="inline-check"><input id="aiCoachProjectSummaryEnabled" type="checkbox" checked> Bruk begrenset samtalesammendrag som langtidskontekst</label>
-            <p class="small-note">Instruksene påvirker fokus og tone, men kan aldri overstyre skadesignal eller appens sikkerhetsregler.</p>
-            <div class="button-row ai-project-actions">
-              <button id="aiCoachSaveProjectBtn" class="btn-primary" type="button">Lagre prosjekt</button>
-              <button id="aiCoachNewProjectBtn" class="btn-soft" type="button">Nytt prosjekt</button>
-              <button id="aiCoachArchiveProjectBtn" class="btn-soft" type="button">Arkiver</button>
-              <button id="aiCoachDeleteProjectBtn" class="btn-soft danger-text" type="button">Slett</button>
-            </div>
-            <p id="aiCoachProjectFeedback" class="small-note"></p>
-          </div>
-          <div class="ai-conversation-toolbar">
-            <div>
-              <label for="aiCoachConversationSelect">Samtale</label>
-              <select id="aiCoachConversationSelect" aria-label="Velg samtale">
-                <option value="">Ny samtale</option>
-              </select>
-            </div>
-            <div class="ai-conversation-actions">
-              <button id="aiCoachArchiveConversationBtn" class="btn-soft" type="button" disabled>Arkiver</button>
-              <button id="aiCoachDeleteConversationBtn" class="btn-soft danger-text" type="button" disabled>Slett</button>
-            </div>
-          </div>
-          <p id="aiCoachConversationFeedback" class="small-note ai-conversation-feedback"></p>
+          </details>
           <div id="aiCoachSuggestions" class="ai-coach-suggestions"></div>
           <div id="aiCoachMessages" class="ai-coach-messages" aria-live="polite"></div>
           <p id="aiCoachError" class="ai-coach-error" role="alert"></p>
+          <div id="aiCoachComposer" class="ai-coach-composer hidden">
+            <label for="aiCoachInput">Spørsmål</label>
+            <textarea id="aiCoachInput" maxlength="2000" placeholder="Skriv et spørsmål til AI-coachen ..."></textarea>
+            <button id="aiCoachSendBtn" class="btn-primary" type="button">Send</button>
+          </div>
           <details class="ai-coach-context-details">
             <summary>Grunnlag brukt</summary>
             <p id="aiCoachContextUsed" class="small-note">Ingen context er sendt ennå.</p>
@@ -622,11 +638,6 @@
             </div>
             <p id="aiCoachPrivacyFeedback" class="small-note"></p>
           </details>
-          <div id="aiCoachComposer" class="ai-coach-composer hidden">
-            <label for="aiCoachInput">Spørsmål</label>
-            <textarea id="aiCoachInput" maxlength="2000" placeholder="F.eks. Hvorfor anbefaler appen rolig trening i dag?"></textarea>
-            <button id="aiCoachSendBtn" class="btn-primary" type="button">Send</button>
-          </div>
         </div>
       </section>
 
