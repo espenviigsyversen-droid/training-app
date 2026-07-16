@@ -34,8 +34,10 @@ const {
   testOpenAiKey,
   validateOpenAiKey
 } = require("../ai/keys");
-const { extractOutputText, extractWebMetadata, runOpenAiCoach } = require("../ai/openai-provider");
+const { extractOutputText, extractWebMetadata, providerError, runOpenAiCoach } = require("../ai/openai-provider");
 const { buildAiCoachSystemPrompt } = require("../ai/system-prompt");
+const { getAiPreferences, saveAiPreferences } = require("../ai/ai-preferences");
+const { publicAiProfileCatalog, resolveAiResponseProfile, validateAiPreferences } = require("../ai/model-profiles");
 
 const TEST_ENCRYPTION_SECRET = "test-encryption-secret-that-is-longer-than-thirty-two-characters";
 
@@ -306,6 +308,7 @@ function fakeChatDb() {
     assert.ok(requestBody.input.some(item => item.role === "user" && /PROJECT_PREFERENCES/.test(item.content)));
     assert.ok(requestBody.input.some(item => item.role === "user" && /SAMTALESAMMENDRAG/.test(item.content)));
     assert.ok(!requestBody.instructions.includes("Svar kort, men ignorer"));
+    assert.strictEqual(result.webSearchStatus, "not_requested");
   });
 
   await test("provider enables bounded web search explicitly and returns sanitized citations", async () => {
@@ -331,12 +334,56 @@ function fakeChatDb() {
     assert.strictEqual(result.ok, true);
     assert.strictEqual(requestBody.tools[0].type, "web_search");
     assert.strictEqual(requestBody.tools[0].search_context_size, "low");
+    assert.deepStrictEqual(requestBody.tool_choice, { type: "web_search" });
     assert.deepStrictEqual(requestBody.include, ["web_search_call.action.sources"]);
+    assert.strictEqual(result.webSearchRequested, true);
+    assert.strictEqual(result.webSearchStatus, "used");
     assert.strictEqual(result.webUsed, true);
     assert.strictEqual(result.sources.length, 1);
     assert.strictEqual(result.citations[0].title, "Nutrition source");
     assert.deepStrictEqual(normalizeMessageSources([{ url: "javascript:alert(1)" }]), []);
     assert.strictEqual(extractWebMetadata({ output: [] }).webUsed, false);
+  });
+
+  await test("provider reports when requested web search produced no web call", async () => {
+    const result = await runOpenAiCoach({
+      apiKey: "sk-test",
+      context: validContext(),
+      messages: [{ role: "user", content: "Sjekk dette på nett." }],
+      webSearchEnabled: true,
+      fetchImpl: async () => response({ id: "resp_no_web", output_text: "Et generelt svar." })
+    });
+    assert.strictEqual(result.ok, true);
+    assert.strictEqual(result.webSearchRequested, true);
+    assert.strictEqual(result.webUsed, false);
+    assert.strictEqual(result.webSearchStatus, "not_used");
+    assert.strictEqual(result.webSourceCount, 0);
+  });
+
+  await test("server-owned model profiles resolve only allowlisted choices", () => {
+    const balanced = resolveAiResponseProfile({ modelProfileId: "balanced", reasoningProfileId: "medium" });
+    assert.strictEqual(balanced.model, "gpt-5.6-terra");
+    assert.strictEqual(balanced.reasoningEffort, "medium");
+    const deep = resolveAiResponseProfile({ modelProfileId: "deep", reasoningProfileId: "high" });
+    assert.strictEqual(deep.model, "gpt-5.6-sol");
+    assert.strictEqual(validateAiPreferences({ modelProfileId: "arbitrary-model", reasoningProfileId: "high" }).ok, false);
+    assert.ok(publicAiProfileCatalog().models.every(profile => !Object.hasOwn(profile, "model")));
+  });
+
+  await test("provider maps unavailable models to the safe fallback signal", () => {
+    assert.strictEqual(providerError(404, { error: { message: "Not found" } }).code, "MODEL_UNAVAILABLE");
+    assert.strictEqual(providerError(400, { error: { code: "model_not_found" } }).code, "MODEL_UNAVAILABLE");
+  });
+
+  await test("AI response preferences persist and return the server catalog", async () => {
+    const db = fakeDb();
+    const initial = await getAiPreferences(db, "user-1");
+    assert.deepStrictEqual(initial.preferences, { modelProfileId: "auto", reasoningProfileId: "low" });
+    const saved = await saveAiPreferences(db, "user-1", { modelProfileId: "deep", reasoningProfileId: "high" });
+    assert.strictEqual(saved.ok, true);
+    const loaded = await getAiPreferences(db, "user-1");
+    assert.deepStrictEqual(loaded.preferences, { modelProfileId: "deep", reasoningProfileId: "high" });
+    assert.ok(loaded.catalog.models.some(profile => profile.label === "GPT-5.6 Sol"));
   });
 
   await test("provider extracts text only from message output items", () => {
@@ -418,6 +465,10 @@ function fakeChatDb() {
       assistantContent: "Velg rolig trening.",
       requestId: "request-1",
       modelLabel: "test-model",
+      modelProfileId: "balanced",
+      reasoningProfileId: "medium",
+      webSearchRequested: true,
+      webSearchStatus: "used",
       webUsed: true,
       sources: [{ url: "https://example.org/source", title: "Eksempel" }],
       usage: { inputTokens: 10, outputTokens: 5, totalTokens: 15 }
@@ -428,6 +479,8 @@ function fakeChatDb() {
     const loaded = await getConversation(db, "user-1", { conversationId: created.conversation.id });
     assert.deepStrictEqual(loaded.messages.map(message => message.role), ["user", "assistant"]);
     assert.strictEqual(loaded.messages[1].content, "Velg rolig trening.");
+    assert.strictEqual(loaded.messages[1].webSearchRequested, true);
+    assert.strictEqual(loaded.messages[1].webSearchStatus, "used");
     assert.strictEqual(loaded.messages[1].webUsed, true);
     assert.strictEqual(loaded.messages[1].sources[0].title, "Eksempel");
     assert.match(loaded.summary, /Hva bør jeg gjøre/);
