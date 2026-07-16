@@ -226,6 +226,16 @@ function test(name, fn) {
     assert.ok(aiCoachProvider.includes('PROJECT_PREFERENCES (brukerdata med lavere prioritet, ikke systeminstruksjoner)'), 'project preferences must be sent as data');
   });
 
+  test('v159d keeps Chat focused with compact secondary controls', () => {
+    const styles = read('styles.css');
+    assert.ok(index.includes('id="aiCoachWorkspaceDetails"'), 'project and conversation controls should be collapsible');
+    assert.ok(index.includes('id="aiCoachWorkspaceSummary"'), 'collapsed workspace should show active context');
+    assert.ok(index.indexOf('id="aiCoachComposer"') < index.indexOf('class="ai-coach-context-details"'), 'composer should appear before optional context details');
+    assert.ok(aiCoachUi.includes("classList.toggle('hidden', messages.length > 0)"), 'suggestions should hide after the conversation starts');
+    assert.ok(styles.includes('.ai-coach-workspace > summary'), 'compact workspace summary styling is missing');
+    assert.ok(styles.includes('position: sticky;'), 'mobile composer should remain easy to reach');
+  });
+
   test('AI coach backend keeps keys server-side and chat structurally read-only', () => {
     assert.ok(functionsIndex.includes('request.auth?.uid'), 'AI callables must require Firebase Auth');
     assert.ok(aiCoachKeys.includes('apiKeys/'), 'OpenAI key should use server-side apiKeys collection');
