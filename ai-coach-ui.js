@@ -1,4 +1,5 @@
 const CONSENT_KEY = 'treningsapp:ai-coach-consent:v1';
+const WEB_CONSENT_KEY = 'treningsapp:ai-coach-web-consent:v1';
 const MAX_HISTORY_MESSAGES = 8;
 const DEFAULT_PROJECT_ID = 'general-training';
 
@@ -27,6 +28,61 @@ function plainAssistantText(value) {
     .trim();
 }
 
+function safeSource(value) {
+  try {
+    const url = new URL(String(value?.url || ''));
+    if (!['http:', 'https:'].includes(url.protocol)) return null;
+    return { url: url.href, title: String(value?.title || url.hostname).slice(0, 180) };
+  } catch {
+    return null;
+  }
+}
+
+function appendAssistantText(element, message) {
+  const raw = String(message.content || '');
+  const citations = (Array.isArray(message.citations) ? message.citations : [])
+    .map(value => ({ ...safeSource(value), startIndex: Number(value?.startIndex), endIndex: Number(value?.endIndex) }))
+    .filter(value => value.url && Number.isInteger(value.startIndex) && Number.isInteger(value.endIndex) && value.startIndex >= 0 && value.endIndex > value.startIndex && value.endIndex <= raw.length)
+    .sort((a, b) => a.startIndex - b.startIndex);
+  if (!citations.length) {
+    element.textContent = plainAssistantText(raw);
+    return;
+  }
+  let cursor = 0;
+  citations.forEach(citation => {
+    if (citation.startIndex < cursor) return;
+    element.append(document.createTextNode(raw.slice(cursor, citation.startIndex)));
+    const link = document.createElement('a');
+    link.href = citation.url;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer nofollow';
+    link.textContent = raw.slice(citation.startIndex, citation.endIndex) || citation.title;
+    link.title = citation.title;
+    element.append(link);
+    cursor = citation.endIndex;
+  });
+  element.append(document.createTextNode(raw.slice(cursor)));
+}
+
+function appendWebSources(article, message) {
+  const sources = (Array.isArray(message.sources) ? message.sources : []).map(safeSource).filter(Boolean).slice(0, 8);
+  if (!message.webUsed && !sources.length) return;
+  const wrapper = document.createElement('div');
+  wrapper.className = 'ai-coach-web-sources';
+  const label = document.createElement('span');
+  label.textContent = sources.length ? 'Nettsøk brukt · Kilder' : 'Nettsøk brukt';
+  wrapper.append(label);
+  sources.forEach((source, index) => {
+    const link = document.createElement('a');
+    link.href = source.url;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer nofollow';
+    link.textContent = `${index + 1}. ${source.title}`;
+    wrapper.append(link);
+  });
+  article.append(wrapper);
+}
+
 function createMessageElement(message) {
   const article = document.createElement('article');
   article.className = `ai-coach-message ${message.role === 'assistant' ? 'assistant' : 'user'}`;
@@ -34,8 +90,10 @@ function createMessageElement(message) {
   role.className = 'ai-coach-message-role';
   role.textContent = message.role === 'assistant' ? 'AI-coach' : 'Du';
   const text = document.createElement('p');
-  text.textContent = message.role === 'assistant' ? plainAssistantText(message.content) : message.content;
+  if (message.role === 'assistant') appendAssistantText(text, message);
+  else text.textContent = message.content;
   article.append(role, text);
+  if (message.role === 'assistant') appendWebSources(article, message);
   return article;
 }
 
@@ -355,7 +413,13 @@ export function createAiCoachUi(options = {}) {
     activeConversationStatus = result.conversation?.status === 'archived' ? 'archived' : 'active';
     messages = (Array.isArray(result.messages) ? result.messages : [])
       .filter(message => ['user', 'assistant'].includes(message.role) && message.content)
-      .map(message => ({ role: message.role, content: String(message.content) }));
+      .map(message => ({
+        role: message.role,
+        content: String(message.content),
+        webUsed: message.webUsed === true,
+        citations: Array.isArray(message.citations) ? message.citations : [],
+        sources: Array.isArray(message.sources) ? message.sources : []
+      }));
     usage = { inputTokens: 0, outputTokens: 0, requests: 0 };
     lastContextLabels = [];
     renderConversationToolbar();
@@ -405,6 +469,13 @@ export function createAiCoachUi(options = {}) {
     if (localStorage.getItem(CONSENT_KEY) === 'accepted') return true;
     const accepted = window.confirm('AI-coachen sender en minimert treningskontekst til OpenAI for å svare. API-nøkkel, e-post, UID, backup og full historikk sendes ikke. Fortsette?');
     if (accepted) localStorage.setItem(CONSENT_KEY, 'accepted');
+    return accepted;
+  }
+
+  function ensureWebConsent() {
+    if (localStorage.getItem(WEB_CONSENT_KEY) === 'accepted') return true;
+    const accepted = window.confirm('Nettsøk sender spørsmålet til OpenAIs webverktøy og kan hente innhold fra eksterne nettsteder. Appens sikkerhetsregler gjelder fortsatt, og kildene vises i svaret. Fortsette?');
+    if (accepted) localStorage.setItem(WEB_CONSENT_KEY, 'accepted');
     return accepted;
   }
 
@@ -468,6 +539,8 @@ export function createAiCoachUi(options = {}) {
     if (!question) return;
     if (question.length > 2000) return setText('aiCoachError', 'Spørsmålet kan være maks 2 000 tegn.');
     if (!ensureConsent()) return;
+    const webSearchEnabled = byId('aiCoachWebSearchEnabled')?.checked === true;
+    if (webSearchEnabled && !ensureWebConsent()) return;
 
     if (!activeConversationId) {
       setLoading(true);
@@ -496,6 +569,7 @@ export function createAiCoachUi(options = {}) {
       messages: outgoing,
       projectId: activeProjectId,
       conversationId: activeConversationId,
+      webSearchEnabled,
       client: { appVersion: options.appVersion || '', contextSchemaVersion: context.schemaVersion }
     });
     setLoading(false);
@@ -504,7 +578,13 @@ export function createAiCoachUi(options = {}) {
       if (result.code === 'AI_NOT_CONFIGURED' || result.code === 'INVALID_API_KEY') await refreshStatus();
       return;
     }
-    messages.push({ role: 'assistant', content: plainAssistantText(result.answer) || 'Jeg fikk ikke laget et svar.' });
+    messages.push({
+      role: 'assistant',
+      content: String(result.answer || '').trim() || 'Jeg fikk ikke laget et svar.',
+      webUsed: result.webUsed === true,
+      citations: Array.isArray(result.citations) ? result.citations : [],
+      sources: Array.isArray(result.sources) ? result.sources : []
+    });
     messages = messages.slice(-MAX_HISTORY_MESSAGES);
     usage = {
       inputTokens: usage.inputTokens + Number(result.usage?.inputTokens || 0),
@@ -514,6 +594,8 @@ export function createAiCoachUi(options = {}) {
     };
     renderMessages();
     renderUsage();
+    const webSearchToggle = byId('aiCoachWebSearchEnabled');
+    if (webSearchToggle) webSearchToggle.checked = false;
     await refreshConversations();
   }
 
