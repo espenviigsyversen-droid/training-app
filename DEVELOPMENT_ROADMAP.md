@@ -975,20 +975,20 @@ Detaljert datamodell, sikkerhetsgrenser og rekkefølge ligger i `AI_CHAT_PROJECT
 - Chat er fortsatt utenfor treningsbackup/import, og sletting er definert som rekursiv backendoperasjon.
 - Aktiv historikk beholdes til eksplisitt sletting; arkivert innhold har anbefalt 365 dagers retention før senere, synlig oppryddingsmekanisme.
 
-### v156 - Synkroniserte samtaler v1 - Deployet, manuell kryssenhetstest gjenstår
+### v156 - Synkroniserte samtaler v1 - Ferdig og manuelt godkjent
 
 - Lagre meldinger via autentisert backend og les dem på tvers av PC/mobil.
 - Opprett, fortsett, gi navn til, arkiver og slett samtaler.
 - Bruk sammendrag og et begrenset nylig meldingsvindu i modellcontexten.
 - Behold AI som read-only uten automatisk endring av treningsdata.
 
-### v157 - Prosjekter og egne instrukser
+### v157 - Prosjekter og egne instrukser - Levert samlet i v159
 
 - Opprett prosjekter som grupperer flere samtaler.
 - Legg til egne prosjektinstrukser for fokus, tone, mål, tilgjengelig tid, utstyr og matpreferanser.
 - Prosjektinstrukser er brukerdata og kan aldri overstyre serverens guardrails eller `blockedActions`.
 
-### v158 - Kontrollert langtidskontekst og kvalitet
+### v158 - Kontrollert langtidskontekst og kvalitet - Levert samlet i v159
 
 - Forbedre samtalesammendrag for lange diskusjoner.
 - Vurder eksplisitt brukeradministrert minne på tvers av samtaler, med innsyn og sletting.
@@ -1067,9 +1067,9 @@ Hvis svaret er ja på flere av disse, bør ideen prioriteres.
 
 ### Neste 3 runder
 
-1. Fullfør v156 - kryssenhetssynk, gjenåpning, arkiv og sletting
-2. v157 - Prosjekter og egne instrukser
-3. v158 - Kontrollert langtidskontekst og kvalitet
+1. Manuell v159-akseptanse av kunnskap, prosjekter, sammendrag, eksport og sletting
+2. AI-kvalitetstest med representative trenings-, mat- og restitusjonsspørsmål
+3. Separate vedlikeholdsrunder for lokal snapshot-kvote og Firebase Functions SDK
 
 ### Neste 10 runder
 
@@ -1172,7 +1172,6 @@ Neste store verdiøkning er en bedre daglig coach.
 
 Anbefalt neste implementeringsrunde:
 
-> Fullfør manuell v156-akseptansetest, deretter v157 - prosjekter og egne instrukser
+> Fullfør manuell v159-akseptanse og en tematisk AI-kvalitetstest før nytt feature-scope
 
-v154 er deployet og ende-til-ende-testet. v155 har låst Firestore-modell, validering, Rules, retention og rekursiv sletting. v156-backend og frontend er deployet; synlig versjon/cache, tilkoblingsstatus og samtale-UI er smoke-testet. Kryssenhetssynk, gjenåpning, arkiv og sletting skal bekreftes manuelt før v157 bygger prosjekter og egne instrukser.
-
+v154-v156 er deployet og manuelt verifisert, inkludert kryssenhetssynk, arkiv og sletting. v159 leverer Coach Knowledge Foundation, AI-context v2, prosjekter, egne instrukser, kontrollert samtalesammendrag og personvern-/kostnadskontroller i én samlet runde.
