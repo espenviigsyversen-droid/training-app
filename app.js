@@ -86,7 +86,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       normalizeTrainingLevelProgress
     } from './domain-fitness.js';
 
-    const APP_VERSION = 'v160g';
+    const APP_VERSION = 'v161';
     const APP_CACHE_NAME = `treningsapp-${APP_VERSION}`;
 
     const firebaseConfig = {
@@ -8492,4 +8492,3 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         navigator.serviceWorker.register(`./service-worker.js?v=${APP_VERSION}`).catch(() => {});
       });
     };
-
