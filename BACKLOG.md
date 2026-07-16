@@ -175,11 +175,12 @@ Prioritert backlog for videre utvikling av Treningsapp.
     - Firebase CLI varslet under v156-deploy at `firebase-functions` er utdatert.
     - Gjør dette som egen testet vedlikeholdsrunde fordi ny hovedversjon kan ha breaking changes; ikke bland oppgraderingen inn i chatfunksjonalitet.
 
-39. **v160a-v160b - Transparent treningsnivåvurdering**
-    - Design først en regelstyrt vurdering basert på kontinuitet, kontrollert kvalitet, gylne-sone-etterlevelse, RPE, kroppssignaler, volumstabilitet og datakvalitet.
-    - Vis nåværende nivå, datadekning, grunner for og imot, manglende data og anbefalt nytt vurderingstidspunkt.
-    - Ingen automatisk oppgradering: brukeren må se konsekvensen for gylne-sone og bekrefte profilendringen eksplisitt.
-    - Legg terskler i coach-reglene og ren vurderingslogikk i coach-domenet.
+39. **v160a-v160e - Transparent treningsnivåvurdering** - Bygget
+    - Ren `domain-fitness.js` kombinerer kontinuitet, kontrollert kvalitet, RPE/kroppssignal, VO2 mot alder og egen PB-fremgang.
+    - Innsikt viser nivå, datadekning, fem forklarbare dimensjoner, manglende data og neste kriterium.
+    - Fem motivasjonsnivåer kan oppnås og beholdes; profilendring krever eksplisitt bekreftelse.
+    - AI får bare sanitert nivågrunnlag og kan ikke endre eller bekrefte nivå.
+    - Biologisk alder, absolutt HRV-klasse, BMI-score og uverifisert WMA-aldersgradering er bevisst ikke implementert.
 
 37. **Mobil polish og mikro-UX**
     - Små forbedringer som gjør appen mer behagelig i daglig bruk.
@@ -203,9 +204,9 @@ Disse punktene var del av den tidlige v142-idéen, men er bevisst flyttet ut av 
 
 ## Anbefalt neste steg
 
-v159c presiserer at profilnivå er manuelt valgt, oversetter interne nivåverdier og skiller appfakta fra faglige vurderinger og forslag.
+V160a-e er implementert som et komplett, forklarbart nivåspor med brukerbekreftelse og AI-guardrails.
 
-Neste anbefalte punkt etter en kort v159c-test er **v160a - design og datamodell for transparent nivåvurdering**, fulgt av v160b implementering med synlig grunnlag og brukerbekreftelse.
+Neste anbefalte punkt etter manuell v160-test er **Datatrygghet - lokal snapshot-kvote**, fulgt av en isolert oppgradering av Firebase Functions SDK. WMA-aldersgradering kan vurderes senere dersom komplett offisiell standard kan implementeres og testes.
 
 Begrunnelse:
 - v143b har etablert en validert parameterkilde med trygg fallback
