@@ -112,6 +112,7 @@ function test(name, fn) {
   const {
     DEFAULT_COACH_RULES,
     coachFrameworkFromRules,
+    coachKnowledgeFromRules,
     getCoachRules,
     loadCoachRules,
     mergeCoachRules,
@@ -250,6 +251,13 @@ function test(name, fn) {
     const framework = coachFrameworkFromRules(loadedRulesResult.rules);
     assert.match(framework.principles.controlled_threshold, /kontrollert og repeterbar/);
     assert.match(loadedRulesResult.rules.knowledge.concepts.golden_zone.limit, /ikke et generelt pulsmål/);
+    const knowledge = coachKnowledgeFromRules(loadedRulesResult.rules);
+    assert.deepStrictEqual(knowledge.goldenZoneModel.ranges, [
+      { level: 'beginner', lowPct: 0.77, highPct: 0.84 },
+      { level: 'intermediate', lowPct: 0.78, highPct: 0.85 },
+      { level: 'experienced', lowPct: 0.8, highPct: 0.87 }
+    ]);
+    assert.strictEqual(knowledge.goldenZoneModel.dailyReadinessChangesRange, false);
   });
 
   test('coach rules use defaults for invalid version or missing main sections', () => {
@@ -1717,7 +1725,19 @@ function test(name, fn) {
         comeback: { active: false, phase: 'none' }
       },
       profile: { primaryFocus: 'running', level: 'intermediate', philosophy: 'bakken_threshold', weeklySessionTarget: 3, goldenZone: { low: 147, high: 160, maxHR: 190, lowPct: 0.78, highPct: 0.85 }, name: 'skal ikke med' },
-      coachKnowledge: { version: 1, framework: 'Kontrollert terskel', sourceLabel: 'Coach-rammeverk', concepts: [{ id: 'golden_zone', title: 'Den gylne sonen', explanation: 'Kontrollert kvalitet.', use: 'Bruk eksakte grenser.', limit: 'Ikke rolig sone.' }] },
+      coachKnowledge: {
+        version: 1,
+        framework: 'Kontrollert terskel',
+        sourceLabel: 'Coach-rammeverk',
+        concepts: [{ id: 'golden_zone', title: 'Den gylne sonen', explanation: 'Kontrollert kvalitet.', use: 'Bruk eksakte grenser.', limit: 'Ikke rolig sone.' }],
+        goldenZoneModel: {
+          ranges: [
+            { level: 'beginner', lowPct: 0.77, highPct: 0.84 },
+            { level: 'intermediate', lowPct: 0.78, highPct: 0.85 },
+            { level: 'experienced', lowPct: 0.8, highPct: 0.87 }
+          ]
+        }
+      },
       goals: { active: true, raceName: 'Halv-Birken', distanceKm: 12, score: 80, nextStep: 'Bygg rolig volum.' },
       continuity: { streakWeeks: 11, freezeActiveToday: true, weekProtected: false, freezeReason: 'Reise', freezeIsTraining: true },
       dataQuality: { missing: ['HRV'], stale: [], assumptions: [] }
@@ -1732,6 +1752,8 @@ function test(name, fn) {
     assert.strictEqual(context.profile.primaryFocus, 'running');
     assert.deepStrictEqual(context.profile.goldenZone, { low: 147, high: 160, maxHeartRate: 190, lowPct: 0.78, highPct: 0.85, appliesTo: 'controlled_running_quality' });
     assert.strictEqual(context.coachKnowledge.concepts[0].id, 'golden_zone');
+    assert.deepStrictEqual(context.coachKnowledge.goldenZoneModel.ranges[2], { level: 'experienced', lowPct: 0.8, highPct: 0.87 });
+    assert.strictEqual(context.coachKnowledge.goldenZoneModel.dailyReadinessChangesRange, false);
     assert.ok(!Object.hasOwn(context.profile, 'name'));
     assert.strictEqual(context.continuity.freezeIsTraining, false);
     assert.deepStrictEqual(context.dataQuality.missing, ['HRV']);
