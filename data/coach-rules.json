@@ -1,5 +1,5 @@
 {
-  "version": 2,
+  "version": 3,
   "source": "./Treningsfilosofi/coach-rammeverk.md",
   "framework": "Bakken-inspirert kontrollert terskel",
   "principles": {
@@ -10,6 +10,54 @@
     "body_signals_first": "Kroppssignaler trumfer planen.",
     "recovery_is_training": "Restitusjon er aktiv belastningsstyring.",
     "repeatable_week": "Normaluken skal være enkel, repeterbar og justerbar."
+  },
+  "knowledge": {
+    "version": 1,
+    "sourceLabel": "Coach-rammeverk for Treningsdagboka",
+    "concepts": {
+      "controlled_threshold": {
+        "title": "Kontrollert terskel",
+        "explanation": "Terskelarbeid skal være kontrollert og repeterbart, ikke maksimalt.",
+        "use": "Avslutt med følelsen av at du kunne gjort litt mer, slik at kvalitet kan gjentas over tid.",
+        "limit": "Smerte, tung dagsform eller blokkert hard kvalitet går foran planlagt terskel."
+      },
+      "golden_zone": {
+        "title": "Den gylne sonen",
+        "explanation": "En nivåtilpasset pulssone for kontrollert løpskvalitet, beregnet fra registrert makspuls.",
+        "use": "Bruk sonen som veiledning for kontrollert terskel og kvalitetsarbeid.",
+        "limit": "Sonen er ikke et generelt pulsmål for rolige/baseøkter, og manglende pulsdata skal ikke gi falsk fasit."
+      },
+      "easy_support": {
+        "title": "Rolig volum støtter kvalitet",
+        "explanation": "Rolige økter bygger aerob base og gjør kvalitetsarbeidet mer repeterbart.",
+        "use": "La hoveddelen av treningen være lett nok til å bevare kontinuitet og friske bein.",
+        "limit": "Gåtur og svært lett aktivitet er nyttig styring, men er ikke alene full løpsspesifikk stimulus."
+      },
+      "fresh_legs": {
+        "title": "Friske bein",
+        "explanation": "Kvalitet gir mest verdi når kroppen er klar til å absorbere belastningen.",
+        "use": "Møt terskel, intervall og race/test med overskudd og kontrollerte signaler.",
+        "limit": "Tunge bein, smerteøkning, høy RPE eller svak dagsform trekker anbefalingen ned."
+      },
+      "body_signals_first": {
+        "title": "Kroppssignaler først",
+        "explanation": "Smerte og tydelige kroppssignaler trumfer planen og målpress.",
+        "use": "Juster, velg alternativ trening eller hvil når signalene tilsier det.",
+        "limit": "AI gir ikke diagnose; alvorlige eller vedvarende symptomer bør vurderes av fagperson."
+      },
+      "recovery_is_training": {
+        "title": "Restitusjon er aktiv styring",
+        "explanation": "Hvile, mobilitet og lett aktivitet kan være riktig belastningsstyring.",
+        "use": "Velg restitusjon når det gjør neste meningsfulle økt bedre.",
+        "limit": "Fryskort og hvile teller ikke som gjennomført trening."
+      },
+      "repeatable_week": {
+        "title": "Repeterbar normaluke",
+        "explanation": "Normaluken skal være enkel, justerbar og mulig å gjenta uten å koste for mye.",
+        "use": "Balanser hovedterskel, kontrollert støtte, rolig lengre økt og eventuell X-økt.",
+        "limit": "Normaluken er en standard, ikke en tvang; kroppssignaler og totalbelastning kan endre planen."
+      }
+    }
   },
   "decisionPriority": [
     "injury_active",
