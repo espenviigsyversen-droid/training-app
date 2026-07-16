@@ -197,6 +197,8 @@ Disse punktene var del av den tidlige v142-idéen, men er bevisst flyttet ut av 
 
 ## Anbefalt neste steg
 
+v159b retter hypotetiske spørsmål om gylne-sone: alle tre nivåintervaller følger AI-contexten, mens dagsform og varig treningsnivå behandles som ulike begreper.
+
 Neste anbefalte punkt er **manuell v159-akseptanse og tematisk AI-kvalitetstest**. Test eksakte coachverdier, prosjektinstrukser, sammendrag, eksport og sletting før nytt feature-scope.
 
 Begrunnelse:
