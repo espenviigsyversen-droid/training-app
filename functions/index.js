@@ -27,6 +27,7 @@ const {
   listProjects,
   updateProject
 } = require("./ai/chat-store");
+const { getAiPreferences, saveAiPreferences } = require("./ai/ai-preferences");
 
 initializeApp();
 const db = getFirestore();
@@ -94,6 +95,16 @@ exports.aiCoachDeleteOpenAiKey = onCall(CALL_OPTIONS, async request => {
   } catch (error) {
     return internalFailure(error, "delete_key");
   }
+});
+
+exports.aiCoachGetPreferences = onCall(CALL_OPTIONS, async request => {
+  const uid = requireUid(request);
+  try { return await getAiPreferences(db, uid); } catch (error) { return internalFailure(error, "get_ai_preferences"); }
+});
+
+exports.aiCoachSavePreferences = onCall(CALL_OPTIONS, async request => {
+  const uid = requireUid(request);
+  try { return await saveAiPreferences(db, uid, request.data || {}); } catch (error) { return internalFailure(error, "save_ai_preferences"); }
 });
 
 exports.aiCoachChat = onCall(SECRET_CALL_OPTIONS, async request => {
