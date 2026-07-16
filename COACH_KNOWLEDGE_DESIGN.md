@@ -72,6 +72,15 @@ Prosjektinstrukser er brukerpreferanser for fokus, tone, tilgjengelig tid, utsty
 
 Første versjon bruker ren tekst. Modellen instrueres til å unngå Markdown-markører, tabeller og overskriftsstøy. Frontend renderer fortsatt med `textContent` og normaliserer eldre, enkle Markdown-markører for lesbarhet.
 
+Fra v159c skal modellen også skille eksplisitt mellom:
+
+- registrerte appfakta
+- manuelt valgt profilnivå
+- faglig vurdering
+- praktiske forslag uten en formell appregel
+
+Interne enum-verdier skal oversettes til norsk. Et tidsrom som ikke finnes i coach-reglene skal omtales som et forslag til ny vurdering, ikke som et kvalifikasjonskrav. AI kan aldri endre treningsnivå automatisk.
+
 ## Akseptanse
 
 - Gylne-sone-spørsmål besvares med appens eksakte prosent- og bpm-grenser.
