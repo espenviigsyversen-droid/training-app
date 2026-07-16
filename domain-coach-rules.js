@@ -47,7 +47,7 @@ const deepMerge = (defaults, loaded) => {
 };
 
 export const DEFAULT_COACH_RULES = deepFreeze({
-  version: 2,
+  version: 3,
   source: './Treningsfilosofi/coach-rammeverk.md',
   framework: 'Bakken-inspirert kontrollert terskel',
   principles: {
@@ -58,6 +58,19 @@ export const DEFAULT_COACH_RULES = deepFreeze({
     body_signals_first: 'Kroppssignaler trumfer planen.',
     recovery_is_training: 'Restitusjon er aktiv belastningsstyring.',
     repeatable_week: 'Normaluken skal være enkel, repeterbar og justerbar.'
+  },
+  knowledge: {
+    version: 1,
+    sourceLabel: 'Coach-rammeverk for Treningsdagboka',
+    concepts: {
+      controlled_threshold: { title: 'Kontrollert terskel', explanation: 'Terskelarbeid skal være kontrollert og repeterbart, ikke maksimalt.', use: 'Avslutt med følelsen av at du kunne gjort litt mer, slik at kvalitet kan gjentas over tid.', limit: 'Smerte, tung dagsform eller blokkert hard kvalitet går foran planlagt terskel.' },
+      golden_zone: { title: 'Den gylne sonen', explanation: 'En nivåtilpasset pulssone for kontrollert løpskvalitet, beregnet fra registrert makspuls.', use: 'Bruk sonen som veiledning for kontrollert terskel og kvalitetsarbeid.', limit: 'Sonen er ikke et generelt pulsmål for rolige/baseøkter, og manglende pulsdata skal ikke gi falsk fasit.' },
+      easy_support: { title: 'Rolig volum støtter kvalitet', explanation: 'Rolige økter bygger aerob base og gjør kvalitetsarbeidet mer repeterbart.', use: 'La hoveddelen av treningen være lett nok til å bevare kontinuitet og friske bein.', limit: 'Gåtur og svært lett aktivitet er nyttig styring, men er ikke alene full løpsspesifikk stimulus.' },
+      fresh_legs: { title: 'Friske bein', explanation: 'Kvalitet gir mest verdi når kroppen er klar til å absorbere belastningen.', use: 'Møt terskel, intervall og race/test med overskudd og kontrollerte signaler.', limit: 'Tunge bein, smerteøkning, høy RPE eller svak dagsform trekker anbefalingen ned.' },
+      body_signals_first: { title: 'Kroppssignaler først', explanation: 'Smerte og tydelige kroppssignaler trumfer planen og målpress.', use: 'Juster, velg alternativ trening eller hvil når signalene tilsier det.', limit: 'AI gir ikke diagnose; alvorlige eller vedvarende symptomer bør vurderes av fagperson.' },
+      recovery_is_training: { title: 'Restitusjon er aktiv styring', explanation: 'Hvile, mobilitet og lett aktivitet kan være riktig belastningsstyring.', use: 'Velg restitusjon når det gjør neste meningsfulle økt bedre.', limit: 'Fryskort og hvile teller ikke som gjennomført trening.' },
+      repeatable_week: { title: 'Repeterbar normaluke', explanation: 'Normaluken skal være enkel, justerbar og mulig å gjenta uten å koste for mye.', use: 'Balanser hovedterskel, kontrollert støtte, rolig lengre økt og eventuell X-økt.', limit: 'Normaluken er en standard, ikke en tvang; kroppssignaler og totalbelastning kan endre planen.' }
+    }
   },
   decisionPriority: [
     'injury_active',
@@ -140,6 +153,7 @@ export const DEFAULT_COACH_RULES = deepFreeze({
 
 const requiredMainSections = [
   ['principles', isPlainObject],
+  ['knowledge', isPlainObject],
   ['decisionPriority', Array.isArray],
   ['thresholds', isPlainObject],
   ['bakkenRunningWeek', isPlainObject]
@@ -156,6 +170,15 @@ function validateResolvedRules(rules, errors) {
   if (!rules.decisionPriority.length || rules.decisionPriority.some(item => typeof item !== 'string' || !item)) {
     errors.push('decisionPriority must contain non-empty strings');
   }
+  if (rules.knowledge?.version !== 1 || typeof rules.knowledge?.sourceLabel !== 'string' || !rules.knowledge.sourceLabel.trim()) {
+    errors.push('knowledge must have version 1 and a sourceLabel');
+  }
+  REQUIRED_PRINCIPLES.forEach(id => {
+    const concept = rules.knowledge?.concepts?.[id];
+    if (!isPlainObject(concept) || ['title', 'explanation', 'use', 'limit'].some(key => typeof concept[key] !== 'string' || !concept[key].trim())) {
+      errors.push(`knowledge.concepts.${id} must contain title, explanation, use and limit`);
+    }
+  });
 
   const numberPaths = [
     ['thresholds.pain.lowMax', rules.thresholds?.pain?.lowMax],
@@ -219,7 +242,7 @@ export function validateCoachRules(rawRules) {
   if (!isPlainObject(rawRules)) {
     return { valid: false, errors: ['rules must be an object'] };
   }
-  if (rawRules.version !== 2) errors.push('version must be 2');
+  if (rawRules.version !== 3) errors.push('version must be 3');
   if (typeof rawRules.framework !== 'string' || !rawRules.framework.trim()) {
     errors.push('framework must be a non-empty string');
   }
@@ -276,6 +299,24 @@ export function coachFrameworkFromRules(rules = getCoachRules()) {
     name: rules.framework,
     source: rules.source,
     principles: cloneValue(rules.principles)
+  };
+}
+
+export function coachKnowledgeFromRules(rules = getCoachRules()) {
+  const concepts = Object.entries(rules.knowledge?.concepts || {})
+    .filter(([id, value]) => REQUIRED_PRINCIPLES.includes(id) && isPlainObject(value))
+    .map(([id, value]) => ({
+      id,
+      title: value.title,
+      explanation: value.explanation,
+      use: value.use,
+      limit: value.limit
+    }));
+  return {
+    version: rules.knowledge?.version || 1,
+    framework: rules.framework,
+    sourceLabel: rules.knowledge?.sourceLabel || rules.source,
+    concepts
   };
 }
 
