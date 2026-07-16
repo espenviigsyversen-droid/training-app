@@ -602,9 +602,19 @@ function aiComeback(value) {
 function aiProfile(value) {
   const profile = aiPlainObject(value);
   const goldenZone = aiPlainObject(profile.goldenZone);
+  const rawLevel = aiNullableText(profile.level, 80);
+  const levelLabel = rawLevel === 'experienced'
+    ? 'Erfaren/godt trent'
+    : rawLevel === 'intermediate'
+      ? 'Viderekommen'
+      : rawLevel
+        ? 'Nybegynner/under oppbygging'
+        : null;
   return {
     primaryFocus: aiNullableText(profile.primaryFocus, 80),
-    level: aiNullableText(profile.level, 80),
+    level: rawLevel,
+    levelLabel,
+    levelSource: 'user_configured',
     philosophy: aiNullableText(profile.philosophy, 80),
     priority: aiNullableText(profile.priority, 80),
     trainingFocus: aiNullableText(profile.trainingFocus, 80),
