@@ -1,6 +1,6 @@
 # AI Coach - design, context og sikkerhet
 
-**Status:** v150-v154 implementert; sikker Firebase-backend og Secret Manager ble deployet 12. juli 2026. Rules-kontroll og ekte OpenAI-test fra innlogget app gjenstår.
+**Status:** v150-v156 er deployet og manuelt verifisert. v159 utvider med Coach Knowledge Foundation, AI-context v2, prosjekter, kontrollert samtalesammendrag, eksport og kostnadsinnsyn.
 **Designrunde:** v150.  
 **Runtime:** Frontend, context, Functions-kode og tester er bygget. Se `FIREBASE_AI_BACKEND_DEPLOY.md` før deploy.  
 **Hovedprinsipp:** AI skal forklare og utdype appens regelstyrte coach. AI skal ikke bli en parallell coach som tolker rådata fritt.
@@ -722,4 +722,3 @@ Før deploy må dette fortsatt avklares/verifiseres:
 3. App Check er foreløpig av fordi frontend ikke er konfigurert for det; aktivering krever en koordinert sikkerhetsrunde.
 4. Per-user-nøkkel i server-only Firestore kan senere forsterkes med Cloud KMS hvis risikobildet eller antall brukere øker.
 5. Modell, rate limits og tokenrammer bør evalueres på representative coach-spørsmål etter første ekte test.
-
