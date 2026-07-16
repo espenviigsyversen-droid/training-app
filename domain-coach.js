@@ -622,6 +622,19 @@ function aiProfile(value) {
 
 function aiCoachKnowledge(value) {
   const knowledge = aiPlainObject(value);
+  const goldenZoneModel = aiPlainObject(knowledge.goldenZoneModel);
+  const allowedLevels = new Set(['beginner', 'intermediate', 'experienced']);
+  const ranges = (Array.isArray(goldenZoneModel.ranges) ? goldenZoneModel.ranges : [])
+    .slice(0, 3)
+    .map(item => {
+      const range = aiPlainObject(item);
+      return {
+        level: aiNullableText(range.level, 40),
+        lowPct: aiNumber(range.lowPct, { min: 0.4, max: 1 }),
+        highPct: aiNumber(range.highPct, { min: 0.4, max: 1 })
+      };
+    })
+    .filter(range => allowedLevels.has(range.level) && range.lowPct !== null && range.highPct !== null);
   const concepts = (Array.isArray(knowledge.concepts) ? knowledge.concepts : [])
     .slice(0, 12)
     .map(item => {
@@ -639,7 +652,12 @@ function aiCoachKnowledge(value) {
     version: aiNumber(knowledge.version, { min: 1, max: 20 }) || 1,
     framework: aiNullableText(knowledge.framework, 160),
     sourceLabel: aiNullableText(knowledge.sourceLabel, 160),
-    concepts
+    concepts,
+    goldenZoneModel: {
+      basis: 'training_level_and_registered_max_hr',
+      dailyReadinessChangesRange: false,
+      ranges
+    }
   };
 }
 
