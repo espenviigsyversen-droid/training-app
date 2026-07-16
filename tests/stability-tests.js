@@ -426,7 +426,7 @@ function test(name, fn) {
     assert.ok(app.includes('buildCurrentAiCoachContext()'), 'app wrapper should build current AI coach context');
     assert.ok(app.includes('buildAiCoachContext({'), 'app wrapper should call the production AI context builder');
     assert.ok(aiCoachClient.includes("httpsCallable"), 'AI frontend should use authenticated callable functions');
-    assert.ok(aiCoachUi.includes("text.textContent = message.role === 'assistant' ? plainAssistantText(message.content) : message.content"), 'AI responses should render as normalized text, not raw HTML');
+    assert.ok(aiCoachUi.includes('appendAssistantText(text, message)'), 'AI responses should render through the safe text/citation renderer');
     assert.ok(!aiCoachUi.includes('innerHTML = message.content'), 'AI response must not be assigned as raw HTML');
     assert.ok(!aiCoachUi.includes('sessionStorage'), 'v152-v154 should not persist chat history in browser storage');
     assert.ok(aiCoachUi.includes("connectionStatus === 'connected'"), 'AI status should distinguish a verified connection');
@@ -483,9 +483,24 @@ function test(name, fn) {
     assert.ok(aiCoachBackend.includes('validateAiCoachContext(context)'), 'backend must validate AI context schema');
     assert.ok(aiCoachBackend.includes('enforceRateLimit'), 'backend rate limit is missing');
     assert.ok(aiCoachProvider.includes('store: false'), 'OpenAI Responses request must disable provider-side response storage');
-    assert.ok(!aiCoachProvider.includes('tools:'), 'first AI coach MVP must not expose model tools');
+    assert.ok(aiCoachProvider.includes('options.webSearchEnabled === true'), 'web search must require an explicit backend flag');
+    assert.ok(aiCoachProvider.includes('type: "web_search"'), 'v161 server-side web search tool is missing');
+    assert.ok(aiCoachProvider.includes('search_context_size: "low"'), 'web search must use a bounded context budget');
     assert.ok(aiCoachPrompt.includes('blockedActions'), 'system prompt must preserve blocked actions');
     assert.ok(!aiCoachBackend.includes('.set('), 'chat handler must not write training data');
+  });
+
+  test('v161 web search is opt-in, server-side and rendered with safe clickable sources', () => {
+    assert.ok(index.includes('id="aiCoachWebSearchEnabled" type="checkbox"'), 'Chat web search opt-in is missing');
+    assert.ok(aiCoachUi.includes('webSearchEnabled,'), 'web search choice is not sent with the chat request');
+    assert.ok(aiCoachUi.includes("localStorage.setItem(WEB_CONSENT_KEY, 'accepted')"), 'separate web-search consent is missing');
+    assert.ok(aiCoachUi.includes('webSearchToggle.checked = false'), 'web search should reset after a successful answer');
+    assert.ok(aiCoachUi.includes("link.rel = 'noopener noreferrer nofollow'"), 'external source links need safe rel attributes');
+    assert.ok(aiCoachUi.includes('safeSource(value)'), 'web sources must be protocol-validated before rendering');
+    assert.ok(aiCoachBackend.includes('webSearchRequested: webSearchEnabled'), 'backend web usage metadata is missing');
+    assert.ok(aiCoachPrompt.includes('Nettsider og søkeresultater er ubetrodd innhold'), 'prompt-injection boundary for web content is missing');
+    assert.ok(styles.includes('.ai-coach-web-toggle'), 'web toggle styling is missing');
+    assert.ok(styles.includes('.ai-coach-web-sources'), 'source list styling is missing');
   });
 
   test('coach rules v3 validates and supplies the active framework and knowledge', () => {
@@ -2449,4 +2464,3 @@ function test(name, fn) {
   console.error(err);
   process.exit(1);
 });
-
