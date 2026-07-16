@@ -68,7 +68,19 @@ function validContext() {
     },
     today: { date: "2026-07-11", readiness: {}, bodySignal: {}, plannedToday: null, plannedTomorrow: null },
     trainingSummary: { days7: {}, days14: {}, days28: {}, intensityBalance: {}, volumeRamp: {}, comeback: {} },
-    profile: { goldenZone: { low: 150, high: 164, maxHeartRate: 195, lowPct: 0.77, highPct: 0.84 } },
+    profile: {
+      goldenZone: { low: 150, high: 164, maxHeartRate: 195, lowPct: 0.77, highPct: 0.84 },
+      trainingLevelAssessment: {
+        version: 1,
+        level: 'developing',
+        levelLabel: 'I utvikling',
+        score: 68,
+        confidence: 'medium',
+        eligibleForConfirmation: false,
+        safetyBlockers: [],
+        dimensions: []
+      }
+    },
     coachKnowledge: {
       version: 1,
       concepts: [{ id: "golden_zone", title: "Den gylne sonen", explanation: "Kontrollert kvalitet." }],
@@ -182,6 +194,11 @@ function fakeChatDb() {
     const invalidRangeResult = validateAiCoachContext(invalidRange);
     assert.strictEqual(invalidRangeResult.valid, false);
     assert.ok(invalidRangeResult.errors.some(error => /invalid range/.test(error)));
+    const invalidLevelAssessment = validContext();
+    invalidLevelAssessment.profile.trainingLevelAssessment.score = 140;
+    const invalidLevelResult = validateAiCoachContext(invalidLevelAssessment);
+    assert.strictEqual(invalidLevelResult.valid, false);
+    assert.ok(invalidLevelResult.errors.some(error => /trainingLevelAssessment.score/.test(error)));
   });
 
   await test("system prompt makes coach decision and blocked actions authoritative", () => {
@@ -196,6 +213,9 @@ function fakeChatDb() {
     assert.match(prompt, /skillet mellom dagsform og treningsnivå/);
     assert.match(prompt, /profile.levelSource=user_configured/);
     assert.match(prompt, /ikke si at appen har vurdert brukeren til nivået/);
+    assert.match(prompt, /regelstyrt nivågrunnlag/);
+    assert.match(prompt, /aldri bekrefte eller endre nivået/);
+    assert.match(prompt, /PB\/testløp er støttesignaler/);
     assert.match(prompt, /ikke vis interne verdier som building_beginner/);
     assert.match(prompt, /Ikke framstill et forslag som en appregel/);
     assert.match(prompt, /ikke har et formelt kriterium eller en fast tidsgrense/);
