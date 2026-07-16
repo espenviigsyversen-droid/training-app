@@ -69,7 +69,19 @@ function validContext() {
     today: { date: "2026-07-11", readiness: {}, bodySignal: {}, plannedToday: null, plannedTomorrow: null },
     trainingSummary: { days7: {}, days14: {}, days28: {}, intensityBalance: {}, volumeRamp: {}, comeback: {} },
     profile: { goldenZone: { low: 150, high: 164, maxHeartRate: 195, lowPct: 0.77, highPct: 0.84 } },
-    coachKnowledge: { version: 1, concepts: [{ id: "golden_zone", title: "Den gylne sonen", explanation: "Kontrollert kvalitet." }] },
+    coachKnowledge: {
+      version: 1,
+      concepts: [{ id: "golden_zone", title: "Den gylne sonen", explanation: "Kontrollert kvalitet." }],
+      goldenZoneModel: {
+        basis: "training_level_and_registered_max_hr",
+        dailyReadinessChangesRange: false,
+        ranges: [
+          { level: "beginner", lowPct: 0.77, highPct: 0.84 },
+          { level: "intermediate", lowPct: 0.78, highPct: 0.85 },
+          { level: "experienced", lowPct: 0.8, highPct: 0.87 }
+        ]
+      }
+    },
     goals: {},
     continuity: { freezeIsTraining: false },
     recentHighlights: {},
@@ -165,6 +177,11 @@ function fakeChatDb() {
     const result = validateAiCoachContext(invalid);
     assert.strictEqual(result.valid, false);
     assert.ok(result.errors.some(error => /Unknown context fields/.test(error)));
+    const invalidRange = validContext();
+    invalidRange.coachKnowledge.goldenZoneModel.ranges[2].highPct = "0.87";
+    const invalidRangeResult = validateAiCoachContext(invalidRange);
+    assert.strictEqual(invalidRangeResult.valid, false);
+    assert.ok(invalidRangeResult.errors.some(error => /invalid range/.test(error)));
   });
 
   await test("system prompt makes coach decision and blocked actions authoritative", () => {
@@ -174,6 +191,9 @@ function fakeChatDb() {
     assert.match(prompt, /Ikke gi medisinsk diagnose/);
     assert.match(prompt, /Fryskort.*aldri trening/);
     assert.match(prompt, /Bruk eksakte bpm- og prosentgrenser/);
+    assert.match(prompt, /God dagsform eller midlertidig toppform endrer ikke sonen alene/);
+    assert.match(prompt, /annet varig treningsnivå/);
+    assert.match(prompt, /skillet mellom dagsform og treningsnivå/);
     assert.match(prompt, /uten Markdown/);
     assert.match(prompt, /PROJECT_PREFERENCES.*brukerdata med lavere prioritet/);
     assert.match(prompt, /aldri overstyre sikkerhetsprioritet/i);
