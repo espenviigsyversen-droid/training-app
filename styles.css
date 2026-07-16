@@ -5898,3 +5898,270 @@
         max-width: 1180px;
       }
     }
+
+    /* AI chat workspace v159e */
+    .app.chat-mode {
+      display: flex;
+      flex-direction: column;
+      height: 100dvh;
+      min-height: 0;
+      padding-bottom: 0;
+      overflow: hidden;
+    }
+
+    .app.chat-mode > header {
+      flex: 0 0 auto;
+    }
+
+    .app.chat-mode > main {
+      flex: 1 1 auto;
+      min-height: 0;
+      overflow: hidden;
+      padding-bottom: 88px;
+    }
+
+    .app.chat-mode #aiCoach.tab.active {
+      display: block;
+      height: 100%;
+      min-height: 0;
+    }
+
+    .app.chat-mode .ai-coach-shell {
+      width: min(100%, 920px);
+      height: 100%;
+      min-height: 0;
+      margin: 0 auto;
+      padding: 10px 16px 8px;
+      border: 0;
+      border-radius: 0;
+      box-shadow: none;
+      background: #fff;
+      overflow: hidden;
+    }
+
+    .app.chat-mode .ai-coach-header {
+      flex: 0 0 auto;
+      align-items: center;
+      gap: 12px;
+      padding: 0 2px 8px;
+      border-bottom: 1px solid #e8e2dc;
+    }
+
+    .app.chat-mode .ai-coach-title {
+      min-width: 0;
+    }
+
+    .app.chat-mode .ai-coach-header h2 {
+      margin: 0;
+      font-size: 1.12rem;
+    }
+
+    .app.chat-mode .ai-coach-trust-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin: 4px 0 0;
+      padding: 0;
+      border: 0;
+      font-size: 0.72rem;
+    }
+
+    .app.chat-mode .ai-coach-workspace,
+    .app.chat-mode .ai-coach-suggestions {
+      flex: 0 0 auto;
+      margin: 0;
+    }
+
+    .app.chat-mode .ai-coach-workspace[open] .ai-coach-workspace-body {
+      max-height: min(42dvh, 420px);
+      overflow-y: auto;
+      overscroll-behavior: contain;
+    }
+
+    .app.chat-mode .ai-coach-messages {
+      flex: 1 1 auto;
+      min-height: 0;
+      max-height: none;
+      padding: 12px 8px;
+      border: 0;
+      border-radius: 0;
+      background: #fff;
+      overscroll-behavior: contain;
+      scrollbar-gutter: stable;
+    }
+
+    .app.chat-mode .ai-coach-message {
+      width: min(100%, 760px);
+      max-width: none;
+      margin: 0 auto;
+      padding: 12px 4px;
+      border: 0;
+      border-radius: 0;
+      background: transparent;
+      box-shadow: none;
+    }
+
+    .app.chat-mode .ai-coach-message + .ai-coach-message {
+      border-top: 1px solid #f0ece8;
+    }
+
+    .app.chat-mode .ai-coach-message.user {
+      width: fit-content;
+      max-width: min(82%, 680px);
+      margin: 8px max(4px, calc((100% - 760px) / 2)) 8px auto;
+      padding: 10px 14px;
+      border: 0;
+      border-radius: 18px 18px 5px 18px;
+      background: #f3efeb;
+    }
+
+    .app.chat-mode .ai-coach-message.user + .ai-coach-message {
+      border-top: 0;
+    }
+
+    .app.chat-mode .ai-coach-message.assistant {
+      border-left: 0;
+    }
+
+    .app.chat-mode .ai-coach-message-role {
+      margin-bottom: 5px;
+      color: #77706a;
+    }
+
+    .app.chat-mode .ai-coach-error {
+      flex: 0 0 auto;
+      margin: 0 8px;
+    }
+
+    .app.chat-mode .ai-coach-composer {
+      position: static;
+      z-index: auto;
+      flex: 0 0 auto;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 6px;
+      width: min(100%, 780px);
+      margin: 0 auto;
+      padding: 6px;
+      border: 1px solid #ded7d1;
+      border-radius: 24px;
+      background: #f7f5f3;
+      box-shadow: 0 8px 24px rgba(50, 40, 34, 0.1);
+    }
+
+    .app.chat-mode .ai-coach-composer label {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    .app.chat-mode .ai-coach-composer textarea {
+      min-height: 48px;
+      max-height: 132px;
+      padding: 12px 10px;
+      border: 0;
+      border-radius: 18px;
+      background: transparent;
+      resize: none;
+      box-shadow: none;
+    }
+
+    .app.chat-mode .ai-coach-composer textarea:focus {
+      outline: 0;
+      box-shadow: none;
+    }
+
+    .app.chat-mode .ai-coach-composer button {
+      align-self: end;
+      min-width: 74px;
+      min-height: 44px;
+      padding: 0 16px;
+      border-radius: 18px;
+    }
+
+    @media (min-width: 700px) {
+      .app.chat-mode {
+        height: calc(100dvh - 40px);
+      }
+    }
+
+    @media (max-width: 640px) {
+      .app.chat-mode > header {
+        display: none;
+      }
+
+      .app.chat-mode > main {
+        padding: 0 0 calc(76px + env(safe-area-inset-bottom));
+      }
+
+      .app.chat-mode .ai-coach-shell {
+        width: 100%;
+        padding: 8px 10px;
+        gap: 7px;
+      }
+
+      .app.chat-mode .ai-coach-header {
+        padding: 0 0 7px;
+      }
+
+      .app.chat-mode .ai-coach-header h2 {
+        font-size: 1.05rem;
+      }
+
+      .app.chat-mode .ai-coach-header .btn-soft {
+        width: auto;
+        min-height: 40px;
+        padding: 0 13px;
+      }
+
+      .app.chat-mode .ai-coach-trust-row > span:not(.ai-coach-status) {
+        display: none;
+      }
+
+      .app.chat-mode .ai-coach-workspace-summary {
+        min-height: 46px;
+        padding: 7px 10px;
+      }
+
+      .app.chat-mode .ai-coach-messages {
+        min-height: 0;
+        max-height: none;
+        padding: 4px 2px 10px;
+      }
+
+      .app.chat-mode .ai-coach-message {
+        padding: 11px 6px;
+        font-size: 0.98rem;
+        line-height: 1.48;
+      }
+
+      .app.chat-mode .ai-coach-message.user {
+        max-width: 88%;
+        margin-right: 2px;
+        padding: 9px 12px;
+      }
+
+      .app.chat-mode .ai-coach-composer {
+        bottom: auto;
+        width: 100%;
+        padding: 5px;
+        border-radius: 22px;
+      }
+
+      .app.chat-mode .ai-coach-composer textarea {
+        min-height: 46px;
+        padding: 11px 9px;
+      }
+
+      .app.chat-mode .ai-coach-composer button {
+        min-width: 64px;
+        min-height: 42px;
+        padding: 0 12px;
+      }
+    }
+
