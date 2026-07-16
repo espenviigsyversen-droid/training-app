@@ -9,6 +9,7 @@ const ALLOWED_TOP_LEVEL = new Set([
   "today",
   "trainingSummary",
   "profile",
+  "coachKnowledge",
   "goals",
   "continuity",
   "recentHighlights",
@@ -29,7 +30,7 @@ function validateAiCoachContext(value) {
 
   const unknown = Object.keys(value).filter(key => !ALLOWED_TOP_LEVEL.has(key));
   if (unknown.length) errors.push("Unknown context fields: " + unknown.join(", "));
-  if (value.schemaVersion !== 1) errors.push("Unsupported context schema version");
+  if (![1, 2].includes(value.schemaVersion)) errors.push("Unsupported context schema version");
   if (!isPlainObject(value.coachDecision)) errors.push("coachDecision is required");
   if (!isPlainObject(value.today)) errors.push("today is required");
   if (!isPlainObject(value.trainingSummary)) errors.push("trainingSummary is required");
@@ -41,6 +42,18 @@ function validateAiCoachContext(value) {
   if (!Array.isArray(decision.blockedActions)) errors.push("coachDecision.blockedActions must be an array");
   if (!Array.isArray(decision.guardrails)) errors.push("coachDecision.guardrails must be an array");
   if (value.continuity?.freezeIsTraining !== false) errors.push("continuity.freezeIsTraining must be false");
+  if (value.schemaVersion === 2) {
+    if (!isPlainObject(value.coachKnowledge) || !Array.isArray(value.coachKnowledge.concepts)) {
+      errors.push("coachKnowledge.concepts is required for schema version 2");
+    }
+    const zone = value.profile?.goldenZone;
+    if (zone && isPlainObject(zone)) {
+      const numeric = [zone.low, zone.high, zone.maxHeartRate, zone.lowPct, zone.highPct];
+      if (numeric.some(item => item !== null && item !== undefined && !Number.isFinite(item))) {
+        errors.push("profile.goldenZone values must be numeric or null");
+      }
+    }
+  }
 
   let bytes = 0;
   try {
