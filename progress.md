@@ -27,7 +27,7 @@ Standard Bakken-uke: Hoved-terskel → Støtte-terskel → Lang rolig → Valgfr
 **Hosting:** GitHub Pages.  
 **Backend:** Firebase (prosjekt `home-tasks-app-18de3`) — Firestore + Google Auth.  
 **Frontend:** Vanilla JS + HTML + CSS, single-page app, tab-navigasjon.  
-**Versjon:** v159 (konstant i `app.js`).
+**Versjon:** v159c (konstant i `app.js`).
 
 ### Filer
 
@@ -144,6 +144,8 @@ Treningsapp/
 - **v156 godkjent** (16. juli 2026): Samtaler er manuelt verifisert på mobil og PC med kryssenhetssynk, arkivering og sletting.
 - **Coach Knowledge Foundation og AI-context v2** (v159): `coach-rules.json` v3 er validert sannhetskilde for kuraterte coach-konsepter. AI-contexten sender eksakt makspulsgrunnlag, bpm- og prosentgrenser for gylne-sone samt nivå og kunnskapsbegrensninger. Rå Markdown-/PDF-/tekniske prosjektfiler sendes ikke til modellen.
 - **Nivåforklaring for gylne-sone** (v159b): AI-contexten sender nå hele den validerte nivåmodellen (77–84 %, 78–85 %, 80–87 %) i tillegg til brukerens aktive sone. Systeminstruksen skiller midlertidig dagsform/toppform fra varig treningsnivå og beregner hypotetisk bpm fra registrert makspuls.
+- **Presis fakta-/vurderingsmerking** (v159c): AI-contexten markerer profilnivå som manuelt konfigurert og sender norsk nivåetikett. Systeminstruksen forbyr interne enum-verdier, automatisk nivåendring og oppdiktede tidskrav, og skal skille appfakta fra faglig vurdering og praktiske forslag.
+- **Transparent nivåvurdering planlagt** (v160a-v160b): Roadmapen definerer design først, deretter ren regelstyrt vurdering og en forklarbar UI-flyt med eksplisitt brukerbekreftelse før profilnivå kan endres.
 - **AI-prosjekter og kontrollert langtidskontekst** (v159): Chat støtter flere prosjekter med egne preferanseinstrukser, backend-eid og begrenset samtalesammendrag, tømming av samtaleminne, separat JSON-eksport, rekursiv sletting og tokenoversikt. Instrukser og sammendrag er data med lavere prioritet enn coachDecision og sikkerhetsreglene.
 - **AI-svarpolish** (v159): Serverprompten krever naturlig norsk ren tekst uten rå Markdown-markører. Frontend normaliserer også enkle markører fra eldre svar og renderer fortsatt sikkert med `textContent`.
 - **AI-status og egen Chat-fane** (v154, implementert lokalt): Chat er nå sjette hoveddestinasjon etter Mål og har fortsatt fritekstfelt, forslag og read-only adferd. Setup skiller nøytral `Server-side`-merking fra en dynamisk status-tag med `Tilkoblet`, `Ikke tilkoblet`, `Nøkkel avvist` eller `Utilgjengelig`. Lagring og eksplisitt tilkoblingstest persisterer siste status i det maskerte serverdokumentet, uten å eksponere nøkkelen. Seks-fane-layouten har egne mobilregler. Automatisk test er bestått; manuell innlogget mobil/PWA-test gjenstår etter deploy.
@@ -187,11 +189,13 @@ Treningsapp/
 
 ## Neste steg (prioritert)
 
-1. **Manuell v159-akseptanse**
-   - Verifiser eksakt gylne-sone-svar, prosjektinstrukser, prosjektsynk, sammendrag, eksport og sletting på mobil/PC.
-2. **AI-kvalitetsrunde**
-   - Test representative spørsmål om trening, mat, restitusjon og kroppssignal før eventuell ny funksjonalitet.
-3. **Vedlikehold og datatrygghet**
+1. **Manuell v159c-svarprøve**
+   - Verifiser norsk nivåetikett og at appfakta, vurdering og forslag beskrives korrekt.
+2. **v160a - Transparent nivåvurdering design**
+   - Lås kriterier, vinduer, datakvalitet, domeneoutput og bakoverkompatibilitet.
+3. **v160b - Transparent nivåvurdering implementering**
+   - Vis forklarbart grunnlag og krev eksplisitt bekreftelse før profilendring.
+4. **Vedlikehold og datatrygghet**
    - Ta lokal snapshot-kvote og Firebase Functions SDK som separate, lavrisiko runder.
 
 ---
