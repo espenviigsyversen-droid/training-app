@@ -175,8 +175,9 @@ Prioritert backlog for videre utvikling av Treningsapp.
     - Firebase CLI varslet under v156-deploy at `firebase-functions` er utdatert.
     - Gjør dette som egen testet vedlikeholdsrunde fordi ny hovedversjon kan ha breaking changes; ikke bland oppgraderingen inn i chatfunksjonalitet.
 
-39. **v160a-v160e - Transparent treningsnivåvurdering** - Bygget
+39. **v160a-v160f - Transparent treningsnivåvurdering** - Bygget og kalibrert
     - Ren `domain-fitness.js` kombinerer kontinuitet, kontrollert kvalitet, RPE/kroppssignal, VO2 mot alder og egen PB-fremgang.
+    - v160f krever faktisk signaldekning for kontrollert kvalitet, lengre historikk for nivå 4/5 og trinnvis bekreftelse.
     - Innsikt viser nivå, datadekning, fem forklarbare dimensjoner, manglende data og neste kriterium.
     - Fem motivasjonsnivåer kan oppnås og beholdes; profilendring krever eksplisitt bekreftelse.
     - AI får bare sanitert nivågrunnlag og kan ikke endre eller bekrefte nivå.
@@ -204,9 +205,9 @@ Disse punktene var del av den tidlige v142-idéen, men er bevisst flyttet ut av 
 
 ## Anbefalt neste steg
 
-V160a-e er implementert som et komplett, forklarbart nivåspor med brukerbekreftelse og AI-guardrails.
+V160a-f er implementert som et forklarbart og konservativt nivåspor med brukerbekreftelse og AI-guardrails.
 
-Neste anbefalte punkt etter manuell v160-test er **Datatrygghet - lokal snapshot-kvote**, fulgt av en isolert oppgradering av Firebase Functions SDK. WMA-aldersgradering kan vurderes senere dersom komplett offisiell standard kan implementeres og testes.
+Neste anbefalte punkt etter manuell v160f-test er **Datatrygghet - lokal snapshot-kvote**, fulgt av en isolert oppgradering av Firebase Functions SDK. WMA-aldersgradering kan vurderes senere dersom komplett offisiell standard kan implementeres og testes.
 
 Begrunnelse:
 - v143b har etablert en validert parameterkilde med trygg fallback
@@ -220,3 +221,4 @@ Begrunnelse:
 - v155-reglene er testet i Firestore-emulator: eierens appdata fungerer, andre brukere avvises, chat-writes er backend-only og `apiKeys/{uid}` / `aiUsage/{uid}` er sperret
 - v154 har fungerende dynamisk tilkoblingsstatus, egen Chat-fane og bestått ende-til-ende-test med ekte OpenAI-svar
 - Produksjonsreglene er sammenlignet og deployet. Chat ligger i isolert `aiChatUsers/{uid}`-rot, og den sammenslåtte regelfilen bevarer eksisterende regler for `users`, `households`, `families`, `familyCodes` og `adminFamilyHealth`.
+
