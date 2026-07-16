@@ -43,6 +43,7 @@ node --check domain-core.js
 node --check domain-goals.js
 node --check domain-coach-rules.js
 node --check domain-coach.js
+node --check domain-fitness.js
 node --check ai-coach-client.js
 node --check ai-coach-ui.js
 node --check functions\ai\chat-store.js
@@ -58,6 +59,7 @@ node functions\tests\ai-backend-tests.js
 - `domain-goals.js` - rene testbare konkurranse-/mål-hjelpere
 - `domain-coach-rules.js` - validering, defaults og runtime-fallback for coach-regler
 - `domain-coach.js` - ren coach-logikk og prioritert beslutningsmodell
+- `domain-fitness.js` - ren, forklarbar nivå-, VO2- og PB-vurdering uten DOM/Firebase/state
 - `ai-coach-client.js` - autentisert frontend-klient mot AI Callable Functions; skal aldri lagre API-nøkkel
 - `ai-coach-ui.js` - read-only chat-, prosjekt-, historikk-, eksport- og nøkkelstatus-UI; renderer AI-svar som sikker ren tekst
 - `functions/` - Firebase-backend for nøkkeladministrasjon, rate limit, context-validering og OpenAI-kall
@@ -70,6 +72,7 @@ node functions\tests\ai-backend-tests.js
 - `AI_COACH_DESIGN.md` - sikkerhets-, context-, backend- og MVP-design for AI-coach
 - `AI_CHAT_PROJECTS_DESIGN.md` - datamodell, sikkerhet og roadmap for chat-historikk, prosjekter og egne instrukser
 - `COACH_KNOWLEDGE_DESIGN.md` - validert kunnskapsgrunnlag, AI-context v2 og grenser for prosjektinstrukser/langtidskontekst
+- `TRAINING_LEVEL_ASSESSMENT_DESIGN.md` - modell, referanser, sikkerhet og datagrunnlag for transparent treningsnivå
 - `FIREBASE_AI_BACKEND_DEPLOY.md` - obligatorisk sikkerhets- og deployport for AI-backend
 - `ARKITEKT_CONTEXT.md` - veiledende produkt- og arkitekturkontekst
 - `tests/stability-tests.js` - lokal stabilitetstest
@@ -85,6 +88,7 @@ node --check domain-core.js
 node --check domain-goals.js
 node --check domain-coach-rules.js
 node --check domain-coach.js
+node --check domain-fitness.js
 node --check ai-coach-client.js
 node --check ai-coach-ui.js
 node --check functions\ai\chat-store.js
