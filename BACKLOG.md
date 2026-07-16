@@ -191,14 +191,14 @@ Prioritert backlog for videre utvikling av Treningsapp.
     - Ikke legg søkenøkler, leverandørkonfigurasjon eller rå søkeresultater i frontend eller Firestore-chatloggen.
     - Frivillig per melding, separat samtykke, lavt søkekontekstbudsjett og inntil åtte sanitiserte kilder er implementert.
 
-41. **v162 - Etterprøvbar webbruk og presise ernærings-/varmesvar** - Planlagt
+41. **v162 - Etterprøvbar webbruk og presise ernærings-/varmesvar** - Implementert
     - Returner eksplisitt om web ble forespurt og faktisk brukt; vis aldri falsk webstatus.
     - Skill verifiserte nettkilder fra brukeroppgitt vær og appens treningsdata.
     - Knytt råd til strukturert øktvarighet, intensitet, tidspunkt, varme og individuell toleranse.
     - Bruk kontrollert retry eller tydelig fallback når valgt nettsøk ikke produserer et søkekall.
     - Prioriter autoritative primærkilder og behold coach-/medisinske guardrails.
 
-42. **v163 - Modell- og resonneringsvalg i Chat** - Planlagt
+42. **v163 - Modell- og resonneringsvalg i Chat** - Implementert
     - Komprimert `Svarinnstillinger` under `Administrer +`.
     - Serverstyrt allowlist for GPT-5.6 Luna, Terra og Sol; GPT-5.5 bare etter tilgangs- og kompatibilitetstest.
     - Resonneringsnivå `Lav`, `Medium` og `Høy` med enkel relativ kostnadsinformasjon.
@@ -229,7 +229,7 @@ Disse punktene var del av den tidlige v142-idéen, men er bevisst flyttet ut av 
 
 V160a-f er implementert som et forklarbart og konservativt nivåspor med brukerbekreftelse og AI-guardrails.
 
-Etter manuell v161-test prioriteres **v162 etterprøvbar webbruk** og **v163 modell-/resonneringsvalg**. Deretter går prioriteringen tilbake til **Datatrygghet - lokal snapshot-kvote**, etterfulgt av en isolert oppgradering av Firebase Functions SDK. WMA-aldersgradering kan vurderes senere dersom komplett offisiell standard kan implementeres og testes.
+Etter manuell v162/v163-test går prioriteringen tilbake til **Datatrygghet - lokal snapshot-kvote**, etterfulgt av en isolert oppgradering av Firebase Functions SDK. WMA-aldersgradering kan vurderes senere dersom komplett offisiell standard kan implementeres og testes.
 
 Begrunnelse:
 - v143b har etablert en validert parameterkilde med trygg fallback
@@ -243,4 +243,3 @@ Begrunnelse:
 - v155-reglene er testet i Firestore-emulator: eierens appdata fungerer, andre brukere avvises, chat-writes er backend-only og `apiKeys/{uid}` / `aiUsage/{uid}` er sperret
 - v154 har fungerende dynamisk tilkoblingsstatus, egen Chat-fane og bestått ende-til-ende-test med ekte OpenAI-svar
 - Produksjonsreglene er sammenlignet og deployet. Chat ligger i isolert `aiChatUsers/{uid}`-rot, og den sammenslåtte regelfilen bevarer eksisterende regler for `users`, `households`, `families`, `familyCodes` og `adminFamilyHealth`.
-
