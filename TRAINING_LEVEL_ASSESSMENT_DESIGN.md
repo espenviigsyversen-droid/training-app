@@ -73,6 +73,14 @@ AI kan forklare vurderingen, men kan aldri bekrefte nivå, skrive profilendringe
 - Bekreftelse skjer ett nivå om gangen. Et høyt beregnet nivå kan derfor ikke hoppe direkte fra Fundament til Erfaren.
 - Assessment-versjonen er økt til 2. Gamle settings normaliseres fortsatt trygt.
 
+### v160g - Forklaring og handlingsretning
+
+- Poengsummen heter `vurderingsgrunnlag` og forklares eksplisitt som noe annet enn nivå.
+- Neste nivå viser konkrete udekkede krav fra den samme domenelogikken som beregner nivået.
+- Ett anbefalt neste steg velges fra svakeste dimensjon, men sikkerhetssignaler har alltid prioritet.
+- Kravtekst og anbefaling er forklarende UI-data; de endrer ikke treningsplanen automatisk.
+- Assessment-versjonen er økt til 3 uten ny Firestore-modell.
+
 ## Dimensjoner og vekting
 
 | Dimensjon | Vekt | Hovedgrunnlag |
