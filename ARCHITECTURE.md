@@ -27,6 +27,7 @@ Treningsapp/
 ├── domain-goals.js
 ├── domain-coach-rules.js
 ├── domain-coach.js
+├── domain-fitness.js
 ├── ai-coach-client.js
 ├── ai-coach-ui.js
 ├── styles.css
@@ -112,6 +113,7 @@ Inneholder ren konkurranse- og mål-logikk uten DOM, Firebase eller direkte `sta
 
 - `domain-coach-rules.js` validerer og leverer aktive coach-regler med trygg fallback.
 - `domain-coach.js` inneholder ren beslutningslogikk og bygger den whitelistede `AI Coach Context v1`.
+- `domain-fitness.js` skiller forklarbar treningsmodenhet, aldersrelatert kapasitet og PB-fremgang fra dagens sikkerhetsbeslutning. Modulen kan foreslå, men aldri automatisk endre coach-profilen.
 - `ai-coach-client.js` kaller autentiserte Firebase Callable Functions, men kjenner aldri den lagrede OpenAI-nøkkelen.
 - `ai-coach-ui.js` eier read-only chatflyt, feiltilstander og session-forbruk. Meldingshistorikk lagres ikke vedvarende.
 - `functions/` validerer Auth og context, håndterer server-side nøkkel, rate limit og OpenAI-kall. Systeminstruks, modell og sikkerhetspolicy eies av serveren.
@@ -137,9 +139,10 @@ Ikke gjør en stor rewrite. Del heller appen gradvis i tydelige soner:
 2. `domain-core.js` / senere `domain/dates` - datoer, uker, perioder
 3. `domain-goals.js` - konkurranser, personlige rekorder, mål-løp og målplan
 4. `domain-coach.js` - coach-context, anbefalinger og prioritert beslutningsmodell
-5. senere `domain/training` - økter, roller, belastning, intensitet
-6. `ui/render` - render-funksjoner og DOM-hjelpere
-7. `tests` - rene tester for kritiske regler
+5. `domain-fitness.js` - transparent nivågrunnlag, VO2-referanse og PB-progresjon
+6. senere `domain/training` - økter, roller, belastning, intensitet
+7. `ui/render` - render-funksjoner og DOM-hjelpere
+8. `tests` - rene tester for kritiske regler
 
 Målet er lavere risiko, lettere testing og mindre sjanse for regresjoner.
 
