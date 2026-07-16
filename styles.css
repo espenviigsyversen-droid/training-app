@@ -2453,6 +2453,13 @@
     .fitness-level-score { grid-template-columns: auto auto; align-items: baseline; }
     .fitness-level-score strong { color: var(--success); font-size: 1.7rem; line-height: 1; }
 
+    .fitness-score-note {
+      margin: 7px 2px 0;
+      color: var(--warm-gray-3);
+      font-size: 0.76rem;
+      line-height: 1.35;
+    }
+
     .fitness-level-summary {
       margin: 10px 0 0;
       color: var(--black);
@@ -2481,7 +2488,9 @@
     .fitness-confirmed-level strong { text-align: right; }
 
     .fitness-safety,
-    .fitness-next {
+    .fitness-next,
+    .fitness-requirements,
+    .fitness-next-step {
       display: grid;
       gap: 3px;
       margin-top: 10px;
@@ -2492,11 +2501,34 @@
     }
 
     .fitness-safety span,
-    .fitness-next span {
+    .fitness-next span,
+    .fitness-next-step span {
       color: var(--warm-gray-3);
       font-size: 0.72rem;
       font-weight: 850;
     }
+
+    .fitness-requirements {
+      border-color: rgba(17,17,17,0.1);
+      background: var(--warm-gray-1);
+    }
+
+    .fitness-requirements ul {
+      display: grid;
+      gap: 4px;
+      margin: 4px 0 0;
+      padding-left: 18px;
+      color: var(--warm-gray-3);
+      font-size: 0.78rem;
+      line-height: 1.35;
+    }
+
+    .fitness-next-step {
+      border-color: rgba(40,169,128,0.22);
+      background: rgba(40,169,128,0.065);
+    }
+
+    .fitness-next-step strong { line-height: 1.4; }
 
     .fitness-level-action { width: 100%; margin-top: 10px; }
 
@@ -2577,6 +2609,8 @@
       .fitness-level-rank strong { font-size: 1.15rem; }
       .fitness-level-score strong { font-size: 1.45rem; }
       .fitness-level-score span { font-size: 0.64rem; }
+      .fitness-level-score { max-width: 48%; text-align: right; }
+      .fitness-score-note { font-size: 0.72rem; }
       .fitness-dimension { padding: 9px 10px; }
       .fitness-dimension-head { align-items: flex-start; }
       .fitness-dimension-head span { min-width: 0; line-height: 1.25; }
