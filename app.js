@@ -74,13 +74,14 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     } from './domain-goals.js';
     import {
       coachFrameworkFromRules,
+      coachKnowledgeFromRules,
       getCoachRules,
       loadCoachRules
     } from './domain-coach-rules.js';
     import { createAiCoachClient } from './ai-coach-client.js';
     import { createAiCoachUi } from './ai-coach-ui.js';
 
-    const APP_VERSION = 'v156';
+    const APP_VERSION = 'v159';
     const APP_CACHE_NAME = `treningsapp-${APP_VERSION}`;
 
     const firebaseConfig = {
@@ -7232,6 +7233,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
           weeklySessionTarget: ctx.effectiveWeeklyTarget || ctx.goals.weeklySessionsTarget,
           goldenZone: ctx.goldenZone
         },
+        coachKnowledge: coachKnowledgeFromRules(getCoachRules()),
         goals: {
           active: Boolean(raceGoal.name && raceGoal.date),
           raceName: raceGoal.name,
@@ -8314,4 +8316,3 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         navigator.serviceWorker.register(`./service-worker.js?v=${APP_VERSION}`).catch(() => {});
       });
     };
-
