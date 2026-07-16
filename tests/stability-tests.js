@@ -336,6 +336,43 @@ function test(name, fn) {
     assert.ok(styles.includes('.fitness-confirmed-level'));
   });
 
+  test('v160g explains score, next-level gaps and one prioritized action', () => {
+    const completed = [];
+    for (let week = 0; week < 12; week += 1) {
+      for (let session = 0; session < 3; session += 1) {
+        const date = new Date(Date.UTC(2026, 6, 16 - week * 7 - session));
+        completed.push({
+          date: date.toISOString().slice(0, 10),
+          intensityContext: session === 0 ? 'quality' : 'easy',
+          rpe: session === 0 ? 6 : 4,
+          feelingScore: 4,
+          painBefore: 0,
+          painAfter: 0
+        });
+      }
+    }
+    const result = assessTrainingLevel({
+      todayIso: '2026-07-16',
+      completed,
+      vo2Max: 42,
+      age: 45,
+      sex: 'male',
+      raceResults: [
+        { date: '2025-09-01', distanceKm: 5, resultSeconds: 1800 },
+        { date: '2026-06-01', distanceKm: 5, resultSeconds: 1650 }
+      ],
+      progress: { highestTier: 'developing', history: [] }
+    });
+    assert.strictEqual(result.level.rank, 3);
+    assert.strictEqual(result.nextLevel.rank, 4);
+    assert.ok(result.nextLevelRequirements.some(item => item.id === 'observation'));
+    assert.strictEqual(result.recommendedNextStep.dimensionId, 'capacity');
+    assert.ok(app.includes('/100 vurderingsgrunnlag'));
+    assert.ok(app.includes('Poengsummen er ikke det samme som nivå'));
+    assert.ok(app.includes('Dette mangler for nivå'));
+    assert.ok(app.includes('Anbefalt neste steg'));
+  });
+
   test('v155 chat persistence is backend-owned and excluded from training backup', () => {
     assert.ok(chatPersistence.includes('clientWritesAllowed: false'), 'chat persistence must remain backend-owned');
     assert.ok(chatPersistence.includes('trainingBackupIncludesChat: false'), 'chat must stay outside training backup');
