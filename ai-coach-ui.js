@@ -66,11 +66,14 @@ function appendAssistantText(element, message) {
 
 function appendWebSources(article, message) {
   const sources = (Array.isArray(message.sources) ? message.sources : []).map(safeSource).filter(Boolean).slice(0, 8);
-  if (!message.webUsed && !sources.length) return;
+  const requested = message.webSearchRequested === true || message.webUsed === true || sources.length > 0;
+  if (!requested) return;
   const wrapper = document.createElement('div');
-  wrapper.className = 'ai-coach-web-sources';
+  wrapper.className = `ai-coach-web-sources${message.webUsed || sources.length ? '' : ' not-used'}`;
   const label = document.createElement('span');
-  label.textContent = sources.length ? 'Nettsøk brukt · Kilder' : 'Nettsøk brukt';
+  label.textContent = message.webUsed || sources.length
+    ? sources.length ? `Nettsøk brukt · ${sources.length} kilder` : 'Nettsøk brukt · ingen kildelenker mottatt'
+    : 'Nettsøk forespurt, men ikke brukt · svaret bygger på appdata og generell kunnskap';
   wrapper.append(label);
   sources.forEach((source, index) => {
     const link = document.createElement('a');
@@ -93,6 +96,12 @@ function createMessageElement(message) {
   if (message.role === 'assistant') appendAssistantText(text, message);
   else text.textContent = message.content;
   article.append(role, text);
+  if (message.role === 'assistant' && message.profileFallback?.message) {
+    const note = document.createElement('div');
+    note.className = 'ai-coach-profile-note';
+    note.textContent = String(message.profileFallback.message);
+    article.append(note);
+  }
   if (message.role === 'assistant') appendWebSources(article, message);
   return article;
 }
@@ -127,6 +136,8 @@ export function createAiCoachUi(options = {}) {
   let loading = false;
   let usage = { inputTokens: 0, outputTokens: 0, requests: 0 };
   let lastContextLabels = [];
+  let aiPreferences = { modelProfileId: 'auto', reasoningProfileId: 'low' };
+  let aiProfileCatalog = { models: [], reasoning: [] };
 
   function activeProject() {
     return projects.find(project => project.id === activeProjectId) || null;
@@ -286,6 +297,57 @@ export function createAiCoachUi(options = {}) {
     missing?.classList.toggle('hidden', configured || !backendAvailable);
   }
 
+  function replaceProfileOptions(selectId, values, selectedId) {
+    const select = byId(selectId);
+    if (!select) return;
+    select.replaceChildren();
+    values.forEach(profile => {
+      const option = document.createElement('option');
+      option.value = profile.id;
+      option.textContent = profile.cost ? `${profile.label} · ${profile.cost} kostnad` : profile.label;
+      option.title = profile.description || '';
+      select.append(option);
+    });
+    select.value = selectedId;
+  }
+
+  function renderAiPreferences() {
+    replaceProfileOptions('aiCoachModelProfile', aiProfileCatalog.models, aiPreferences.modelProfileId);
+    replaceProfileOptions('aiCoachReasoningProfile', aiProfileCatalog.reasoning, aiPreferences.reasoningProfileId);
+    const model = aiProfileCatalog.models.find(item => item.id === aiPreferences.modelProfileId);
+    const reasoning = aiProfileCatalog.reasoning.find(item => item.id === aiPreferences.reasoningProfileId);
+    setText('aiCoachResponseProfileSummary', `${model?.label || 'Automatisk'} · ${reasoning?.label || 'Lav'}`);
+    setText('aiCoachResponseProfileHelp', [model?.description, reasoning?.description].filter(Boolean).join(' '));
+  }
+
+  async function refreshAiPreferences() {
+    const result = await client.getPreferences();
+    if (!result.ok) {
+      setText('aiCoachResponseProfileFeedback', result.message || 'Kunne ikke hente svarinnstillingene.');
+      return result;
+    }
+    aiPreferences = result.preferences || aiPreferences;
+    aiProfileCatalog = result.catalog || aiProfileCatalog;
+    renderAiPreferences();
+    setText('aiCoachResponseProfileFeedback', 'Innstillingene synkroniseres mellom enhetene dine.');
+    return result;
+  }
+
+  async function saveAiPreferences() {
+    const modelProfileId = String(byId('aiCoachModelProfile')?.value || 'auto');
+    const reasoningProfileId = String(byId('aiCoachReasoningProfile')?.value || 'low');
+    setText('aiCoachResponseProfileFeedback', 'Lagrer svarinnstillinger ...');
+    const result = await client.savePreferences(modelProfileId, reasoningProfileId);
+    if (!result.ok) {
+      setText('aiCoachResponseProfileFeedback', result.message || 'Kunne ikke lagre svarinnstillingene.');
+      return;
+    }
+    aiPreferences = result.preferences || { modelProfileId, reasoningProfileId };
+    aiProfileCatalog = result.catalog || aiProfileCatalog;
+    renderAiPreferences();
+    setText('aiCoachResponseProfileFeedback', 'Svarinnstillingene er lagret og synkronisert.');
+  }
+
   function resetConversation() {
     activeConversationId = null;
     activeConversationStatus = 'active';
@@ -416,6 +478,9 @@ export function createAiCoachUi(options = {}) {
       .map(message => ({
         role: message.role,
         content: String(message.content),
+        webSearchRequested: message.webSearchRequested === true,
+        webSearchStatus: String(message.webSearchStatus || ''),
+        profileFallback: message.profileFallback?.message ? { message: String(message.profileFallback.message) } : null,
         webUsed: message.webUsed === true,
         citations: Array.isArray(message.citations) ? message.citations : [],
         sources: Array.isArray(message.sources) ? message.sources : []
@@ -581,6 +646,9 @@ export function createAiCoachUi(options = {}) {
     messages.push({
       role: 'assistant',
       content: String(result.answer || '').trim() || 'Jeg fikk ikke laget et svar.',
+      webSearchRequested: result.webSearchRequested === true,
+      webSearchStatus: String(result.webSearchStatus || ''),
+      profileFallback: result.profileFallback?.message ? { message: String(result.profileFallback.message) } : null,
       webUsed: result.webUsed === true,
       citations: Array.isArray(result.citations) ? result.citations : [],
       sources: Array.isArray(result.sources) ? result.sources : []
@@ -611,6 +679,7 @@ export function createAiCoachUi(options = {}) {
     renderMessages();
     renderUsage();
     await refreshStatus();
+    if (backendAvailable) await refreshAiPreferences();
     if (configured) {
       await refreshProjects();
       await refreshConversations({ openFirst: true });
@@ -638,13 +707,14 @@ export function createAiCoachUi(options = {}) {
     byId('aiCoachClearSummaryBtn')?.addEventListener('click', clearActiveSummary);
     byId('aiCoachExportBtn')?.addEventListener('click', exportChat);
     byId('aiCoachDeleteAllBtn')?.addEventListener('click', deleteAllChat);
+    byId('aiCoachSaveResponseProfileBtn')?.addEventListener('click', saveAiPreferences);
     byId('aiCoachOpenSettingsBtn')?.addEventListener('click', openSettings);
     byId('aiCoachSaveKeyBtn')?.addEventListener('click', saveKey);
     byId('aiCoachTestKeyBtn')?.addEventListener('click', testKey);
     byId('aiCoachDeleteKeyBtn')?.addEventListener('click', deleteKey);
   }
 
-  return { bind, clear, deleteKey, open, openConversation, refreshConversations, refreshProjects, refreshStatus, saveKey, send, testKey };
+  return { bind, clear, deleteKey, open, openConversation, refreshAiPreferences, refreshConversations, refreshProjects, refreshStatus, saveAiPreferences, saveKey, send, testKey };
 }
 
 export { plainAssistantText };
