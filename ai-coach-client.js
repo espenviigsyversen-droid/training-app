@@ -26,7 +26,15 @@ export function createAiCoachClient(firebaseApp, options = {}) {
     getConversation: callable('aiChatGetConversation'),
     createConversation: callable('aiChatCreateConversation'),
     archiveConversation: callable('aiChatArchiveConversation'),
-    deleteConversation: callable('aiChatDeleteConversation')
+    deleteConversation: callable('aiChatDeleteConversation'),
+    listProjects: callable('aiChatListProjects'),
+    createProject: callable('aiChatCreateProject'),
+    updateProject: callable('aiChatUpdateProject'),
+    archiveProject: callable('aiChatArchiveProject'),
+    deleteProject: callable('aiChatDeleteProject'),
+    clearSummary: callable('aiChatClearConversationSummary'),
+    exportData: callable('aiChatExportData'),
+    deleteAllData: callable('aiChatDeleteAllData')
   };
 
   async function call(endpoint, payload = {}) {
@@ -50,7 +58,14 @@ export function createAiCoachClient(firebaseApp, options = {}) {
     getConversation: (projectId, conversationId) => call('getConversation', { projectId, conversationId }),
     createConversation: (projectId, title) => call('createConversation', { projectId, title }),
     archiveConversation: (projectId, conversationId, archived = true) => call('archiveConversation', { projectId, conversationId, archived }),
-    deleteConversation: (projectId, conversationId) => call('deleteConversation', { projectId, conversationId, confirmed: true })
+    deleteConversation: (projectId, conversationId) => call('deleteConversation', { projectId, conversationId, confirmed: true }),
+    listProjects: () => call('listProjects'),
+    createProject: (title, instructions, summaryEnabled = true) => call('createProject', { title, instructions, summaryEnabled }),
+    updateProject: (projectId, title, instructions, summaryEnabled = true) => call('updateProject', { projectId, title, instructions, summaryEnabled }),
+    archiveProject: (projectId, archived = true) => call('archiveProject', { projectId, archived }),
+    deleteProject: projectId => call('deleteProject', { projectId, confirmed: true }),
+    clearSummary: (projectId, conversationId) => call('clearSummary', { projectId, conversationId }),
+    exportData: () => call('exportData'),
+    deleteAllData: () => call('deleteAllData', { confirmed: true })
   };
 }
-
