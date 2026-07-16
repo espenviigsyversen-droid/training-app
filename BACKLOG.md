@@ -153,16 +153,16 @@ Prioritert backlog for videre utvikling av Treningsapp.
     - Firestore-modell, Rules, callable-kontrakter, retention, arkiv, sletting og separat eksport.
     - Emulator-/regeltester skal være på plass før vedvarende historikk aktiveres.
 
-34. **v156 - Synkroniserte samtaler v1** - Deployet, manuell kryssenhetstest gjenstår
+34. **v156 - Synkroniserte samtaler v1** - Ferdig og manuelt godkjent
     - Samtaler og meldinger lagres sikkert og kan fortsettes på PC og mobil.
     - Samtaler kan opprettes, navngis, arkiveres og slettes.
     - Begrenset meldingsvindu og samtalesammendrag hindrer ukontrollert context/kostnad.
 
-35. **v157 - Prosjekter og egne instrukser**
+35. **v157 - Prosjekter og egne instrukser** - Levert samlet i v159
     - Flere prosjekter med egne samtaler og instruksjoner for fokus, tone og preferanser.
     - Instrukser kan ikke overstyre coachens sikkerhetsregler.
 
-36. **v158 - Kontrollert langtidskontekst og kvalitet**
+36. **v158 - Kontrollert langtidskontekst og kvalitet** - Levert samlet i v159
     - Bedre oppsummering av lange samtaler og eventuelt eksplisitt brukeradministrert minne.
     - Personvern, innsyn, sletting, eksport, kostnad og tematester for trening/mat/restitusjon.
 
@@ -197,7 +197,7 @@ Disse punktene var del av den tidlige v142-idéen, men er bevisst flyttet ut av 
 
 ## Anbefalt neste steg
 
-Neste anbefalte punkt er å **fullføre manuell v156-akseptansetest** for kryssenhetssynk, gjenåpning, arkiv og sletting. Deretter starter v157 med prosjekter og egne instrukser.
+Neste anbefalte punkt er **manuell v159-akseptanse og tematisk AI-kvalitetstest**. Test eksakte coachverdier, prosjektinstrukser, sammendrag, eksport og sletting før nytt feature-scope.
 
 Begrunnelse:
 - v143b har etablert en validert parameterkilde med trygg fallback
@@ -211,4 +211,3 @@ Begrunnelse:
 - v155-reglene er testet i Firestore-emulator: eierens appdata fungerer, andre brukere avvises, chat-writes er backend-only og `apiKeys/{uid}` / `aiUsage/{uid}` er sperret
 - v154 har fungerende dynamisk tilkoblingsstatus, egen Chat-fane og bestått ende-til-ende-test med ekte OpenAI-svar
 - Produksjonsreglene er sammenlignet og deployet. Chat ligger i isolert `aiChatUsers/{uid}`-rot, og den sammenslåtte regelfilen bevarer eksisterende regler for `users`, `households`, `families`, `familyCodes` og `adminFamilyHealth`.
-
