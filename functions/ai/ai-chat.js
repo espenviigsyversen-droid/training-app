@@ -40,6 +40,7 @@ async function handleAiCoachChat(options = {}) {
   if (!messages.length || messages[messages.length - 1].role !== "user") {
     return { ok: false, code: "REQUEST_INVALID", message: "Siste melding må være et spørsmål fra brukeren.", requestId };
   }
+  const webSearchEnabled = data?.webSearchEnabled === true;
 
   const chatScope = data?.conversationId
     ? await getChatScope(db, uid, { projectId: data.projectId, conversationId: data.conversationId })
@@ -62,6 +63,7 @@ async function handleAiCoachChat(options = {}) {
     instructions: buildAiCoachSystemPrompt(),
     projectInstructions: chatScope.projectInstructions,
     conversationSummary: chatScope.conversationSummary,
+    webSearchEnabled,
     safetyIdentifier: safetyIdentifier(uid),
     fetchImpl: options.fetchImpl
   });
@@ -76,6 +78,9 @@ async function handleAiCoachChat(options = {}) {
     contextSchemaVersion: context.schemaVersion,
     inputTokens: usage.inputTokens || 0,
     outputTokens: usage.outputTokens || 0,
+    webSearchRequested: webSearchEnabled,
+    webSearchUsed: Boolean(result.webUsed),
+    webSourceCount: Array.isArray(result.sources) ? result.sources.length : 0,
     model: result.model || "server-configured"
   };
   if (result.ok) logger?.info?.("AI coach request completed", logData);
@@ -91,6 +96,9 @@ async function handleAiCoachChat(options = {}) {
       assistantContent: result.answer,
       requestId,
       modelLabel: result.model,
+      webUsed: result.webUsed,
+      citations: result.citations,
+      sources: result.sources,
       usage
     });
     if (!persisted.ok) return { ...persisted, requestId };
@@ -101,6 +109,9 @@ async function handleAiCoachChat(options = {}) {
     usage,
     requestId,
     modelLabel: result.model,
+    webUsed: Boolean(result.webUsed),
+    citations: Array.isArray(result.citations) ? result.citations : [],
+    sources: Array.isArray(result.sources) ? result.sources : [],
     contextSchemaVersion: context.schemaVersion,
     remainingToday: rate.remainingToday,
     conversationId: persisted?.conversationId || null,
