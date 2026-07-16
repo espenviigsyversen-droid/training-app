@@ -81,7 +81,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     import { createAiCoachClient } from './ai-coach-client.js';
     import { createAiCoachUi } from './ai-coach-ui.js';
 
-    const APP_VERSION = 'v159d';
+    const APP_VERSION = 'v159e';
     const APP_CACHE_NAME = `treningsapp-${APP_VERSION}`;
 
     const firebaseConfig = {
@@ -1383,6 +1383,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       const previousTab = document.querySelector('.tab.active')?.id || '';
       document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
       document.getElementById(tabId).classList.add('active');
+      document.getElementById('mainApp')?.classList.toggle('chat-mode', tabId === 'aiCoach');
       const navBtn = btn || document.querySelector(`nav button[data-tab="${tabId}"]`);
       const isMainNavTab = Boolean(navBtn);
       if (navBtn) {
@@ -8316,3 +8317,4 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         navigator.serviceWorker.register(`./service-worker.js?v=${APP_VERSION}`).catch(() => {});
       });
     };
+
