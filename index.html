@@ -637,6 +637,26 @@
                 </div>
                 <p id="aiCoachPrivacyFeedback" class="small-note"></p>
               </details>
+              <details class="ai-coach-response-settings">
+                <summary>
+                  <span>Svarinnstillinger</span>
+                  <small id="aiCoachResponseProfileSummary">Automatisk · Lav</small>
+                </summary>
+                <div class="ai-coach-response-settings-body">
+                  <label for="aiCoachModelProfile">Modellprofil</label>
+                  <select id="aiCoachModelProfile" aria-label="Velg OpenAI-modellprofil">
+                    <option value="auto">Automatisk</option>
+                  </select>
+                  <label for="aiCoachReasoningProfile">Hvor grundig</label>
+                  <select id="aiCoachReasoningProfile" aria-label="Velg hvor grundig AI-coachen skal svare">
+                    <option value="low">Lav</option>
+                  </select>
+                  <p id="aiCoachResponseProfileHelp" class="small-note">Trygt standardvalg for vanlig coach-chat.</p>
+                  <p class="small-note">Grundigere modeller kan bruke mer tid og koste mer. Backend kontrollerer hvilke profiler som er tillatt.</p>
+                  <button id="aiCoachSaveResponseProfileBtn" class="btn-soft" type="button">Lagre svarinnstillinger</button>
+                  <p id="aiCoachResponseProfileFeedback" class="small-note"></p>
+                </div>
+              </details>
             </div>
           </details>
           <div id="aiCoachSuggestions" class="ai-coach-suggestions"></div>
