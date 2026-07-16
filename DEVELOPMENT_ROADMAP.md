@@ -1232,3 +1232,13 @@ v154-v156 er deployet og manuelt verifisert, inkludert kryssenhetssynk, arkiv og
 - forslag vises i tom samtale, men fjernes når dialogen er i gang
 - skrivefeltet er flyttet foran valgfritt grunnlag og gjort kompakt/sticky på mobil
 - backend, Firestore-modell, synkronisering og coach-context er uendret
+
+### v159e - AI-chat fullhøyde arbeidsflate - Bygget
+
+- Chat er en egen fullhøyde arbeidsflate i stedet for et vanlig kort i en skrollende appside
+- meldingshistorikken er eneste skrollområde, mens skrivefeltet alltid er tilgjengelig over bunnnavigasjonen
+- mobil skjuler det generelle apphodet i Chat og bruker et kompakt samtalehode
+- assistant-svar vises roligere og mindre kortpreget; brukermeldinger beholdes som diskrete bobler
+- grunnlag og personvern ligger under den eksisterende samtale-/prosjektadministrasjonen
+- backend, Firestore-modell, synkronisering, coach-context og sikkerhetsregler er uendret
+
