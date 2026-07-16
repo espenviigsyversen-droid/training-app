@@ -1,6 +1,6 @@
 # AI Chat Projects - design og utviklingsplan
 
-**Status:** v154-v156 er deployet. v156 viser riktig versjon/cache, tilkoblet OpenAI og ny samtale-UI; praktisk kryssenhetssynk, gjenåpning, arkiv og sletting gjenstår før v157.  
+**Status:** v154-v156 er deployet og manuelt verifisert. v157-v158 leveres samlet med Coach Knowledge Foundation og AI-context v2 i runtime-versjon v159.  
 **Foreslått spor:** v154-v158.  
 **Forutsetning:** Sikkerhets- og deployporten i `FIREBASE_AI_BACKEND_DEPLOY.md` skal være bestått.
 
@@ -204,4 +204,3 @@ Status: Backend deployet 12. juli 2026. Den bruker isolert `aiChatUsers/{uid}/pr
 - Prosjektinstruksjoner kan ikke overstyre serverens systeminstruks.
 - Rekursiv sletting er testet.
 - Maks meldingslengde, rate limit og context-størrelse håndheves på server.
-
