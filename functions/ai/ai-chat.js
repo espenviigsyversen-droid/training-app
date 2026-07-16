@@ -6,7 +6,7 @@ const { resolveOpenAiKey } = require("./keys");
 const { runOpenAiCoach } = require("./openai-provider");
 const { enforceRateLimit } = require("./rate-limit");
 const { buildAiCoachSystemPrompt } = require("./system-prompt");
-const { persistConversationExchange } = require("./chat-store");
+const { getChatScope, persistConversationExchange } = require("./chat-store");
 
 const MAX_HISTORY_MESSAGES = 8;
 const MAX_USER_TEXT = 2000;
@@ -41,6 +41,11 @@ async function handleAiCoachChat(options = {}) {
     return { ok: false, code: "REQUEST_INVALID", message: "Siste melding må være et spørsmål fra brukeren.", requestId };
   }
 
+  const chatScope = data?.conversationId
+    ? await getChatScope(db, uid, { projectId: data.projectId, conversationId: data.conversationId })
+    : { ok: true, projectInstructions: "", conversationSummary: "" };
+  if (!chatScope.ok) return { ...chatScope, requestId };
+
   const apiKey = await resolveOpenAiKey(db, uid, encryptionSecret);
   if (!apiKey) return { ok: false, code: "AI_NOT_CONFIGURED", message: "Legg inn OpenAI-nøkkelen under Setup først.", requestId };
 
@@ -55,6 +60,8 @@ async function handleAiCoachChat(options = {}) {
     context,
     messages,
     instructions: buildAiCoachSystemPrompt(),
+    projectInstructions: chatScope.projectInstructions,
+    conversationSummary: chatScope.conversationSummary,
     safetyIdentifier: safetyIdentifier(uid),
     fetchImpl: options.fetchImpl
   });
@@ -102,4 +109,3 @@ async function handleAiCoachChat(options = {}) {
 }
 
 module.exports = { MAX_HISTORY_MESSAGES, handleAiCoachChat, normalizeMessages, safetyIdentifier };
-
