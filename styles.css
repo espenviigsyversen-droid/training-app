@@ -218,6 +218,28 @@
   margin: 12px 0 4px;
 }
 
+.ai-project-toolbar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: end;
+  margin-top: 12px;
+}
+
+.ai-project-panel {
+  display: grid;
+  gap: 8px;
+  margin: 10px 0;
+  padding: 12px;
+  border: 1px solid var(--border, #e7dfda);
+  border-radius: 8px;
+  background: var(--warm-gray-1);
+}
+
+.ai-project-panel textarea { min-height: 92px; resize: vertical; }
+.ai-project-actions { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.ai-privacy-actions { margin-top: 10px; }
+
 .ai-conversation-toolbar label {
   margin-bottom: 4px;
 }
@@ -408,6 +430,11 @@
   .ai-conversation-toolbar {
     grid-template-columns: 1fr;
   }
+
+  .ai-project-toolbar { grid-template-columns: 1fr; }
+  .ai-project-toolbar button { width: 100%; }
+  .ai-project-actions,
+  .ai-privacy-actions { grid-template-columns: 1fr 1fr; }
 
   .ai-conversation-actions {
     display: grid;
@@ -5755,4 +5782,3 @@
         max-width: 1180px;
       }
     }
-
