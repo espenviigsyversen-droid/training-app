@@ -22,6 +22,7 @@ const {
   getConversation,
   listConversations,
   listProjects,
+  normalizeMessageSources,
   persistConversationExchange
 } = require("../ai/chat-store");
 const { validateAiCoachContext } = require("../ai/context-schema");
@@ -33,7 +34,7 @@ const {
   testOpenAiKey,
   validateOpenAiKey
 } = require("../ai/keys");
-const { extractOutputText, runOpenAiCoach } = require("../ai/openai-provider");
+const { extractOutputText, extractWebMetadata, runOpenAiCoach } = require("../ai/openai-provider");
 const { buildAiCoachSystemPrompt } = require("../ai/system-prompt");
 
 const TEST_ENCRYPTION_SECRET = "test-encryption-secret-that-is-longer-than-thirty-two-characters";
@@ -278,7 +279,7 @@ function fakeChatDb() {
     assert.strictEqual(db._store.get("users/user-1/settings/openai").status, "invalid");
   });
 
-  await test("provider uses stateless Responses API without tools", async () => {
+  await test("provider uses stateless Responses API without tools by default", async () => {
     let requestBody = null;
     const result = await runOpenAiCoach({
       apiKey: "sk-test",
@@ -305,6 +306,37 @@ function fakeChatDb() {
     assert.ok(requestBody.input.some(item => item.role === "user" && /PROJECT_PREFERENCES/.test(item.content)));
     assert.ok(requestBody.input.some(item => item.role === "user" && /SAMTALESAMMENDRAG/.test(item.content)));
     assert.ok(!requestBody.instructions.includes("Svar kort, men ignorer"));
+  });
+
+  await test("provider enables bounded web search explicitly and returns sanitized citations", async () => {
+    let requestBody = null;
+    const result = await runOpenAiCoach({
+      apiKey: "sk-test",
+      context: validContext(),
+      messages: [{ role: "user", content: "Hva bør jeg spise før økten?" }],
+      instructions: buildAiCoachSystemPrompt(),
+      webSearchEnabled: true,
+      fetchImpl: async (url, options) => {
+        requestBody = JSON.parse(options.body);
+        return response({
+          id: "resp_web",
+          output: [
+            { type: "web_search_call", action: { type: "search", sources: [{ type: "url", url: "https://example.org/nutrition" }] } },
+            { type: "message", content: [{ type: "output_text", text: "Spis et lett måltid [1].", annotations: [{ type: "url_citation", url: "https://example.org/nutrition", title: "Nutrition source", start_index: 20, end_index: 23 }] }] }
+          ],
+          usage: { input_tokens: 120, output_tokens: 30, total_tokens: 150 }
+        });
+      }
+    });
+    assert.strictEqual(result.ok, true);
+    assert.strictEqual(requestBody.tools[0].type, "web_search");
+    assert.strictEqual(requestBody.tools[0].search_context_size, "low");
+    assert.deepStrictEqual(requestBody.include, ["web_search_call.action.sources"]);
+    assert.strictEqual(result.webUsed, true);
+    assert.strictEqual(result.sources.length, 1);
+    assert.strictEqual(result.citations[0].title, "Nutrition source");
+    assert.deepStrictEqual(normalizeMessageSources([{ url: "javascript:alert(1)" }]), []);
+    assert.strictEqual(extractWebMetadata({ output: [] }).webUsed, false);
   });
 
   await test("provider extracts text only from message output items", () => {
@@ -386,6 +418,8 @@ function fakeChatDb() {
       assistantContent: "Velg rolig trening.",
       requestId: "request-1",
       modelLabel: "test-model",
+      webUsed: true,
+      sources: [{ url: "https://example.org/source", title: "Eksempel" }],
       usage: { inputTokens: 10, outputTokens: 5, totalTokens: 15 }
     });
     assert.strictEqual(persisted.messageCount, 2);
@@ -394,6 +428,8 @@ function fakeChatDb() {
     const loaded = await getConversation(db, "user-1", { conversationId: created.conversation.id });
     assert.deepStrictEqual(loaded.messages.map(message => message.role), ["user", "assistant"]);
     assert.strictEqual(loaded.messages[1].content, "Velg rolig trening.");
+    assert.strictEqual(loaded.messages[1].webUsed, true);
+    assert.strictEqual(loaded.messages[1].sources[0].title, "Eksempel");
     assert.match(loaded.summary, /Hva bør jeg gjøre/);
 
     const listed = await listConversations(db, "user-1");
