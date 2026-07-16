@@ -704,6 +704,16 @@ Viktige tillegg til dette dokumentets sikkerhetsmodell:
 - Første chat-MVP er read-only og uten web-søk.
 - v150-v153 har tydelige grenser og rekkefølge.
 
+## 19. v161 - kontrollert webtilgang
+
+v161 utvider den verifiserte read-only-chatten med frivillig server-side `web_search` per melding. Dette endrer ikke den opprinnelige MVP-avgrensningen historisk; web er et senere, eksplisitt sikkerhetsspor.
+
+- Webvalg er av som standard og krever eget samtykke første gang.
+- Frontend sender bare `webSearchEnabled`; verktøy, domenegrenser og kostnadsrammer styres av backend.
+- Svar lagrer og viser kun sanitiserte sitater/kilder, ikke rå søkeresultater.
+- `coachDecision`, `blockedActions`, `guardrails` og medisinske begrensninger har høyere prioritet enn webinnhold.
+- Detaljert kontrakt og akseptanse ligger i `AI_WEB_SEARCH_DESIGN.md`.
+
 ## 18. Avklaringer før deploy
 
 Følgende er valgt:
