@@ -360,11 +360,22 @@ export function createAiCoachUi(options = {}) {
     renderUsage();
   }
 
+  function closeWorkspace() {
+    const workspace = byId('aiCoachWorkspaceDetails');
+    if (workspace) workspace.open = false;
+  }
+
+  function focusComposer() {
+    window.requestAnimationFrame(() => byId('aiCoachInput')?.focus());
+  }
+
   async function selectProject(projectId) {
     activeProjectId = String(projectId || DEFAULT_PROJECT_ID);
     resetConversation();
     renderProjectToolbar();
-    await refreshConversations({ openFirst: true });
+    await refreshConversations();
+    closeWorkspace();
+    focusComposer();
   }
 
   async function saveProject() {
@@ -406,7 +417,7 @@ export function createAiCoachUi(options = {}) {
     activeProjectId = DEFAULT_PROJECT_ID;
     resetConversation();
     await refreshProjects();
-    await refreshConversations({ openFirst: true });
+    await refreshConversations();
   }
 
   async function clearActiveSummary() {
@@ -443,7 +454,7 @@ export function createAiCoachUi(options = {}) {
     setText('aiCoachPrivacyFeedback', 'Alle chatdata er slettet. Et tomt standardprosjekt er opprettet på nytt.');
   }
 
-  async function refreshConversations(options = {}) {
+  async function refreshConversations() {
     setText('aiCoachConversationFeedback', 'Henter samtaler ...');
     const result = await client.listConversations(activeProjectId);
     if (!result.ok) {
@@ -456,15 +467,12 @@ export function createAiCoachUi(options = {}) {
       activeConversationStatus = 'active';
     }
     renderConversationToolbar();
-    if (options.openFirst && !activeConversationId && conversations.length) {
-      await openConversation(conversations[0].id);
-    }
     return result;
   }
 
   async function openConversation(conversationId) {
     const id = String(conversationId || '').trim();
-    if (!id) return resetConversation();
+    if (!id) return clear();
     setText('aiCoachConversationFeedback', 'Åpner samtalen ...');
     const result = await client.getConversation(activeProjectId, id);
     if (!result.ok) {
@@ -490,6 +498,7 @@ export function createAiCoachUi(options = {}) {
     renderConversationToolbar();
     renderMessages();
     renderUsage();
+    closeWorkspace();
   }
 
   async function archiveActiveConversation() {
@@ -509,7 +518,9 @@ export function createAiCoachUi(options = {}) {
     const result = await client.deleteConversation(activeProjectId, activeConversationId);
     if (!result.ok) return setText('aiCoachConversationFeedback', result.message || 'Kunne ikke slette samtalen.');
     resetConversation();
-    await refreshConversations({ openFirst: true });
+    await refreshConversations();
+    closeWorkspace();
+    focusComposer();
   }
 
   function renderUsage() {
@@ -669,8 +680,8 @@ export function createAiCoachUi(options = {}) {
 
   function clear() {
     resetConversation();
-    const workspace = byId('aiCoachWorkspaceDetails');
-    if (workspace) workspace.open = false;
+    closeWorkspace();
+    focusComposer();
   }
 
   async function open() {
@@ -682,7 +693,7 @@ export function createAiCoachUi(options = {}) {
     if (backendAvailable) await refreshAiPreferences();
     if (configured) {
       await refreshProjects();
-      await refreshConversations({ openFirst: true });
+      await refreshConversations();
     }
   }
 
@@ -718,3 +729,4 @@ export function createAiCoachUi(options = {}) {
 }
 
 export { plainAssistantText };
+
