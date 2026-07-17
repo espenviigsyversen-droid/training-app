@@ -223,8 +223,12 @@ Prioritert backlog for videre utvikling av Treningsapp.
     - v167: Øktmaler - Bygget.
       - `workout-template-ui.js` eier skjema, preview, bibliotek, sortering, søk/filter og coach-klarhet.
       - `app.js` beholder normalisering, bekreftelser, state og repository-skriving.
-    - v168: Fullføringsflyt.
-    - v169: Historikk.
+    - v168: Fullføringsflyt - Bygget.
+      - `workout-completion-ui.js` eier skjema, varighet, pace-preview og redigeringsfylling.
+      - Lagring, state, coach-signaler og kalenderoppfriskning forblir i `app.js`/repository.
+    - v169: Historikk - Bygget.
+      - `workout-history-ui.js` eier filter/sortering, kompakt liste og detaljvisning.
+      - Bekreftet sletting/angre og persistence forblir i `app.js`.
     - Hver runde skal bruke de nye modulgrensene og testes separat på mobil/PWA og desktop.
 
 37. **Mobil polish og mikro-UX**
@@ -249,9 +253,9 @@ Disse punktene var del av den tidlige v142-idéen, men er bevisst flyttet ut av 
 
 ## Anbefalt neste steg
 
-v164a-v167 har etablert tydelige grenser for state, lokal lagring, planlegging, Firestore, kalender og øktmal-UI uten å endre brukeropplevelsen.
+v164a-v169 har etablert tydelige grenser for state, lokal lagring, planlegging, Firestore, kalender, øktmaler, fullføring og historikk uten å endre brukeropplevelsen.
 
-Neste anbefalte runde er **v168 - Fullføringsflyt som egen UI-feature**, deretter v169 Historikk. Datatrygghet for snapshot-kvote og isolert Firebase Functions SDK-oppgradering beholdes som egne tekniske backlogspor og skal ikke blandes inn i disse UI-rundene.
+Neste anbefalte arbeid bør velges som en egen avgrenset runde. De åpne tekniske sporene er datatrygghet for lokal snapshot-kvote og en isolert Firebase Functions SDK-oppgradering; ingen av dem skal blandes inn i UI-polish.
 
 Begrunnelse:
 - v143b har etablert en validert parameterkilde med trygg fallback
