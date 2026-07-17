@@ -1,5 +1,5 @@
 # Treningsapp — progress.md
-Oppdatert: 2026-07-09 (siste runtime-endringer: v75–v142c)
+Oppdatert: 2026-07-17 (siste runtime-endring: v166)
 
 ---
 
@@ -27,7 +27,7 @@ Standard Bakken-uke: Hoved-terskel → Støtte-terskel → Lang rolig → Valgfr
 **Hosting:** GitHub Pages.  
 **Backend:** Firebase (prosjekt `home-tasks-app-18de3`) — Firestore + Google Auth.  
 **Frontend:** Vanilla JS + HTML + CSS, single-page app, tab-navigasjon.  
-**Versjon:** v163 (konstant i `app.js`).
+**Versjon:** v166 (konstant i `app.js`).
 
 ### Filer
 
@@ -35,6 +35,11 @@ Standard Bakken-uke: Hoved-terskel → Støtte-terskel → Lang rolig → Valgfr
 Treningsapp/
 ├── index.html          # App-skall, 5 seksjoner (Hjem, Kalender, Logg, Innsikt, Innstillinger)
 ├── app.js              # App-logikk, Firebase-init, coach-system, sync, state og UI-wrappere.
+├── app-state.js        # Defaults og bakoverkompatibel normalisering av samlet app-state.
+├── local-state-store.js # Normalisert lokal snapshot- og recovery-lagring.
+├── training-repository.js # Firestore-repository for treningsdata.
+├── domain-training-plan.js # Ren ukeplan-, rolle- og øktforslagslogikk.
+├── calendar-ui.js      # Kalendergrid, månedsnavigasjon og dagsmodal.
 ├── domain-core.js      # Rene testbare domenehjelpere uten DOM/Firebase/state.
 ├── domain-coach.js     # Rene coach-beslutninger, heltekorttilstand, volum-ramp og comeback.
 ├── domain-goals.js     # Rene testbare konkurranse-/mål-hjelpere uten DOM/Firebase/state.
@@ -155,6 +160,10 @@ Treningsapp/
 - **Etterprøvbar webbruk** (v162): Valgt nettsøk krever nå OpenAI-webverktøyet og hvert svar får eksplisitt status for forespurt/brukt/ikke brukt samt antall sanitiserte kilder. Chat viser også tydelig hvis nettsøk ble forespurt uten et faktisk søkekall. Systeminstruksen skiller brukeroppgitt vær fra verifiserte kilder og krever at mat-, væske- og varmeråd bruker tilgjengelig øktvarighet, struktur, intensitet og tidspunkt eller merkes som generelle. Planlagte økter sender nå strukturert intervall- og estimert varighetsgrunnlag til AI.
 - **Modell- og resonneringsvalg** (v163): Chat -> `Administrer +` har komprimerte svarinnstillinger for servergodkjente modellprofiler (Automatisk, GPT-5.6 Luna/Terra/Sol og GPT-5.5) og resonneringsnivå Lav/Medium/Høy. Valget lagres under brukerens backend-eide Firestore-område og synkroniseres mellom enheter. Frontend mottar bare profil-ID-er og offentlig katalog; faktiske modellkoblinger eies av backend. Ukjent profil avvises, og utilgjengelig valgt modell faller tilbake til Automatisk med synlig beskjed.
 - **Ny samtale som trygg Chat-start** (v163b): Første Chat-besøk i en ny appøkt starter nå med et tomt utkast i stedet for å åpne siste lagrede samtale. Samtalelisten synkroniseres fortsatt og kan åpnes ved behov. Prosjektbytte starter også med et nytt utkast, mens administrasjonspanelet lukkes etter valg slik at skrivefeltet kommer raskere frem. Firestore-data, historikk og AI-backend er uendret.
+- **State og lokal lagring trukket ut** (v164a): `app-state.js` eier nå defaults, tom state og normalisering av Firestore-, import- og snapshot-data. `local-state-store.js` eier normalisert snapshot/recovery gjennom et injiserbart storage-grensesnitt. `app.js` beholder den kjørende state-instansen og orchestrering.
+- **Treningsplanlegging trukket ut** (v164b): `domain-training-plan.js` eier rolledekning, template-scoring, øktforslag og ukeplansammensetting som ren produksjonslogikk. Fallback- og prioriteringsrekkefølgen fra `app.js` er beholdt og testet.
+- **Firestore-repository** (v165): `training-repository.js` kapsler ordinær lasting, CRUD, batch, import/replace og tømming av treningsdata. Auth og Firestore injiseres fra `app.js`; datamodellen er uendret.
+- **Kalenderkontroller og PWA-grense** (v166): `calendar-ui.js` eier kalendergrid, månedsnavigasjon og dagsmodal med injiserte data/handlinger. Mutasjoner og persistence-wrappers forblir i `app.js`. Nye moduler er lagt i app shell; lokal shell caches atomisk, mens eksterne Firebase-moduler caches separat som best-effort. Ingen synlig UI- eller brukerflytendring.
 - **AI-prosjekter og kontrollert langtidskontekst** (v159): Chat støtter flere prosjekter med egne preferanseinstrukser, backend-eid og begrenset samtalesammendrag, tømming av samtaleminne, separat JSON-eksport, rekursiv sletting og tokenoversikt. Instrukser og sammendrag er data med lavere prioritet enn coachDecision og sikkerhetsreglene.
 - **AI-svarpolish** (v159): Serverprompten krever naturlig norsk ren tekst uten rå Markdown-markører. Frontend normaliserer også enkle markører fra eldre svar og renderer fortsatt sikkert med `textContent`.
 - **AI-status og egen Chat-fane** (v154, implementert lokalt): Chat er nå sjette hoveddestinasjon etter Mål og har fortsatt fritekstfelt, forslag og read-only adferd. Setup skiller nøytral `Server-side`-merking fra en dynamisk status-tag med `Tilkoblet`, `Ikke tilkoblet`, `Nøkkel avvist` eller `Utilgjengelig`. Lagring og eksplisitt tilkoblingstest persisterer siste status i det maskerte serverdokumentet, uten å eksponere nøkkelen. Seks-fane-layouten har egne mobilregler. Automatisk test er bestått; manuell innlogget mobil/PWA-test gjenstår etter deploy.
@@ -198,14 +207,14 @@ Treningsapp/
 
 ## Neste steg (prioritert)
 
-1. **Manuell v162/v163-prøve**
-   - Test nettsøk med og uten kilder, et ernæringsspørsmål med strukturert planlagt økt, modell-/resonneringsvalg på PC og mobil samt synkronisering mellom enheter.
-2. **Datatrygghet - lokal snapshot-kvote**
-   - Gjør offline-sikkerhetsnettet robust mot `QuotaExceededError` uten å blande det inn i chat- eller coachlogikk.
-3. **Vedlikehold - Firebase Functions SDK**
-   - Oppgrader isolert med backendtester og manuell AI-smoke-test.
-4. **Senere evidenspolish**
-   - Vurder offisiell WMA-aldersgradering bare dersom komplett og verifisert standard kan implementeres.
+1. **v167 - Øktmaler som egen UI-feature**
+   - Bruk de nye state-, planner- og repository-grensene uten å endre fullføring eller historikk i samme runde.
+2. **v168 - Fullføringsflyt som egen UI-feature**
+   - Behold eksisterende lagring og coach-signaler, men avgrens render/hendelser i et testbart scope.
+3. **v169 - Historikk som egen UI-feature**
+   - Behold kompakt oversikt, detaljmodal og sletting, og flytt bare det som gir en tydelig modulgrense.
+4. **Separate tekniske backlogspor**
+   - Lokal snapshot-kvote og Firebase Functions SDK-oppgradering gjennomføres isolert fra UI-rundene.
 
 ---
 
