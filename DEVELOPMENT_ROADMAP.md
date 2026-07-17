@@ -1238,7 +1238,7 @@ Hvis svaret er ja på flere av disse, bør ideen prioriteres.
 
 ### Neste 3 runder
 
-1. v167 - Øktmaler som egen avgrenset UI-feature oppå `app-state.js`, `domain-training-plan.js` og repository-grensen
+1. v167 - Øktmaler som egen avgrenset UI-feature - Bygget
 2. v168 - Fullføringsflyt som egen UI-feature, uten å flytte logikk og UI samtidig
 3. v169 - Historikk som egen UI-feature med kompakt liste og uendret detalj-/sletteflyt
 
@@ -1255,7 +1255,7 @@ Hvis svaret er ja på flere av disse, bør ideen prioriteres.
 9. v150 - AI Coach Context og sikkerhetsdesign - Bygget lokalt
 10. v151-v155 - Backend, chat-MVP og persistence-sikkerhetsgrunnlag bygget og deployet
 
-## v164a-v166 - Trygg modularisering av appkjernen - Bygget
+## v164a-v167 - Trygg modularisering av appkjernen - Bygget
 
 ### v164a - State, normalisering og lokal lagring
 
@@ -1282,9 +1282,16 @@ Hvis svaret er ja på flere av disse, bør ideen prioriteres.
 - Ingen synlig redesign eller brukerflyt er introdusert.
 - Nye runtime-moduler ligger i PWA app shell, og lokal app shell caches atomisk mens eksterne Firebase-moduler caches separat som best-effort.
 
+### v167 - Øktmaler som egen UI-feature - Bygget
+
+- `workout-template-ui.js` eier skjema-lesing/-fylling, strukturert intervall-preview, sortering, select-options, søk/filter, coach-klarhet og bibliotek-rendering.
+- `app.js` beholder ID-er, normalisering, standardmal-import, bekreftelser, state-mutasjon og repository-/Firestore-wrappers.
+- Eksisterende øktmalmodell, gamle maler, strukturert intervallinfo og brukerflyt er uendret.
+- Produksjonstester låser sortering, filter og coach-klarhet, og modulen ligger i PWA app shell.
+
 ### Videre UI-retning
 
-Øktmaler, fullføring og historikk tas som tre separate UI-runder etter denne arkitekturrunden. Det begrenser blast radius og gjør visuell/manuell test mer presis.
+Øktmaler er avgrenset i v167. Fullføring og historikk tas fortsatt som to separate UI-runder. Det begrenser blast radius og gjør visuell/manuell test mer presis.
 
 ## Hva vi bør vente med
 
@@ -1374,7 +1381,7 @@ Neste store verdiøkning er en bedre daglig coach.
 
 Anbefalt neste implementeringsrunde:
 
-> v167 - avgrens Øktmaler som egen UI-feature oppå de nye state-, planner- og repository-grensene
+> v168 - avgrens Fullføringsflyt som egen UI-feature uten å endre lagring, coach-signaler eller brukerflyt
 
 v154-v156 er deployet og manuelt verifisert, inkludert kryssenhetssynk, arkiv og sletting. v159 leverer Coach Knowledge Foundation, AI-context v2, prosjekter, egne instrukser, kontrollert samtalesammendrag og personvern-/kostnadskontroller i én samlet runde. v159b presiserer hele nivåmodellen for gylne-sone og skillet mellom dagsform og varig treningsnivå.
 ### v159d - AI-chat oversikts- og mobilpolish - Bygget
@@ -1393,4 +1400,3 @@ v154-v156 er deployet og manuelt verifisert, inkludert kryssenhetssynk, arkiv og
 - assistant-svar vises roligere og mindre kortpreget; brukermeldinger beholdes som diskrete bobler
 - grunnlag og personvern ligger under den eksisterende samtale-/prosjektadministrasjonen
 - backend, Firestore-modell, synkronisering, coach-context og sikkerhetsregler er uendret
-
