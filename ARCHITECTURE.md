@@ -28,6 +28,7 @@ Treningsapp/
 ├── training-repository.js
 ├── domain-training-plan.js
 ├── calendar-ui.js
+├── workout-template-ui.js
 ├── domain-core.js
 ├── domain-goals.js
 ├── domain-coach-rules.js
@@ -150,7 +151,7 @@ Ikke gjør en stor rewrite. Del heller appen gradvis i tydelige soner:
 4. `domain-coach.js` - coach-context, anbefalinger og prioritert beslutningsmodell
 5. `domain-fitness.js` - transparent nivågrunnlag, VO2-referanse og PB-progresjon
 6. `domain-training-plan.js` - øktforslag, roller og ukeplansammensetting
-7. `calendar-ui.js` og senere avgrensede kontrollere - render-funksjoner og DOM-hjelpere med tydelige avhengigheter
+7. `calendar-ui.js` og `workout-template-ui.js` - avgrensede render-/skjemakontrollere med injiserte avhengigheter
 8. `tests` - rene tester for kritiske regler
 
 Målet er lavere risiko, lettere testing og mindre sjanse for regresjoner.
@@ -162,7 +163,7 @@ Nye features skal bygges smått og med lav regresjonsrisiko:
 1. Start med datamodell/design før UI når featuret introduserer nye felter eller ny beslutningslogikk.
 2. Legg ren domene-logikk i `domain-core.js`, eller i en egen domene-fil hvis området blir stort nok til å fortjene det.
 3. La `app.js` beholde små wrapper-funksjoner når logikken trenger samlet `state`, DOM eller eksisterende render-flyt. Firestore-operasjoner for treningsdata går via `training-repository.js`.
-4. UI og rendering kan ligge i `app.js` og `index.html`. Bruk bare en egen kontroller når området har en tydelig grense og injiserbare avhengigheter, slik kalenderen har. Ikke splitt UI bare for å splitte.
+4. UI og rendering kan ligge i `app.js` og `index.html`. Bruk bare en egen kontroller når området har en tydelig grense og injiserbare avhengigheter, slik kalenderen og øktmalene har. Ikke splitt UI bare for å splitte.
 5. Ny ren logikk skal testes fra faktisk produksjonsfil i `tests/stability-tests.js`.
 6. Ikke kopier produksjonslogikk inn i testene hvis den kan importeres.
 7. Alle nye datafelter skal være valgfrie eller ha trygge defaults, slik at gamle Firestore-data og backupfiler fungerer uendret.
@@ -178,5 +179,6 @@ Appen skal ikke stole direkte på rå Firestore-, backup- eller snapshot-data. D
 
 `normalizeTemplate()` i `domain-core.js` er første guardrail for øktmaler. Den sørger for trygge defaults på kjernefelter, konverterer `recommendedWhen` og `avoidWhen` til arrays, beholder eksisterende `structure` og gjør fremtidig `structuredWorkout` valgfri og bakoverkompatibel.
 
-`settings.features` er en intern feature flag-struktur. Den vises ikke i UI, men gjør det mulig å bygge nye funksjoner kontrollert. Første flagg er `structuredIntervals`; strukturert intervallstøtte er aktivert og videreutviklet fra v102/v104.
+`workout-template-ui.js` eier fra v167 lesing og fylling av øktmal-skjemaet, strukturert intervall-preview, sortering, søk/filter, coach-klarhet og bibliotek-rendering. Modulen får state og formatteringshjelpere injisert. Oppretting av ID, normalisering, bekreftelser, offline-beskyttelse og Firestore-skriving forblir i `app.js` og `training-repository.js`.
 
+`settings.features` er en intern feature flag-struktur. Den vises ikke i UI, men gjør det mulig å bygge nye funksjoner kontrollert. Første flagg er `structuredIntervals`; strukturert intervallstøtte er aktivert og videreutviklet fra v102/v104.
