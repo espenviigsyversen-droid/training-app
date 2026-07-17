@@ -207,11 +207,7 @@ Treningsapp/
 
 ## Neste steg (prioritert)
 
-1. **v168 - Fullføringsflyt som egen UI-feature**
-   - Behold eksisterende lagring og coach-signaler, men avgrens render/hendelser i et testbart scope.
-2. **v169 - Historikk som egen UI-feature**
-   - Behold kompakt oversikt, detaljmodal og sletting, og flytt bare det som gir en tydelig modulgrense.
-3. **Separate tekniske backlogspor**
+1. **Separate tekniske backlogspor**
    - Lokal snapshot-kvote og Firebase Functions SDK-oppgradering gjennomføres isolert fra UI-rundene.
 
 ### v167 - Øktmaler som egen UI-feature - Bygget
@@ -220,6 +216,19 @@ Treningsapp/
 - `app.js` er fortsatt orchestrator for ID-oppretting, normalisering, standardmal-import, bekreftelser, state-mutasjon og Firestore/repository-skriving.
 - Datamodell, eksisterende maler, strukturert intervallstøtte og synlig brukerflyt er uendret.
 - Modulen ligger i PWA app shell, og stabilitetstestene bruker produksjonsfunksjonene for sortering, filter og coach-klarhet.
+
+### v168 - Fullføringsflyt som egen UI-feature - Bygget
+
+- Ny `workout-completion-ui.js` eier skjema-lesing og -fylling, nullstilling, modalmodus, varighetsfelt, pace-preview og gylne-sone-hint.
+- `app.js` beholder state, coach-signaler, kalenderoppfriskning og all repository-/Firestore-skriving.
+- Datamodell, fullføringsresultat og brukerflyt er uendret.
+
+### v169 - Historikk som egen UI-feature - Bygget
+
+- Ny `workout-history-ui.js` eier ren filtrering/sortering, filterstatus, kompakte historikkrader og detaljvisning.
+- `app.js` beholder state, modal-wrappers, bekreftet sletting/angre og persistence.
+- Produksjonsfunksjonene for periode og filter testes direkte. Begge nye runtime-moduler ligger i PWA app shell.
+- Sluttversjon for den samlede v168/v169-runden er v169.
 
 ---
 
