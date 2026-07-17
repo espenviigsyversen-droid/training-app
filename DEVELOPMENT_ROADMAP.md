@@ -1238,9 +1238,9 @@ Hvis svaret er ja på flere av disse, bør ideen prioriteres.
 
 ### Neste 3 runder
 
-1. Manuell v160f-test av Innsikt, mobil, datadekning og trinnvis bekreftelsesflyt
-2. Datatrygghet - gjør lokal snapshot robust mot localStorage-kvote
-3. Vedlikehold - oppgrader Firebase Functions SDK i en isolert og testet runde
+1. v167 - Øktmaler som egen avgrenset UI-feature oppå `app-state.js`, `domain-training-plan.js` og repository-grensen
+2. v168 - Fullføringsflyt som egen UI-feature, uten å flytte logikk og UI samtidig
+3. v169 - Historikk som egen UI-feature med kompakt liste og uendret detalj-/sletteflyt
 
 ### Neste 10 runder
 
@@ -1254,6 +1254,37 @@ Hvis svaret er ja på flere av disse, bør ideen prioriteres.
 8. v148 - Fryskort implementering - Bygget
 9. v150 - AI Coach Context og sikkerhetsdesign - Bygget lokalt
 10. v151-v155 - Backend, chat-MVP og persistence-sikkerhetsgrunnlag bygget og deployet
+
+## v164a-v166 - Trygg modularisering av appkjernen - Bygget
+
+### v164a - State, normalisering og lokal lagring
+
+- `app-state.js` eier defaults, tom app-state og bakoverkompatibel normalisering.
+- `local-state-store.js` eier normalisert snapshot- og recovery-lagring gjennom et injiserbart storage-grensesnitt.
+- `app.js` beholder den kjørende state-instansen og orchestrering, men dupliserer ikke normaliseringsreglene.
+
+### v164b - Ren treningsplanlegging
+
+- `domain-training-plan.js` eier rolledekning, template-scoring, øktforslag og ukeplansammensetting.
+- Eksisterende prioriteringer og fallback-rekkefølge er beholdt og låst med produksjonstester.
+- `app.js` samler fortsatt state og coach-context gjennom små wrappers.
+
+### v165 - Firestore-repository
+
+- `training-repository.js` kapsler all ordinær lesing, skriving, sletting, batch og utskifting av treningsdata.
+- Auth- og Firestore-avhengigheter injiseres, slik at repository-grensen er tydelig uten ny backend eller datamodell.
+- Import, reset og eksisterende `safeStateWrite` bruker samme persistence-grense.
+
+### v166 - Kalenderkontroller
+
+- `calendar-ui.js` eier kalendergrid, månedsnavigasjon og dagsmodal.
+- Data, formattering og handlinger injiseres; mutasjoner, bekreftelser og Firestore-wrappers forblir i `app.js`.
+- Ingen synlig redesign eller brukerflyt er introdusert.
+- Nye runtime-moduler ligger i PWA app shell, og lokal app shell caches atomisk mens eksterne Firebase-moduler caches separat som best-effort.
+
+### Videre UI-retning
+
+Øktmaler, fullføring og historikk tas som tre separate UI-runder etter denne arkitekturrunden. Det begrenser blast radius og gjør visuell/manuell test mer presis.
 
 ## Hva vi bør vente med
 
@@ -1343,7 +1374,7 @@ Neste store verdiøkning er en bedre daglig coach.
 
 Anbefalt neste implementeringsrunde:
 
-> Fullfør manuell v159-akseptanse og en tematisk AI-kvalitetstest før nytt feature-scope
+> v167 - avgrens Øktmaler som egen UI-feature oppå de nye state-, planner- og repository-grensene
 
 v154-v156 er deployet og manuelt verifisert, inkludert kryssenhetssynk, arkiv og sletting. v159 leverer Coach Knowledge Foundation, AI-context v2, prosjekter, egne instrukser, kontrollert samtalesammendrag og personvern-/kostnadskontroller i én samlet runde. v159b presiserer hele nivåmodellen for gylne-sone og skillet mellom dagsform og varig treningsnivå.
 ### v159d - AI-chat oversikts- og mobilpolish - Bygget
@@ -1362,3 +1393,4 @@ v154-v156 er deployet og manuelt verifisert, inkludert kryssenhetssynk, arkiv og
 - assistant-svar vises roligere og mindre kortpreget; brukermeldinger beholdes som diskrete bobler
 - grunnlag og personvern ligger under den eksisterende samtale-/prosjektadministrasjonen
 - backend, Firestore-modell, synkronisering, coach-context og sikkerhetsregler er uendret
+
