@@ -205,6 +205,26 @@ Prioritert backlog for videre utvikling av Treningsapp.
     - Frontend sender profil-ID-er; backend eier modellnavn, støtte for web, outputgrenser og fallback.
     - Logg faktisk brukt profil per melding og evaluer kvalitet, latency, sikkerhet og kostnad før standardprofil endres.
 
+43. **v164a-v164b - State, lokal lagring og treningsplanlegging** - Bygget
+    - `app-state.js` eier defaults og normalisering av Firestore-, import- og snapshot-data.
+    - `local-state-store.js` eier normalisert lokal snapshot/recovery.
+    - `domain-training-plan.js` eier ren rolledekning, template-scoring og ukeplan-/øktforslag.
+
+44. **v165 - Firestore-repository** - Bygget
+    - `training-repository.js` kapsler ordinær CRUD, batch, import/replace og tømming av treningsdata.
+    - `app.js` beholder Auth, state-wrappers og UI-orchestrering.
+
+45. **v166 - Kalenderkontroller** - Bygget
+    - `calendar-ui.js` eier kalendergrid, månedsnavigasjon og dagsmodal gjennom injiserte avhengigheter.
+    - Mutasjoner, bekreftelser og persistence forblir i `app.js`.
+    - UI/flyt og datamodell er uendret.
+
+46. **Neste UI-runder - separat scope**
+    - v167: Øktmaler.
+    - v168: Fullføringsflyt.
+    - v169: Historikk.
+    - Hver runde skal bruke de nye modulgrensene og testes separat på mobil/PWA og desktop.
+
 37. **Mobil polish og mikro-UX**
     - Små forbedringer som gjør appen mer behagelig i daglig bruk.
     - Eksempler: kortere tekster, bedre prioritering på Hjem/Mål, sticky handlinger i modaler og bedre tomtilstander.
@@ -227,9 +247,9 @@ Disse punktene var del av den tidlige v142-idéen, men er bevisst flyttet ut av 
 
 ## Anbefalt neste steg
 
-V160a-f er implementert som et forklarbart og konservativt nivåspor med brukerbekreftelse og AI-guardrails.
+v164a-v166 har etablert tydelige grenser for state, lokal lagring, planlegging, Firestore og kalender uten å endre brukeropplevelsen.
 
-Etter manuell v162/v163-test går prioriteringen tilbake til **Datatrygghet - lokal snapshot-kvote**, etterfulgt av en isolert oppgradering av Firebase Functions SDK. WMA-aldersgradering kan vurderes senere dersom komplett offisiell standard kan implementeres og testes.
+Neste anbefalte runde er **v167 - Øktmaler som egen UI-feature**, deretter v168 Fullføring og v169 Historikk. Datatrygghet for snapshot-kvote og isolert Firebase Functions SDK-oppgradering beholdes som egne tekniske backlogspor og skal ikke blandes inn i disse UI-rundene.
 
 Begrunnelse:
 - v143b har etablert en validert parameterkilde med trygg fallback
@@ -243,3 +263,4 @@ Begrunnelse:
 - v155-reglene er testet i Firestore-emulator: eierens appdata fungerer, andre brukere avvises, chat-writes er backend-only og `apiKeys/{uid}` / `aiUsage/{uid}` er sperret
 - v154 har fungerende dynamisk tilkoblingsstatus, egen Chat-fane og bestått ende-til-ende-test med ekte OpenAI-svar
 - Produksjonsreglene er sammenlignet og deployet. Chat ligger i isolert `aiChatUsers/{uid}`-rot, og den sammenslåtte regelfilen bevarer eksisterende regler for `users`, `households`, `families`, `familyCodes` og `adminFamilyHealth`.
+
