@@ -14,6 +14,7 @@ const appStateSource = read('app-state.js');
 const plannerSource = read('domain-training-plan.js');
 const repositorySource = read('training-repository.js');
 const calendarUiSource = read('calendar-ui.js');
+const workoutTemplateUiSource = read('workout-template-ui.js');
 const aiCoachClient = read('ai-coach-client.js');
 const aiCoachUi = read('ai-coach-ui.js');
 const aiCoachBackend = read('functions/ai/ai-chat.js');
@@ -47,6 +48,7 @@ function test(name, fn) {
   const appStateDomain = await import(pathToFileURL(path.join(root, 'app-state.js')).href);
   const planner = await import(pathToFileURL(path.join(root, 'domain-training-plan.js')).href);
   const localStoreDomain = await import(pathToFileURL(path.join(root, 'local-state-store.js')).href);
+  const workoutTemplateUiDomain = await import(pathToFileURL(path.join(root, 'workout-template-ui.js')).href);
   const {
     assessTrafficLight,
     buildStructuredWorkout,
@@ -98,6 +100,11 @@ function test(name, fn) {
     trainingVolumeRamp
   } = coach;
   const domainCoreExports = Object.keys(domain);
+  const {
+    filterWorkoutTemplates,
+    sortWorkoutTemplates,
+    workoutTemplateReadiness
+  } = workoutTemplateUiDomain;
   const {
     combinedRaceResults,
     formatRaceTime,
@@ -418,15 +425,36 @@ function test(name, fn) {
     assert.ok(app.includes('trainingRepository.replace(nextState)'), 'app should delegate replacement import to the repository');
   });
 
-  test('v164-v166 architecture modules own state, persistence, planning and calendar rendering', () => {
-    ['./app-state.js', './local-state-store.js', './training-repository.js', './domain-training-plan.js', './calendar-ui.js']
+  test('v164-v167 architecture modules own state, persistence, planning and focused UI rendering', () => {
+    ['./app-state.js', './local-state-store.js', './training-repository.js', './domain-training-plan.js', './calendar-ui.js', './workout-template-ui.js']
       .forEach(file => assert.ok(serviceWorker.includes(file), `${file} is missing from APP_SHELL`));
     assert.ok(app.includes("from './app-state.js'"), 'app-state module is not imported');
     assert.ok(app.includes("from './training-repository.js'"), 'training repository is not imported');
     assert.ok(app.includes("from './domain-training-plan.js'"), 'training planner is not imported');
     assert.ok(app.includes("from './calendar-ui.js'"), 'calendar controller is not imported');
+    assert.ok(app.includes("from './workout-template-ui.js'"), 'workout template UI is not imported');
     assert.ok(repositorySource.includes('createTrainingRepository'), 'repository factory is missing');
     assert.ok(calendarUiSource.includes('createCalendarUi'), 'calendar UI factory is missing');
+    assert.ok(workoutTemplateUiSource.includes('createWorkoutTemplateUi'), 'workout template UI factory is missing');
+  });
+
+  test('v167 workout template module sorts, filters and reports coach readiness', () => {
+    const templates = [
+      { id: 'strength', name: 'Styrke B', type: 'Styrke', role: 'strength', purpose: 'strength', load: 'moderate', recommendedWhen: ['normal'] },
+      { id: 'easy', name: 'Rolig A', type: 'Løping', role: 'long_easy', purpose: 'base', load: 'low', recommendedWhen: ['normal'] },
+      { id: 'missing', name: 'Terskel C', type: 'Løping', role: 'support_threshold', purpose: '', load: '', recommendedWhen: [] }
+    ];
+    const sorted = sortWorkoutTemplates(templates, ['Løping', 'Styrke']);
+    assert.deepStrictEqual(sorted.map(item => item.id), ['missing', 'easy', 'strength']);
+    assert.strictEqual(workoutTemplateReadiness(templates[1]).ready, true);
+    assert.deepStrictEqual(workoutTemplateReadiness(templates[2]).missing, ['Coach-formål', 'Belastning', 'Passer best når']);
+    const filtered = filterWorkoutTemplates({
+      templates,
+      activityTypes: ['Løping', 'Styrke'],
+      query: 'terskel',
+      coachFilter: 'missing'
+    });
+    assert.deepStrictEqual(filtered.map(item => item.id), ['missing']);
   });
 
   test('v164 app state normalizes legacy data through the production module', () => {
@@ -1509,8 +1537,9 @@ function test(name, fn) {
     assert.ok(index.includes('id="templateStructuredEnabled"'), 'structured interval toggle is missing');
     assert.ok(index.includes('id="templateIntervalRepetitions"'), 'structured interval repetitions field is missing');
     assert.ok(index.includes('id="templateWorkSeconds"'), 'structured interval work seconds field is missing');
-    assert.ok(app.includes('structuredWorkoutFromForm'), 'structured interval form wrapper is missing');
-    assert.ok(app.includes('structuredWorkoutSummaryHtml(t.structuredWorkout)'), 'structured interval summary is not rendered for templates/planned workouts');
+    assert.ok(workoutTemplateUiSource.includes('structuredWorkoutFromForm'), 'structured interval form wrapper is missing');
+    assert.ok(workoutTemplateUiSource.includes('structuredWorkoutSummaryHtml(template.structuredWorkout)'), 'structured interval summary is not rendered for templates');
+    assert.ok(app.includes('structuredWorkoutSummaryHtml(t.structuredWorkout)'), 'structured interval summary is not rendered for planned/completed workouts');
     assert.ok(app.includes("structuredWorkout: template?.structuredWorkout || null"), 'completed template snapshot should preserve structuredWorkout');
     assert.ok(index.includes('id="insightStructuredIntervalsCard"'), 'structured interval insight card is missing');
   });
@@ -2602,4 +2631,3 @@ function test(name, fn) {
   console.error(err);
   process.exit(1);
 });
-
