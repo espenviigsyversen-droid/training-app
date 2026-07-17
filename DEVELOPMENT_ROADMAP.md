@@ -1239,8 +1239,8 @@ Hvis svaret er ja på flere av disse, bør ideen prioriteres.
 ### Neste 3 runder
 
 1. v167 - Øktmaler som egen avgrenset UI-feature - Bygget
-2. v168 - Fullføringsflyt som egen UI-feature, uten å flytte logikk og UI samtidig
-3. v169 - Historikk som egen UI-feature med kompakt liste og uendret detalj-/sletteflyt
+2. v168 - Fullføringsflyt som egen UI-feature - Bygget
+3. v169 - Historikk som egen UI-feature - Bygget
 
 ### Neste 10 runder
 
@@ -1255,7 +1255,7 @@ Hvis svaret er ja på flere av disse, bør ideen prioriteres.
 9. v150 - AI Coach Context og sikkerhetsdesign - Bygget lokalt
 10. v151-v155 - Backend, chat-MVP og persistence-sikkerhetsgrunnlag bygget og deployet
 
-## v164a-v167 - Trygg modularisering av appkjernen - Bygget
+## v164a-v169 - Trygg modularisering av appkjernen - Bygget
 
 ### v164a - State, normalisering og lokal lagring
 
@@ -1289,9 +1289,22 @@ Hvis svaret er ja på flere av disse, bør ideen prioriteres.
 - Eksisterende øktmalmodell, gamle maler, strukturert intervallinfo og brukerflyt er uendret.
 - Produksjonstester låser sortering, filter og coach-klarhet, og modulen ligger i PWA app shell.
 
+### v168 - Fullføringsflyt som egen UI-feature - Bygget
+
+- `workout-completion-ui.js` eier skjema-lesing/-fylling, nullstilling, modalmodus, varighetsfelt, pace-preview og gylne-sone-hint.
+- `app.js` beholder oppretting av fullførtobjekter, state-mutasjon, coach-signaler, kalenderoppfriskning og repository-/Firestore-skriving.
+- Datamodell og brukerflyt er uendret.
+
+### v169 - Historikk som egen UI-feature - Bygget
+
+- `workout-history-ui.js` eier ren filtrering/sortering, filterstatus, kompakte historikkrader og fullført-detaljvisning.
+- `app.js` beholder state, modal-wrappers, bekreftet sletting/angre og persistence.
+- Historikkens kompakte mobiluttrykk, detaljinnhold og sletteflyt er uendret.
+- Begge modulene ligger i PWA app shell og testes gjennom produksjonsfunksjonene.
+
 ### Videre UI-retning
 
-Øktmaler er avgrenset i v167. Fullføring og historikk tas fortsatt som to separate UI-runder. Det begrenser blast radius og gjør visuell/manuell test mer presis.
+Øktmaler, fullføring og historikk er nå avgrenset i v167-v169. Videre uttrekk skal fortsatt være små, begrunnede runder; `app.js` skal beholde orchestrering, state, bekreftelser og persistence-wrappers.
 
 ## Hva vi bør vente med
 
@@ -1381,7 +1394,7 @@ Neste store verdiøkning er en bedre daglig coach.
 
 Anbefalt neste implementeringsrunde:
 
-> v168 - avgrens Fullføringsflyt som egen UI-feature uten å endre lagring, coach-signaler eller brukerflyt
+> v168 og v169 er bygget: Fullføringsflyt og Historikk er avgrenset i egne UI-moduler uten endret lagring, coach-signaler eller brukerflyt.
 
 v154-v156 er deployet og manuelt verifisert, inkludert kryssenhetssynk, arkiv og sletting. v159 leverer Coach Knowledge Foundation, AI-context v2, prosjekter, egne instrukser, kontrollert samtalesammendrag og personvern-/kostnadskontroller i én samlet runde. v159b presiserer hele nivåmodellen for gylne-sone og skillet mellom dagsform og varig treningsnivå.
 ### v159d - AI-chat oversikts- og mobilpolish - Bygget
