@@ -45,6 +45,8 @@ node --check domain-coach-rules.js
 node --check domain-coach.js
 node --check domain-fitness.js
 node --check workout-template-ui.js
+node --check workout-completion-ui.js
+node --check workout-history-ui.js
 node --check ai-coach-client.js
 node --check ai-coach-ui.js
 node --check app-state.js
@@ -74,6 +76,8 @@ node functions\tests\ai-backend-tests.js
 - `domain-coach.js` - ren coach-logikk og prioritert beslutningsmodell
 - `domain-fitness.js` - ren, forklarbar nivå-, VO2- og PB-vurdering uten DOM/Firebase/state
 - `workout-template-ui.js` - avgrenset øktmal-skjema, strukturert intervall-preview, bibliotek, søk og filter; lagring/state forblir i `app.js`
+- `workout-completion-ui.js` - fullføringsskjema, varighetsfelt, pace-preview og redigeringsfylling; lagring/state forblir i `app.js`
+- `workout-history-ui.js` - historikkfilter, kompakt liste og fullført-detaljvisning; sletting/state forblir i `app.js`
 - `ai-coach-client.js` - autentisert frontend-klient mot AI Callable Functions; skal aldri lagre API-nøkkel
 - `ai-coach-ui.js` - read-only chat-, prosjekt-, historikk-, eksport- og nøkkelstatus-UI; renderer AI-svar som sikker ren tekst
 - `functions/` - Firebase-backend for nøkkeladministrasjon, rate limit, context-validering og OpenAI-kall
@@ -107,6 +111,8 @@ node --check domain-coach-rules.js
 node --check domain-coach.js
 node --check domain-fitness.js
 node --check workout-template-ui.js
+node --check workout-completion-ui.js
+node --check workout-history-ui.js
 node --check ai-coach-client.js
 node --check ai-coach-ui.js
 node --check app-state.js
