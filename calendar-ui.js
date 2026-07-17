@@ -1,5 +1,5 @@
 const TYPE_LABELS = {
-  'LÃ¸ping': 'LÃ¸p',
+  'Løping': 'Løp',
   'Styrke': 'Styrke',
   'Mobilitet': 'Mob',
   'Ski': 'Ski',
@@ -106,7 +106,7 @@ export function createCalendarUi({
     const firstDay = new Date(year, month - 1, 1);
     const lastDay = new Date(year, month, 0);
     let html = '<div class="calendar-grid">';
-    ['Man', 'Tir', 'Ons', 'Tor', 'Fre', 'LÃ¸r', 'SÃ¸n'].forEach(day => {
+    ['Man', 'Tir', 'Ons', 'Tor', 'Fre', 'Lør', 'Søn'].forEach(day => {
       html += `<div class="calendar-weekday">${day}</div>`;
     });
 
@@ -157,7 +157,7 @@ export function createCalendarUi({
           <input type="checkbox" ${blocked ? 'checked' : ''} onchange="toggleBlockedTrainingDay(this.checked)" />
           <span>
             Ikke treningsdag
-            <small class="small-note">RÃ¥dgiveren hopper over denne datoen nÃ¥r den foreslÃ¥r Ã¸kter.</small>
+            <small class="small-note">Rådgiveren hopper over denne datoen når den foreslår økter.</small>
           </span>
         </label>
         ${blocked ? `
@@ -195,7 +195,7 @@ export function createCalendarUi({
     ].join('');
     documentRef.getElementById('calendarDayList').innerHTML = dayHtml
       ? `<div class="calendar-day-workouts">${dayHtml}</div>`
-      : '<div class="empty">Ingen Ã¸kter denne dagen.</div>';
+      : '<div class="empty">Ingen økter denne dagen.</div>';
     documentRef.getElementById('calendarDayModal').classList.add('active');
   }
 
