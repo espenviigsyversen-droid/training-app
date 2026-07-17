@@ -10,6 +10,10 @@ const app = read('app.js');
 const index = read('index.html');
 const styles = read('styles.css');
 const serviceWorker = read('service-worker.js');
+const appStateSource = read('app-state.js');
+const plannerSource = read('domain-training-plan.js');
+const repositorySource = read('training-repository.js');
+const calendarUiSource = read('calendar-ui.js');
 const aiCoachClient = read('ai-coach-client.js');
 const aiCoachUi = read('ai-coach-ui.js');
 const aiCoachBackend = read('functions/ai/ai-chat.js');
@@ -40,6 +44,9 @@ function test(name, fn) {
   const goals = await import(pathToFileURL(path.join(root, 'domain-goals.js')).href);
   const fitness = await import(pathToFileURL(path.join(root, 'domain-fitness.js')).href);
   const coachRulesDomain = await import(pathToFileURL(path.join(root, 'domain-coach-rules.js')).href);
+  const appStateDomain = await import(pathToFileURL(path.join(root, 'app-state.js')).href);
+  const planner = await import(pathToFileURL(path.join(root, 'domain-training-plan.js')).href);
+  const localStoreDomain = await import(pathToFileURL(path.join(root, 'local-state-store.js')).href);
   const {
     assessTrafficLight,
     buildStructuredWorkout,
@@ -132,6 +139,21 @@ function test(name, fn) {
     personalBestEvidence,
     vo2AgeBenchmark
   } = fitness;
+  const {
+    DEFAULT_SETTINGS,
+    WORKOUT_ROLE_LABELS,
+    createEmptyAppState,
+    normalizeAppState,
+    normalizeSettings
+  } = appStateDomain;
+  const {
+    assembleWeekPlanSuggestions,
+    buildWorkoutSuggestion,
+    findSuggestedTemplate,
+    normalWeekRoles,
+    templateSuggestionScore
+  } = planner;
+  const { createLocalStateStore } = localStoreDomain;
 
   const loadedRulesResult = await loadCoachRules('./data/coach-rules.json', async () => ({
     ok: true,
@@ -388,12 +410,96 @@ function test(name, fn) {
   });
 
   test('all user data collections are included in replacement import', () => {
-    const collections = app.match(/DATA_COLLECTIONS\s*=\s*\[([^\]]+)\]/)?.[1] || '';
     ['templates', 'planned', 'completed', 'wellness', 'challenges', 'blockedDays', 'raceResults', 'continuityFreezes'].forEach(collection => {
-      assert.ok(collections.includes(`'${collection}'`), `${collection} is missing from DATA_COLLECTIONS`);
+      assert.ok(repositorySource.includes(`'${collection}'`), `${collection} is missing from TRAINING_DATA_COLLECTIONS`);
     });
     assert.ok(app.includes('replaceFirestoreData(nextState)'), 'import does not call replaceFirestoreData(nextState)');
-    assert.ok(app.includes('deleteOps'), 'replaceFirestoreData should delete existing docs before importing');
+    assert.ok(repositorySource.includes('deleteOperations'), 'repository replace should delete existing docs before importing');
+    assert.ok(app.includes('trainingRepository.replace(nextState)'), 'app should delegate replacement import to the repository');
+  });
+
+  test('v164-v166 architecture modules own state, persistence, planning and calendar rendering', () => {
+    ['./app-state.js', './local-state-store.js', './training-repository.js', './domain-training-plan.js', './calendar-ui.js']
+      .forEach(file => assert.ok(serviceWorker.includes(file), `${file} is missing from APP_SHELL`));
+    assert.ok(app.includes("from './app-state.js'"), 'app-state module is not imported');
+    assert.ok(app.includes("from './training-repository.js'"), 'training repository is not imported');
+    assert.ok(app.includes("from './domain-training-plan.js'"), 'training planner is not imported');
+    assert.ok(app.includes("from './calendar-ui.js'"), 'calendar controller is not imported');
+    assert.ok(repositorySource.includes('createTrainingRepository'), 'repository factory is missing');
+    assert.ok(calendarUiSource.includes('createCalendarUi'), 'calendar UI factory is missing');
+  });
+
+  test('v164 app state normalizes legacy data through the production module', () => {
+    const normalized = normalizeAppState({
+      templates: [{ id: 'legacy', name: 'Legacy' }],
+      completed: [{ id: 'done-1', raceResult: { resultSeconds: '900', distanceKm: '2' } }],
+      settings: { features: {}, goals: { weeklySessionsTarget: '4' } }
+    });
+    assert.strictEqual(normalized.templates[0].structuredWorkout, null);
+    assert.strictEqual(normalized.completed[0].raceResult.resultSeconds, 900);
+    assert.strictEqual(normalized.settings.goals.weeklySessionsTarget, 4);
+    assert.strictEqual(normalized.settings.features.structuredIntervals, true);
+    assert.deepStrictEqual(createEmptyAppState().planned, []);
+  });
+
+  test('v164 local store normalizes snapshots before returning them', () => {
+    const values = new Map();
+    const storage = {
+      getItem: key => values.get(key) || null,
+      setItem: (key, value) => values.set(key, value)
+    };
+    const store = createLocalStateStore({
+      storage,
+      key: 'training-test',
+      normalizeState: normalizeAppState,
+      now: () => '2026-07-17T12:00:00.000Z'
+    });
+    store.writeRecovery({ templates: [{ id: 'old', recommendedWhen: 'normal' }] }, 'test');
+    const snapshot = store.readRecovery();
+    assert.strictEqual(snapshot.reason, 'test');
+    assert.deepStrictEqual(snapshot.state.templates[0].recommendedWhen, ['normal']);
+    assert.strictEqual(snapshot.state.settings.features.structuredIntervals, true);
+  });
+
+  test('v164 planner preserves role-first template selection and safe week assembly', () => {
+    const suggestion = {
+      roles: ['support_threshold'],
+      types: ['Løping'],
+      purposes: ['threshold'],
+      loads: ['moderate'],
+      intensities: ['Terskel'],
+      recommendedWhen: ['normal'],
+      avoidTemplateWhen: ['pain'],
+      keywords: ['terskel']
+    };
+    const roleTemplate = { id: 'role', name: 'Støtteterskel', type: 'Løping', role: 'support_threshold', purpose: 'threshold', load: 'moderate', intensity: 'Terskel', recommendedWhen: ['normal'], avoidWhen: [] };
+    const typeTemplate = { id: 'type', name: 'Rolig løp', type: 'Løping', role: 'long_easy', purpose: 'base', load: 'low', intensity: 'Rolig', recommendedWhen: ['normal'], avoidWhen: [] };
+    assert.ok(templateSuggestionScore(roleTemplate, suggestion, { roleLabels: WORKOUT_ROLE_LABELS }) > templateSuggestionScore(typeTemplate, suggestion, { roleLabels: WORKOUT_ROLE_LABELS }));
+    assert.strictEqual(findSuggestedTemplate([typeTemplate, roleTemplate], suggestion, [], { roleLabels: WORKOUT_ROLE_LABELS }).id, 'role');
+    assert.strictEqual(assembleWeekPlanSuggestions([suggestion], ['2026-07-20'], [typeTemplate, roleTemplate], { roleLabels: WORKOUT_ROLE_LABELS })[0].template.id, 'role');
+    assert.deepStrictEqual(
+      normalWeekRoles({ weekPlanRoles: ['main_threshold', 'support_threshold', 'long_easy', 'x_workout'] }, { weeklySessionsTarget: 3 }, DEFAULT_SETTINGS.trainingProfile.weekPlanRoles)
+        .map(item => ({ role: item.role, required: item.required })),
+      [
+        { role: 'main_threshold', required: true },
+        { role: 'support_threshold', required: true },
+        { role: 'long_easy', required: true },
+        { role: 'x_workout', required: false }
+      ]
+    );
+  });
+
+  test('v164 workout suggestion remains conservative with an active body signal', () => {
+    const suggestion = buildWorkoutSuggestion({
+      weekSummary: { sessions: 1 },
+      effectSummary: { categories: { high_aerobic: { count: 0 }, anaerobic: { count: 0 }, low_aerobic: { count: 1 } } },
+      bodyState: { level: 'active', repeatedSameArea: false },
+      profile: DEFAULT_SETTINGS.trainingProfile,
+      goals: DEFAULT_SETTINGS.goals
+    });
+    assert.match(suggestion.title, /Skånsom|rolig/i);
+    assert.ok(suggestion.loads.includes('low'));
+    assert.ok(suggestion.avoidTemplateWhen.includes('pain'));
   });
 
   test('safe write wrapper is present and used by high-risk flows', () => {
@@ -831,15 +937,15 @@ function test(name, fn) {
   });
 
   test('settings include internal structured interval feature flag', () => {
-    assert.ok(app.includes('features: {'), 'settings features object is missing');
-    assert.ok(app.includes('structuredIntervals: true'), 'structuredIntervals should be enabled in defaults');
-    assert.ok(app.includes('features: normalizeFeatures(source.features)'), 'settings should normalize feature flags');
+    assert.strictEqual(DEFAULT_SETTINGS.features.structuredIntervals, true, 'structuredIntervals should be enabled in defaults');
+    assert.strictEqual(normalizeSettings({}).features.structuredIntervals, true, 'settings should normalize feature flags');
+    assert.ok(appStateSource.includes('features: normalizeFeatures(source.features)'), 'settings should normalize feature flags in app-state');
   });
 
   test('race role and purpose are available as first-class template metadata', () => {
     assert.ok(index.includes('<option value="race">Konkurranse / race</option>'), 'race role option is missing');
     assert.ok(index.includes('<option value="race">Konkurranse / testløp</option>'), 'race purpose option is missing');
-    assert.ok(app.includes("race: 'Konkurranse / race'"), 'race role label is missing');
+    assert.strictEqual(WORKOUT_ROLE_LABELS.race, 'Konkurranse / race', 'race role label is missing');
     assert.ok(app.includes("race: 'Konkurranse / testløp'"), 'race purpose label is missing');
     assert.ok(app.includes("name: '2 km race / testløp'"), '2 km race standard template is missing');
     const raceContext = classifyWorkoutIntensityContext({ template: { role: 'race', purpose: 'race' } });
@@ -859,8 +965,8 @@ function test(name, fn) {
     assert.ok(index.includes('id="raceGoalTargetSeconds"'), 'race goal target seconds field is missing');
     assert.ok(index.includes('id="manualRaceDistance"'), 'manual race result distance field is missing');
     assert.ok(index.includes('id="manualRaceResultList"'), 'manual race result list is missing');
-    assert.ok(app.includes('raceResult: normalizeRaceResult'), 'completed items should normalize raceResult');
-    assert.ok(app.includes('raceResults: normalizeRaceResultEntries(input.raceResults)'), 'app state should normalize manual race results');
+    assert.ok(appStateSource.includes('raceResult: normalizeRaceResult'), 'completed items should normalize raceResult');
+    assert.ok(appStateSource.includes('raceResults: normalizeRaceResultEntries(input.raceResults)'), 'app state should normalize manual race results');
     assert.ok(app.includes("fsSet('raceResults'"), 'manual race results should be written to Firestore');
     assert.ok(app.includes("fsDelete('raceResults'"), 'manual race results should be deletable from Firestore');
     assert.ok(app.includes('personalBestSummary(items, state.raceResults)'), 'personal bests should include manual race results');
@@ -1268,7 +1374,7 @@ function test(name, fn) {
     const normalCompleteFlow = app.match(/const completed = \{[\s\S]+?successMessage: 'Økt logget - bra jobba!'/)?.[0] || '';
     assert.ok(normalCompleteFlow.includes("if (item) item.status = 'done'"), 'planned workout should be marked done locally');
     assert.ok(normalCompleteFlow.includes('afterApply'), 'normal complete flow should refresh UI after local state update');
-    assert.ok(normalCompleteFlow.includes('openCalendarDayModal(selectedCalendarDate)'), 'calendar day modal should be refreshed after completion');
+    assert.ok(normalCompleteFlow.includes('openCalendarDayModal(selectedCalendarDate())'), 'calendar day modal should be refreshed after completion');
   });
 
   test('calendar polish keeps planned neutral and shows workout context', () => {
@@ -1281,8 +1387,8 @@ function test(name, fn) {
     assert.ok(app.includes("return { key: 'quality', label: 'Kvalitet' };"), 'quality should be a first-class calendar category');
     assert.ok(app.includes('templateCalendarChips'), 'calendar should render compact context chips');
     assert.ok(app.includes('week-plan-kind-${escapeHtml(kind.key)}'), 'week plan rows should expose kind classes');
-    assert.ok(app.includes('calendar-day-workouts'), 'calendar day modal should group workouts in a scannable list');
-    assert.ok(app.includes('calendarEntryClass'), 'calendar grid entries should include status and kind classes');
+    assert.ok(calendarUiSource.includes('calendar-day-workouts'), 'calendar day modal should group workouts in a scannable list');
+    assert.ok(calendarUiSource.includes('calendarEntryClass'), 'calendar grid entries should include status and kind classes');
     assert.ok(app.includes('raceWeekPlanContext({'), 'week plan should keep using existing race-aware context');
     assert.ok(styles.includes('.calendar-context-chip'), 'calendar context chip styling is missing');
     assert.ok(styles.includes('.calendar-entry.calendar-kind-race'), 'race/test calendar entry styling is missing');
@@ -1843,7 +1949,8 @@ function test(name, fn) {
 
   test('backup import and local snapshot normalize without losing structuredWorkout', () => {
     assert.ok(app.includes('const nextState = normalizeAppState(imported)'), 'backup import should normalize app state');
-    assert.ok(app.includes('state = normalizeAppState(snapshot.state)'), 'local snapshot should normalize app state');
+    assert.ok(app.includes('localStateStore.readRecovery()'), 'local snapshot should be read through the normalized local store');
+    assert.ok(read('local-state-store.js').includes('normalizeState(snapshot.state)'), 'local snapshot should normalize app state');
     assert.ok(app.includes('state.templates = normalizeTemplates(state.templates)'), 'render should normalize templates before use');
     const importedTemplate = normalizeTemplate({
       id: 'structured-1',
