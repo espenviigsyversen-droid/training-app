@@ -220,7 +220,9 @@ Prioritert backlog for videre utvikling av Treningsapp.
     - UI/flyt og datamodell er uendret.
 
 46. **Neste UI-runder - separat scope**
-    - v167: Øktmaler.
+    - v167: Øktmaler - Bygget.
+      - `workout-template-ui.js` eier skjema, preview, bibliotek, sortering, søk/filter og coach-klarhet.
+      - `app.js` beholder normalisering, bekreftelser, state og repository-skriving.
     - v168: Fullføringsflyt.
     - v169: Historikk.
     - Hver runde skal bruke de nye modulgrensene og testes separat på mobil/PWA og desktop.
@@ -247,9 +249,9 @@ Disse punktene var del av den tidlige v142-idéen, men er bevisst flyttet ut av 
 
 ## Anbefalt neste steg
 
-v164a-v166 har etablert tydelige grenser for state, lokal lagring, planlegging, Firestore og kalender uten å endre brukeropplevelsen.
+v164a-v167 har etablert tydelige grenser for state, lokal lagring, planlegging, Firestore, kalender og øktmal-UI uten å endre brukeropplevelsen.
 
-Neste anbefalte runde er **v167 - Øktmaler som egen UI-feature**, deretter v168 Fullføring og v169 Historikk. Datatrygghet for snapshot-kvote og isolert Firebase Functions SDK-oppgradering beholdes som egne tekniske backlogspor og skal ikke blandes inn i disse UI-rundene.
+Neste anbefalte runde er **v168 - Fullføringsflyt som egen UI-feature**, deretter v169 Historikk. Datatrygghet for snapshot-kvote og isolert Firebase Functions SDK-oppgradering beholdes som egne tekniske backlogspor og skal ikke blandes inn i disse UI-rundene.
 
 Begrunnelse:
 - v143b har etablert en validert parameterkilde med trygg fallback
@@ -263,4 +265,3 @@ Begrunnelse:
 - v155-reglene er testet i Firestore-emulator: eierens appdata fungerer, andre brukere avvises, chat-writes er backend-only og `apiKeys/{uid}` / `aiUsage/{uid}` er sperret
 - v154 har fungerende dynamisk tilkoblingsstatus, egen Chat-fane og bestått ende-til-ende-test med ekte OpenAI-svar
 - Produksjonsreglene er sammenlignet og deployet. Chat ligger i isolert `aiChatUsers/{uid}`-rot, og den sammenslåtte regelfilen bevarer eksisterende regler for `users`, `households`, `families`, `familyCodes` og `adminFamilyHealth`.
-
