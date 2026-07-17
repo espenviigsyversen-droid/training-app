@@ -526,6 +526,14 @@ function test(name, fn) {
     assert.ok(aiCoachClient.includes('aiCoachSavePreferences'), 'frontend preferences callable is missing');
   });
 
+  test('v163b starts Chat and project changes as a fresh conversation', () => {
+    assert.ok(!aiCoachUi.includes('openFirst'), 'Chat must not automatically open the latest stored conversation');
+    assert.ok(aiCoachUi.includes('await refreshConversations();'), 'Chat should still load the conversation list');
+    assert.ok(aiCoachUi.includes('if (!id) return clear();'), 'choosing New conversation should reset the active chat');
+    assert.ok(aiCoachUi.includes('closeWorkspace();'), 'workspace administration should collapse after a selection');
+    assert.ok(aiCoachUi.includes('focusComposer();'), 'explicit fresh-chat actions should move focus to the composer');
+  });
+
   test('coach rules v3 validates and supplies the active framework and knowledge', () => {
     const validation = validateCoachRules(coachRulesJson);
     assert.strictEqual(validation.valid, true, validation.errors.join('; '));
@@ -2487,3 +2495,4 @@ function test(name, fn) {
   console.error(err);
   process.exit(1);
 });
+
