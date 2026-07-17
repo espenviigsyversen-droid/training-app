@@ -207,14 +207,19 @@ Treningsapp/
 
 ## Neste steg (prioritert)
 
-1. **v167 - Øktmaler som egen UI-feature**
-   - Bruk de nye state-, planner- og repository-grensene uten å endre fullføring eller historikk i samme runde.
-2. **v168 - Fullføringsflyt som egen UI-feature**
+1. **v168 - Fullføringsflyt som egen UI-feature**
    - Behold eksisterende lagring og coach-signaler, men avgrens render/hendelser i et testbart scope.
-3. **v169 - Historikk som egen UI-feature**
+2. **v169 - Historikk som egen UI-feature**
    - Behold kompakt oversikt, detaljmodal og sletting, og flytt bare det som gir en tydelig modulgrense.
-4. **Separate tekniske backlogspor**
+3. **Separate tekniske backlogspor**
    - Lokal snapshot-kvote og Firebase Functions SDK-oppgradering gjennomføres isolert fra UI-rundene.
+
+### v167 - Øktmaler som egen UI-feature - Bygget
+
+- Ny `workout-template-ui.js` eier skjema-lesing og -fylling, strukturert intervall-preview, select-options, sortering, søk/filter, coach-klarhet og bibliotek-rendering.
+- `app.js` er fortsatt orchestrator for ID-oppretting, normalisering, standardmal-import, bekreftelser, state-mutasjon og Firestore/repository-skriving.
+- Datamodell, eksisterende maler, strukturert intervallstøtte og synlig brukerflyt er uendret.
+- Modulen ligger i PWA app shell, og stabilitetstestene bruker produksjonsfunksjonene for sortering, filter og coach-klarhet.
 
 ---
 
@@ -224,4 +229,3 @@ Treningsapp/
 - Lokal kopi — ikke et Git-repo. Endrede filer synkroniseres til GitHub Pages via GitHub-connectoren når skrivetilgang er tilgjengelig.
 - Filer som typisk endres per økt: `app.js`, `index.html`, `styles.css`, `service-worker.js`
 - Husk alltid å bumpe `APP_VERSION` i `app.js` og `CACHE_NAME` i `service-worker.js`
-
