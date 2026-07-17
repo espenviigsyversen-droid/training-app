@@ -9,10 +9,10 @@ import { normalizeTrainingLevelProgress } from './domain-fitness.js';
 
 export const WORKOUT_ROLE_LABELS = {
   main_threshold: 'Hovedterskel',
-  support_threshold: 'StÃ¸tteterskel',
+  support_threshold: 'Støtteterskel',
   long_easy: 'Rolig langtur',
   recovery: 'Restitusjon',
-  x_workout: 'X-Ã¸kt',
+  x_workout: 'X-økt',
   strength: 'Styrke',
   mobility: 'Mobilitet',
   technique: 'Teknikk',
@@ -21,7 +21,7 @@ export const WORKOUT_ROLE_LABELS = {
 };
 
 export const DEFAULT_SETTINGS = {
-  activityTypes: ['LÃ¸ping', 'Styrke', 'Mobilitet', 'Ski', 'Sykling', 'Annet'],
+  activityTypes: ['Løping', 'Styrke', 'Mobilitet', 'Ski', 'Sykling', 'Annet'],
   intensities: ['Rolig', 'Tempo', 'Terskel', 'Intervall', 'Anaerob', 'Styrke', 'Restitusjon'],
   goals: {
     weeklySessionsTarget: 3,
@@ -68,14 +68,14 @@ export const PAIN_AREA_REGIONS = {
   fot_ankel: 'Fot/ankel',
   kne: 'Kne',
   legg_skinneben: 'Legg/skinneben',
-  lar_hofte: 'LÃ¥r/hofte',
+  lar_hofte: 'Lår/hofte',
   rygg: 'Rygg',
   skulder_nakke: 'Skulder/nakke',
   annet: 'Annet'
 };
 
 export const PAIN_AREA_SIDES = {
-  hoeyre: 'HÃ¸yre',
+  hoeyre: 'Høyre',
   venstre: 'Venstre',
   begge: 'Begge'
 };
