@@ -46,6 +46,11 @@ node --check domain-coach.js
 node --check domain-fitness.js
 node --check ai-coach-client.js
 node --check ai-coach-ui.js
+node --check app-state.js
+node --check local-state-store.js
+node --check training-repository.js
+node --check domain-training-plan.js
+node --check calendar-ui.js
 node --check functions\ai\chat-store.js
 node --check functions\ai\model-profiles.js
 node --check functions\ai\ai-preferences.js
@@ -56,7 +61,12 @@ node functions\tests\ai-backend-tests.js
 ## Viktige filer
 
 - `index.html` - app-skall og modaler
-- `app.js` - hovedlogikk, state, Firebase, coach, render
+- `app.js` - appens orchestrator: Auth, state-wrappere, DOM-hendelser og sammensatt rendering
+- `app-state.js` - defaults og bakoverkompatibel normalisering av samlet app-state
+- `local-state-store.js` - normalisert lokal snapshot- og recovery-lagring
+- `training-repository.js` - avgrenset Firestore-repository for treningsdata
+- `domain-training-plan.js` - ren, testbar ukeplan- og øktforslagslogikk
+- `calendar-ui.js` - kalendergrid og dagsmodal med injiserte data-/handlingsavhengigheter
 - `domain-core.js` - rene testbare domenehjelpere
 - `domain-goals.js` - rene testbare konkurranse-/mål-hjelpere
 - `domain-coach-rules.js` - validering, defaults og runtime-fallback for coach-regler
@@ -96,6 +106,11 @@ node --check domain-coach.js
 node --check domain-fitness.js
 node --check ai-coach-client.js
 node --check ai-coach-ui.js
+node --check app-state.js
+node --check local-state-store.js
+node --check training-repository.js
+node --check domain-training-plan.js
+node --check calendar-ui.js
 node --check functions\ai\chat-store.js
 node --check functions\ai\model-profiles.js
 node --check functions\ai\ai-preferences.js
@@ -121,8 +136,9 @@ Følg guardrails før ny funksjonalitet bygges:
 
 - dokumenter datamodell/design først når featuret introduserer nye felter
 - legg ren logikk i `domain-core.js` eller egen domene-fil
-- behold små wrappers i `app.js` for `state`, DOM og Firebase
-- UI/render kan foreløpig ligge i `app.js`/`index.html`
+- behold små wrappers i `app.js` for `state`, DOM og sammensatt applikasjonsflyt
+- bruk `training-repository.js` for Firestore-operasjoner på treningsdata
+- UI/render kan ligge i `app.js`/`index.html`, men avgrensede kontrollere som `calendar-ui.js` kan brukes når de reduserer reell kompleksitet
 - test ny ren logikk fra produksjonsfil
 - nye felter må være bakoverkompatible med gamle Firestore-data og backupfiler
 - normaliser data fra Firestore, import og lokal snapshot før bruk
@@ -137,3 +153,4 @@ Oppsummer alltid:
 - hvilke sjekker som er kjørt
 - hvilke filer som er synkronisert direkte til GitHub, eller hvilke filer brukeren må laste opp manuelt hvis direkte synk ikke var mulig
 - om noe ikke ble testet
+
