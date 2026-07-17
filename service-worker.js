@@ -1,4 +1,4 @@
-const CACHE_NAME = "treningsapp-v163b";
+const CACHE_NAME = "treningsapp-v166";
 const FIREBASE_MODULES = [
   "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js",
   "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js",
@@ -17,18 +17,25 @@ const APP_SHELL = [
   "./domain-goals.js",
   "./domain-coach-rules.js",
   "./domain-fitness.js",
+  "./app-state.js",
+  "./local-state-store.js",
+  "./training-repository.js",
+  "./domain-training-plan.js",
+  "./calendar-ui.js",
   "./manifest.json",
   "./Treningsfilosofi/coach-rammeverk.md",
   "./data/coach-rules.json",
   "./Icon1.png",
   "./icons/icon-192.png",
-  "./icons/icon-512.png",
-  ...FIREBASE_MODULES
+  "./icons/icon-512.png"
 ];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_SHELL).catch(() => undefined))
+    caches.open(CACHE_NAME).then(async (cache) => {
+      await cache.addAll(APP_SHELL);
+      await Promise.allSettled(FIREBASE_MODULES.map(url => cache.add(url)));
+    })
   );
   self.skipWaiting();
 });
@@ -59,6 +66,11 @@ self.addEventListener("fetch", (event) => {
     url.pathname.endsWith("/domain-goals.js") ||
     url.pathname.endsWith("/domain-coach-rules.js") ||
     url.pathname.endsWith("/domain-fitness.js") ||
+    url.pathname.endsWith("/app-state.js") ||
+    url.pathname.endsWith("/local-state-store.js") ||
+    url.pathname.endsWith("/training-repository.js") ||
+    url.pathname.endsWith("/domain-training-plan.js") ||
+    url.pathname.endsWith("/calendar-ui.js") ||
     url.pathname.endsWith("/styles.css") ||
     url.pathname.endsWith("/manifest.json") ||
     url.pathname.endsWith("/service-worker.js")
