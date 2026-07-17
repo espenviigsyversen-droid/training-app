@@ -85,8 +85,47 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       confirmedTrainingLevelProgress,
       normalizeTrainingLevelProgress
     } from './domain-fitness.js';
+    import {
+      DEFAULT_SETTINGS as defaultSettings,
+      PAIN_AREA_REGIONS,
+      PAIN_AREA_SIDES,
+      WORKOUT_ROLE_LABELS,
+      createEmptyAppState,
+      formatAreaLabel,
+      freshDefaultSettings,
+      normalizeAppState,
+      normalizeFeatures,
+      normalizeGoalNumber,
+      normalizeGoals,
+      normalizeInjuryCheckin,
+      normalizePersonProfile,
+      normalizeSettings,
+      normalizeTemplates,
+      normalizeTrainingProfile,
+      normalizeWeekPlanRoles
+    } from './app-state.js';
+    import { createLocalStateStore } from './local-state-store.js';
+    import { createTrainingRepository } from './training-repository.js';
+    import { createCalendarUi } from './calendar-ui.js';
+    import {
+      applyRaceContextToSuggestionMix,
+      assembleWeekPlanSuggestions,
+      bakkenWeekRecipe as bakkenWeekRecipeCore,
+      buildWorkoutSuggestion as buildWorkoutSuggestionCore,
+      findSuggestedTemplate as findSuggestedTemplateCore,
+      gentleBaseSuggestion,
+      inferredWorkoutRole,
+      nextWeekPlanSummary,
+      normalWeekRoles as normalWeekRolesCore,
+      recoverySuggestion,
+      roleAwareSuggestions as roleAwareSuggestionsCore,
+      roleCoverage as roleCoverageCore,
+      suggestionForWorkoutRole,
+      weekPlanSuggestionMix as weekPlanSuggestionMixCore,
+      xWorkoutSuggestion
+    } from './domain-training-plan.js';
 
-    const APP_VERSION = 'v163';
+    const APP_VERSION = 'v166';
     const APP_CACHE_NAME = `treningsapp-${APP_VERSION}`;
 
     const firebaseConfig = {
@@ -112,50 +151,19 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     let authResolved = false;
     let offlineSnapshotMode = false;
     const LOCAL_STATE_KEY = 'treningsapp:last-state:v1';
-    const defaultSettings = {
-      activityTypes: ['Løping', 'Styrke', 'Mobilitet', 'Ski', 'Sykling', 'Annet'],
-      intensities: ['Rolig', 'Tempo', 'Terskel', 'Intervall', 'Anaerob', 'Styrke', 'Restitusjon'],
-      goals: {
-        weeklySessionsTarget: 3,
-        weeklyStretchSessionsTarget: 4,
-        weeklyHoursTarget: '',
-        weeklyKmTarget: ''
-      },
-      raceGoal: {
-        name: '',
-        date: '',
-        distanceKm: '',
-        targetTimeSeconds: '',
-        note: ''
-      },
-      trainingProfile: {
-        primaryFocus: 'running',
-        level: 'building_beginner',
-        philosophy: 'bakken_threshold',
-        priority: 'injury_free_progression',
-        trainingFocus: 'base_threshold',
-        weekPlanPreset: 'bakken_3',
-        weekPlanRoles: ['main_threshold', 'support_threshold', 'long_easy', 'x_workout']
-      },
-      personProfile: {
-        name: '',
-        birthYear: '',
-        sex: '',
-        heightCm: '',
-        weightKg: '',
-        maxHeartRate: '',
-        thresholdHeartRate: ''
-      },
-      trainingLevelProgress: {
-        version: 2,
-        highestTier: 'foundation',
-        history: []
-      },
-      features: {
-        structuredIntervals: true
-      }
-    };
-    let state = { templates: [], planned: [], completed: [], wellness: [], challenges: [], blockedDays: [], raceResults: [], continuityFreezes: [], settings: JSON.parse(JSON.stringify(defaultSettings)) };
+    let state = createEmptyAppState();
+    const localStateStore = createLocalStateStore({
+      storage: localStorage,
+      key: LOCAL_STATE_KEY,
+      normalizeState: normalizeAppState
+    });
+    const trainingRepository = createTrainingRepository({
+      db,
+      getCurrentUser: () => currentUser,
+      firestore: { collection, doc, getDoc, getDocs, setDoc, deleteDoc, writeBatch },
+      normalizeState: normalizeAppState,
+      defaultSettings: freshDefaultSettings
+    });
     let volumeTrendPeriod = 'week';
     let volumeTrendActivity = 'all';
     let templateCoachFilter = 'all';
@@ -270,10 +278,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
 
     function saveLocalStateSnapshot() {
       try {
-        localStorage.setItem(LOCAL_STATE_KEY, JSON.stringify({
-          savedAt: new Date().toISOString(),
-          state
-        }));
+        localStateStore.writeSnapshot(state);
       } catch (err) {
         console.warn('Could not save local state snapshot:', err);
       }
@@ -281,11 +286,9 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
 
     function loadLocalStateSnapshot() {
       try {
-        const raw = localStorage.getItem(LOCAL_STATE_KEY);
-        if (!raw) return null;
-        const snapshot = JSON.parse(raw);
-        if (!snapshot || !snapshot.state) return null;
-        state = normalizeAppState(snapshot.state);
+        const snapshot = localStateStore.readSnapshot();
+        if (!snapshot) return null;
+        state = snapshot.state;
         return snapshot.savedAt || null;
       } catch (err) {
         console.warn('Could not load local state snapshot:', err);
@@ -522,141 +525,6 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         .sort((a, b) => a.date.localeCompare(b.date));
     }
 
-    function freshDefaultSettings() {
-      return JSON.parse(JSON.stringify(defaultSettings));
-    }
-
-    function normalizeFeatures(features = {}) {
-      const source = features && typeof features === 'object' && !Array.isArray(features) ? features : {};
-      const defaults = defaultSettings.features;
-      return {
-        structuredIntervals: Boolean(source.structuredIntervals ?? defaults.structuredIntervals)
-      };
-    }
-
-    function normalizeSettings(settings = {}) {
-      const source = settings && typeof settings === 'object' && !Array.isArray(settings) ? settings : {};
-      const trainingProfile = normalizeTrainingProfile(source.trainingProfile);
-      return {
-        activityTypes: Array.isArray(source.activityTypes) && source.activityTypes.length
-          ? source.activityTypes
-          : [...defaultSettings.activityTypes],
-        intensities: Array.isArray(source.intensities) && source.intensities.length
-          ? source.intensities
-          : [...defaultSettings.intensities],
-        goals: normalizeGoals(source.goals),
-        raceGoal: normalizeRaceGoal(source.raceGoal),
-        trainingProfile,
-        personProfile: normalizePersonProfile(source.personProfile),
-        trainingLevelProgress: normalizeTrainingLevelProgress(source.trainingLevelProgress, trainingProfile.level),
-        features: normalizeFeatures(source.features),
-        dailyReadiness: normalizeDailyReadinessMap(source.dailyReadiness)
-      };
-    }
-
-    function normalizeInjuryCheckin(value = {}) {
-      const source = value && typeof value === 'object' && !Array.isArray(value) ? value : {};
-      const painNow = source.painNow === '' || source.painNow === null || source.painNow === undefined
-        ? ''
-        : Math.max(0, Math.min(10, parseNonNegativeInteger(source.painNow)));
-      const areaRegion = String(source.areaRegion || '').trim();
-      const areaSide = String(source.areaSide || '').trim();
-      const area = String(source.area || formatAreaLabel(areaRegion, areaSide)).trim();
-      const trend = ['better', 'same', 'worse'].includes(source.trend) ? source.trend : '';
-      const note = String(source.note || '').trim();
-      const hasValue = painNow !== '' || areaRegion || areaSide || area || trend || note;
-      return hasValue ? { painNow, areaRegion, areaSide, area, trend, note } : null;
-    }
-
-    function normalizeDailyReadinessMap(map = {}) {
-      const source = map && typeof map === 'object' && !Array.isArray(map) ? map : {};
-      return Object.fromEntries(Object.entries(source).map(([date, value]) => {
-        const item = value && typeof value === 'object' && !Array.isArray(value) ? { ...value } : {};
-        const injuryCheckin = normalizeInjuryCheckin(item.injuryCheckin);
-        if (injuryCheckin) item.injuryCheckin = injuryCheckin;
-        else delete item.injuryCheckin;
-        return [date, item];
-      }));
-    }
-
-    function normalizeTemplates(templates = []) {
-      return Array.isArray(templates) ? templates.map(normalizeTemplate).filter(template => template.id) : [];
-    }
-
-    function normalizeCompletedItems(items = []) {
-      return Array.isArray(items)
-        ? items
-            .filter(item => item && typeof item === 'object' && !Array.isArray(item))
-            .map(item => ({
-              ...item,
-              raceResult: normalizeRaceResult(item.raceResult)
-            }))
-        : [];
-    }
-
-    function normalizeAppState(input = {}) {
-      return {
-        templates: normalizeTemplates(input.templates),
-        planned: Array.isArray(input.planned) ? input.planned : [],
-        completed: normalizeCompletedItems(input.completed),
-        wellness: Array.isArray(input.wellness) ? input.wellness : [],
-        challenges: Array.isArray(input.challenges) ? input.challenges : [],
-        blockedDays: Array.isArray(input.blockedDays) ? input.blockedDays : [],
-        raceResults: normalizeRaceResultEntries(input.raceResults),
-        continuityFreezes: normalizeContinuityFreezes(input.continuityFreezes),
-        settings: normalizeSettings(input.settings)
-      };
-    }
-
-    function normalizePersonProfile(profile = {}) {
-      const defaults = defaultSettings.personProfile;
-      return {
-        name: profile.name || defaults.name,
-        birthYear: normalizeGoalNumber(profile.birthYear, defaults.birthYear, 1900),
-        sex: profile.sex || defaults.sex,
-        heightCm: normalizeGoalNumber(profile.heightCm, defaults.heightCm),
-        weightKg: normalizeGoalNumber(profile.weightKg, defaults.weightKg),
-        maxHeartRate: normalizeGoalNumber(profile.maxHeartRate, defaults.maxHeartRate),
-        thresholdHeartRate: normalizeGoalNumber(profile.thresholdHeartRate, defaults.thresholdHeartRate)
-      };
-    }
-
-    const PAIN_AREA_REGIONS = {
-      fot_ankel: 'Fot/ankel',
-      kne: 'Kne',
-      legg_skinneben: 'Legg/skinneben',
-      lar_hofte: 'Lår/hofte',
-      rygg: 'Rygg',
-      skulder_nakke: 'Skulder/nakke',
-      annet: 'Annet'
-    };
-
-    const PAIN_AREA_SIDES = {
-      hoeyre: 'Høyre',
-      venstre: 'Venstre',
-      begge: 'Begge'
-    };
-
-    function formatAreaLabel(region, side) {
-      const regionLabel = PAIN_AREA_REGIONS[region] || '';
-      const sideLabel = PAIN_AREA_SIDES[side] || '';
-      if (!regionLabel) return sideLabel || '';
-      return sideLabel ? `${sideLabel} ${regionLabel.toLowerCase()}` : regionLabel;
-    }
-
-    const WORKOUT_ROLE_LABELS = {
-      main_threshold: 'Hovedterskel',
-      support_threshold: 'Støtteterskel',
-      long_easy: 'Rolig langtur',
-      recovery: 'Restitusjon',
-      x_workout: 'X-økt',
-      strength: 'Styrke',
-      mobility: 'Mobilitet',
-      technique: 'Teknikk',
-      race: 'Konkurranse / race',
-      other: 'Annet'
-    };
-
     const WEEK_PLAN_PRESETS = {
       bakken_3: ['main_threshold', 'support_threshold', 'long_easy', 'x_workout'],
       bakken_4: ['main_threshold', 'support_threshold', 'long_easy', 'x_workout'],
@@ -853,85 +721,16 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       }
     ];
 
-    function normalizeWeekPlanRoles(roles = []) {
-      const validRoles = new Set(Object.keys(WORKOUT_ROLE_LABELS));
-      const defaults = defaultSettings.trainingProfile.weekPlanRoles;
-      const source = Array.isArray(roles) && roles.length ? roles : defaults;
-      return [0, 1, 2, 3].map(index => {
-        const role = source[index] || '';
-        return !role || validRoles.has(role) ? role : defaults[index] || '';
-      });
-    }
-
-    function normalizeTrainingProfile(profile = {}) {
-      const defaults = defaultSettings.trainingProfile;
-      const legacyFocusMap = {
-        base_building: 'base_threshold',
-        five_ten_k: 'competition_prep'
-      };
-      const rawTrainingFocus = profile.trainingFocus || profile.runningPhase || defaults.trainingFocus;
-      return {
-        primaryFocus: profile.primaryFocus || defaults.primaryFocus,
-        level: profile.level || defaults.level,
-        philosophy: profile.philosophy || defaults.philosophy,
-        priority: profile.priority || defaults.priority,
-        trainingFocus: legacyFocusMap[rawTrainingFocus] || rawTrainingFocus,
-        weekPlanPreset: profile.weekPlanPreset || defaults.weekPlanPreset,
-        weekPlanRoles: normalizeWeekPlanRoles(profile.weekPlanRoles)
-      };
-    }
-
-    function normalizeGoals(goals = {}) {
-      return {
-        weeklySessionsTarget: normalizeGoalNumber(goals.weeklySessionsTarget, defaultSettings.goals.weeklySessionsTarget, 1),
-        weeklyStretchSessionsTarget: normalizeGoalNumber(goals.weeklyStretchSessionsTarget, defaultSettings.goals.weeklyStretchSessionsTarget, 1),
-        weeklyHoursTarget: normalizeGoalNumber(goals.weeklyHoursTarget, ''),
-        weeklyKmTarget: normalizeGoalNumber(goals.weeklyKmTarget, '')
-      };
-    }
-
-    function normalizeGoalNumber(value, fallback = '', min = 0) {
-      if (value === '' || value === null || value === undefined) return fallback;
-      const number = Number(value);
-      if (!Number.isFinite(number) || number < min) return fallback;
-      return number;
-    }
-
     function uniqueValues(values) {
       return [...new Set(values.filter(Boolean))];
     }
 
     // ── Firestore ─────────────────────────────────────────────────────────────
-    function userCol(colName) { return collection(db, 'users', currentUser.uid, colName); }
-    function userDoc(colName, id) { return doc(db, 'users', currentUser.uid, colName, id); }
-
     async function loadFromFirestore() {
       if (!navigator.onLine) setSyncStatus(hasPendingLocalWrites ? 'pending' : 'offline');
       else setSyncStatus('syncing');
       try {
-        const [tSnap, pSnap, cSnap, wSnap, challengeSnap, blockedDaySnap, raceResultSnap, continuityFreezeSnap, settingsSnap] = await Promise.all([
-          getDocs(userCol('templates')),
-          getDocs(userCol('planned')),
-          getDocs(userCol('completed')),
-          getDocs(userCol('wellness')),
-          getDocs(userCol('challenges')),
-          getDocs(userCol('blockedDays')),
-          getDocs(userCol('raceResults')),
-          getDocs(userCol('continuityFreezes')),
-          getDoc(userDoc('settings', 'preferences'))
-        ]);
-        state = normalizeAppState({
-          templates: tSnap.docs.map(d => ({ id: d.id, ...d.data() })),
-          planned: pSnap.docs.map(d => ({ id: d.id, ...d.data() })),
-          completed: cSnap.docs.map(d => ({ id: d.id, ...d.data() })),
-          wellness: wSnap.docs.map(d => ({ id: d.id, ...d.data() })),
-          challenges: challengeSnap.docs.map(d => ({ id: d.id, ...d.data() })),
-          blockedDays: blockedDaySnap.docs.map(d => ({ id: d.id, ...d.data() })),
-          raceResults: raceResultSnap.docs.map(d => ({ id: d.id, ...d.data() })),
-          continuityFreezes: continuityFreezeSnap.docs.map(d => ({ id: d.id, ...d.data() })),
-          settings: settingsSnap.exists() ? settingsSnap.data() : freshDefaultSettings()
-        });
-        if (!settingsSnap.exists()) await fsSet('settings', 'preferences', state.settings);
+        state = await trainingRepository.load();
         offlineSnapshotMode = false;
         saveLocalStateSnapshot();
         if (navigator.onLine) {
@@ -958,8 +757,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         setSyncStatus('syncing');
       }
       try {
-        const { id: _id, ...rest } = data;
-        await setDoc(userDoc(colName, id), rest);
+        await trainingRepository.set(colName, id, data);
         if (wasOffline || !navigator.onLine) {
           hasPendingLocalWrites = true;
           setSyncStatus('pending');
@@ -984,7 +782,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         setSyncStatus('syncing');
       }
       try {
-        await deleteDoc(userDoc(colName, id));
+        await trainingRepository.remove(colName, id);
         if (wasOffline || !navigator.onLine) {
           hasPendingLocalWrites = true;
           setSyncStatus('pending');
@@ -1010,12 +808,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         setSyncStatus('syncing');
       }
       try {
-        const batch = writeBatch(db);
-        items.forEach(item => {
-          const { id, ...rest } = item;
-          batch.set(userDoc(colName, id), rest);
-        });
-        await batch.commit();
+        await trainingRepository.batchSet(colName, items);
         if (wasOffline || !navigator.onLine) {
           hasPendingLocalWrites = true;
           setSyncStatus('pending');
@@ -1030,23 +823,9 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       }
     }
 
-    const DATA_COLLECTIONS = ['templates', 'planned', 'completed', 'wellness', 'challenges', 'blockedDays', 'raceResults', 'continuityFreezes'];
-
-    async function commitBatchedOperations(operations, chunkSize = 450) {
-      for (let i = 0; i < operations.length; i += chunkSize) {
-        const batch = writeBatch(db);
-        operations.slice(i, i + chunkSize).forEach(operation => operation(batch));
-        await batch.commit();
-      }
-    }
-
     function saveRecoverySnapshot(reason) {
       try {
-        localStorage.setItem(`${LOCAL_STATE_KEY}_recovery`, JSON.stringify({
-          savedAt: new Date().toISOString(),
-          reason,
-          state: cloneAppState()
-        }));
+        localStateStore.writeRecovery(cloneAppState(), reason);
       } catch (err) {
         console.warn('Could not save recovery snapshot:', err);
       }
@@ -1054,11 +833,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
 
     function loadRecoverySnapshot() {
       try {
-        const raw = localStorage.getItem(`${LOCAL_STATE_KEY}_recovery`);
-        if (!raw) return null;
-        const snapshot = JSON.parse(raw);
-        if (!snapshot?.state) return null;
-        return snapshot;
+        return localStateStore.readRecovery();
       } catch (err) {
         console.warn('Could not load recovery snapshot:', err);
         return null;
@@ -1068,14 +843,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     async function replaceFirestoreData(nextState) {
       if (blockOfflineSnapshotWrite()) throw new Error('Offline snapshot is read-only');
       setSyncStatus('syncing');
-      const existingSnapshots = await Promise.all(DATA_COLLECTIONS.map(colName => getDocs(userCol(colName))));
-      const deleteOps = existingSnapshots.flatMap(snapshot => snapshot.docs.map(docSnapshot => batch => batch.delete(docSnapshot.ref)));
-      const setOps = DATA_COLLECTIONS.flatMap(colName => (nextState[colName] || []).map(item => batch => {
-        const { id, ...rest } = item;
-        batch.set(userDoc(colName, id), rest);
-      }));
-      await commitBatchedOperations([...deleteOps, ...setOps]);
-      await fsSet('settings', 'preferences', nextState.settings);
+      await trainingRepository.replace(nextState);
       saveLocalStateSnapshot();
       setSyncStatus('ok');
     }
@@ -1089,8 +857,8 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       state = snapshot;
       saveLocalStateSnapshot();
       render();
-      if (document.getElementById('calendarDayModal')?.classList.contains('active') && selectedCalendarDate) {
-        openCalendarDayModal(selectedCalendarDate);
+      if (document.getElementById('calendarDayModal')?.classList.contains('active') && selectedCalendarDate()) {
+        openCalendarDayModal(selectedCalendarDate());
       }
     }
 
@@ -1324,7 +1092,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         }
         currentUser = null;
         offlineSnapshotMode = false;
-        state = { templates: [], planned: [], completed: [], wellness: [], challenges: [], blockedDays: [], raceResults: [], continuityFreezes: [], settings: normalizeSettings(state.settings) };
+        state = createEmptyAppState(state.settings);
         loading.classList.add('hidden');
         authScreen.classList.remove('hidden');
         mainApp.classList.add('hidden');
@@ -2085,8 +1853,8 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         apply: () => { state.planned = state.planned.filter(p => p.id !== id); },
         write: () => fsDelete('planned', id),
         afterApply: () => {
-          if (document.getElementById('calendarDayModal')?.classList.contains('active') && selectedCalendarDate) {
-            openCalendarDayModal(selectedCalendarDate);
+          if (document.getElementById('calendarDayModal')?.classList.contains('active') && selectedCalendarDate()) {
+            openCalendarDayModal(selectedCalendarDate());
           }
           if (document.getElementById('workoutDetailModal')?.classList.contains('active')) {
             closeWorkoutDetailModal();
@@ -3048,8 +2816,8 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
           },
           write: () => fsSet('completed', editingId, updatedCompleted),
           afterApply: () => {
-            if (selectedCalendarDate && document.getElementById('calendarDayModal').classList.contains('active')) {
-              openCalendarDayModal(selectedCalendarDate);
+            if (selectedCalendarDate() && document.getElementById('calendarDayModal').classList.contains('active')) {
+              openCalendarDayModal(selectedCalendarDate());
             }
           },
           successMessage: 'Økt oppdatert',
@@ -3108,8 +2876,8 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
           return Promise.all([fsSet('planned', plannedId, updatedPlanned), fsSet('completed', completed.id, completed)]);
         },
         afterApply: () => {
-          if (document.getElementById('calendarDayModal')?.classList.contains('active') && selectedCalendarDate) {
-            openCalendarDayModal(selectedCalendarDate);
+          if (document.getElementById('calendarDayModal')?.classList.contains('active') && selectedCalendarDate()) {
+            openCalendarDayModal(selectedCalendarDate());
           }
         },
         successMessage: 'Økt logget - bra jobba!',
@@ -3141,8 +2909,8 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
           return Promise.all(ops);
         },
         afterApply: () => {
-          if (document.getElementById('calendarDayModal')?.classList.contains('active') && selectedCalendarDate) {
-            openCalendarDayModal(selectedCalendarDate);
+          if (document.getElementById('calendarDayModal')?.classList.contains('active') && selectedCalendarDate()) {
+            openCalendarDayModal(selectedCalendarDate());
           }
         },
         successMessage: planned ? 'Økt flyttet tilbake til planlagt' : 'Historisk økt slettet',
@@ -3713,187 +3481,45 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       if (panel) panel.classList.toggle('hidden');
     };
 
-    function shortCalendarLabel(template) {
-      const kind = templateCalendarKind(template);
-      if (kind.key === 'race') return 'Race';
-      if (kind.key === 'recovery') return 'Rest';
-      if (kind.key === 'quality') return template.intensity === 'Intervall' ? 'Interv' : 'Kval';
-      const typeMap = {
-        'Løping': 'Løp',
-        'Styrke': 'Styrke',
-        'Mobilitet': 'Mob',
-        'Ski': 'Ski',
-        'Sykling': 'Sykkel',
-        'Annet': 'Annet'
-      };
-      const intensityMap = {
-        'Rolig': 'Rolig',
-        'Tempo': 'Tempo',
-        'Terskel': 'Terskel',
-        'Intervall': 'Interv',
-        'Anaerob': 'Ana',
-        'Styrke': 'Styrke',
-        'Restitusjon': 'Rest'
-      };
-      const type = typeMap[template.type] || template.type || template.name;
-      const intensity = intensityMap[template.intensity] || template.intensity || '';
-      return intensity && intensity !== type ? `${type} ${intensity}` : type;
+    // ── Calendar ──────────────────────────────────────────────────────────────
+    let calendarUi = null;
+
+    function ensureCalendarUi() {
+      if (!calendarUi) {
+        calendarUi = createCalendarUi({
+          getState: () => state,
+          todayISO,
+          formatDate,
+          escapeHtml,
+          getTemplate,
+          completedTemplate,
+          calendarKind: templateCalendarKind,
+          calendarEntryClass,
+          blockedDayForDate,
+          blockedDayLabel,
+          blockedReasons: BLOCKED_DAY_REASONS,
+          workoutCard,
+          completedCard
+        });
+      }
+      return calendarUi;
     }
 
-    // ── Calendar ──────────────────────────────────────────────────────────────
-    window.changeCalendarMonth = function(direction) {
-      const input = document.getElementById('calendarMonth');
-      if (!input.value) input.value = todayISO().slice(0, 7);
-      const parts = input.value.split('-');
-      let year = Number(parts[0]);
-      let month = Number(parts[1]) + direction;
-      if (month < 1) { month = 12; year -= 1; }
-      if (month > 12) { month = 1; year += 1; }
-      input.value = `${year}-${String(month).padStart(2,'0')}`;
-      renderCalendar();
-    };
+    function selectedCalendarDate() {
+      return calendarUi?.getSelectedDate() || '';
+    }
 
     function renderCalendar() {
-      const input = document.getElementById('calendarMonth');
-      if (!input) return;
-      if (!input.value) input.value = todayISO().slice(0, 7);
-      const [year, month] = input.value.split('-').map(Number);
-      const firstDay = new Date(year, month - 1, 1);
-      const lastDay = new Date(year, month, 0);
-
-      let html = '<div class="calendar-grid">';
-      ['Man','Tir','Ons','Tor','Fre','Lør','Søn'].forEach(d => {
-        html += `<div class="calendar-weekday">${d}</div>`;
-      });
-
-      const startOffset = (firstDay.getDay() + 6) % 7;
-      const prevMonthLastDay = new Date(year, month - 1, 0).getDate();
-      const prevYear = month === 1 ? year - 1 : year;
-      const prevMonthNum = month === 1 ? 12 : month - 1;
-      for (let i = startOffset - 1; i >= 0; i--) {
-        const prevDay = prevMonthLastDay - i;
-        const dateIso = `${prevYear}-${String(prevMonthNum).padStart(2,'0')}-${String(prevDay).padStart(2,'0')}`;
-        const doneItems = state.completed.filter(c => c.date === dateIso).map(c => {
-          const t = completedTemplate(c);
-          return { status: 'done', className: calendarEntryClass('done', t), name: t.name, shortLabel: shortCalendarLabel(t) };
-        });
-        const blockedDay = blockedDayForDate(dateIso);
-        const dayItems = [
-          ...(blockedDay ? [{ status: 'blocked', className: 'blocked calendar-kind-blocked', name: `Ikke treningsdag: ${blockedDayLabel(blockedDay)}`, shortLabel: 'Fri' }] : []),
-          ...doneItems
-        ];
-        const visibleItems = dayItems.slice(0, 2);
-        const hiddenCount = dayItems.length - visibleItems.length;
-        html += `
-          <div class="calendar-day calendar-day-overflow ${blockedDay ? 'no-training' : ''}" onclick="openCalendarDayModal('${dateIso}')">
-            <div class="calendar-date">${prevDay}</div>
-            ${visibleItems.map(item => `
-              <div class="calendar-entry ${escapeHtml(item.className || item.status)}" title="${escapeHtml(item.name)}">
-                <span class="calendar-entry-short">${escapeHtml(item.shortLabel)}</span>
-                <span class="calendar-entry-full">${escapeHtml(item.name)}</span>
-              </div>`).join('')}
-            ${hiddenCount > 0 ? `<div class="calendar-entry calendar-more">+${hiddenCount} flere</div>` : ''}
-          </div>`;
-      }
-
-      for (let day = 1; day <= lastDay.getDate(); day++) {
-        // BUGFIX punkt 2: tid satt til 12:00 for å unngå tidssone-feil i Norge
-        const dateIso = new Date(year, month - 1, day, 12).toISOString().slice(0, 10);
-        const plannedItems = state.planned.filter(p => p.date === dateIso && p.status !== 'done');
-        const doneItems = state.completed.filter(c => c.date === dateIso);
-        const blockedDay = blockedDayForDate(dateIso);
-        const dayItems = [
-          ...(blockedDay ? [{ status: 'blocked', className: 'blocked calendar-kind-blocked', name: `Ikke treningsdag: ${blockedDayLabel(blockedDay)}`, shortLabel: 'Fri' }] : []),
-          ...plannedItems.map(p => {
-            const template = getTemplate(p.templateId);
-            return { status: 'planned', className: calendarEntryClass('planned', template), name: template.name, shortLabel: shortCalendarLabel(template) };
-          }),
-          ...doneItems.map(c => {
-            const template = completedTemplate(c);
-            return { status: 'done', className: calendarEntryClass('done', template), name: template.name, shortLabel: shortCalendarLabel(template) };
-          })
-        ];
-        const visibleItems = dayItems.slice(0, 2);
-        const hiddenCount = dayItems.length - visibleItems.length;
-        html += `
-          <div class="calendar-day ${dateIso === todayISO() ? 'today' : ''} ${blockedDay ? 'no-training' : ''}" onclick="openCalendarDayModal('${dateIso}')">
-            <div class="calendar-date">${day}</div>
-            ${visibleItems.map(item => `
-              <div class="calendar-entry ${escapeHtml(item.className || item.status)}" title="${escapeHtml(item.name)}">
-                <span class="calendar-entry-short">${escapeHtml(item.shortLabel)}</span>
-                <span class="calendar-entry-full">${escapeHtml(item.name)}</span>
-              </div>`).join('')}
-            ${hiddenCount > 0 ? `<div class="calendar-entry calendar-more">+${hiddenCount} flere</div>` : ''}
-          </div>`;
-      }
-
-      const totalCells = startOffset + lastDay.getDate();
-      const trailingCells = (7 - (totalCells % 7)) % 7;
-      const nextYear = month === 12 ? year + 1 : year;
-      const nextMonthNum = month === 12 ? 1 : month + 1;
-      for (let i = 1; i <= trailingCells; i++) {
-        const dateIso = `${nextYear}-${String(nextMonthNum).padStart(2,'0')}-${String(i).padStart(2,'0')}`;
-        const plannedItems = state.planned.filter(p => p.date === dateIso && p.status !== 'done').map(p => {
-          const t = getTemplate(p.templateId);
-          return { status: 'planned', className: calendarEntryClass('planned', t), name: t.name, shortLabel: shortCalendarLabel(t) };
-        });
-        const blockedDay = blockedDayForDate(dateIso);
-        const dayItems = [
-          ...(blockedDay ? [{ status: 'blocked', className: 'blocked calendar-kind-blocked', name: `Ikke treningsdag: ${blockedDayLabel(blockedDay)}`, shortLabel: 'Fri' }] : []),
-          ...plannedItems
-        ];
-        const visibleItems = dayItems.slice(0, 2);
-        const hiddenCount = dayItems.length - visibleItems.length;
-        html += `
-          <div class="calendar-day calendar-day-overflow ${blockedDay ? 'no-training' : ''}" onclick="openCalendarDayModal('${dateIso}')">
-            <div class="calendar-date">${i}</div>
-            ${visibleItems.map(item => `
-              <div class="calendar-entry ${escapeHtml(item.className || item.status)}" title="${escapeHtml(item.name)}">
-                <span class="calendar-entry-short">${escapeHtml(item.shortLabel)}</span>
-                <span class="calendar-entry-full">${escapeHtml(item.name)}</span>
-              </div>`).join('')}
-            ${hiddenCount > 0 ? `<div class="calendar-entry calendar-more">+${hiddenCount} flere</div>` : ''}
-          </div>`;
-      }
-
-      html += '</div>';
-      document.getElementById('calendarGrid').innerHTML = html;
+      ensureCalendarUi().render();
     }
 
-    let selectedCalendarDate = '';
-
-    function calendarBlockControlsHtml(dateIso) {
-      const blocked = blockedDayForDate(dateIso);
-      const reason = blocked?.reason || 'unavailable';
-      return `
-        <div class="calendar-block-controls">
-          <label class="calendar-block-toggle">
-            <input type="checkbox" ${blocked ? 'checked' : ''} onchange="toggleBlockedTrainingDay(this.checked)" />
-            <span>
-              Ikke treningsdag
-              <small class="small-note">Rådgiveren hopper over denne datoen når den foreslår økter.</small>
-            </span>
-          </label>
-          ${blocked ? `
-            <div class="form-grid">
-              <div>
-                <label>Grunn</label>
-                <select id="calendarBlockedReason" onchange="updateBlockedTrainingDay()">
-                  ${Object.entries(BLOCKED_DAY_REASONS).map(([value, label]) =>
-                    `<option value="${escapeHtml(value)}" ${value === reason ? 'selected' : ''}>${escapeHtml(label)}</option>`
-                  ).join('')}
-                </select>
-              </div>
-              <div>
-                <label>Notat</label>
-                <input id="calendarBlockedNote" value="${escapeHtml(blocked.note || '')}" placeholder="Valgfritt" onblur="updateBlockedTrainingDay()" />
-              </div>
-            </div>` : ''}
-        </div>`;
-    }
+    window.renderCalendar = renderCalendar;
+    window.changeCalendarMonth = direction => ensureCalendarUi().changeMonth(direction);
+    window.openCalendarDayModal = dateIso => ensureCalendarUi().openDay(dateIso);
+    window.closeCalendarDayModal = () => ensureCalendarUi().closeDay();
 
     window.toggleBlockedTrainingDay = async function(checked) {
-      const date = selectedCalendarDate || todayISO();
+      const date = selectedCalendarDate() || todayISO();
       if (checked) {
         const existing = blockedDayForDate(date);
         const blockedDay = {
@@ -3928,7 +3554,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     };
 
     window.updateBlockedTrainingDay = async function() {
-      const date = selectedCalendarDate || todayISO();
+      const date = selectedCalendarDate() || todayISO();
       const existing = blockedDayForDate(date);
       if (!existing) return;
       const reason = document.getElementById('calendarBlockedReason')?.value || 'unavailable';
@@ -3945,33 +3571,12 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       });
     };
 
-    window.openCalendarDayModal = function(dateIso) {
-      selectedCalendarDate = dateIso;
-      const plannedItems = state.planned.filter(p => p.date === dateIso && p.status !== 'done')
-        .sort((a,b) => String(a.createdAt || '').localeCompare(String(b.createdAt || '')));
-      const doneItems = state.completed.filter(c => c.date === dateIso)
-        .sort((a,b) => String(a.completedAt || '').localeCompare(String(b.completedAt || '')));
-      document.getElementById('calendarDayTitle').textContent = formatDate(dateIso);
-      document.getElementById('calendarDayBlockControls').innerHTML = calendarBlockControlsHtml(dateIso);
-      const dayHtml = [
-          ...plannedItems.map(p => workoutCard(p, { canDelete: true })),
-          ...doneItems.map(completedCard)
-        ].join('');
-      document.getElementById('calendarDayList').innerHTML = dayHtml
-        ? `<div class="calendar-day-workouts">${dayHtml}</div>`
-        : `<div class="empty">Ingen økter denne dagen.</div>`;
-      document.getElementById('calendarDayModal').classList.add('active');
-    };
-
-    window.closeCalendarDayModal = function() {
-      document.getElementById('calendarDayModal').classList.remove('active');
-    };
-
     window.planFromCalendarDay = function() {
-      const blocked = blockedDayForDate(selectedCalendarDate);
-      if (blocked && !confirm(`${formatDate(selectedCalendarDate)} er markert som ikke treningsdag (${blockedDayLabel(blocked)}). Planlegge økt likevel?`)) return;
+      const date = selectedCalendarDate() || todayISO();
+      const blocked = blockedDayForDate(date);
+      if (blocked && !confirm(`${formatDate(date)} er markert som ikke treningsdag (${blockedDayLabel(blocked)}). Planlegge økt likevel?`)) return;
       closeCalendarDayModal();
-      openPlan(selectedCalendarDate || todayISO(), Boolean(blocked));
+      openPlan(date, Boolean(blocked));
     };
 
     function renderSettingsList(kind, elementId) {
@@ -4463,186 +4068,20 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       return 'Kontrollert';
     }
 
-    function templateMatches(template, keywords = []) {
-      const haystack = `${template.name} ${template.type} ${template.intensity} ${template.role || ''} ${templateRoleLabel(template.role)} ${template.purpose || ''} ${template.load || ''} ${asArray(template.recommendedWhen).join(' ')} ${asArray(template.avoidWhen).join(' ')} ${template.structure}`.toLowerCase();
-      return keywords.some(keyword => haystack.includes(keyword.toLowerCase()));
-    }
-
-    function templateSuggestionScore(template, suggestion) {
-      let score = 0;
-      if (suggestion.roles?.includes(template.role)) score += 16;
-      if (suggestion.types?.includes(template.type)) score += 4;
-      if (suggestion.purposes?.includes(template.purpose)) score += 7;
-      if (suggestion.loads?.includes(template.load)) score += 5;
-      const recommendedMatches = asArray(template.recommendedWhen).filter(value => suggestion.recommendedWhen?.includes(value)).length;
-      score += recommendedMatches * 4;
-      if (suggestion.intensities?.includes(template.intensity)) score += 3;
-      if (templateMatches(template, suggestion.keywords || [])) score += 2;
-      const avoidMatches = asArray(template.avoidWhen).filter(a => suggestion.avoidTemplateWhen?.includes(a)).length;
-      score -= Math.min(avoidMatches * 8, 16);
-      return score;
-    }
-
     function findSuggestedTemplate(suggestion, excludedTemplateIds = []) {
-      const excluded = new Set(excludedTemplateIds);
-      const allTemplates = state.templates || [];
-      const templates = allTemplates.filter(template => !excluded.has(template.id));
-      if (!templates.length) return null;
-      const ranked = templates
-        .map(template => ({ template, score: templateSuggestionScore(template, suggestion) }))
-        .sort((a, b) => b.score - a.score);
-      if (ranked[0]?.score > 0) return ranked[0].template;
-      const typeMatch = templates.filter(t => suggestion.types?.includes(t.type));
-      return typeMatch.find(t => templateMatches(t, suggestion.keywords))
-        || templates.find(t => templateMatches(t, suggestion.keywords))
-        || typeMatch.find(t => suggestion.intensities?.includes(t.intensity))
-        || templates.find(t => suggestion.intensities?.includes(t.intensity))
-        || typeMatch[0]
-        || allTemplates.find(t => suggestion.types?.includes(t.type))
-        || null;
+      return findSuggestedTemplateCore(state.templates || [], suggestion, excludedTemplateIds, {
+        roleLabels: WORKOUT_ROLE_LABELS
+      });
     }
 
     function buildWorkoutSuggestion(today, weekSummary, weekItems, last14Days, profile) {
-      const effectSummary = summarizeTrainingEffects(weekItems);
-      const bodyState = bodySignalState(last14Days);
-      const high = effectSummary.categories.high_aerobic.count;
-      const anaerobic = effectSummary.categories.anaerobic.count;
-      const low = effectSummary.categories.low_aerobic.count;
-      const runningBakkenFocus = profile.primaryFocus === 'running' && profile.philosophy === 'bakken_threshold';
-      const baseSuggestion = {
-        title: 'Rolig aerob økt',
-        detail: 'Hold det lett og kontrollert. Målet er å bygge kontinuitet og komme ut med overskudd.',
-        note: 'Foreslått fordi rolig volum gir best grunnlag for neste kvalitetsøkt.',
-        principleIds: ['easy_support'],
-        types: ['Løping', 'Sykling', 'Ski'],
-        intensities: ['Rolig', 'Restitusjon'],
-        roles: ['long_easy', 'recovery'],
-        purposes: ['base', 'recovery'],
-        loads: ['low'],
-        recommendedWhen: ['normal', 'tired', 'after_hard', 'bonus'],
-        avoidTemplateWhen: [],
-        keywords: ['rolig', 'restitusjon', 'base', 'lett', 'fri']
-      };
-
-      if (bodyState.level === 'active' || bodyState.level === 'caution') {
-        return withCoachPrinciples({
-          ...baseSuggestion,
-          title: 'Skånsom rolig økt',
-          detail: bodyState.repeatedSameArea
-            ? 'Samme område har dukket opp flere ganger. Hold økten lett, eller velg alternativ trening.'
-            : 'Velg kort og lett. Hvis samme område fortsatt kjennes, bytt til sykkel, mobilitet eller hvile.',
-          note: bodyState.level === 'active'
-            ? 'Passer fordi siste registrerte kroppssignal fortsatt er relevant.'
-            : 'Passer fordi kroppssignalet bør bekreftes med en kontrollert økt før du øker.',
-          types: ['Mobilitet', 'Sykling', 'Løping', 'Ski'],
-          intensities: ['Rolig', 'Restitusjon'],
-          roles: ['recovery', 'mobility'],
-          purposes: ['recovery', 'mobility', 'base'],
-          loads: ['low'],
-          recommendedWhen: ['pain_adaptation', 'tired', 'after_hard'],
-          avoidTemplateWhen: ['pain', 'heavy_legs', 'many_hard'],
-          keywords: ['mobilitet', 'rolig', 'restitusjon', 'lett', 'sykkel']
-        }, ['body_signals_first', 'recovery_is_training']);
-      }
-
-      if (bodyState.level === 'cooling') {
-        return withCoachPrinciples({
-          ...baseSuggestion,
-          title: 'Kontrollert rolig økt',
-          detail: 'Siste økt etter kroppssignalet var uten nye signaler. Bygg videre rolig og se at kroppen svarer fint.',
-          note: 'Passer fordi signalet virker på vei ned, men progresjonen bør fortsatt være kontrollert.',
-          recommendedWhen: ['normal', 'tired', 'pain_adaptation'],
-          keywords: ['rolig', 'base', 'lett', 'restitusjon']
-        }, ['body_signals_first', 'easy_support']);
-      }
-
-      if (profile.primaryFocus === 'strength' && profile.trainingFocus === 'muscle_growth') {
-        return {
-          title: 'Styrke med progresjon',
-          detail: 'Prioriter store øvelser, nok volum og god teknikk. Ikke jag kondisjonsbelastning denne økten.',
-          note: 'Foreslått fordi treningsprofilen din står på muskelvekst/bulking.',
-          types: ['Styrke'],
-          intensities: ['Styrke'],
-          roles: ['strength'],
-          purposes: ['muscle_growth', 'strength'],
-          loads: ['moderate', 'high'],
-          recommendedWhen: ['fresh_legs', 'normal'],
-          avoidTemplateWhen: ['pain', 'low_hrv'],
-          keywords: ['styrke', 'basis', 'helkropp', 'overkropp', 'bein', 'progresjon']
-        };
-      }
-
-      if (profile.primaryFocus === 'ski' && profile.trainingFocus === 'technique_skill') {
-        return {
-          title: 'Teknikkøkt ski/staking',
-          detail: 'Hold intensiteten kontrollert og fokuser på rytme, kraftoverføring og teknisk kvalitet.',
-          note: 'Foreslått fordi treningsprofilen prioriterer teknikk/ferdighet.',
-          types: ['Ski'],
-          intensities: ['Rolig', 'Tempo'],
-          roles: ['technique'],
-          purposes: ['technique', 'base'],
-          loads: ['low', 'moderate'],
-          recommendedWhen: ['normal', 'fresh_legs'],
-          avoidTemplateWhen: ['pain'],
-          keywords: ['staking', 'teknikk', 'rolig', 'ski', 'kontrollert']
-        };
-      }
-
-      if (runningBakkenFocus) {
-        if (anaerobic || high >= 2 || (high >= 1 && low === 0)) {
-          return withCoachPrinciples({
-            ...baseSuggestion,
-            note: 'Foreslått fordi du allerede har nok høy belastning eller mangler rolig støtte rundt kvaliteten.'
-          }, ['easy_support', 'fresh_legs']);
-        }
-        const canSuggestThreshold = profile.priority === 'performance'
-          ? high === 0
-          : profile.priority === 'injury_free_progression'
-            ? weekSummary.sessions === 0 || (low >= 2 && high === 0)
-            : weekSummary.sessions === 0 || (low >= 1 && high === 0 && weekSummary.sessions < 2);
-        if (canSuggestThreshold) {
-          return withCoachPrinciples({
-            title: 'Kontrollert terskeløkt',
-            detail: 'Hold deg kontrollert under maks press. Målet er kvalitet med friske bein, ikke å vinne økten.',
-            note: profile.priority === 'performance'
-              ? 'Foreslått fordi prestasjonsprofilen din prioriterer kvalitetsøkter når belastningsrommet er der.'
-              : 'Foreslått fordi profilen din er Bakken-inspirert løping og uken tåler én kontrollert kvalitetsøkt.',
-            principleIds: ['controlled_threshold', 'golden_zone'],
-            types: ['Løping'],
-            intensities: ['Terskel', 'Tempo'],
-            roles: ['main_threshold', 'support_threshold'],
-            purposes: ['threshold'],
-            loads: ['moderate'],
-            recommendedWhen: ['fresh_legs', 'normal'],
-            avoidTemplateWhen: ['pain', 'heavy_legs', 'many_hard', 'low_hrv'],
-            keywords: ['terskel', 'tempo', '6 x', '10x', 'intervall', 'drag']
-          }, ['fresh_legs']);
-        }
-        return baseSuggestion;
-      }
-
-      if (weekSummary.sessions >= normalizeGoals(state.settings.goals).weeklySessionsTarget) {
-        return {
-          ...baseSuggestion,
-          title: 'Bonusøkt med lav belastning',
-          note: 'Foreslått fordi ukesmålet allerede er nådd. Hold eventuell ekstra økt lett.',
-          recommendedWhen: ['bonus', 'after_hard', 'tired']
-        };
-      }
-
-      return {
-        title: 'Gjennomførbar basisøkt',
-        detail: 'Velg en økt du vet du klarer å gjennomføre med god følelse.',
-        note: 'Foreslått for å bygge kontinuitet uten å gjøre planleggingen for komplisert.',
-        types: ['Løping', 'Styrke', 'Mobilitet', 'Sykling', 'Ski'],
-        intensities: ['Rolig', 'Styrke', 'Mobilitet'],
-        roles: ['long_easy', 'strength', 'mobility', 'technique'],
-        purposes: ['base', 'strength', 'mobility', 'technique'],
-        loads: ['low', 'moderate'],
-        recommendedWhen: ['normal', 'fresh_legs', 'tired'],
-        avoidTemplateWhen: ['pain'],
-        keywords: ['rolig', 'basis', 'mobilitet', 'styrke', 'lett']
-      };
+      return buildWorkoutSuggestionCore({
+        weekSummary,
+        effectSummary: summarizeTrainingEffects(weekItems),
+        bodyState: bodySignalState(last14Days),
+        profile,
+        goals: normalizeGoals(state.settings.goals)
+      });
     }
 
     function renderWorkoutSuggestion(today, weekSummary, weekItems, last14Days, profile) {
@@ -4671,342 +4110,50 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         </div>`;
     }
 
-    function gentleBaseSuggestion(note = 'Foreslått som rolig støtte rundt resten av ukeplanen.') {
-      return {
-        title: 'Rolig støtteøkt',
-        detail: 'Hold økten lett nok til at du bygger kontinuitet uten å bruke opp beina.',
-        note,
-        principleIds: ['easy_support'],
-        types: ['Løping', 'Gåtur', 'Sykling', 'Ski', 'Mobilitet'],
-        intensities: ['Rolig', 'Restitusjon'],
-        roles: ['long_easy', 'recovery', 'mobility'],
-        purposes: ['base', 'recovery', 'mobility'],
-        loads: ['low'],
-        recommendedWhen: ['normal', 'tired', 'after_hard', 'bonus', 'pain_adaptation'],
-        avoidTemplateWhen: [],
-        keywords: ['rolig', 'lett', 'kort', 'restitusjon', 'base', 'gå']
-      };
-    }
-
-    function recoverySuggestion(note = 'Foreslått fordi kroppen bør få en lavterskel økt før ny kvalitet.') {
-      return {
-        title: 'Restitusjon eller alternativ økt',
-        detail: 'Velg kort, lett og kontrollert. Målet er bevegelse og trygg progresjon, ikke treningspress.',
-        note,
-        principleIds: ['recovery_is_training', 'body_signals_first'],
-        types: ['Gåtur', 'Mobilitet', 'Sykling', 'Løping'],
-        intensities: ['Restitusjon', 'Rolig'],
-        roles: ['recovery', 'mobility'],
-        purposes: ['recovery', 'mobility', 'base'],
-        loads: ['low'],
-        recommendedWhen: ['pain_adaptation', 'tired', 'after_hard'],
-        avoidTemplateWhen: [],
-        keywords: ['restitusjon', 'rolig kort', 'gå', 'mobilitet', 'retur', 'lett']
-      };
-    }
-
-    function mainThresholdSuggestion(note = 'Hovedøkten i en Bakken-inspirert uke: kontrollert terskel, helst litt under maks terskelpress.') {
-      return {
-        title: 'Hovedterskel',
-        detail: 'Ukens viktigste kvalitetsøkt. Hold den kontrollert nok til at du kan trene videre med friske bein.',
-        note,
-        principleIds: ['controlled_threshold', 'golden_zone', 'fresh_legs'],
-        types: ['Løping'],
-        intensities: ['Terskel', 'Intervall', 'Tempo'],
-        roles: ['main_threshold'],
-        purposes: ['threshold'],
-        loads: ['moderate'],
-        recommendedWhen: ['fresh_legs', 'normal'],
-        avoidTemplateWhen: ['pain', 'heavy_legs', 'many_hard', 'low_hrv'],
-        keywords: ['terskel', 'intervall', '6x', '6 x', '10x', '10 x', 'drag']
-      };
-    }
-
-    function supportThresholdSuggestion(note = 'Støtteøkt med kvalitet, men ikke en økt som skal tømme deg.') {
-      return {
-        title: 'Støtteterskel / kontrollert hard',
-        detail: 'En lettere kvalitetsøkt enn hovedøkten. Den skal bygge kapasitet uten å bli en konkurranseøkt.',
-        note,
-        principleIds: ['controlled_threshold', 'golden_zone'],
-        types: ['Løping'],
-        intensities: ['Terskel', 'Tempo', 'Intervall'],
-        roles: ['support_threshold'],
-        purposes: ['threshold'],
-        loads: ['moderate'],
-        recommendedWhen: ['normal', 'fresh_legs'],
-        avoidTemplateWhen: ['pain', 'heavy_legs', 'many_hard', 'low_hrv'],
-        keywords: ['45/15', 'terskel', 'tempo', 'kort', 'kontrollert', 'intervall']
-      };
-    }
-
-    function longEasySuggestion(note = 'Rolig lengre økt under ca. 70% av makspuls. Dette er byggende rolig volum, ikke restitusjon.') {
-      return {
-        title: 'Rolig lengre økt',
-        detail: 'Bygg aerob base med lav puls og god kontroll. Avslutt heller med overskudd enn å presse lengden.',
-        note,
-        principleIds: ['easy_support'],
-        types: ['Løping', 'Ski', 'Sykling'],
-        intensities: ['Rolig'],
-        roles: ['long_easy'],
-        purposes: ['base'],
-        loads: ['low'],
-        recommendedWhen: ['normal', 'fresh_legs'],
-        avoidTemplateWhen: ['pain'],
-        keywords: ['langtur', 'rolig lang', 'lang', 'base', 'sone 1', 'sone 2']
-      };
-    }
-
-    function xWorkoutSuggestion(note = 'Valgfri X-økt hvis du har overskudd: bakke, korte drag, styrke, mobilitet eller ekstra rolig volum.') {
-      return {
-        title: 'X-økt etter overskudd',
-        detail: 'Velg fokus etter behov: teknikk, bakkeløp, korte kontrollerte drag, styrke/mobilitet eller ekstra rolig volum.',
-        note,
-        principleIds: ['repeatable_week', 'fresh_legs'],
-        types: ['Løping', 'Styrke', 'Mobilitet', 'Ski', 'Sykling'],
-        intensities: ['Rolig', 'Tempo', 'Terskel', 'Styrke'],
-        roles: ['x_workout', 'strength', 'mobility', 'technique'],
-        purposes: ['base', 'threshold', 'strength', 'mobility', 'technique'],
-        loads: ['low', 'moderate'],
-        recommendedWhen: ['fresh_legs', 'normal', 'bonus'],
-        avoidTemplateWhen: ['pain', 'many_hard', 'low_hrv'],
-        keywords: ['bakke', 'kort', 'styrke', 'mobilitet', 'teknikk', 'rolig', 'langtur']
-      };
-    }
-
-    function suggestionForWorkoutRole(role) {
-      const map = {
-        main_threshold: () => mainThresholdSuggestion(),
-        support_threshold: () => supportThresholdSuggestion(),
-        long_easy: () => longEasySuggestion(),
-        recovery: () => recoverySuggestion(),
-        x_workout: () => xWorkoutSuggestion(),
-        strength: () => ({
-          title: 'Styrkeøkt',
-          detail: 'Hold kvalitet på teknikk og belastning. Juster volum etter hvordan beina skal brukes videre i uka.',
-          note: 'Foreslått fordi dette er en del av normaluka i treningsprofilen.',
-          types: ['Styrke'],
-          intensities: ['Styrke'],
-          roles: ['strength'],
-          purposes: ['strength', 'muscle_growth'],
-          loads: ['moderate'],
-          recommendedWhen: ['normal', 'fresh_legs'],
-          avoidTemplateWhen: ['pain'],
-          keywords: ['styrke', 'helkropp', 'basis', 'bein', 'overkropp']
-        }),
-        mobility: () => ({
-          title: 'Mobilitet',
-          detail: 'Bruk økten til bevegelighet, kontroll og lett restitusjon.',
-          note: 'Foreslått fordi mobilitet er lagt inn i normaluka.',
-          types: ['Mobilitet'],
-          intensities: ['Rolig', 'Restitusjon'],
-          roles: ['mobility'],
-          purposes: ['mobility', 'recovery'],
-          loads: ['low'],
-          recommendedWhen: ['normal', 'tired', 'after_hard', 'pain_adaptation'],
-          avoidTemplateWhen: [],
-          keywords: ['mobilitet', 'yoga', 'stretch', 'bevegelighet']
-        }),
-        technique: () => ({
-          title: 'Teknikkøkt',
-          detail: 'Hold intensiteten kontrollert og bruk økten til rytme, teknikk og bevegelseskvalitet.',
-          note: 'Foreslått fordi teknikk er lagt inn i normaluka.',
-          types: ['Ski', 'Løping', 'Sykling'],
-          intensities: ['Rolig', 'Tempo'],
-          roles: ['technique'],
-          purposes: ['technique', 'base'],
-          loads: ['low', 'moderate'],
-          recommendedWhen: ['normal', 'fresh_legs'],
-          avoidTemplateWhen: ['pain'],
-          keywords: ['teknikk', 'staking', 'drill', 'kontroll']
-        })
-      };
-      return (map[role] || (() => gentleBaseSuggestion()))();
-    }
-
-    function inferredWorkoutRole(template = {}) {
-      if (template.role) return template.role;
-      const name = String(template.name || '').toLowerCase();
-      const type = String(template.type || '').toLowerCase();
-      const intensity = String(template.intensity || '').toLowerCase();
-      if (type.includes('mobilitet') || name.includes('yoga') || name.includes('mobilitet')) return 'mobility';
-      if (type.includes('styrke') || intensity.includes('styrke')) return 'strength';
-      if (intensity.includes('restitusjon') || name.includes('restitusjon') || name.includes('gåtur')) return 'recovery';
-      if (name.includes('langtur') || name.includes('rolig lang')) return 'long_easy';
-      if (name.includes('45/15') || name.includes('10x3') || name.includes('10 x 3') || name.includes('12x2') || name.includes('12 x 2') || name.includes('30x1') || name.includes('30 x 1')) return 'support_threshold';
-      if (name.includes('6x6') || name.includes('6 x 6') || name.includes('4x10') || name.includes('4 x 10') || name.includes('5x5') || name.includes('5 x 5')) return 'main_threshold';
-      if (intensity.includes('terskel')) return 'support_threshold';
-      if (intensity.includes('rolig')) return 'long_easy';
-      return 'other';
-    }
-
     function itemWorkoutRole(item) {
       return inferredWorkoutRole(getTemplate(item.templateId));
     }
 
+    function itemsWithWorkoutRole(items = []) {
+      return items.map(item => ({ ...item, workoutRole: itemWorkoutRole(item) }));
+    }
+
     function normalWeekRoles(profile, goals = normalizeGoals(state.settings.goals)) {
-      const roles = normalizeWeekPlanRoles(profile.weekPlanRoles).filter(Boolean);
-      const fallback = normalizeWeekPlanRoles(defaultSettings.trainingProfile.weekPlanRoles).filter(Boolean);
-      fallback.forEach(role => {
-        if (roles.length < 4 && role && !roles.includes(role)) roles.push(role);
-      });
-      const target = Math.max(1, Math.min(4, Number(goals.weeklySessionsTarget) || 3));
-      return roles.slice(0, 4).map((role, index) => ({
-        role,
-        required: index < target,
-        order: index + 1
-      }));
+      return normalWeekRolesCore(profile, goals, defaultSettings.trainingProfile.weekPlanRoles);
     }
 
     function roleCoverage(rolePlan, completedItems = [], plannedItems = []) {
-      return rolePlan.map(plan => {
-        const completed = completedItems.find(item => itemWorkoutRole(item) === plan.role);
-        const planned = plannedItems.find(item => itemWorkoutRole(item) === plan.role);
-        const status = completed ? 'completed' : planned ? 'planned' : plan.required ? 'missing' : 'optional';
-        return { ...plan, status, completed, planned };
-      });
-    }
-
-    function missingRoleOrder(profile, goals, completedItems = [], plannedItems = []) {
-      return roleCoverage(normalWeekRoles(profile, goals), completedItems, plannedItems)
-        .filter(item => item.status === 'missing' || item.status === 'optional')
-        .map(item => item.role);
+      return roleCoverageCore(rolePlan, itemsWithWorkoutRole(completedItems), itemsWithWorkoutRole(plannedItems));
     }
 
     function roleAwareSuggestions(count, bodyState, weekSummary, weekItems, profile, goals, completedItems = [], plannedItems = []) {
-      const target = Math.max(0, Number(count) || 0);
-      if (target <= 0) return [];
-      if (bodyState.level === 'active' || bodyState.level === 'caution') {
-        return [
-          recoverySuggestion('Kroppssignal er fortsatt relevant, så planen starter med lav risiko.'),
-          gentleBaseSuggestion('Rolig støtte før du vurderer ny terskel.'),
-          recoverySuggestion('Hold alternativet lett hvis samme område fortsatt kjennes.'),
-          gentleBaseSuggestion('Bonus bare hvis kroppen svarer fint.')
-        ].slice(0, target);
-      }
-
-      const hardThisWeek = weekItems.filter(item => completedLoadAssessment(item).level === 'high').length;
-      const moderateOrHardThisWeek = weekItems.filter(item => {
-        const level = completedLoadAssessment(item).level;
-        return level === 'moderate' || level === 'high';
-      }).length;
-      const missingRoles = missingRoleOrder(profile, goals, completedItems, plannedItems);
-
-      if (bodyState.level === 'cooling') {
-        if (profile.priority === 'injury_free_progression') {
-          const safeRoles = missingRoles.filter(role => ['long_easy', 'recovery', 'mobility'].includes(role));
-          return [
-            longEasySuggestion('Lav smerte registrert. Start rolig og bekreft at kroppen svarer fint.'),
-            ...safeRoles.map(role => suggestionForWorkoutRole(role)),
-            gentleBaseSuggestion('Rolig støtte. Legg terskel neste gang kroppen kjennes frisk.'),
-            xWorkoutSuggestion('Bonus hvis beina er friske — men lett er bedre enn hard.')
-          ].slice(0, target);
+      return roleAwareSuggestionsCore(
+        count,
+        bodyState,
+        weekItems,
+        profile,
+        goals,
+        itemsWithWorkoutRole(completedItems),
+        itemsWithWorkoutRole(plannedItems),
+        {
+          defaultRoles: defaultSettings.trainingProfile.weekPlanRoles,
+          getLoadLevel: item => completedLoadAssessment(item).level
         }
-        const afterEasy = missingRoles.filter(role => role !== 'long_easy').map(role => suggestionForWorkoutRole(role));
-        return [
-          longEasySuggestion('Siste signal virker på vei ned. Start med rolig base og se at kroppen svarer fint.'),
-          ...afterEasy,
-          xWorkoutSuggestion('X-økt hvis beina er friske etter terskel.'),
-          gentleBaseSuggestion('Rolig støtte rundt kvaliteten.')
-        ].slice(0, target);
-      }
-
-      if (hardThisWeek >= 2 || moderateOrHardThisWeek >= 3) {
-        const controlledRoles = missingRoles.filter(role => role === 'long_easy' || role === 'recovery' || role === 'mobility');
-        const roleSuggestions = controlledRoles.map(role => suggestionForWorkoutRole(role));
-        return [
-          ...roleSuggestions,
-          longEasySuggestion('Perioden har allerede hatt mye kvalitet. Start kontrollert før ny belastning.'),
-          gentleBaseSuggestion('Rolig støtte for kontinuitet.'),
-          recoverySuggestion('Bonus bør være lett hvis totalbelastningen kjennes høy.')
-        ].slice(0, target);
-      }
-
-      const suggestions = missingRoles.map(role => suggestionForWorkoutRole(role));
-      const usedRoles = new Set(missingRoles);
-      const fallback = normalWeekRoleSuggestions(profile, 4).filter(suggestion => {
-        const role = asArray(suggestion.roles)[0] || '';
-        if (!role || usedRoles.has(role)) return false;
-        usedRoles.add(role);
-        return true;
-      });
-      const result = [...suggestions, ...fallback].slice(0, target);
-      const hasX = result.some(s => asArray(s.roles).some(r => r === 'x_workout'));
-      if (!hasX && result.length < target) {
-        result.push(xWorkoutSuggestion('X-økt for VO2max, teknikk eller styrke — ta den hvis du har overskudd.'));
-      } else if (!hasX && target >= 4) {
-        result[target - 1] = xWorkoutSuggestion('X-økt for VO2max, teknikk eller styrke — ta den hvis du har overskudd.');
-      }
-      return result;
-    }
-
-    function normalWeekRoleSuggestions(profile, count) {
-      const fallback = normalizeWeekPlanRoles(defaultSettings.trainingProfile.weekPlanRoles);
-      const roles = normalizeWeekPlanRoles(profile.weekPlanRoles).filter(Boolean);
-      const selected = [...roles];
-      fallback.forEach(role => {
-        if (selected.length < count && role && !selected.includes(role)) selected.push(role);
-      });
-      return selected.slice(0, count).map(suggestionForWorkoutRole);
+      );
     }
 
     function bakkenWeekRecipe(count, bodyState, weekSummary, weekItems, profile = normalizeTrainingProfile(state.settings.trainingProfile)) {
-      const target = Math.max(1, Math.min(4, Number(count) || 3));
-      const hardThisWeek = weekItems.filter(item => completedLoadAssessment(item).level === 'high').length;
-      const moderateOrHardThisWeek = weekItems.filter(item => {
-        const level = completedLoadAssessment(item).level;
-        return level === 'moderate' || level === 'high';
-      }).length;
-
-      if (bodyState.level === 'active' || bodyState.level === 'caution') {
-        return [
-          recoverySuggestion('Kroppssignal er fortsatt relevant, så ukeplanen starter med lav risiko.'),
-          gentleBaseSuggestion('Rolig støtte før du vurderer ny terskel.'),
-          recoverySuggestion('Hold alternativet lett hvis samme område fortsatt kjennes.'),
-          gentleBaseSuggestion('Bonus bare hvis kroppen svarer fint.')
-        ].slice(0, target);
-      }
-
-      if (bodyState.level === 'cooling') {
-        return [
-          longEasySuggestion('Siste signal virker på vei ned. Start uka med rolig base og se at kroppen svarer fint.'),
-          mainThresholdSuggestion('Legg terskel først når kroppen fortsatt kjennes bra etter rolig start.'),
-          gentleBaseSuggestion('Rolig støtte rundt terskeløkten.'),
-          xWorkoutSuggestion('X-økt kun hvis beina er friske.')
-        ].slice(0, target);
-      }
-
-      if (hardThisWeek >= 2 || moderateOrHardThisWeek >= 3) {
-        return [
-          longEasySuggestion('Denne uka har allerede hatt mye kvalitet. Neste uke starter mer kontrollert.'),
-          mainThresholdSuggestion('Én kontrollert terskeløkt holder som kvalitet.'),
-          gentleBaseSuggestion('Rolig støtte for kontinuitet.'),
-          recoverySuggestion('Bonus bør være lett hvis totalbelastningen kjennes høy.')
-        ].slice(0, target);
-      }
-
-      return normalWeekRoleSuggestions(profile, target);
+      return bakkenWeekRecipeCore(count, bodyState, weekItems, profile, {
+        defaultRoles: defaultSettings.trainingProfile.weekPlanRoles,
+        getLoadLevel: item => completedLoadAssessment(item).level
+      });
     }
 
     function weekPlanSuggestionMix(mainSuggestion, remainingCount, profile) {
-      if (remainingCount <= 0) return [];
-      const runningBakkenFocus = profile.primaryFocus === 'running' && profile.philosophy === 'bakken_threshold';
-      if (runningBakkenFocus) {
-        return bakkenWeekRecipe(remainingCount, { level: 'none' }, { sessions: 0 }, [], profile).slice(0, Math.min(remainingCount, 4));
-      }
-      const suggestions = [mainSuggestion];
-      const needsSupport = (mainSuggestion.loads || []).includes('moderate') || (mainSuggestion.purposes || []).includes('threshold');
-      while (suggestions.length < Math.min(remainingCount, 3)) {
-        if (needsSupport || suggestions.length > 0) {
-          suggestions.push(gentleBaseSuggestion(
-            needsSupport
-              ? 'Foreslått som rolig støtte rundt kvalitetsøkten, slik at uka blir gjennomførbar.'
-              : 'Foreslått for å bygge kontinuitet uten unødvendig høy belastning.'
-          ));
-        } else {
-          suggestions.push(mainSuggestion);
-        }
-      }
-      return suggestions.slice(0, Math.min(remainingCount, 3));
+      return weekPlanSuggestionMixCore(mainSuggestion, remainingCount, profile, {
+        defaultRoles: defaultSettings.trainingProfile.weekPlanRoles,
+        getLoadLevel: item => completedLoadAssessment(item).level
+      });
     }
 
     function weekPlanDates(today, weekEnd, plannedThisWeek, count) {
@@ -5015,6 +4162,36 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
 
     function weekPlanDatesInRange(rangeStart, rangeEnd, plannedItems, count) {
       return weekPlanDatesInRangeCore(rangeStart, rangeEnd, plannedItems, blockedDaysBetween(rangeStart, rangeEnd), count);
+    }
+
+    function buildWeekPlanSuggestions(today, weekEnd, plannedThisWeek, weekSummary, weekItems, last14Days, profile, remainingAfterPlanned, raceContext = null) {
+      if (remainingAfterPlanned <= 0) return [];
+      const mainSuggestion = buildWorkoutSuggestion(today, weekSummary, weekItems, last14Days, profile);
+      const bodyState = bodySignalState(last14Days);
+      const baseMix = profile.primaryFocus === 'running' && profile.philosophy === 'bakken_threshold'
+        ? roleAwareSuggestions(remainingAfterPlanned, bodyState, weekSummary, weekItems, profile, normalizeGoals(state.settings.goals), weekItems, plannedThisWeek)
+        : weekPlanSuggestionMix(mainSuggestion, remainingAfterPlanned, profile);
+      const suggestions = applyRaceContextToSuggestionMix(baseMix, raceContext, remainingAfterPlanned);
+      const dates = weekPlanDates(today, weekEnd, plannedThisWeek, suggestions.length);
+      return assembleWeekPlanSuggestions(suggestions, dates, state.templates || [], {
+        roleLabels: WORKOUT_ROLE_LABELS
+      });
+    }
+
+    function buildNextWeekPlanSuggestions(nextWeekStart, nextWeekEnd, plannedNextWeek, weekSummary, weekItems, last14Days, profile, goals, raceContext = null) {
+      const target = Math.max(1, Number(goals.weeklySessionsTarget) || 3);
+      const remaining = Math.max(0, target - plannedNextWeek.length);
+      if (remaining <= 0) return [];
+      const mainSuggestion = buildWorkoutSuggestion(todayISO(), weekSummary, weekItems, last14Days, profile);
+      const bodyState = bodySignalState(last14Days);
+      const baseMix = profile.primaryFocus === 'running' && profile.philosophy === 'bakken_threshold'
+        ? roleAwareSuggestions(remaining, bodyState, weekSummary, weekItems, profile, goals, [], plannedNextWeek)
+        : weekPlanSuggestionMix(mainSuggestion, remaining, profile);
+      const suggestions = applyRaceContextToSuggestionMix(baseMix, raceContext, remaining);
+      const dates = weekPlanDatesInRange(nextWeekStart, nextWeekEnd, plannedNextWeek, suggestions.length);
+      return assembleWeekPlanSuggestions(suggestions, dates, state.templates || [], {
+        roleLabels: WORKOUT_ROLE_LABELS
+      });
     }
 
     function roleStatusLabel(status) {
@@ -5115,43 +4292,6 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         </div>`;
     }
 
-    function raceTestWeekSuggestion(raceContext) {
-      if (!raceContext?.allowRaceTest || !raceContext.testSuggestion) return null;
-      const distanceLabel = raceDistanceLabel(raceContext.testSuggestion.distanceKm);
-      const keywords = ['race', 'testløp', 'konkurranse', 'kontrollert', 'tempo'];
-      if (distanceLabel) keywords.push(distanceLabel.toLowerCase());
-      return {
-        title: raceContext.testSuggestion.title || 'Kontrollert testløp',
-        detail: raceContext.testSuggestion.detail || 'Kontrollert test · juster etter dagsform',
-        note: raceContext.testSuggestion.note || raceContext.note || 'Bruk testløp som datapunkt, ikke som maksimal belastning.',
-        principleIds: ['controlled_threshold', 'body_signals_first'],
-        types: ['Løping'],
-        intensities: ['Tempo', 'Terskel', 'Intervall'],
-        roles: ['race'],
-        purposes: ['race'],
-        loads: ['moderate'],
-        recommendedWhen: ['normal', 'fresh_legs'],
-        avoidTemplateWhen: ['pain', 'heavy_legs', 'many_hard', 'low_hrv'],
-        keywords
-      };
-    }
-
-    function applyRaceContextToSuggestionMix(suggestions, raceContext, count) {
-      const target = Math.max(0, Number(count) || 0);
-      if (!raceContext?.active || target <= 0) return suggestions.slice(0, target);
-      const avoidRoles = new Set(asArray(raceContext.avoidRoles));
-      let next = suggestions.filter(suggestion => !asArray(suggestion.roles).some(role => avoidRoles.has(role)));
-      const testSuggestion = raceTestWeekSuggestion(raceContext);
-      const hasRaceSuggestion = next.some(suggestion => asArray(suggestion.roles).includes('race') || asArray(suggestion.purposes).includes('race'));
-      if (testSuggestion && !hasRaceSuggestion) {
-        next = [testSuggestion, ...next];
-      }
-      while (next.length < target) {
-        next.push(gentleBaseSuggestion('Mål-løpet ligger i bakgrunnen, men planen bør først sikre rolig kontinuitet og friske bein.'));
-      }
-      return next.slice(0, target);
-    }
-
     function buildRaceWeekPlanContext(today) {
       const goal = state.settings.raceGoal;
       const last7Start = addDays(today, -6);
@@ -5176,59 +4316,6 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
           </div>
           <p>${escapeHtml(raceContext.note || '')}</p>
         </div>`;
-    }
-
-    function buildWeekPlanSuggestions(today, weekEnd, plannedThisWeek, weekSummary, weekItems, last14Days, profile, remainingAfterPlanned, raceContext = null) {
-      if (remainingAfterPlanned <= 0) return [];
-      const mainSuggestion = buildWorkoutSuggestion(today, weekSummary, weekItems, last14Days, profile);
-      const bodyState = bodySignalState(last14Days);
-      const runningBakkenFocus = profile.primaryFocus === 'running' && profile.philosophy === 'bakken_threshold';
-      const baseMix = runningBakkenFocus
-        ? roleAwareSuggestions(remainingAfterPlanned, bodyState, weekSummary, weekItems, profile, normalizeGoals(state.settings.goals), weekItems, plannedThisWeek)
-        : weekPlanSuggestionMix(mainSuggestion, remainingAfterPlanned, profile);
-      const suggestionMix = applyRaceContextToSuggestionMix(baseMix, raceContext, remainingAfterPlanned);
-      const suggestionDates = weekPlanDates(today, weekEnd, plannedThisWeek, suggestionMix.length);
-      const usedTemplateIds = [];
-      return suggestionMix.map((suggestion, index) => {
-        const template = findSuggestedTemplate(suggestion, usedTemplateIds);
-        if (template) usedTemplateIds.push(template.id);
-        return { suggestion, template, date: suggestionDates[index] };
-      }).filter(item => item.date);
-    }
-
-    function buildNextWeekPlanSuggestions(nextWeekStart, nextWeekEnd, plannedNextWeek, weekSummary, weekItems, last14Days, profile, goals, raceContext = null) {
-      const target = Math.max(1, Number(goals.weeklySessionsTarget) || 3);
-      const remaining = Math.max(0, target - plannedNextWeek.length);
-      if (remaining <= 0) return [];
-      const mainSuggestion = buildWorkoutSuggestion(todayISO(), weekSummary, weekItems, last14Days, profile);
-      const bodyState = bodySignalState(last14Days);
-      const runningBakkenFocus = profile.primaryFocus === 'running' && profile.philosophy === 'bakken_threshold';
-      const baseMix = runningBakkenFocus
-        ? roleAwareSuggestions(remaining, bodyState, weekSummary, weekItems, profile, goals, [], plannedNextWeek)
-        : weekPlanSuggestionMix(mainSuggestion, remaining, profile);
-      const suggestionMix = applyRaceContextToSuggestionMix(baseMix, raceContext, remaining);
-      const suggestionDates = weekPlanDatesInRange(nextWeekStart, nextWeekEnd, plannedNextWeek, suggestionMix.length);
-      const usedTemplateIds = [];
-      return suggestionMix.map((suggestion, index) => {
-        const template = findSuggestedTemplate(suggestion, usedTemplateIds);
-        if (template) usedTemplateIds.push(template.id);
-        return { suggestion, template, date: suggestionDates[index] };
-      }).filter(item => item.date);
-    }
-
-    function nextWeekPlanSummary(plannedNextWeek, suggestedNextWeek, goals, status, bodyState) {
-      const target = Math.max(1, Number(goals.weeklySessionsTarget) || 3);
-      if (plannedNextWeek.length >= target) return `Neste uke er allerede dekket med ${plannedNextWeek.length} planlagte økter.`;
-      if (bodyState.level === 'active' || bodyState.level === 'caution') {
-        return `Neste uke starter med lavere risiko fordi et kroppssignal fortsatt kan være relevant. Øk først når samme område kjennes bra.`;
-      }
-      if (bodyState.level === 'cooling') {
-        return `Neste uke starter rolig og bygger mot terskel hvis kroppen fortsatt svarer fint.`;
-      }
-      if (status.level === 'caution') {
-        return `Neste uke bør starte kontrollert. Appen foreslår ${suggestedNextWeek.length} økt${suggestedNextWeek.length === 1 ? '' : 'er'} med lavere risiko først.`;
-      }
-      return `Forslag til neste uke: ${suggestedNextWeek.length} økt${suggestedNextWeek.length === 1 ? '' : 'er'} mot ukesmålet på ${target}, med kvalitet, rolig base og justering etter dagsform.`;
     }
 
     function renderWeekPlan(today, weekSummary, weekItems, last14Days, profile, goals, plannedActive) {
@@ -5540,8 +4627,8 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
           return fsSet('planned', plannedId, updated);
         },
         afterApply: () => {
-          if (document.getElementById('calendarDayModal')?.classList.contains('active') && selectedCalendarDate) {
-            openCalendarDayModal(selectedCalendarDate);
+          if (document.getElementById('calendarDayModal')?.classList.contains('active') && selectedCalendarDate()) {
+            openCalendarDayModal(selectedCalendarDate());
           }
         },
         successMessage: `Byttet til ${alternative.name}`,
@@ -8388,7 +7475,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
           const keys = await caches.keys();
           await Promise.all(keys.filter(key => key.startsWith('treningsapp-')).map(key => caches.delete(key)));
         }
-        await Promise.all(['./index.html', './styles.css', './app.js', './ai-coach-client.js', './ai-coach-ui.js', './domain-core.js', './domain-coach.js', './domain-goals.js', './domain-coach-rules.js', './data/coach-rules.json', './service-worker.js'].map(path =>
+        await Promise.all(['./index.html', './styles.css', './app.js', './ai-coach-client.js', './ai-coach-ui.js', './domain-core.js', './domain-coach.js', './domain-goals.js', './domain-coach-rules.js', './domain-fitness.js', './app-state.js', './local-state-store.js', './training-repository.js', './domain-training-plan.js', './calendar-ui.js', './data/coach-rules.json', './service-worker.js'].map(path =>
           fetch(path, { cache: 'reload' }).catch(() => null)
         ));
       } finally {
@@ -8453,20 +7540,8 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       saveRecoverySnapshot('before-reset');
       setSyncStatus('syncing');
       try {
-        const [tSnap, pSnap, cSnap, wSnap, challengeSnap, blockedDaySnap, raceResultSnap, continuityFreezeSnap] = await Promise.all([
-          getDocs(userCol('templates')),
-          getDocs(userCol('planned')),
-          getDocs(userCol('completed')),
-          getDocs(userCol('wellness')),
-          getDocs(userCol('challenges')),
-          getDocs(userCol('blockedDays')),
-          getDocs(userCol('raceResults')),
-          getDocs(userCol('continuityFreezes'))
-        ]);
-        const batch = writeBatch(db);
-        [...tSnap.docs, ...pSnap.docs, ...cSnap.docs, ...wSnap.docs, ...challengeSnap.docs, ...blockedDaySnap.docs, ...raceResultSnap.docs, ...continuityFreezeSnap.docs].forEach(d => batch.delete(d.ref));
-        await batch.commit();
-        state = { templates: [], planned: [], completed: [], wellness: [], challenges: [], blockedDays: [], raceResults: [], continuityFreezes: [], settings: normalizeSettings(state.settings) };
+        await trainingRepository.clearData();
+        state = createEmptyAppState(state.settings);
         setSyncStatus('ok');
         render();
       } catch (err) {
@@ -8504,3 +7579,4 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         navigator.serviceWorker.register(`./service-worker.js?v=${APP_VERSION}`).catch(() => {});
       });
     };
+
