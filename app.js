@@ -108,6 +108,8 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     import { createTrainingRepository } from './training-repository.js';
     import { createCalendarUi } from './calendar-ui.js';
     import { createWorkoutTemplateUi } from './workout-template-ui.js';
+    import { createWorkoutCompletionUi } from './workout-completion-ui.js';
+    import { createWorkoutHistoryUi } from './workout-history-ui.js';
     import {
       applyRaceContextToSuggestionMix,
       assembleWeekPlanSuggestions,
@@ -126,7 +128,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       xWorkoutSuggestion
     } from './domain-training-plan.js';
 
-    const APP_VERSION = 'v167';
+    const APP_VERSION = 'v169';
     const APP_CACHE_NAME = `treningsapp-${APP_VERSION}`;
 
     const firebaseConfig = {
@@ -1759,126 +1761,43 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     };
 
     // ── Complete ──────────────────────────────────────────────────────────────
+    let workoutCompletionUi = null;
+
+    function getWorkoutCompletionUi() {
+      if (!workoutCompletionUi) {
+        workoutCompletionUi = createWorkoutCompletionUi({
+          getState: () => state,
+          calculatePaceMetrics,
+          formatDuration,
+          formatAreaLabel,
+          goldenZonePercentages,
+          normalizePersonProfile,
+          normalizeTrainingProfile,
+          normalizeRaceResult,
+          trainingEffectCategory
+        });
+      }
+      return workoutCompletionUi;
+    }
+
     function clearCompleteForm() {
-      document.getElementById('completePlannedId').value = '';
-      document.getElementById('editingCompletedId').value = '';
-      [
-        'completeDate',
-        'completeTemplate',
-        'completeManualName',
-        'completeDurationHours',
-        'completeDurationMinutes',
-        'completeDurationSeconds',
-        'completeDistance',
-        'completeAvgHr',
-        'completeMaxHr',
-        'completeElevationGain',
-        'completeTreadmillIncline',
-        'completeTrainingEffect',
-        'completeExecution',
-        'completeFeeling',
-        'completeRpe',
-        'completeEnergy',
-        'completeLegs',
-        'completeSleep',
-        'completeStress',
-        'completePainBefore',
-        'completePainAfter',
-        'completePainAreaRegion',
-        'completePainAreaSide',
-        'completeAdaptation',
-        'completeBodyNotes',
-        'completeRaceName',
-        'completeRaceDistance',
-        'completeRaceHours',
-        'completeRaceMinutes',
-        'completeRaceSeconds',
-        'completeRaceCourse',
-        'completeRaceNote',
-        'completeNotes'
-      ]
-        .forEach(id => document.getElementById(id).value = '');
-      document.getElementById('completeAdaptation').value = 'none';
-      document.getElementById('completeRaceCountsPb').checked = true;
-      updatePacePreview();
+      getWorkoutCompletionUi().clearForm();
     }
 
     function renderCompleteGoldenZoneHint() {
-      const hint = document.getElementById('completeGoldenZoneHint');
-      if (!hint) return;
-      const personProfile = normalizePersonProfile(state.settings.personProfile);
-      const trainingProfile = normalizeTrainingProfile(state.settings.trainingProfile);
-      const maxHR = numberOrZero(personProfile.maxHeartRate);
-      if (!maxHR) { hint.hidden = true; return; }
-      const { lowPct, highPct } = goldenZonePercentages(trainingProfile.level);
-      const low = Math.round(maxHR * lowPct);
-      const high = Math.round(maxHR * highPct);
-      hint.textContent = `Din gylne sone: ${low}–${high} bpm (${Math.round(lowPct * 100)}–${Math.round(highPct * 100)}% av maks)`;
-      hint.hidden = false;
+      getWorkoutCompletionUi().renderGoldenZoneHint();
     }
 
     function setCompleteModalMode(mode) {
-      const isEditing = mode === 'edit';
-      const isHistorical = mode === 'historical';
-      document.getElementById('completeModalTitle').textContent = isEditing ? 'Rediger økt' : isHistorical ? 'Legg inn historisk økt' : 'Loggfør økt';
-      document.getElementById('completeSubmitBtn').textContent = isEditing ? 'Lagre endringer' : isHistorical ? 'Lagre historisk økt' : 'Marker utført';
-      document.getElementById('completeManualFields').classList.toggle('hidden', !(isEditing || isHistorical));
+      getWorkoutCompletionUi().setMode(mode);
     }
 
     function completedFormData() {
-      const durationSeconds = getDurationSecondsFromForm();
-      const distanceKm = document.getElementById('completeDistance').value || '';
-      const pace = calculatePaceMetrics(durationSeconds, distanceKm);
-      const raceResult = normalizeRaceResult({
-        name: document.getElementById('completeRaceName').value,
-        distanceKm: document.getElementById('completeRaceDistance').value,
-        resultSeconds: getDurationSecondsFromFields('completeRaceHours', 'completeRaceMinutes', 'completeRaceSeconds'),
-        course: document.getElementById('completeRaceCourse').value,
-        note: document.getElementById('completeRaceNote').value,
-        countsAsPersonalBest: document.getElementById('completeRaceCountsPb').checked
-      });
-      return {
-        durationSeconds: durationSeconds || '',
-        durationDisplay: durationSeconds ? formatDuration(durationSeconds) : '',
-        durationMinutes: durationSeconds ? Math.round(durationSeconds / 60) : '',
-        distanceKm,
-        averageSpeedKmh: pace.averageSpeedKmh || '',
-        paceSecondsPerKm: pace.paceSecondsPerKm || '',
-        paceDisplay: pace.paceDisplay || '',
-        avgHeartRate: document.getElementById('completeAvgHr').value || '',
-        maxHeartRate: document.getElementById('completeMaxHr').value || '',
-        elevationGainM: document.getElementById('completeElevationGain').value || '',
-        treadmillInclinePercent: document.getElementById('completeTreadmillIncline').value || '',
-        trainingEffectType: document.getElementById('completeTrainingEffect').value || '',
-        trainingEffectCategory: trainingEffectCategory(document.getElementById('completeTrainingEffect').value),
-        execution: document.getElementById('completeExecution').value || '',
-        feelingScore: document.getElementById('completeFeeling').value || '',
-        rpe: document.getElementById('completeRpe').value || '',
-        readiness: {
-          energy: document.getElementById('completeEnergy').value || '',
-          legs: document.getElementById('completeLegs').value || '',
-          sleep: document.getElementById('completeSleep').value || '',
-          stress: document.getElementById('completeStress').value || ''
-        },
-        bodyStatus: {
-          painBefore: document.getElementById('completePainBefore').value || '',
-          painAfter: document.getElementById('completePainAfter').value || '',
-          areaRegion: document.getElementById('completePainAreaRegion').value || '',
-          areaSide: document.getElementById('completePainAreaSide').value || '',
-          area: formatAreaLabel(
-            document.getElementById('completePainAreaRegion').value || '',
-            document.getElementById('completePainAreaSide').value || ''
-          ),
-          adaptation: document.getElementById('completeAdaptation').value || 'none',
-          notes: document.getElementById('completeBodyNotes').value.trim()
-        },
-        raceResult,
-        notes: document.getElementById('completeNotes').value.trim()
-      };
+      return getWorkoutCompletionUi().readFormData();
     }
 
     function getDurationSecondsFromForm() {
-      return getDurationSecondsFromFields('completeDurationHours', 'completeDurationMinutes', 'completeDurationSeconds');
+      return getWorkoutCompletionUi().durationFromForm();
     }
 
     function getDurationSecondsFromFields(hoursId, minutesId, secondsId) {
@@ -1889,7 +1808,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     }
 
     function setDurationFormFromSeconds(totalSeconds) {
-      setDurationFieldsFromSeconds('completeDurationHours', 'completeDurationMinutes', 'completeDurationSeconds', totalSeconds);
+      getWorkoutCompletionUi().setDuration(totalSeconds);
     }
 
     function setDurationFieldsFromSeconds(hoursId, minutesId, secondsId, totalSeconds) {
@@ -1903,12 +1822,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     }
 
     function updatePacePreview() {
-      const preview = document.getElementById('completePacePreview');
-      if (!preview) return;
-      const pace = calculatePaceMetrics(getDurationSecondsFromForm(), document.getElementById('completeDistance').value);
-      document.getElementById('completeSpeedPreview').textContent = pace.averageSpeedKmh || '-';
-      document.getElementById('completePaceTextPreview').textContent = pace.paceDisplay || '-';
-      preview.classList.toggle('hidden', !pace.averageSpeedKmh);
+      getWorkoutCompletionUi().updatePacePreview();
     }
 
     function completedDurationLabel(completed) {
@@ -2585,39 +2499,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
 
       clearCompleteForm();
       setCompleteModalMode('edit');
-      document.getElementById('editingCompletedId').value = completed.id;
-      document.getElementById('completePlannedId').value = completed.plannedWorkoutId || '';
-      document.getElementById('completeDate').value = completed.date || todayISO();
-      document.getElementById('completeTemplate').value = completed.templateId || '';
-      document.getElementById('completeManualName').value = completed.manualName || '';
-      setDurationFormFromSeconds(completed.durationSeconds || (completed.durationMinutes ? Number(completed.durationMinutes) * 60 : 0));
-      document.getElementById('completeDistance').value = completed.distanceKm || '';
-      document.getElementById('completeAvgHr').value = completed.avgHeartRate || '';
-      document.getElementById('completeMaxHr').value = completed.maxHeartRate || '';
-      document.getElementById('completeElevationGain').value = completed.elevationGainM || '';
-      document.getElementById('completeTreadmillIncline').value = completed.treadmillInclinePercent || '';
-      document.getElementById('completeTrainingEffect').value = completed.trainingEffectType || '';
-      document.getElementById('completeExecution').value = completed.execution || '';
-      document.getElementById('completeFeeling').value = completed.feelingScore || '';
-      document.getElementById('completeRpe').value = completed.rpe || '';
-      document.getElementById('completeEnergy').value = completed.readiness?.energy || '';
-      document.getElementById('completeLegs').value = completed.readiness?.legs || '';
-      document.getElementById('completeSleep').value = completed.readiness?.sleep || '';
-      document.getElementById('completeStress').value = completed.readiness?.stress || '';
-      document.getElementById('completePainBefore').value = completed.bodyStatus?.painBefore || '';
-      document.getElementById('completePainAfter').value = completed.bodyStatus?.painAfter || '';
-      document.getElementById('completePainAreaRegion').value = completed.bodyStatus?.areaRegion || '';
-      document.getElementById('completePainAreaSide').value = completed.bodyStatus?.areaSide || '';
-      document.getElementById('completeAdaptation').value = completed.bodyStatus?.adaptation || 'none';
-      document.getElementById('completeBodyNotes').value = completed.bodyStatus?.notes || '';
-      const raceResult = normalizeRaceResult(completed.raceResult);
-      document.getElementById('completeRaceName').value = raceResult?.name || '';
-      document.getElementById('completeRaceDistance').value = raceResult?.distanceKm || '';
-      setDurationFieldsFromSeconds('completeRaceHours', 'completeRaceMinutes', 'completeRaceSeconds', raceResult?.resultSeconds || 0);
-      document.getElementById('completeRaceCourse').value = raceResult?.course || '';
-      document.getElementById('completeRaceCountsPb').checked = raceResult?.countsAsPersonalBest !== false;
-      document.getElementById('completeRaceNote').value = raceResult?.note || '';
-      document.getElementById('completeNotes').value = completed.notes || '';
+      getWorkoutCompletionUi().fillForm({ ...completed, date: completed.date || todayISO() });
       renderCompleteGoldenZoneHint();
       document.getElementById('completeModal').classList.add('active');
     };
@@ -2789,110 +2671,44 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       };
     }
 
-    function detailMetric(label, value) {
-      return value
-        ? `<div class="detail-metric"><strong>${escapeHtml(value)}</strong><span>${escapeHtml(label)}</span></div>`
-        : '';
-    }
+    let workoutHistoryUi = null;
 
-    function detailSection(title, html) {
-      return html
-        ? `<section class="detail-section"><h3>${escapeHtml(title)}</h3>${html}</section>`
-        : '';
-    }
-
-    function detailLine(label, value) {
-      return value
-        ? `<p><strong>${escapeHtml(label)}:</strong> ${escapeHtml(value)}</p>`
-        : '';
-    }
-
-    function raceResultDetailHtml(completed) {
-      const race = normalizeRaceResult(completed.raceResult);
-      if (!race) return '';
-      return [
-        detailLine('Løp', race.name || completedTemplate(completed).name),
-        detailLine('Distanse', raceDistanceLabel(race.distanceKm)),
-        detailLine('Resultat', formatRaceTime(race.resultSeconds)),
-        detailLine('Løype/sted', race.course),
-        detailLine('PB', race.countsAsPersonalBest === false ? 'Teller ikke' : 'Teller mot bestenoteringer'),
-        detailLine('Notat', race.note)
-      ].join('');
-    }
-
-    function completedDetailHtml(c) {
-      const t = completedTemplate(c);
-      const personProfile = normalizePersonProfile(state.settings.personProfile);
-      const profile = normalizeTrainingProfile(state.settings.trainingProfile);
-      const durationLabel = completedDurationLabel(c);
-      const pace = completedPaceMetrics(c);
-      const execution = executionLabel(c.execution);
-      const feeling = feelingLabel(c.feelingScore);
-      const readiness = readinessLabel(c.readiness);
-      const bodyStatus = bodyStatusLabel(c.bodyStatus);
-      const trainingEffect = trainingEffectInfo(c.trainingEffectType);
-      const assessment = completedLoadAssessment(c);
-      const coachNote = lastWorkoutCoachNote(c, profile).replace(/^Siste økt/, 'Denne økten');
-      const heartRateLines = [
-        detailLine('Snittpuls', c.avgHeartRate ? `${c.avgHeartRate} bpm${heartRateContextLabel(c.avgHeartRate, personProfile, true)}` : ''),
-        detailLine('Makspuls økt', c.maxHeartRate ? `${c.maxHeartRate} bpm${heartRateContextLabel(c.maxHeartRate, personProfile)}` : ''),
-        detailLine('Din maks/terskel', personProfile.maxHeartRate || personProfile.thresholdHeartRate
-          ? `${personProfile.maxHeartRate || '-'} / ${personProfile.thresholdHeartRate || '-'} bpm`
-          : '')
-      ].join('');
-      const terrainLines = [
-        detailLine('Høydemeter', c.elevationGainM ? `${c.elevationGainM} hm` : ''),
-        detailLine('Møllestigning', c.treadmillInclinePercent ? `${c.treadmillInclinePercent}%` : '')
-      ].join('');
-      const bodyLines = [
-        detailLine('Status', bodyStatus),
-        detailLine('Kroppsnotat', c.bodyStatus?.notes || '')
-      ].join('');
-      return `
-        <div class="detail-hero">
-          <span class="tag done">Utført</span>
-          <h2>${escapeHtml(t.name)}</h2>
-          <p>${formatDate(c.date)} · ${escapeHtml(t.type)}${t.intensity ? ` · ${escapeHtml(t.intensity)}` : ''}</p>
-        </div>
-        <div class="detail-metrics-grid">
-          ${detailMetric('Varighet', durationLabel)}
-          ${detailMetric('Distanse', c.distanceKm ? `${c.distanceKm} km` : '')}
-          ${detailMetric('Pace', pace.paceDisplay ? `${pace.paceDisplay} min/km` : '')}
-          ${detailMetric('Fart', pace.averageSpeedKmh ? `${pace.averageSpeedKmh} km/t` : '')}
-        </div>
-        ${detailSection('Belastning', `
-          <div class="load-assessment ${assessment.level}">
-            <span class="tag load-${assessment.level}">${escapeHtml(assessment.label)}</span>
-            <p>${escapeHtml(assessment.reason)}</p>
-          </div>
-          ${trainingEffect ? `<p class="detail-text"><strong>Garmin:</strong> ${escapeHtml(trainingEffect.label)} · ${escapeHtml(trainingEffect.categoryLabel)}</p>` : ''}
-          ${c.rpe ? `<p class="detail-text"><strong>Opplevd intensitet:</strong> ${escapeHtml(c.rpe)}/10</p>` : ''}
-        `)}
-        ${detailSection('Puls', heartRateLines)}
-        ${detailSection('Strukturert intervall', structuredWorkoutSummaryHtml(t.structuredWorkout))}
-        ${detailSection('Terreng og stigning', terrainLines)}
-        ${detailSection('Konkurranse / testløp', raceResultDetailHtml(c))}
-        ${detailSection('Gjennomføring', [
-          detailLine('Gjennomføring', execution),
-          detailLine('Følelse etter økt', feeling),
-          detailLine('Dagsform før økt', readiness)
-        ].join(''))}
-        ${detailSection('Kropp og tilpasning', bodyLines)}
-        ${detailSection('Coach-notat', `<p>${escapeHtml(coachNote)}</p>`)}
-        ${detailSection('Egne notater', c.notes ? `<p>${escapeHtml(c.notes)}</p>` : '')}
-        <div class="button-row">
-          <button class="btn-primary" onclick="editCompleted('${c.id}'); closeWorkoutDetailModal();">Rediger</button>
-          <button class="btn-soft" onclick="closeWorkoutDetailModal()">Lukk</button>
-        </div>
-        <div class="detail-danger-row">
-          <button class="btn-subtle-danger" onclick="undoComplete('${c.id}')">${c.plannedWorkoutId ? 'Angre utført' : 'Slett fra logg'}</button>
-        </div>`;
+    function getWorkoutHistoryUi() {
+      if (!workoutHistoryUi) {
+        workoutHistoryUi = createWorkoutHistoryUi({
+          getState: () => state,
+          escapeHtml,
+          formatDate,
+          formatRaceTime,
+          raceDistanceLabel,
+          normalizeRaceResult,
+          normalizePersonProfile,
+          normalizeTrainingProfile,
+          completedTemplate,
+          completedDurationLabel,
+          completedPaceMetrics,
+          completedLoadAssessment,
+          executionLabel,
+          feelingLabel,
+          readinessLabel,
+          bodyStatusLabel,
+          trainingEffectInfo,
+          trainingEffectCategory,
+          heartRateContextLabel,
+          lastWorkoutCoachNote,
+          structuredWorkoutSummaryHtml,
+          templateCalendarKind,
+          uniqueValues,
+          todayISO
+        });
+      }
+      return workoutHistoryUi;
     }
 
     window.openWorkoutDetail = function(completedId) {
       const completed = state.completed.find(c => c.id === completedId);
       if (!completed) return;
-      document.getElementById('workoutDetailContent').innerHTML = completedDetailHtml(completed);
+      document.getElementById('workoutDetailContent').innerHTML = getWorkoutHistoryUi().detailHtml(completed);
       document.getElementById('workoutDetailModal').classList.add('active');
     };
 
@@ -3044,85 +2860,6 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
             <button class="btn-soft" onclick="undoComplete('${c.id}')">${c.plannedWorkoutId ? 'Angre utført' : 'Slett'}</button>
           </div>
         </div>`;
-    }
-
-    function intensityStripeClass(intensity) {
-      const easy = ['Rolig', 'Restitusjon', 'Mobilitet'];
-      const medium = ['Tempo', 'Terskel'];
-      const hard = ['Intervall', 'Anaerob'];
-      const strength = ['Styrke'];
-      if (easy.includes(intensity)) return 'easy';
-      if (medium.includes(intensity)) return 'medium';
-      if (hard.includes(intensity)) return 'hard';
-      if (strength.includes(intensity)) return 'strength';
-      return 'neutral';
-    }
-
-    function historyPainText(bodyStatus = {}) {
-      const before = Number(bodyStatus.painBefore || 0);
-      const after = Number(bodyStatus.painAfter || 0);
-      if (!before && !after) return '';
-      if (before && after) {
-        const trend = after > before ? 'opp' : after < before ? 'ned' : 'stabil';
-        return `Smerte ${before}->${after} (${trend})`;
-      }
-      return `Smerte ${before || after}/10`;
-    }
-
-    function historyPriorityChip(completed, template, kind, assessment, painText) {
-      const race = normalizeRaceResult(completed.raceResult);
-      if (race) return { className: 'race', label: race.resultSeconds ? `Race ${formatRaceTime(race.resultSeconds)}` : 'Race/test' };
-      if (painText || (completed.bodyStatus?.adaptation && completed.bodyStatus.adaptation !== 'none')) return { className: 'signal', label: painText || 'Kroppssignal' };
-      if (assessment.level === 'high') return { className: 'load-high', label: 'Høy belastning' };
-      if (template.structuredWorkout) return { className: 'neutral', label: 'Strukturert' };
-      if (kind.key === 'quality') return { className: 'kind-quality', label: 'Kvalitet' };
-      return null;
-    }
-
-    function historyRow(c) {
-      const t = completedTemplate(c);
-      const durationLabel = completedDurationLabel(c);
-      const pace = completedPaceMetrics(c);
-      const kind = templateCalendarKind(t);
-      const metrics = [
-        c.distanceKm ? `${c.distanceKm} km` : '',
-        durationLabel || '',
-        c.avgHeartRate ? `${c.avgHeartRate} bpm` : ''
-      ].filter(Boolean).join(' · ');
-      const stripeClass = kind.key === 'race' ? 'race' : kind.key === 'quality' ? 'medium' : intensityStripeClass(t.intensity);
-      const assessment = completedLoadAssessment(c);
-      const painText = historyPainText(c.bodyStatus || {});
-      const chip = historyPriorityChip(c, t, kind, assessment, painText);
-      const meta = [t.type, t.intensity].filter(Boolean).join(' · ');
-      return `
-        <div class="history-row history-kind-${escapeHtml(kind.key)}" onclick="openWorkoutDetail('${c.id}')">
-          <div class="history-row-stripe stripe-${stripeClass}"></div>
-          <div class="history-row-body">
-            <div class="history-row-head">
-              <div>
-                <div class="history-row-title">${escapeHtml(t.name)}</div>
-                <div class="history-row-date">${formatDate(c.date)}${meta ? ` · ${escapeHtml(meta)}` : ''}</div>
-              </div>
-            </div>
-            <div class="history-row-bottom">
-              <span class="history-row-metrics">${escapeHtml(metrics || 'Ingen nøkkeltall')}</span>
-              ${chip ? `<span class="history-chip ${escapeHtml(chip.className)}">${escapeHtml(chip.label)}</span>` : ''}
-            </div>
-          </div>
-          <div class="history-row-chevron">›</div>
-        </div>`;
-    }
-
-    function activeFilterCount() {
-      const nonDefault = [
-        (document.getElementById('historySearch')?.value || '').trim(),
-        document.getElementById('historyPeriod')?.value !== 'all' ? '1' : '',
-        document.getElementById('historyFilter')?.value !== 'Alle' ? '1' : '',
-        document.getElementById('historyEffect')?.value !== 'all' ? '1' : '',
-        document.getElementById('historyLoad')?.value !== 'all' ? '1' : '',
-        document.getElementById('historyBodySignal')?.value !== 'all' ? '1' : ''
-      ];
-      return nonDefault.filter(Boolean).length;
     }
 
     window.toggleHistoryFilters = function() {
@@ -4931,107 +4668,15 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     }
 
     function renderHistoryFilterOptions() {
-      const select = document.getElementById('historyFilter');
-      const selected = select.value || 'Alle';
-      const templateTypes = state.templates.map(t => t.type);
-      const values = ['Alle', ...uniqueValues([...(state.settings.activityTypes || []), ...templateTypes])];
-      select.innerHTML = values.map(v => `<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join('');
-      select.value = values.includes(selected) ? selected : 'Alle';
-    }
-
-    function hasBodySignal(completed) {
-      const adaptation = completed.bodyStatus?.adaptation || '';
-      return Boolean(
-        completed.bodyStatus?.painBefore ||
-        completed.bodyStatus?.painAfter ||
-        completed.bodyStatus?.area ||
-        completed.bodyStatus?.notes ||
-        (adaptation && adaptation !== 'none')
-      );
-    }
-
-    function completedSearchText(completed) {
-      const template = completedTemplate(completed);
-      return [
-        template.name,
-        template.type,
-        template.intensity,
-        template.structure,
-        completed.manualName,
-        completed.notes,
-        completed.raceResult?.name,
-        completed.raceResult?.course,
-        completed.raceResult?.note,
-        completed.raceResult?.resultSeconds ? formatRaceTime(completed.raceResult.resultSeconds) : '',
-        completed.bodyStatus?.area,
-        completed.bodyStatus?.notes,
-        executionLabel(completed.execution),
-        feelingLabel(completed.feelingScore),
-        trainingEffectInfo(completed.trainingEffectType)?.label,
-        completedLoadAssessment(completed).label
-      ].filter(Boolean).join(' ').toLowerCase();
-    }
-
-    function historyPeriodRange(period) {
-      const today = todayISO();
-      if (period === '7') return { from: addDays(today, -6), to: today };
-      if (period === '28') return { from: addDays(today, -27), to: today };
-      if (period === 'month') return { from: `${today.slice(0, 8)}01`, to: today };
-      if (period === 'custom') {
-        return {
-          from: document.getElementById('historyFromDate')?.value || '',
-          to: document.getElementById('historyToDate')?.value || ''
-        };
-      }
-      return { from: '', to: '' };
+      getWorkoutHistoryUi().renderFilterOptions();
     }
 
     function filteredCompletedHistory() {
-      const typeFilter = document.getElementById('historyFilter')?.value || 'Alle';
-      const sort = document.getElementById('historySort')?.value || 'desc';
-      const period = document.getElementById('historyPeriod')?.value || 'all';
-      const effect = document.getElementById('historyEffect')?.value || 'all';
-      const load = document.getElementById('historyLoad')?.value || 'all';
-      const bodySignal = document.getElementById('historyBodySignal')?.value || 'all';
-      const search = (document.getElementById('historySearch')?.value || '').trim().toLowerCase();
-      const range = historyPeriodRange(period);
-
-      let completed = [...state.completed];
-      if (typeFilter !== 'Alle') completed = completed.filter(c => completedTemplate(c).type === typeFilter);
-      if (range.from) completed = completed.filter(c => c.date >= range.from);
-      if (range.to) completed = completed.filter(c => c.date <= range.to);
-      if (effect !== 'all') {
-        completed = completed.filter(c => {
-          const category = c.trainingEffectCategory || trainingEffectCategory(c.trainingEffectType);
-          return effect === 'missing' ? !category : category === effect;
-        });
-      }
-      if (load !== 'all') completed = completed.filter(c => completedLoadAssessment(c).level === load);
-      if (bodySignal !== 'all') completed = completed.filter(c => hasBodySignal(c) === (bodySignal === 'yes'));
-      if (search) completed = completed.filter(c => completedSearchText(c).includes(search));
-      completed.sort((a,b) => sort === 'desc'
-        ? String(b.date || '').localeCompare(String(a.date || ''))
-        : String(a.date || '').localeCompare(String(b.date || '')));
-      return completed;
+      return getWorkoutHistoryUi().filtered();
     }
 
     function renderHistoryFilterSummary(completed) {
-      const period = document.getElementById('historyPeriod')?.value || 'all';
-      const customRange = document.getElementById('historyCustomRange');
-      if (customRange) customRange.classList.toggle('hidden', period !== 'custom');
-      const total = state.completed.length;
-      const summary = document.getElementById('historyFilterSummary');
-      if (summary) {
-        summary.textContent = total === completed.length
-          ? `${completed.length} økt${completed.length === 1 ? '' : 'er'} i historikken.`
-          : `Viser ${completed.length} av ${total} økt${total === 1 ? '' : 'er'}.`;
-      }
-      const badge = document.getElementById('historyFilterBadge');
-      if (badge) {
-        const count = activeFilterCount();
-        badge.textContent = count;
-        badge.classList.toggle('hidden', count === 0);
-      }
+      getWorkoutHistoryUi().renderSummary(completed);
     }
 
     function formatHoursFromSeconds(seconds) {
@@ -7065,11 +6710,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
 
       renderTemplateLibrary();
 
-      const completed = filteredCompletedHistory();
-      renderHistoryFilterSummary(completed);
-      document.getElementById('historyList').innerHTML = completed.length
-        ? completed.map(historyRow).join('')
-        : `<div class="empty">Ingen økter matcher filtrene.</div>`;
+      getWorkoutHistoryUi().renderList();
     }
 
     window.render = render;
@@ -7193,12 +6834,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       }
     };
 
-    [
-      'completeDurationHours',
-      'completeDurationMinutes',
-      'completeDurationSeconds',
-      'completeDistance'
-    ].forEach(id => document.getElementById(id)?.addEventListener('input', updatePacePreview));
+    getWorkoutCompletionUi().bindPacePreview();
 
     [
       'templateWarmupMinutes',
