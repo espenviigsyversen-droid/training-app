@@ -23,6 +23,11 @@ Treningsapp er en installbar PWA uten build-step. Appen kjøres direkte fra stat
 Treningsapp/
 ├── index.html
 ├── app.js
+├── app-state.js
+├── local-state-store.js
+├── training-repository.js
+├── domain-training-plan.js
+├── calendar-ui.js
 ├── domain-core.js
 ├── domain-goals.js
 ├── domain-coach-rules.js
@@ -61,21 +66,25 @@ Inneholder app-skallet, faner, skjemaer og modaler.
 
 ### `app.js`
 
-Inneholder applikasjonslogikk og UI-kobling:
+Er appens orchestrator og UI-kobling:
 
 - Firebase-init
 - Auth
-- Firestore-lesing og -skriving
-- lokal state
-- offline snapshot
-- coach-regler
-- kalender
+- wrappers som kobler samlet state til repository og domene-funksjoner
+- DOM-hendelser og sammensatt rendering
 - loggføring
 - challenges
 - innsikt
-- rendering
 
-`app.js` skal fortsatt eie state, DOM og Firebase-kobling. Rene regler bør gradvis flyttes til testbare domene-filer.
+`app.js` eier fortsatt den kjørende state-instansen, DOM-hendelser og koordinering. Defaults/normalisering, lagring, planleggingsregler og kalenderens avgrensede renderflyt ligger i egne moduler.
+
+### State, lagring, planlegging og kalender
+
+- `app-state.js` eier tom state, settings-defaults og normalisering av data fra Firestore, import og lokal snapshot.
+- `local-state-store.js` eier normalisert lokal snapshot/recovery gjennom et injiserbart storage-grensesnitt.
+- `training-repository.js` kapsler Firestore-lesing, skriving, sletting, batch-operasjoner og utskifting av treningsdata. Auth og Firestore-avhengigheter injiseres fra `app.js`.
+- `domain-training-plan.js` inneholder ren rolledekning, template-scoring og ukeplan-/øktforslag uten DOM, Firebase eller global state.
+- `calendar-ui.js` renderer kalendergrid og dagsmodal med injiserte data og callbacks. Selve mutasjonene, bekreftelsene og persistence-wrappere forblir i `app.js`.
 
 ### `domain-core.js`
 
@@ -115,7 +124,7 @@ Inneholder ren konkurranse- og mål-logikk uten DOM, Firebase eller direkte `sta
 - `domain-coach.js` inneholder ren beslutningslogikk og bygger den whitelistede `AI Coach Context v1`.
 - `domain-fitness.js` skiller forklarbar treningsmodenhet, aldersrelatert kapasitet og PB-fremgang fra dagens sikkerhetsbeslutning. Modulen kan foreslå, men aldri automatisk endre coach-profilen.
 - `ai-coach-client.js` kaller autentiserte Firebase Callable Functions, men kjenner aldri den lagrede OpenAI-nøkkelen.
-- `ai-coach-ui.js` eier read-only chatflyt, feiltilstander og session-forbruk. Meldingshistorikk lagres ikke vedvarende.
+- `ai-coach-ui.js` eier chatflyt, prosjekter, synkronisert historikk, feiltilstander og forbruksvisning.
 - `functions/` validerer Auth og context, håndterer server-side nøkkel, rate limit og OpenAI-kall. Systeminstruks, modell og sikkerhetspolicy eies av serveren.
 - OpenAI-nøkler krypteres med AES-256-GCM før Firestore-lagring. Krypteringshemmeligheten leveres fra Firebase Secret Manager bare til relevante Functions; klienten ser kun maskert status.
 
@@ -135,13 +144,13 @@ Håndterer app shell-cache og offline fallback.
 
 Ikke gjør en stor rewrite. Del heller appen gradvis i tydelige soner:
 
-1. `storage` - Firestore, local snapshot, import/export
-2. `domain-core.js` / senere `domain/dates` - datoer, uker, perioder
+1. `app-state.js`, `local-state-store.js` og `training-repository.js` - normalisering, lokal sikkerhetskopi og Firestore
+2. `domain-core.js` - datoer, uker, perioder og generelle treningshjelpere
 3. `domain-goals.js` - konkurranser, personlige rekorder, mål-løp og målplan
 4. `domain-coach.js` - coach-context, anbefalinger og prioritert beslutningsmodell
 5. `domain-fitness.js` - transparent nivågrunnlag, VO2-referanse og PB-progresjon
-6. senere `domain/training` - økter, roller, belastning, intensitet
-7. `ui/render` - render-funksjoner og DOM-hjelpere
+6. `domain-training-plan.js` - øktforslag, roller og ukeplansammensetting
+7. `calendar-ui.js` og senere avgrensede kontrollere - render-funksjoner og DOM-hjelpere med tydelige avhengigheter
 8. `tests` - rene tester for kritiske regler
 
 Målet er lavere risiko, lettere testing og mindre sjanse for regresjoner.
@@ -152,8 +161,8 @@ Nye features skal bygges smått og med lav regresjonsrisiko:
 
 1. Start med datamodell/design før UI når featuret introduserer nye felter eller ny beslutningslogikk.
 2. Legg ren domene-logikk i `domain-core.js`, eller i en egen domene-fil hvis området blir stort nok til å fortjene det.
-3. La `app.js` beholde små wrapper-funksjoner når logikken trenger `state`, DOM, Firebase eller eksisterende render-flyt.
-4. UI og rendering kan foreløpig ligge i `app.js` og `index.html`. Ikke splitt UI bare for å splitte.
+3. La `app.js` beholde små wrapper-funksjoner når logikken trenger samlet `state`, DOM eller eksisterende render-flyt. Firestore-operasjoner for treningsdata går via `training-repository.js`.
+4. UI og rendering kan ligge i `app.js` og `index.html`. Bruk bare en egen kontroller når området har en tydelig grense og injiserbare avhengigheter, slik kalenderen har. Ikke splitt UI bare for å splitte.
 5. Ny ren logikk skal testes fra faktisk produksjonsfil i `tests/stability-tests.js`.
 6. Ikke kopier produksjonslogikk inn i testene hvis den kan importeres.
 7. Alle nye datafelter skal være valgfrie eller ha trygge defaults, slik at gamle Firestore-data og backupfiler fungerer uendret.
@@ -170,3 +179,4 @@ Appen skal ikke stole direkte på rå Firestore-, backup- eller snapshot-data. D
 `normalizeTemplate()` i `domain-core.js` er første guardrail for øktmaler. Den sørger for trygge defaults på kjernefelter, konverterer `recommendedWhen` og `avoidWhen` til arrays, beholder eksisterende `structure` og gjør fremtidig `structuredWorkout` valgfri og bakoverkompatibel.
 
 `settings.features` er en intern feature flag-struktur. Den vises ikke i UI, men gjør det mulig å bygge nye funksjoner kontrollert. Første flagg er `structuredIntervals`; strukturert intervallstøtte er aktivert og videreutviklet fra v102/v104.
+
