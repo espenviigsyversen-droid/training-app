@@ -151,7 +151,7 @@ Ikke gjør en stor rewrite. Del heller appen gradvis i tydelige soner:
 4. `domain-coach.js` - coach-context, anbefalinger og prioritert beslutningsmodell
 5. `domain-fitness.js` - transparent nivågrunnlag, VO2-referanse og PB-progresjon
 6. `domain-training-plan.js` - øktforslag, roller og ukeplansammensetting
-7. `calendar-ui.js` og `workout-template-ui.js` - avgrensede render-/skjemakontrollere med injiserte avhengigheter
+7. `calendar-ui.js`, `workout-template-ui.js`, `workout-completion-ui.js` og `workout-history-ui.js` - avgrensede render-/skjemakontrollere med injiserte avhengigheter
 8. `tests` - rene tester for kritiske regler
 
 Målet er lavere risiko, lettere testing og mindre sjanse for regresjoner.
@@ -180,5 +180,9 @@ Appen skal ikke stole direkte på rå Firestore-, backup- eller snapshot-data. D
 `normalizeTemplate()` i `domain-core.js` er første guardrail for øktmaler. Den sørger for trygge defaults på kjernefelter, konverterer `recommendedWhen` og `avoidWhen` til arrays, beholder eksisterende `structure` og gjør fremtidig `structuredWorkout` valgfri og bakoverkompatibel.
 
 `workout-template-ui.js` eier fra v167 lesing og fylling av øktmal-skjemaet, strukturert intervall-preview, sortering, søk/filter, coach-klarhet og bibliotek-rendering. Modulen får state og formatteringshjelpere injisert. Oppretting av ID, normalisering, bekreftelser, offline-beskyttelse og Firestore-skriving forblir i `app.js` og `training-repository.js`.
+
+`workout-completion-ui.js` eier fra v168 fullføringsskjemaets lesing, nullstilling, redigeringsfylling, varighetsfelt, pace-preview, modalmodus og gylne-sone-hint. `app.js` beholder oppretting av fullførtobjekt, state-mutasjon, kalenderoppfriskning og all repository-/Firestore-skriving.
+
+`workout-history-ui.js` eier fra v169 ren filtrering/sortering, filterpresentasjon, kompakte historikkrader og detaljvisningen for fullførte økter. `app.js` beholder state, åpne/lukke-wrappers, bekreftet sletting/angre og persistence.
 
 `settings.features` er en intern feature flag-struktur. Den vises ikke i UI, men gjør det mulig å bygge nye funksjoner kontrollert. Første flagg er `structuredIntervals`; strukturert intervallstøtte er aktivert og videreutviklet fra v102/v104.
