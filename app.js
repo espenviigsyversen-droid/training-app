@@ -107,6 +107,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     import { createLocalStateStore } from './local-state-store.js';
     import { createTrainingRepository } from './training-repository.js';
     import { createCalendarUi } from './calendar-ui.js';
+    import { createWorkoutTemplateUi } from './workout-template-ui.js';
     import {
       applyRaceContextToSuggestionMix,
       assembleWeekPlanSuggestions,
@@ -125,7 +126,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       xWorkoutSuggestion
     } from './domain-training-plan.js';
 
-    const APP_VERSION = 'v166';
+    const APP_VERSION = 'v167';
     const APP_CACHE_NAME = `treningsapp-${APP_VERSION}`;
 
     const firebaseConfig = {
@@ -166,7 +167,6 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     });
     let volumeTrendPeriod = 'week';
     let volumeTrendActivity = 'all';
-    let templateCoachFilter = 'all';
     let tlSelections = { sleep: null, energy: null, stairsOk: null };
     let injuryCheckinExpanded = false;
 
@@ -1491,189 +1491,50 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       if (selectedValue) select.value = selectedValue;
     }
 
-    function compareText(a, b) {
-      return String(a || '').localeCompare(String(b || ''), 'nb', { numeric: true, sensitivity: 'base' });
-    }
+    let workoutTemplateUi = null;
 
-    function sortedTemplatesForSelect() {
-      const activityOrder = state.settings.activityTypes || [];
-      const roleOrder = ['main_threshold', 'support_threshold', 'long_easy', 'recovery', 'x_workout', 'race', 'strength', 'mobility', 'technique', 'other'];
-      return [...state.templates].sort((a, b) => {
-        const aIndex = activityOrder.indexOf(a.type);
-        const bIndex = activityOrder.indexOf(b.type);
-        const aRank = aIndex === -1 ? 999 : aIndex;
-        const bRank = bIndex === -1 ? 999 : bIndex;
-        if (aRank !== bRank) return aRank - bRank;
-        const typeCompare = compareText(a.type, b.type);
-        if (typeCompare !== 0) return typeCompare;
-        const aRoleRank = roleOrder.indexOf(a.role || 'other');
-        const bRoleRank = roleOrder.indexOf(b.role || 'other');
-        const safeARoleRank = aRoleRank === -1 ? 999 : aRoleRank;
-        const safeBRoleRank = bRoleRank === -1 ? 999 : bRoleRank;
-        if (safeARoleRank !== safeBRoleRank) return safeARoleRank - safeBRoleRank;
-        return compareText(a.name, b.name);
-      });
-    }
-
-    function templateSelectLabel(template) {
-      return template.intensity
-        ? `${template.name} · ${template.intensity}`
-        : template.name;
-    }
-
-    function templateSelectOptions({ includeManual = false } = {}) {
-      const options = [];
-      if (includeManual) options.push('<option value="">Ingen / eget navn</option>');
-      if (!state.templates.length) {
-        options.push('<option value="">Lag en øktmal først</option>');
-        return options.join('');
+    function getWorkoutTemplateUi() {
+      if (!workoutTemplateUi) {
+        workoutTemplateUi = createWorkoutTemplateUi({
+          getState: () => state,
+          buildStructuredWorkout,
+          structuredWorkoutBreakdown,
+          structuredWorkoutSummary,
+          parseNonNegativeInteger,
+          formatDuration,
+          escapeHtml,
+          uniqueValues,
+          getCheckedValues,
+          setCheckedValues,
+          setSelectOptions,
+          roleLabel: templateRoleLabel,
+          purposeLabel: templatePurposeLabel,
+          loadLabel: templateLoadLabel
+        });
       }
-
-      let currentGroup = null;
-      sortedTemplatesForSelect().forEach(template => {
-        const type = template.type || 'Annet';
-        const role = templateRoleLabel(template.role);
-        const group = role ? `${type} · ${role}` : type;
-        if (group !== currentGroup) {
-          if (currentGroup !== null) options.push('</optgroup>');
-          options.push(`<optgroup label="${escapeHtml(group)}">`);
-          currentGroup = group;
-        }
-        options.push(`<option value="${template.id}">${escapeHtml(templateSelectLabel(template))}</option>`);
-      });
-      if (currentGroup !== null) options.push('</optgroup>');
-      return options.join('');
+      return workoutTemplateUi;
     }
 
-    function durationSecondsFromParts(minutesId, secondsId) {
-      const minutes = parseNonNegativeInteger(document.getElementById(minutesId)?.value);
-      const seconds = parseNonNegativeInteger(document.getElementById(secondsId)?.value);
-      return (minutes * 60) + Math.min(seconds, 59);
+    function templateSelectOptions(options = {}) {
+      return getWorkoutTemplateUi().selectOptions(options);
     }
 
-    function setDurationPartsFromSeconds(totalSeconds, minutesId, secondsId) {
-      const total = parseNonNegativeInteger(totalSeconds);
-      const minutes = Math.floor(total / 60);
-      const seconds = total % 60;
-      document.getElementById(minutesId).value = minutes || '';
-      document.getElementById(secondsId).value = seconds || '';
-    }
-
-    function structuredWorkoutFromForm() {
-      const enabled = document.getElementById('templateStructuredEnabled')?.checked;
-      if (!enabled) return null;
-      return buildStructuredWorkout({
-        warmupMinutes: document.getElementById('templateWarmupMinutes').value,
-        cooldownMinutes: document.getElementById('templateCooldownMinutes').value,
-        repetitions: document.getElementById('templateIntervalRepetitions').value,
-        workSeconds: durationSecondsFromParts('templateWorkMinutes', 'templateWorkSeconds'),
-        restSeconds: durationSecondsFromParts('templateRestMinutes', 'templateRestSeconds'),
-        restType: document.getElementById('templateRestType').value,
-        intensity: document.getElementById('templateIntervalIntensity').value,
-        intervalNote: document.getElementById('templateIntervalNote').value.trim(),
-        note: document.getElementById('templateStructuredNote').value.trim()
-      });
-    }
-
-    function clearStructuredWorkoutForm() {
-      document.getElementById('templateStructuredEnabled').checked = false;
-      [
-        'templateWarmupMinutes',
-        'templateCooldownMinutes',
-        'templateIntervalRepetitions',
-        'templateWorkMinutes',
-        'templateWorkSeconds',
-        'templateRestMinutes',
-        'templateRestSeconds',
-        'templateIntervalNote',
-        'templateStructuredNote'
-      ].forEach(id => { document.getElementById(id).value = ''; });
-      document.getElementById('templateRestType').value = '';
-      document.getElementById('templateIntervalIntensity').value = '';
-      toggleStructuredWorkoutFields();
-    }
-
-    function setStructuredWorkoutForm(structuredWorkout) {
-      clearStructuredWorkoutForm();
-      const workout = structuredWorkout || null;
-      if (!workout) return;
-      document.getElementById('templateStructuredEnabled').checked = true;
-      const warmup = workout.blocks.find(block => block.type === 'warmup');
-      const interval = workout.blocks.find(block => block.type === 'interval');
-      const cooldown = workout.blocks.find(block => block.type === 'cooldown');
-      if (warmup) document.getElementById('templateWarmupMinutes').value = Math.round(warmup.durationSeconds / 60) || '';
-      if (cooldown) document.getElementById('templateCooldownMinutes').value = Math.round(cooldown.durationSeconds / 60) || '';
-      if (interval) {
-        document.getElementById('templateIntervalRepetitions').value = interval.repetitions || '';
-        setDurationPartsFromSeconds(interval.workSeconds, 'templateWorkMinutes', 'templateWorkSeconds');
-        setDurationPartsFromSeconds(interval.restSeconds, 'templateRestMinutes', 'templateRestSeconds');
-        document.getElementById('templateRestType').value = interval.restType || '';
-        document.getElementById('templateIntervalIntensity').value = interval.intensity || '';
-        document.getElementById('templateIntervalNote').value = interval.note || '';
-      }
-      document.getElementById('templateStructuredNote').value = workout.note || '';
-      toggleStructuredWorkoutFields();
+    function structuredWorkoutSummaryHtml(structuredWorkout) {
+      return getWorkoutTemplateUi().structuredWorkoutSummaryHtml(structuredWorkout);
     }
 
     function renderStructuredWorkoutPreview() {
-      const preview = document.getElementById('templateStructuredPreview');
-      if (!preview) return;
-      const workout = structuredWorkoutFromForm();
-      preview.textContent = workout ? structuredWorkoutSummary(workout) : 'Fyll inn repetisjoner og arbeidstid for å lagre strukturert intervallinfo.';
+      getWorkoutTemplateUi().renderStructuredWorkoutPreview();
     }
 
     window.toggleStructuredWorkoutFields = function() {
-      const enabled = document.getElementById('templateStructuredEnabled')?.checked;
-      document.getElementById('templateStructuredFields')?.classList.toggle('hidden', !enabled);
-      renderStructuredWorkoutPreview();
+      getWorkoutTemplateUi().toggleStructuredWorkoutFields();
     };
 
-    function structuredWorkoutSummaryHtml(structuredWorkout) {
-      const breakdown = structuredWorkoutBreakdown(structuredWorkout);
-      if (!breakdown) return '';
-      const rows = [
-        breakdown.warmupSeconds ? ['Oppvarming', formatDuration(breakdown.warmupSeconds)] : null,
-        breakdown.workSeconds ? ['Arbeid', formatDuration(breakdown.workSeconds)] : null,
-        breakdown.restSeconds ? ['Hvile', formatDuration(breakdown.restSeconds)] : null,
-        breakdown.cooldownSeconds ? ['Nedjogg', formatDuration(breakdown.cooldownSeconds)] : null,
-        breakdown.totalSeconds ? ['Totalt', formatDuration(breakdown.totalSeconds)] : null
-      ].filter(Boolean);
-      return `
-        <div class="structured-workout-summary">
-          ${breakdown.compact ? `<strong>${escapeHtml(breakdown.compact)}</strong>` : ''}
-          <div class="structured-workout-facts">
-            ${rows.map(([label, value]) => `<span><b>${escapeHtml(label)}</b>${escapeHtml(value)}</span>`).join('')}
-          </div>
-          ${(breakdown.restType || breakdown.intensity || breakdown.note) ? `
-            <p>${[
-              breakdown.restType ? `Hvile: ${breakdown.restType}` : '',
-              breakdown.intensity ? `Intensitet: ${breakdown.intensity}` : '',
-              breakdown.note || ''
-            ].filter(Boolean).map(escapeHtml).join(' · ')}</p>
-          ` : ''}
-        </div>`;
-    }
-
     window.saveTemplate = async function() {
-      const editingId = document.getElementById('editingTemplateId').value;
-      const name = document.getElementById('templateName').value.trim();
-      if (!name) return alert('Skriv inn navn på økten først.');
-      const structuredWorkout = structuredWorkoutFromForm();
-      if (document.getElementById('templateStructuredEnabled')?.checked && !structuredWorkout) {
-        return alert('Fyll inn repetisjoner og arbeidstid for strukturert intervallinfo, eller fjern avhukingen.');
-      }
-      const templateData = {
-        name,
-        type: document.getElementById('templateType').value,
-        intensity: document.getElementById('templateIntensity').value,
-        role: document.getElementById('templateRole').value,
-        purpose: document.getElementById('templatePurpose').value,
-        load: document.getElementById('templateLoad').value,
-        recommendedWhen: getCheckedValues('templateRecommendedWhen'),
-        avoidWhen: getCheckedValues('templateAvoidWhen'),
-        structure: document.getElementById('templateStructure').value.trim(),
-        structuredWorkout
-      };
+      const form = getWorkoutTemplateUi().readForm();
+      if (!form.ok) return alert(form.error);
+      const { editingId, data: templateData } = form;
       let savedTemplate = null;
       if (editingId) {
         const idx = state.templates.findIndex(t => t.id === editingId);
@@ -1683,7 +1544,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         savedTemplate = { id: uid('template'), ...templateData, createdAt: todayISO() };
       }
       savedTemplate = normalizeTemplate(savedTemplate);
-      clearTemplateForm();
+      getWorkoutTemplateUi().clearForm();
       await safeStateWrite({
         apply: () => {
           if (editingId) {
@@ -1702,39 +1563,11 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     window.editTemplate = function(id) {
       const t = state.templates.find(t => t.id === id);
       if (!t) return;
-      document.getElementById('editingTemplateId').value = t.id;
-      document.getElementById('templateName').value = t.name;
-      setSelectOptions('templateType', state.settings.activityTypes, t.type);
-      setSelectOptions('templateIntensity', state.settings.intensities, t.intensity);
-      document.getElementById('templateType').value = t.type;
-      document.getElementById('templateIntensity').value = t.intensity;
-      document.getElementById('templateRole').value = t.role || '';
-      document.getElementById('templatePurpose').value = t.purpose || '';
-      document.getElementById('templateLoad').value = t.load || '';
-      setCheckedValues('templateRecommendedWhen', t.recommendedWhen);
-      setCheckedValues('templateAvoidWhen', t.avoidWhen);
-      document.getElementById('templateStructure').value = t.structure || '';
-      setStructuredWorkoutForm(t.structuredWorkout);
-      document.getElementById('templateSubmitBtn').textContent = 'Lagre endringer';
-      document.getElementById('cancelEditTemplateBtn').classList.remove('hidden');
+      getWorkoutTemplateUi().fillForm(t);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     };
 
-    window.cancelEditTemplate = function() { clearTemplateForm(); };
-
-    function clearTemplateForm() {
-      document.getElementById('editingTemplateId').value = '';
-      document.getElementById('templateName').value = '';
-      document.getElementById('templateRole').value = '';
-      document.getElementById('templatePurpose').value = '';
-      document.getElementById('templateLoad').value = '';
-      setCheckedValues('templateRecommendedWhen', []);
-      setCheckedValues('templateAvoidWhen', []);
-      document.getElementById('templateStructure').value = '';
-      clearStructuredWorkoutForm();
-      document.getElementById('templateSubmitBtn').textContent = 'Lagre øktmal';
-      document.getElementById('cancelEditTemplateBtn').classList.add('hidden');
-    }
+    window.cancelEditTemplate = function() { getWorkoutTemplateUi().clearForm(); };
 
     window.deleteTemplate = async function(id) {
       if (!confirm('Slette denne øktmalen? Planlagte økter blir ikke slettet.')) return;
@@ -3166,197 +2999,13 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       return `${status} calendar-kind-${kind.key}`;
     }
 
-    function templateRecommendedWhenLabel(value) {
-      const map = {
-        normal: 'Passer normal dag',
-        fresh_legs: 'Passer med friske bein',
-        tired: 'Passer når litt sliten',
-        after_hard: 'Passer etter hard økt',
-        pain_adaptation: 'Passer ved småvondt/tilpasning',
-        bonus: 'Passer som bonusøkt'
-      };
-      return asArray(value).map(item => labelFromMap(item, map)).filter(Boolean).join(' · ');
-    }
-
-    function templateAvoidWhenLabel(value) {
-      const map = {
-        pain: 'Unngå ved smerte',
-        heavy_legs: 'Unngå ved tunge bein',
-        many_hard: 'Unngå ved mye hardt',
-        low_hrv: 'Unngå ved lav HRV'
-      };
-      return asArray(value).map(item => labelFromMap(item, map)).filter(Boolean).join(' · ');
-    }
-
-    function templateSearchText(t) {
-      return [
-        t.name,
-        t.type,
-        t.intensity,
-        t.structure,
-        structuredWorkoutSummary(t.structuredWorkout),
-        templateRoleLabel(t.role),
-        templatePurposeLabel(t.purpose),
-        templateLoadLabel(t.load),
-        templateRecommendedWhenLabel(t.recommendedWhen),
-        templateAvoidWhenLabel(t.avoidWhen)
-      ].filter(Boolean).join(' ').toLowerCase();
-    }
-
-    function templateCoachReadiness(t) {
-      const missing = [];
-      if (!t.role) missing.push('Øktrolle');
-      if (!t.purpose) missing.push('Coach-formål');
-      if (!t.load) missing.push('Belastning');
-      if (!asArray(t.recommendedWhen).length) missing.push('Passer best når');
-      return {
-        ready: missing.length === 0,
-        missing,
-        score: 4 - missing.length
-      };
-    }
-
     window.setTemplateCoachFilter = function(filter) {
-      templateCoachFilter = filter;
-      renderTemplateLibrary();
+      getWorkoutTemplateUi().setCoachFilter(filter);
     };
-
-    function filteredTemplatesForLibrary() {
-      const query = (document.getElementById('templateSearch')?.value || '').trim().toLowerCase();
-      const typeFilter = document.getElementById('templateFilterType')?.value || 'Alle';
-      return sortedTemplatesForSelect().filter(t => {
-        const matchesType = typeFilter === 'Alle' || (t.type || 'Annet') === typeFilter;
-        const matchesQuery = !query || templateSearchText(t).includes(query);
-        const matchesCoachFilter = templateCoachFilter !== 'missing' || !templateCoachReadiness(t).ready;
-        return matchesType && matchesQuery && matchesCoachFilter;
-      });
-    }
-
-    function renderTemplateCoachReadiness() {
-      const wrapper = document.getElementById('templateCoachReadiness');
-      if (!wrapper) return;
-      if (!state.templates.length) {
-        wrapper.innerHTML = '';
-        return;
-      }
-      const statuses = state.templates.map(template => ({ template, status: templateCoachReadiness(template) }));
-      const readyCount = statuses.filter(item => item.status.ready).length;
-      const missingItems = statuses
-        .filter(item => !item.status.ready)
-        .sort((a, b) => a.status.score - b.status.score || a.template.name.localeCompare(b.template.name, 'no'))
-        .slice(0, 4);
-      const percent = Math.round((readyCount / statuses.length) * 100);
-      wrapper.innerHTML = `
-        <div class="coach-readiness-card">
-          <div class="coach-readiness-top">
-            <div>
-              <span class="coach-readiness-kicker">Coach-oppsett</span>
-              <strong>${readyCount}/${statuses.length} maler coach-klare</strong>
-            </div>
-            <span class="coach-readiness-score">${percent}%</span>
-          </div>
-          <div class="coach-readiness-bar"><span style="width:${percent}%"></span></div>
-          ${missingItems.length
-            ? `<div class="coach-readiness-list">
-                ${missingItems.map(item => `
-                  <button type="button" onclick="editTemplate('${item.template.id}')">
-                    <span>${escapeHtml(item.template.name)}</span>
-                    <small>Mangler ${escapeHtml(item.status.missing.join(', '))}</small>
-                  </button>
-                `).join('')}
-              </div>`
-            : `<p class="small-note">Alle malene har nok metadata til at rådgiveren kan bruke dem presist.</p>`}
-          <div class="coach-readiness-actions">
-            <button class="${templateCoachFilter === 'all' ? 'btn-dark' : 'btn-soft'}" onclick="setTemplateCoachFilter('all')">Alle</button>
-            <button class="${templateCoachFilter === 'missing' ? 'btn-dark' : 'btn-soft'}" onclick="setTemplateCoachFilter('missing')">Vis mangler</button>
-          </div>
-        </div>`;
-    }
-
-    function renderTemplateTypeFilter() {
-      const select = document.getElementById('templateFilterType');
-      if (!select) return;
-      const selected = select.value || 'Alle';
-      const values = ['Alle', ...uniqueValues([...(state.settings.activityTypes || []), ...state.templates.map(t => t.type || 'Annet')])];
-      select.innerHTML = values.map(v => `<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join('');
-      select.value = values.includes(selected) ? selected : 'Alle';
-    }
 
     window.renderTemplateLibrary = function() {
-      renderTemplateTypeFilter();
-      renderTemplateCoachReadiness();
-      const list = document.getElementById('templateList');
-      const summary = document.getElementById('templateLibrarySummary');
-      if (!list) return;
-
-      if (!state.templates.length) {
-        if (summary) summary.textContent = '';
-        list.innerHTML = `<div class="empty">Ingen øktmaler enda. Lag din første over.</div>`;
-        return;
-      }
-
-      const templates = filteredTemplatesForLibrary();
-      if (summary) {
-        summary.textContent = templates.length === state.templates.length
-          ? `${state.templates.length} øktmaler i biblioteket.`
-          : `${templates.length} av ${state.templates.length} øktmaler vises.`;
-      }
-
-      if (!templates.length) {
-        list.innerHTML = `<div class="empty">Ingen øktmaler matcher søket.</div>`;
-        return;
-      }
-
-      const groups = [];
-      templates.forEach(template => {
-        const type = template.type || 'Annet';
-        let group = groups.find(item => item.type === type);
-        if (!group) {
-          group = { type, templates: [] };
-          groups.push(group);
-        }
-        group.templates.push(template);
-      });
-
-      list.innerHTML = groups.map(group => `
-        <div class="template-group">
-          <div class="template-group-header">
-            <h3>${escapeHtml(group.type)}</h3>
-            <span>${group.templates.length} ${group.templates.length === 1 ? 'mal' : 'maler'}</span>
-          </div>
-          ${group.templates.map(templateCard).join('')}
-        </div>
-      `).join('');
+      getWorkoutTemplateUi().renderLibrary();
     };
-
-    function templateCard(t) {
-      const readiness = templateCoachReadiness(t);
-      const coachTags = [
-        templateRoleLabel(t.role),
-        templatePurposeLabel(t.purpose),
-        templateLoadLabel(t.load),
-        templateRecommendedWhenLabel(t.recommendedWhen),
-        templateAvoidWhenLabel(t.avoidWhen)
-      ].filter(Boolean);
-      return `
-        <div class="workout-card template-card">
-          <div class="workout-top">
-            <div>
-              <h3 class="workout-title">${escapeHtml(t.name)}</h3>
-              <div class="meta">${escapeHtml(t.intensity || 'Uten intensitet')}</div>
-            </div>
-            <span class="tag ${readiness.ready ? 'tag-ready' : 'tag-warning'}">${readiness.ready ? 'Coach-klar' : `Mangler ${readiness.missing.length}`}</span>
-          </div>
-          ${coachTags.length ? `<div class="template-tags">${coachTags.map(tag => `<span class="tag template-tag">${escapeHtml(tag)}</span>`).join('')}</div>` : ''}
-          ${readiness.ready ? '' : `<div class="template-missing">${readiness.missing.map(item => `<span>${escapeHtml(item)}</span>`).join('')}</div>`}
-          ${structuredWorkoutSummaryHtml(t.structuredWorkout)}
-          ${t.structure ? `<p class="template-structure">${escapeHtml(t.structure)}</p>` : ''}
-          <div class="button-row">
-            <button class="btn-primary" onclick="editTemplate('${t.id}')">Rediger</button>
-            <button class="btn-soft" onclick="deleteTemplate('${t.id}')">Slett</button>
-          </div>
-        </div>`;
-    }
 
     function completedCard(c) {
       const t = completedTemplate(c);
@@ -7380,13 +7029,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       state.raceResults = normalizeRaceResultEntries(state.raceResults);
       state.continuityFreezes = normalizeContinuityFreezes(state.continuityFreezes);
 
-      const editingTemplateId = document.getElementById('editingTemplateId').value;
-      const selectedType = document.getElementById('templateType').value;
-      const selectedIntensity = document.getElementById('templateIntensity').value;
-      const typeToKeep = editingTemplateId || state.settings.activityTypes.includes(selectedType) ? selectedType : '';
-      const intensityToKeep = editingTemplateId || state.settings.intensities.includes(selectedIntensity) ? selectedIntensity : '';
-      setSelectOptions('templateType', state.settings.activityTypes, typeToKeep);
-      setSelectOptions('templateIntensity', state.settings.intensities, intensityToKeep);
+      getWorkoutTemplateUi().refreshFormOptions();
       renderSettingsList('activityTypes', 'activityTypeList');
       renderSettingsList('intensities', 'intensityList');
       renderContinuityFreezeList();
@@ -7475,7 +7118,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
           const keys = await caches.keys();
           await Promise.all(keys.filter(key => key.startsWith('treningsapp-')).map(key => caches.delete(key)));
         }
-        await Promise.all(['./index.html', './styles.css', './app.js', './ai-coach-client.js', './ai-coach-ui.js', './domain-core.js', './domain-coach.js', './domain-goals.js', './domain-coach-rules.js', './domain-fitness.js', './app-state.js', './local-state-store.js', './training-repository.js', './domain-training-plan.js', './calendar-ui.js', './data/coach-rules.json', './service-worker.js'].map(path =>
+        await Promise.all(['./index.html', './styles.css', './app.js', './ai-coach-client.js', './ai-coach-ui.js', './domain-core.js', './domain-coach.js', './domain-goals.js', './domain-coach-rules.js', './domain-fitness.js', './app-state.js', './local-state-store.js', './training-repository.js', './domain-training-plan.js', './calendar-ui.js', './workout-template-ui.js', './data/coach-rules.json', './service-worker.js'].map(path =>
           fetch(path, { cache: 'reload' }).catch(() => null)
         ));
       } finally {
@@ -7579,4 +7222,3 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         navigator.serviceWorker.register(`./service-worker.js?v=${APP_VERSION}`).catch(() => {});
       });
     };
-
