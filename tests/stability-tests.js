@@ -15,6 +15,8 @@ const plannerSource = read('domain-training-plan.js');
 const repositorySource = read('training-repository.js');
 const calendarUiSource = read('calendar-ui.js');
 const workoutTemplateUiSource = read('workout-template-ui.js');
+const workoutCompletionUiSource = read('workout-completion-ui.js');
+const workoutHistoryUiSource = read('workout-history-ui.js');
 const aiCoachClient = read('ai-coach-client.js');
 const aiCoachUi = read('ai-coach-ui.js');
 const aiCoachBackend = read('functions/ai/ai-chat.js');
@@ -49,6 +51,8 @@ function test(name, fn) {
   const planner = await import(pathToFileURL(path.join(root, 'domain-training-plan.js')).href);
   const localStoreDomain = await import(pathToFileURL(path.join(root, 'local-state-store.js')).href);
   const workoutTemplateUiDomain = await import(pathToFileURL(path.join(root, 'workout-template-ui.js')).href);
+  const workoutCompletionUiDomain = await import(pathToFileURL(path.join(root, 'workout-completion-ui.js')).href);
+  const workoutHistoryUiDomain = await import(pathToFileURL(path.join(root, 'workout-history-ui.js')).href);
   const {
     assessTrafficLight,
     buildStructuredWorkout,
@@ -105,6 +109,8 @@ function test(name, fn) {
     sortWorkoutTemplates,
     workoutTemplateReadiness
   } = workoutTemplateUiDomain;
+  const { durationSecondsFromParts } = workoutCompletionUiDomain;
+  const { filterWorkoutHistory, workoutHistoryPeriodRange } = workoutHistoryUiDomain;
   const {
     combinedRaceResults,
     formatRaceTime,
@@ -425,17 +431,51 @@ function test(name, fn) {
     assert.ok(app.includes('trainingRepository.replace(nextState)'), 'app should delegate replacement import to the repository');
   });
 
-  test('v164-v167 architecture modules own state, persistence, planning and focused UI rendering', () => {
-    ['./app-state.js', './local-state-store.js', './training-repository.js', './domain-training-plan.js', './calendar-ui.js', './workout-template-ui.js']
+  test('v164-v169 architecture modules own state, persistence, planning and focused UI rendering', () => {
+    ['./app-state.js', './local-state-store.js', './training-repository.js', './domain-training-plan.js', './calendar-ui.js', './workout-template-ui.js', './workout-completion-ui.js', './workout-history-ui.js']
       .forEach(file => assert.ok(serviceWorker.includes(file), `${file} is missing from APP_SHELL`));
     assert.ok(app.includes("from './app-state.js'"), 'app-state module is not imported');
     assert.ok(app.includes("from './training-repository.js'"), 'training repository is not imported');
     assert.ok(app.includes("from './domain-training-plan.js'"), 'training planner is not imported');
     assert.ok(app.includes("from './calendar-ui.js'"), 'calendar controller is not imported');
     assert.ok(app.includes("from './workout-template-ui.js'"), 'workout template UI is not imported');
+    assert.ok(app.includes("from './workout-completion-ui.js'"), 'workout completion UI is not imported');
+    assert.ok(app.includes("from './workout-history-ui.js'"), 'workout history UI is not imported');
     assert.ok(repositorySource.includes('createTrainingRepository'), 'repository factory is missing');
     assert.ok(calendarUiSource.includes('createCalendarUi'), 'calendar UI factory is missing');
     assert.ok(workoutTemplateUiSource.includes('createWorkoutTemplateUi'), 'workout template UI factory is missing');
+    assert.ok(workoutCompletionUiSource.includes('createWorkoutCompletionUi'), 'workout completion UI factory is missing');
+    assert.ok(workoutHistoryUiSource.includes('createWorkoutHistoryUi'), 'workout history UI factory is missing');
+  });
+
+  test('v168 completion helpers preserve duration boundaries', () => {
+    assert.strictEqual(durationSecondsFromParts(1, 2, 3), 3723);
+    assert.strictEqual(durationSecondsFromParts(0, 75, 80), 3599);
+    assert.strictEqual(durationSecondsFromParts('', '', ''), 0);
+    assert.ok(workoutCompletionUiSource.includes('readFormData'), 'completion form reading should live in the completion module');
+    assert.ok(workoutCompletionUiSource.includes('fillForm'), 'completion form filling should live in the completion module');
+    assert.ok(app.includes('getWorkoutCompletionUi().readFormData()'), 'app should delegate completion form reading');
+  });
+
+  test('v169 history filters production data without mutating the source', () => {
+    const completed = [
+      { id: 'easy', date: '2026-07-10', type: 'Løping', effect: 'low_aerobic', load: 'low' },
+      { id: 'hard', date: '2026-07-12', type: 'Løping', effect: 'high_aerobic', load: 'high', body: true },
+      { id: 'strength', date: '2026-06-30', type: 'Styrke', effect: '', load: 'moderate' }
+    ];
+    const filtered = filterWorkoutHistory({
+      completed,
+      filters: { type: 'Løping', from: '2026-07-01', to: '2026-07-31', load: 'high', bodySignal: 'yes', sort: 'desc' },
+      resolveTemplate: item => ({ type: item.type }),
+      resolveTrainingEffectCategory: item => item.effect,
+      resolveLoadLevel: item => item.load,
+      hasBodySignal: item => Boolean(item.body),
+      searchText: item => item.id
+    });
+    assert.deepStrictEqual(filtered.map(item => item.id), ['hard']);
+    assert.deepStrictEqual(completed.map(item => item.id), ['easy', 'hard', 'strength']);
+    assert.deepStrictEqual(workoutHistoryPeriodRange('7', '2026-07-17'), { from: '2026-07-11', to: '2026-07-17' });
+    assert.ok(app.includes('getWorkoutHistoryUi().renderList()'), 'app should delegate history rendering');
   });
 
   test('v167 workout template module sorts, filters and reports coach readiness', () => {
@@ -1431,8 +1471,8 @@ function test(name, fn) {
   });
 
   test('completed workout detail has discreet confirmed delete action', () => {
-    assert.ok(app.includes('btn-subtle-danger'), 'completed detail should include a discreet delete button');
-    assert.ok(app.includes("'Slett fra logg'"), 'historical completed workouts should be deletable from detail view');
+    assert.ok(workoutHistoryUiSource.includes('btn-subtle-danger'), 'completed detail should include a discreet delete button');
+    assert.ok(workoutHistoryUiSource.includes("'Slett fra logg'"), 'historical completed workouts should be deletable from detail view');
     assert.ok(app.includes('Er du sikker på at du vil slette denne historiske økten?'), 'delete action should require confirmation');
     assert.ok(app.includes("fsDelete('completed', completedId)"), 'delete action should remove completed workout from Firestore');
     assert.ok(app.includes('closeWorkoutDetailModal();'), 'detail modal should close after delete/undo apply');
@@ -1440,20 +1480,20 @@ function test(name, fn) {
 
   test('history log rows show scannable completed workout context', () => {
     const styles = read('styles.css');
-    const historyRowBlock = app.match(/function historyRow\(c\) \{[\s\S]+?\n    \}/)?.[0] || '';
-    assert.ok(app.includes('function historyPriorityChip'), 'history rows should choose one prioritized context chip');
-    assert.ok(app.includes('templateCalendarKind(t)'), 'history rows should reuse workout kind classification');
-    assert.ok(app.includes("c.distanceKm ? `${c.distanceKm} km` : ''"), 'history rows should show distance in the compact metric line');
-    assert.ok(app.includes("c.avgHeartRate ? `${c.avgHeartRate} bpm` : ''"), 'history rows should show pulse in the compact metric line');
-    assert.ok(app.includes("history-row-metrics\">${escapeHtml(metrics || 'Ingen nøkkeltall')}"), 'history rows should use one compact metric line');
-    assert.ok(app.includes('historyPainText'), 'history rows should summarize pain response');
-    assert.ok(app.includes("return { className: 'neutral', label: 'Strukturert' };"), 'history rows should preserve structured interval context as a priority chip');
-    assert.ok(app.includes('openWorkoutDetail'), 'history rows should still open the detail modal');
+    const historyRowBlock = workoutHistoryUiSource.match(/function row\(completed\) \{[\s\S]+?\n  \}/)?.[0] || '';
+    assert.ok(workoutHistoryUiSource.includes('function priorityChip'), 'history rows should choose one prioritized context chip');
+    assert.ok(workoutHistoryUiSource.includes('templateCalendarKind(template)'), 'history rows should reuse workout kind classification');
+    assert.ok(workoutHistoryUiSource.includes("completed.distanceKm ? `${completed.distanceKm} km` : ''"), 'history rows should show distance in the compact metric line');
+    assert.ok(workoutHistoryUiSource.includes("completed.avgHeartRate ? `${completed.avgHeartRate} bpm` : ''"), 'history rows should show pulse in the compact metric line');
+    assert.ok(workoutHistoryUiSource.includes("history-row-metrics\">${escapeHtml(metrics || 'Ingen nøkkeltall')}"), 'history rows should use one compact metric line');
+    assert.ok(workoutHistoryUiSource.includes('function painText'), 'history rows should summarize pain response');
+    assert.ok(workoutHistoryUiSource.includes("return { className: 'neutral', label: 'Strukturert' };"), 'history rows should preserve structured interval context as a priority chip');
+    assert.ok(workoutHistoryUiSource.includes('openWorkoutDetail'), 'history rows should still open the detail modal');
     assert.ok(styles.includes('.history-row-bottom'), 'compact history row bottom styling is missing');
     assert.ok(styles.includes('.history-chip.kind-race'), 'history race chip styling is missing');
     assert.ok(styles.includes('.history-chip.signal'), 'history body signal chip styling is missing');
     assert.ok(styles.includes('.stripe-race'), 'history race stripe styling is missing');
-    assert.ok(!app.includes('historyMetric('), 'history overview should not render heavy metric boxes');
+    assert.ok(!workoutHistoryUiSource.includes('historyMetric('), 'history overview should not render heavy metric boxes');
     assert.ok(!historyRowBlock.includes('<span class="tag done">Utført</span>'), 'history overview should not show redundant done badge');
   });
 
