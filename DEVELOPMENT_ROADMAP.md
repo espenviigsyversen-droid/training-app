@@ -1164,7 +1164,7 @@ Begrepet i UI skal være `Resonneringsnivå`, ikke hvor "smart" modellen er. Hø
 - Valget synkroniseres mellom PC og mobil.
 - Samme coach-guardrails gjelder for alle profiler.
 
-Etter v162/v163 går prioriteringen tilbake til **Datatrygghet - lokal snapshot-kvote**, etterfulgt av isolert oppgradering av Firebase Functions SDK.
+Etter v162/v163 gikk prioriteringen til **v170a-v170b Datatrygghet - lokal snapshot-kvote**, etterfulgt av **v171 isolert oppgradering av Firebase Functions SDK**. Begge rundene er bygget og testet, og v171-backenden er deployet.
 
 Utenfor v150-v153:
 
@@ -1305,6 +1305,25 @@ Hvis svaret er ja på flere av disse, bør ideen prioriteres.
 ### Videre UI-retning
 
 Øktmaler, fullføring og historikk er nå avgrenset i v167-v169. Videre uttrekk skal fortsatt være små, begrunnede runder; `app.js` skal beholde orchestrering, state, bekreftelser og persistence-wrappers.
+
+## v170a-v171 - Datatrygghet og backend-vedlikehold - Ferdig og deployet
+
+### v170a - Snapshot-observability
+
+- Lokal snapshot normaliseres før serialisering, og faktisk UTF-8-størrelse måles.
+- Setup viser om den lokale sikkerhetskopien er oppdatert, hvilket lagringslag som brukes og om lagringen feiler.
+- Firestore forblir primær datakilde; snapshot-statusen beskriver bare det lokale sikkerhetsnettet.
+
+### v170b - IndexedDB-fallback
+
+- Ved `QuotaExceededError` lagres snapshot og recovery i IndexedDB i stedet for at feilen bare logges.
+- Lesing velger nyeste gyldige kopi mellom localStorage og IndexedDB og ignorerer korrupt lagringsinnhold.
+- Import, reset og gjenoppretting avbrytes dersom en nødvendig recovery-kopi ikke kan opprettes.
+
+### v171 - Firebase Functions SDK
+
+- `firebase-functions` er oppgradert fra 6.x til 7.3.0 uten endring i callable-kontrakter, AI-policy eller datamodell.
+- Node 22 beholdes. Backend-syntaks og hele AI-testpakken skal passere før deploy.
 
 ## Hva vi bør vente med
 

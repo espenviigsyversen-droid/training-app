@@ -207,8 +207,10 @@ Treningsapp/
 
 ## Neste steg (prioritert)
 
-1. **Separate tekniske backlogspor**
-   - Lokal snapshot-kvote og Firebase Functions SDK-oppgradering gjennomføres isolert fra UI-rundene.
+1. **v170a-v170b og v171 - tekniske sikkerhetsrunder bygget**
+   - Lokal snapshot viser nå størrelse/status og faller tilbake til IndexedDB ved kvoteproblem.
+   - Recovery bruker samme fallback, og destruktiv import/reset avbrytes hvis recovery-kopien ikke kan lagres.
+   - `firebase-functions` er oppgradert isolert til 7.3.0 på Node 22; backend-testpakken passerer.
 
 ### v167 - Øktmaler som egen UI-feature - Bygget
 
@@ -229,6 +231,19 @@ Treningsapp/
 - `app.js` beholder state, modal-wrappers, bekreftet sletting/angre og persistence.
 - Produksjonsfunksjonene for periode og filter testes direkte. Begge nye runtime-moduler ligger i PWA app shell.
 - Sluttversjon for den samlede v168/v169-runden er v169.
+
+### v170a-v170b - Lokal snapshot-kvote - Bygget
+
+- `local-state-store.js` normaliserer og størrelsesmåler snapshots før lagring.
+- LocalStorage brukes normalt; ved kvoteproblem lagres snapshot/recovery i IndexedDB.
+- Nyeste gyldige kopi velges ved lesing, og korrupt lokal kopi gir trygg fallback.
+- Setup viser oppdatert lokal sikkerhetskopi, lagringslag og størrelse, eller en tydelig feilstatus.
+
+### v171 - Firebase Functions SDK - Bygget, testet og deployet
+
+- `firebase-functions` er oppgradert fra 6.x til 7.3.0 uten endring i API-kontrakter eller AI-funksjonalitet.
+- Node 22 er beholdt. AI-backend-testene passerer med ny SDK.
+- Sluttversjon for den samlede runden er v171 / `treningsapp-v171`.
 
 ---
 

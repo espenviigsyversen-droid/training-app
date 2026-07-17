@@ -104,7 +104,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       normalizeTrainingProfile,
       normalizeWeekPlanRoles
     } from './app-state.js';
-    import { createLocalStateStore } from './local-state-store.js';
+    import { createIndexedDbKeyValueStore, createLocalStateStore } from './local-state-store.js';
     import { createTrainingRepository } from './training-repository.js';
     import { createCalendarUi } from './calendar-ui.js';
     import { createWorkoutTemplateUi } from './workout-template-ui.js';
@@ -128,7 +128,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       xWorkoutSuggestion
     } from './domain-training-plan.js';
 
-    const APP_VERSION = 'v169';
+    const APP_VERSION = 'v171';
     const APP_CACHE_NAME = `treningsapp-${APP_VERSION}`;
 
     const firebaseConfig = {
@@ -155,11 +155,14 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     let offlineSnapshotMode = false;
     const LOCAL_STATE_KEY = 'treningsapp:last-state:v1';
     let state = createEmptyAppState();
+    const indexedDbSnapshotStore = createIndexedDbKeyValueStore({ indexedDB: window.indexedDB });
     const localStateStore = createLocalStateStore({
       storage: localStorage,
+      fallbackStorage: indexedDbSnapshotStore,
       key: LOCAL_STATE_KEY,
       normalizeState: normalizeAppState
     });
+    let localSnapshotStatus = { state: 'checking', backend: null, bytes: 0, savedAt: null };
     const trainingRepository = createTrainingRepository({
       db,
       getCurrentUser: () => currentUser,
@@ -278,22 +281,42 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       setSyncStatus(hasPendingLocalWrites ? 'syncing' : 'ok');
     }
 
-    function saveLocalStateSnapshot() {
+    function setLocalSnapshotStatus(nextStatus) {
+      localSnapshotStatus = { ...localSnapshotStatus, ...nextStatus };
+      renderLocalSnapshotStatus();
+    }
+
+    function formatSnapshotSize(bytes) {
+      if (!Number.isFinite(bytes) || bytes <= 0) return '';
+      if (bytes < 1024) return `${bytes} B`;
+      return `${(bytes / 1024).toFixed(bytes >= 1024 * 100 ? 0 : 1)} kB`;
+    }
+
+    async function saveLocalStateSnapshot() {
       try {
-        localStateStore.writeSnapshot(state);
+        const result = await localStateStore.writeSnapshotSafe(state);
+        setLocalSnapshotStatus({ state: 'ok', ...result });
+        return result;
       } catch (err) {
         console.warn('Could not save local state snapshot:', err);
+        setLocalSnapshotStatus({ state: 'error', error: err?.message || 'Ukjent lagringsfeil' });
+        return null;
       }
     }
 
-    function loadLocalStateSnapshot() {
+    async function loadLocalStateSnapshot() {
       try {
-        const snapshot = localStateStore.readSnapshot();
-        if (!snapshot) return null;
+        const snapshot = await localStateStore.readSnapshotSafe();
+        if (!snapshot) {
+          setLocalSnapshotStatus({ state: 'empty', backend: null, bytes: 0, savedAt: null });
+          return null;
+        }
         state = snapshot.state;
+        setLocalSnapshotStatus({ state: 'ok', backend: snapshot.backend, bytes: snapshot.bytes, savedAt: snapshot.savedAt });
         return snapshot.savedAt || null;
       } catch (err) {
         console.warn('Could not load local state snapshot:', err);
+        setLocalSnapshotStatus({ state: 'error', error: err?.message || 'Ukjent lesefeil' });
         return null;
       }
     }
@@ -405,7 +428,6 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
 
     function blockOfflineSnapshotWrite() {
       if (!offlineSnapshotMode) return false;
-      loadLocalStateSnapshot();
       setSyncStatus('offline');
       render();
       alert('Du er i offline-visning med siste lagrede kopi. Koble til nett for å endre eller logge økter trygt.');
@@ -427,7 +449,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       );
     }
 
-    window.startOfflineFallback = function() {
+    window.startOfflineFallback = async function() {
       const loading = document.getElementById('loadingOverlay');
       const authScreen = document.getElementById('authScreen');
       const mainApp = document.getElementById('mainApp');
@@ -443,7 +465,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         return;
       }
 
-      const savedAt = loadLocalStateSnapshot();
+      const savedAt = await loadLocalStateSnapshot();
       if (savedAt) {
         offlineSnapshotMode = true;
         loading.classList.add('hidden');
@@ -734,7 +756,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       try {
         state = await trainingRepository.load();
         offlineSnapshotMode = false;
-        saveLocalStateSnapshot();
+        await saveLocalStateSnapshot();
         if (navigator.onLine) {
           hasPendingLocalWrites = false;
           setSyncStatus('ok');
@@ -766,7 +788,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         } else {
           setSyncStatus('ok');
         }
-        saveLocalStateSnapshot();
+        await saveLocalStateSnapshot();
       } catch (err) {
         console.error('Firestore write error:', err);
         setSyncStatus('error');
@@ -791,7 +813,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         } else {
           setSyncStatus('ok');
         }
-        saveLocalStateSnapshot();
+        await saveLocalStateSnapshot();
       } catch (err) {
         console.error('Firestore delete error:', err);
         setSyncStatus('error');
@@ -817,7 +839,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         } else {
           setSyncStatus('ok');
         }
-        saveLocalStateSnapshot();
+        await saveLocalStateSnapshot();
       } catch (err) {
         console.error('Firestore batch error:', err);
         setSyncStatus('error');
@@ -825,17 +847,21 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       }
     }
 
-    function saveRecoverySnapshot(reason) {
+    async function saveRecoverySnapshot(reason) {
       try {
-        localStateStore.writeRecovery(cloneAppState(), reason);
+        const result = await localStateStore.writeRecoverySafe(cloneAppState(), reason);
+        setLocalSnapshotStatus({ state: 'ok', ...result });
+        return result;
       } catch (err) {
         console.warn('Could not save recovery snapshot:', err);
+        setLocalSnapshotStatus({ state: 'error', error: err?.message || 'Kunne ikke lagre gjenopprettingskopi' });
+        return null;
       }
     }
 
-    function loadRecoverySnapshot() {
+    async function loadRecoverySnapshot() {
       try {
-        return localStateStore.readRecovery();
+        return await localStateStore.readRecoverySafe();
       } catch (err) {
         console.warn('Could not load recovery snapshot:', err);
         return null;
@@ -846,7 +872,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       if (blockOfflineSnapshotWrite()) throw new Error('Offline snapshot is read-only');
       setSyncStatus('syncing');
       await trainingRepository.replace(nextState);
-      saveLocalStateSnapshot();
+      await saveLocalStateSnapshot();
       setSyncStatus('ok');
     }
 
@@ -857,7 +883,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
 
     function restoreAppState(snapshot) {
       state = snapshot;
-      saveLocalStateSnapshot();
+      void saveLocalStateSnapshot();
       render();
       if (document.getElementById('calendarDayModal')?.classList.contains('active') && selectedCalendarDate()) {
         openCalendarDayModal(selectedCalendarDate());
@@ -868,7 +894,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       const snapshot = cloneAppState();
       try {
         apply();
-        saveLocalStateSnapshot();
+        await saveLocalStateSnapshot();
         render();
         if (typeof afterApply === 'function') afterApply();
         await write();
@@ -1079,7 +1105,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         document.getElementById('settingsUserEmail').textContent = `Innlogget som: ${user.email}`;
         await loadFromFirestore();
       } else {
-        const savedAt = !navigator.onLine ? loadLocalStateSnapshot() : null;
+        const savedAt = !navigator.onLine ? await loadLocalStateSnapshot() : null;
         if (savedAt) {
           currentUser = null;
           offlineSnapshotMode = true;
@@ -6660,11 +6686,33 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       el.textContent = `Appversjon: ${APP_VERSION} · Cache: ${APP_CACHE_NAME}`;
     }
 
+    function renderLocalSnapshotStatus() {
+      const el = document.getElementById('localSnapshotStatus');
+      if (!el) return;
+      el.classList.toggle('status-warning', localSnapshotStatus.state === 'error');
+      if (localSnapshotStatus.state === 'checking') {
+        el.textContent = 'Lokal sikkerhetskopi: kontrollerer ...';
+        return;
+      }
+      if (localSnapshotStatus.state === 'empty') {
+        el.textContent = 'Lokal sikkerhetskopi: opprettes etter neste synkronisering.';
+        return;
+      }
+      if (localSnapshotStatus.state === 'error') {
+        el.textContent = 'Lokal sikkerhetskopi: ikke oppdatert. Firestore-synkronisering fortsetter.';
+        return;
+      }
+      const backend = localSnapshotStatus.backend === 'indexedDB' ? 'IndexedDB reserve' : 'lokal lagring';
+      const size = formatSnapshotSize(localSnapshotStatus.bytes);
+      el.textContent = `Lokal sikkerhetskopi: oppdatert · ${backend}${size ? ` · ${size}` : ''}`;
+    }
+
     // ── Render ────────────────────────────────────────────────────────────────
     function render() {
       renderCalendar();
       const today = todayISO();
       renderAppVersionInfo();
+      renderLocalSnapshotStatus();
       document.getElementById('todayPill').textContent = formatDate(today);
       document.getElementById('planDate').value ||= today;
       state.settings = normalizeSettings(state.settings);
@@ -6728,16 +6776,17 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     };
 
     window.restoreRecoverySnapshot = async function() {
-      const snapshot = loadRecoverySnapshot();
+      const snapshot = await loadRecoverySnapshot();
       if (!snapshot) return alert('Fant ingen lokal sikkerhetskopi å gjenopprette.');
       const savedAt = snapshot.savedAt ? new Date(snapshot.savedAt).toLocaleString('no-NO') : 'ukjent tidspunkt';
       if (!confirm(`Gjenopprette lokal sikkerhetskopi fra ${savedAt}? Dette erstatter dataene som ligger i appen nå.`)) return;
       const previousState = cloneAppState();
       try {
-        saveRecoverySnapshot('before-recovery-restore');
+        const recoverySaved = await saveRecoverySnapshot('before-recovery-restore');
+        if (!recoverySaved) return alert('Kunne ikke opprette en sikkerhetskopi av dagens data. Gjenoppretting er avbrutt.');
         const nextState = normalizeAppState(snapshot.state);
         state = nextState;
-        saveLocalStateSnapshot();
+        await saveLocalStateSnapshot();
         render();
         await replaceFirestoreData(nextState);
         showToast('Sikkerhetskopi gjenopprettet');
@@ -6780,10 +6829,11 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
           if (!imported.templates || !imported.planned || !imported.completed) throw new Error('Invalid format');
           if (!confirm('Import vil overskrive data som ligger i appen nå. Fortsette?')) return;
           previousState = cloneAppState();
-          saveRecoverySnapshot('before-import');
+          const recoverySaved = await saveRecoverySnapshot('before-import');
+          if (!recoverySaved) throw new Error('Recovery snapshot failed; import aborted');
           const nextState = normalizeAppState(imported);
           state = nextState;
-          saveLocalStateSnapshot();
+          await saveLocalStateSnapshot();
           render();
           await replaceFirestoreData(nextState);
           showToast('Backup importert');
@@ -6821,7 +6871,8 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
 
     window.resetData = async function() {
       if (!confirm('SISTE ADVARSEL: Dette sletter alle økter, planer, historikk, formmålinger, race-resultater, challenges, fryskort og ikke-treningsdager. Dette kan ikke angres. Fortsette?')) return;
-      saveRecoverySnapshot('before-reset');
+      const recoverySaved = await saveRecoverySnapshot('before-reset');
+      if (!recoverySaved) return alert('Kunne ikke opprette lokal sikkerhetskopi. Sletting er avbrutt.');
       setSyncStatus('syncing');
       try {
         await trainingRepository.clearData();

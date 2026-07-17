@@ -166,14 +166,15 @@ Prioritert backlog for videre utvikling av Treningsapp.
     - Bedre oppsummering av lange samtaler og eventuelt eksplisitt brukeradministrert minne.
     - Personvern, innsyn, sletting, eksport, kostnad og tematester for trening/mat/restitusjon.
 
-37. **Datatrygghet - lokal snapshot-kvote**
+37. **v170a-v170b - Datatrygghet for lokal snapshot-kvote** - Bygget
     - Produksjonssjekk 12. juli 2026 viste `QuotaExceededError` for `treningsapp:last-state:v1` i localStorage mens Firestore fortsatt synkroniserte.
-    - Vurder komprimert/minimert snapshot, størrelsesmåling og tydelig fallback til IndexedDB slik at offline-sikkerhetsnettet ikke blir stille utdatert.
-    - Behandles som egen lavrisiko datatrygghetsrunde og skal ikke blandes inn i chat-persistence.
+    - Snapshot normaliseres før lagring, størrelsen måles, og Setup viser om lokal kopi er oppdatert og hvilket lagringslag som brukes.
+    - `QuotaExceededError` faller kontrollert tilbake til IndexedDB. Lesing velger nyeste gyldige kopi, og recovery bruker samme sikre lagringsvei.
 
-38. **Vedlikehold - oppgrader Firebase Functions SDK**
+38. **v171 - Oppgrader Firebase Functions SDK** - Ferdig, testet og deployet
     - Firebase CLI varslet under v156-deploy at `firebase-functions` er utdatert.
-    - Gjør dette som egen testet vedlikeholdsrunde fordi ny hovedversjon kan ha breaking changes; ikke bland oppgraderingen inn i chatfunksjonalitet.
+    - `firebase-functions` er oppgradert isolert fra 6.x til 7.3.0 på eksisterende Node 22-runtime.
+    - Backendens syntakssjekker og AI-testpakke skal passere før produksjonsdeploy.
 
 39. **v160a-v160g - Transparent treningsnivåvurdering** - Bygget og kalibrert
     - Ren `domain-fitness.js` kombinerer kontinuitet, kontrollert kvalitet, RPE/kroppssignal, VO2 mot alder og egen PB-fremgang.
@@ -255,7 +256,7 @@ Disse punktene var del av den tidlige v142-idéen, men er bevisst flyttet ut av 
 
 v164a-v169 har etablert tydelige grenser for state, lokal lagring, planlegging, Firestore, kalender, øktmaler, fullføring og historikk uten å endre brukeropplevelsen.
 
-Neste anbefalte arbeid bør velges som en egen avgrenset runde. De åpne tekniske sporene er datatrygghet for lokal snapshot-kvote og en isolert Firebase Functions SDK-oppgradering; ingen av dem skal blandes inn i UI-polish.
+v170a-v170b og v171 har lukket de åpne tekniske sporene for lokal snapshot-kvote og Firebase Functions SDK. Neste arbeid bør velges som en ny, avgrenset produkt- eller vedlikeholdsrunde etter produksjonsverifisering av v171.
 
 Begrunnelse:
 - v143b har etablert en validert parameterkilde med trygg fallback

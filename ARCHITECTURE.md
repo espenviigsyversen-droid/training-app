@@ -13,8 +13,8 @@ Treningsapp er en installbar PWA uten build-step. Appen kjøres direkte fra stat
 - Hosting: GitHub Pages
 - Auth: Firebase Google Auth
 - Database: Firestore
-- Serverfunksjoner: Firebase Callable Functions for AI-backend (lokalt klargjort, deploy gjenstår)
-- Offline: Firestore IndexedDB persistence + egen lokal snapshot i `localStorage`
+- Serverfunksjoner: Firebase Callable Functions for AI-backend (deployet til produksjon)
+- Offline: Firestore IndexedDB persistence + normalisert lokal snapshot i `localStorage`, med IndexedDB-reserve ved kvoteproblem
 - Build: Ingen
 
 ## Filstruktur
@@ -82,7 +82,7 @@ Er appens orchestrator og UI-kobling:
 ### State, lagring, planlegging og kalender
 
 - `app-state.js` eier tom state, settings-defaults og normalisering av data fra Firestore, import og lokal snapshot.
-- `local-state-store.js` eier normalisert lokal snapshot/recovery gjennom et injiserbart storage-grensesnitt.
+- `local-state-store.js` eier normalisert lokal snapshot/recovery, UTF-8-størrelsesmåling og kontrollert IndexedDB-fallback gjennom injiserbare storage-grensesnitt.
 - `training-repository.js` kapsler Firestore-lesing, skriving, sletting, batch-operasjoner og utskifting av treningsdata. Auth og Firestore-avhengigheter injiseres fra `app.js`.
 - `domain-training-plan.js` inneholder ren rolledekning, template-scoring og ukeplan-/øktforslag uten DOM, Firebase eller global state.
 - `calendar-ui.js` renderer kalendergrid og dagsmodal med injiserte data og callbacks. Selve mutasjonene, bekreftelsene og persistence-wrappere forblir i `app.js`.

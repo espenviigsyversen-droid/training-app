@@ -89,7 +89,13 @@ Ved release med AI-coach:
 3. Lukk og åpne appen igjen
 4. Sjekk at ny versjon faktisk kjører
 5. Sjekk at riktig appversjon vises i Setup -> Data og system -> Backup og oppdatering
-6. Test én trygg handling, f.eks. åpne Kalender eller Innsikt
+6. Sjekk at Lokal sikkerhetskopi viser oppdatert status og lagringslag i samme seksjon
+7. Test én trygg handling, f.eks. åpne Kalender eller Innsikt
+
+Ved oppgradering av Firebase Functions SDK:
+
+- kjør backend-syntakssjekker og `node functions/tests/ai-backend-tests.js`
+- deploy Functions separat og smoke-test nøkkelstatus, tilkobling og ett vanlig AI-svar
 
 ## Ved feil etter opplasting
 

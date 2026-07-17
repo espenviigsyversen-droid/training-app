@@ -41,6 +41,17 @@ function test(name, fn) {
   }
 }
 
+async function testAsync(name, fn) {
+  try {
+    await fn();
+    console.log(`ok - ${name}`);
+  } catch (err) {
+    console.error(`not ok - ${name}`);
+    console.error(err.message);
+    process.exitCode = 1;
+  }
+}
+
 (async () => {
   const domain = await import(pathToFileURL(path.join(root, 'domain-core.js')).href);
   const coach = await import(pathToFileURL(path.join(root, 'domain-coach.js')).href);
@@ -166,7 +177,7 @@ function test(name, fn) {
     normalWeekRoles,
     templateSuggestionScore
   } = planner;
-  const { createLocalStateStore } = localStoreDomain;
+  const { createLocalStateStore, isStorageQuotaError, snapshotByteLength } = localStoreDomain;
 
   const loadedRulesResult = await loadCoachRules('./data/coach-rules.json', async () => ({
     ok: true,
@@ -527,6 +538,106 @@ function test(name, fn) {
     assert.strictEqual(snapshot.reason, 'test');
     assert.deepStrictEqual(snapshot.state.templates[0].recommendedWhen, ['normal']);
     assert.strictEqual(snapshot.state.settings.features.structuredIntervals, true);
+  });
+
+  await testAsync('v170a local snapshot reports normalized UTF-8 size and visible status', async () => {
+    assert.strictEqual(snapshotByteLength('ø'), 2);
+    const values = new Map();
+    const storage = {
+      getItem: storageKey => values.get(storageKey) || null,
+      setItem: (storageKey, value) => values.set(storageKey, value),
+      removeItem: storageKey => values.delete(storageKey)
+    };
+    const store = createLocalStateStore({
+      storage,
+      key: 'training-size-test',
+      normalizeState: normalizeAppState,
+      now: () => '2026-07-17T12:00:00.000Z'
+    });
+    const result = await store.writeSnapshotSafe({ templates: [{ id: 'size', name: 'Rolig økt' }] });
+    assert.strictEqual(result.backend, 'localStorage');
+    assert.ok(result.bytes > 0);
+    assert.strictEqual(store.estimateSnapshot({ templates: [] }).bytes > 0, true);
+    assert.ok(index.includes('id="localSnapshotStatus"'), 'Setup snapshot status is missing');
+    assert.ok(app.includes('Lokal sikkerhetskopi: oppdatert'), 'snapshot success status is missing');
+    assert.ok(app.includes('Lokal sikkerhetskopi: ikke oppdatert'), 'snapshot error status is missing');
+  });
+
+  await testAsync('v170b quota errors fall back to IndexedDB-compatible storage', async () => {
+    const primary = new Map([['training-quota-test', 'stale']]);
+    const fallback = new Map();
+    const quotaError = Object.assign(new Error('quota'), { name: 'QuotaExceededError' });
+    assert.strictEqual(isStorageQuotaError(quotaError), true);
+    const store = createLocalStateStore({
+      storage: {
+        getItem: storageKey => primary.get(storageKey) || null,
+        setItem: () => { throw quotaError; },
+        removeItem: storageKey => primary.delete(storageKey)
+      },
+      fallbackStorage: {
+        getItem: async storageKey => fallback.get(storageKey) || null,
+        setItem: async (storageKey, value) => fallback.set(storageKey, value),
+        removeItem: async storageKey => fallback.delete(storageKey)
+      },
+      key: 'training-quota-test',
+      normalizeState: normalizeAppState,
+      now: () => '2026-07-17T12:00:00.000Z'
+    });
+    const saved = await store.writeSnapshotSafe({ templates: [{ id: 'fallback', name: 'Fallback' }] });
+    assert.strictEqual(saved.backend, 'indexedDB');
+    assert.strictEqual(saved.fallbackReason, 'quota');
+    assert.strictEqual(primary.has('training-quota-test'), false);
+    const loaded = await store.readSnapshotSafe();
+    assert.strictEqual(loaded.backend, 'indexedDB');
+    assert.strictEqual(loaded.state.templates[0].id, 'fallback');
+  });
+
+  await testAsync('v170b newest valid snapshot wins and corrupt primary is ignored', async () => {
+    const primary = new Map();
+    const fallback = new Map();
+    let timestamp = '2026-07-17T10:00:00.000Z';
+    const store = createLocalStateStore({
+      storage: {
+        getItem: storageKey => primary.get(storageKey) || null,
+        setItem: (storageKey, value) => primary.set(storageKey, value),
+        removeItem: storageKey => primary.delete(storageKey)
+      },
+      fallbackStorage: {
+        getItem: async storageKey => fallback.get(storageKey) || null,
+        setItem: async (storageKey, value) => fallback.set(storageKey, value),
+        removeItem: async storageKey => fallback.delete(storageKey)
+      },
+      key: 'training-newest-test',
+      normalizeState: normalizeAppState,
+      now: () => timestamp
+    });
+    store.writeSnapshot({ templates: [{ id: 'older' }] });
+    timestamp = '2026-07-17T11:00:00.000Z';
+    const newerRaw = JSON.stringify({ savedAt: timestamp, state: { templates: [{ id: 'newer' }] } });
+    fallback.set('training-newest-test', newerRaw);
+    assert.strictEqual((await store.readSnapshotSafe()).state.templates[0].id, 'newer');
+    primary.set('training-newest-test', '{invalid');
+    assert.strictEqual((await store.readSnapshotSafe()).state.templates[0].id, 'newer');
+  });
+
+  await testAsync('v170b recovery snapshots also use the safe fallback path', async () => {
+    const fallback = new Map();
+    const quotaError = Object.assign(new Error('quota'), { name: 'QuotaExceededError' });
+    const store = createLocalStateStore({
+      storage: { getItem: () => null, setItem: () => { throw quotaError; }, removeItem: () => undefined },
+      fallbackStorage: {
+        getItem: async storageKey => fallback.get(storageKey) || null,
+        setItem: async (storageKey, value) => fallback.set(storageKey, value),
+        removeItem: async storageKey => fallback.delete(storageKey)
+      },
+      key: 'training-recovery-test',
+      normalizeState: normalizeAppState,
+      now: () => '2026-07-17T12:00:00.000Z'
+    });
+    await store.writeRecoverySafe({ completed: [{ id: 'safe' }] }, 'before-reset');
+    const recovery = await store.readRecoverySafe();
+    assert.strictEqual(recovery.reason, 'before-reset');
+    assert.strictEqual(recovery.state.completed[0].id, 'safe');
   });
 
   test('v164 planner preserves role-first template selection and safe week assembly', () => {
@@ -2018,7 +2129,7 @@ function test(name, fn) {
 
   test('backup import and local snapshot normalize without losing structuredWorkout', () => {
     assert.ok(app.includes('const nextState = normalizeAppState(imported)'), 'backup import should normalize app state');
-    assert.ok(app.includes('localStateStore.readRecovery()'), 'local snapshot should be read through the normalized local store');
+    assert.ok(app.includes('localStateStore.readRecoverySafe()'), 'local snapshot should use the normalized safe recovery store');
     assert.ok(read('local-state-store.js').includes('normalizeState(snapshot.state)'), 'local snapshot should normalize app state');
     assert.ok(app.includes('state.templates = normalizeTemplates(state.templates)'), 'render should normalize templates before use');
     const importedTemplate = normalizeTemplate({
