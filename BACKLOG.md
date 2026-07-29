@@ -232,7 +232,7 @@ Prioritert backlog for videre utvikling av Treningsapp.
       - Bekreftet sletting/angre og persistence forblir i `app.js`.
     - Hver runde skal bruke de nye modulgrensene og testes separat på mobil/PWA og desktop.
 
-47. **v172a-v172b - Strukturert styrke og øvelsesbibliotek** - Neste hovedspor
+47. **v172a-v172b - Strukturert styrke og øvelsesbibliotek** - Ferdig
     - Design en versjonert, bakoverkompatibel øvelsesmodell før UI.
     - Støtt navn, sett, repetisjoner/varighet, pause, beskrivelse, muskelgrupper, formål, utstyr og sikre eksterne lenker.
     - Bygg flere gjenbrukbare styrkemaler uten å endre gamle maler.
@@ -287,7 +287,7 @@ Disse punktene var del av den tidlige v142-idéen, men er bevisst flyttet ut av 
 
 ## Anbefalt neste steg
 
-`v172a` er neste runde: datamodell, normalisering, snapshot-policy, URL-policy og tester for øvelsesbibliotek og strukturert styrke. Deretter følger v172b-v177 i rekkefølgen over.
+`v173` er neste runde: gjenbrukbare oppvarmings- og nedtrappingsblokker basert på øvelsesbiblioteket fra v172a-v172b. Deretter følger v174-v177 i rekkefølgen over.
 
 v164a-v169 har etablert modulgrensene som de nye rundene skal bygge videre på. v170a-v171 har lukket de åpne tekniske sporene for lokal snapshot-kvote og Firebase Functions SDK.
 
@@ -303,3 +303,4 @@ Begrunnelse:
 - v155-reglene er testet i Firestore-emulator: eierens appdata fungerer, andre brukere avvises, chat-writes er backend-only og `apiKeys/{uid}` / `aiUsage/{uid}` er sperret
 - v154 har fungerende dynamisk tilkoblingsstatus, egen Chat-fane og bestått ende-til-ende-test med ekte OpenAI-svar
 - Produksjonsreglene er sammenlignet og deployet. Chat ligger i isolert `aiChatUsers/{uid}`-rot, og den sammenslåtte regelfilen bevarer eksisterende regler for `users`, `households`, `families`, `familyCodes` og `adminFamilyHealth`.
+
