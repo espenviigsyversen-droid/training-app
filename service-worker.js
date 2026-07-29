@@ -1,4 +1,4 @@
-const CACHE_NAME = "treningsapp-v171";
+const CACHE_NAME = "treningsapp-v172b";
 const FIREBASE_MODULES = [
   "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js",
   "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js",
@@ -17,12 +17,14 @@ const APP_SHELL = [
   "./domain-goals.js",
   "./domain-coach-rules.js",
   "./domain-fitness.js",
+  "./domain-exercises.js",
   "./app-state.js",
   "./local-state-store.js",
   "./training-repository.js",
   "./domain-training-plan.js",
   "./calendar-ui.js",
   "./workout-template-ui.js",
+  "./exercise-library-ui.js",
   "./workout-completion-ui.js",
   "./workout-history-ui.js",
   "./manifest.json",
@@ -69,12 +71,14 @@ self.addEventListener("fetch", (event) => {
     url.pathname.endsWith("/domain-goals.js") ||
     url.pathname.endsWith("/domain-coach-rules.js") ||
     url.pathname.endsWith("/domain-fitness.js") ||
+    url.pathname.endsWith("/domain-exercises.js") ||
     url.pathname.endsWith("/app-state.js") ||
     url.pathname.endsWith("/local-state-store.js") ||
     url.pathname.endsWith("/training-repository.js") ||
     url.pathname.endsWith("/domain-training-plan.js") ||
     url.pathname.endsWith("/calendar-ui.js") ||
     url.pathname.endsWith("/workout-template-ui.js") ||
+    url.pathname.endsWith("/exercise-library-ui.js") ||
     url.pathname.endsWith("/workout-completion-ui.js") ||
     url.pathname.endsWith("/workout-history-ui.js") ||
     url.pathname.endsWith("/styles.css") ||
