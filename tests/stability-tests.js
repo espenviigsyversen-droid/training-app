@@ -224,6 +224,29 @@ async function testAsync(name, fn) {
     assert.ok(styles.includes('#authScreen {'), 'authentication screen styles are incomplete');
   });
 
+  test('index shell is complete and retains critical authenticated DOM', () => {
+    assert.ok(index.length > 80000, 'index.html appears unexpectedly truncated');
+    assert.ok(!/tokens truncated/i.test(index), 'index.html contains a transfer truncation marker');
+    assert.ok(index.includes('id="todayPill"'), 'authenticated header is missing');
+    assert.ok(index.includes('id="upcomingList"'), 'dashboard upcoming list is missing');
+    assert.ok(index.includes('id="exerciseLibraryList"'), 'exercise library is missing');
+    assert.ok(index.includes('id="calendarDayModal"'), 'calendar day modal is missing');
+    assert.ok(/<\/body>\s*<\/html>\s*$/i.test(index), 'index.html is missing its closing document shell');
+  });
+
+  test('Firestore loading and rendering report errors independently', () => {
+    const loadBlock = app.slice(
+      app.indexOf('async function loadFromFirestore()'),
+      app.indexOf('async function fsSet(')
+    );
+    assert.ok(loadBlock.includes("console.error('Firestore load error:'"), 'Firestore load errors should be reported');
+    assert.ok(loadBlock.includes("console.error('App render error:'"), 'render errors should be reported separately');
+    assert.ok(
+      loadBlock.indexOf("console.error('App render error:'") > loadBlock.indexOf("console.error('Firestore load error:'"),
+      'render handling should run outside the Firestore load catch'
+    );
+  });
+
   test('v160 fitness module is cached and rendered from production logic', () => {
     assert.ok(serviceWorker.includes('"./domain-fitness.js"'), 'domain-fitness.js must be part of APP_SHELL');
     assert.ok(app.includes("from './domain-fitness.js'"), 'app must import the fitness domain module');
