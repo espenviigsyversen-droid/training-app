@@ -1,4 +1,5 @@
 export const TRAINING_DATA_COLLECTIONS = [
+  'exercises',
   'templates',
   'planned',
   'completed',
