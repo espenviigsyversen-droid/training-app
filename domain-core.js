@@ -428,7 +428,7 @@ export function todayCompletedWorkoutFeedback(input = {}) {
       action: stableOrBetter
         ? 'Resten av dagen handler om restitusjon og å bekrefte at smerten holder seg lav.'
         : 'Hold neste treningsvalg rolig til du ser at kroppen responderer stabilt.',
-      reason: `${label} er gjennomført${completedSummary ? ` (${completedSummary})` : ''}. ${painText}`,
+      reason: `${label} er gjennomført${completedSummary ? ' (' + completedSummary + ')' : ''}. ${painText}`,
       support: {
         adjustment: stableOrBetter ? 'Planen bør nå vurderes ut fra responsen i kveld og i morgen.' : 'Ikke legg inn hard løping før smerteresponsen er stabil.',
         support: 'Drikk godt og spis nok karbohydrater/protein etter økten. Logg smerteoppfølging i morgen.',
