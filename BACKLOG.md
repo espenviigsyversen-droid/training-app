@@ -232,7 +232,40 @@ Prioritert backlog for videre utvikling av Treningsapp.
       - Bekreftet sletting/angre og persistence forblir i `app.js`.
     - Hver runde skal bruke de nye modulgrensene og testes separat på mobil/PWA og desktop.
 
-37. **Mobil polish og mikro-UX**
+47. **v172a-v172b - Strukturert styrke og øvelsesbibliotek** - Neste hovedspor
+    - Design en versjonert, bakoverkompatibel øvelsesmodell før UI.
+    - Støtt navn, sett, repetisjoner/varighet, pause, beskrivelse, muskelgrupper, formål, utstyr og sikre eksterne lenker.
+    - Bygg flere gjenbrukbare styrkemaler uten å endre gamle maler.
+    - Ren normalisering og validering legges i ny `domain-exercises.js`.
+    - Bibliotek og valg legges i ny `exercise-library-ui.js`; `workout-template-ui.js` utvides, mens `app.js` beholder orchestrering og persistence-wrappers.
+
+48. **v173 - Oppvarming og nedtrapping**
+    - Gjenbruk samme øvelsesbibliotek for valgfri oppvarming, hoveddel og nedtrapping.
+    - Ikke bland øvelsesblokker inn i dagens intervallmodell.
+    - Behold kompakt mobilvisning og snapshots i planlagte/fullførte økter.
+
+49. **v174a-v174b - Garmin CSV-import**
+    - Bygg først importkontrakt, mapping, fingeravtrykk og duplikatpolicy.
+    - Deretter en veiviser for `berik eksisterende`, `opprett ny` eller `hopp over`.
+    - Manuelle felt overskrives aldri uten eksplisitt bekreftelse.
+    - Parsing og matching legges i `garmin-csv-import.js`; UI legges i `training-import-ui.js`; `app.js` skal ikke eie CSV-logikken.
+
+50. **v175 - Nedoverbelastning**
+    - Registrer stigning og nedstigning separat.
+    - Skill kondisjonsbelastning fra muskel-/støtbelastning.
+    - Bruk nedstigning konservativt sammen med kroppssignaler og tilvenning; manglende data er ukjent.
+
+51. **v176 - Labmålinger og laktatprofil**
+    - Datert historikk for laboratoriemålt VO2max, protokoll, kilde og terskler.
+    - Laktat lagres som belastningstrinn, ikke ett enkelt tall.
+    - Laboratoriedata og klokkeestimater beholdes som separate målekilder.
+
+52. **v177 - Kroppsmål for klær og utstyr**
+    - Daterte omkrets- og lengdemål under Setup/profil.
+    - Dataene brukes ikke til treningsnivå eller coach-råd.
+    - Egen domene- og UI-modul dersom runden bygges.
+
+53. **Mobil polish og mikro-UX**
     - Små forbedringer som gjør appen mer behagelig i daglig bruk.
     - Eksempler: kortere tekster, bedre prioritering på Hjem/Mål, sticky handlinger i modaler og bedre tomtilstander.
 
@@ -254,9 +287,9 @@ Disse punktene var del av den tidlige v142-idéen, men er bevisst flyttet ut av 
 
 ## Anbefalt neste steg
 
-v164a-v169 har etablert tydelige grenser for state, lokal lagring, planlegging, Firestore, kalender, øktmaler, fullføring og historikk uten å endre brukeropplevelsen.
+`v172a` er neste runde: datamodell, normalisering, snapshot-policy, URL-policy og tester for øvelsesbibliotek og strukturert styrke. Deretter følger v172b-v177 i rekkefølgen over.
 
-v170a-v170b og v171 har lukket de åpne tekniske sporene for lokal snapshot-kvote og Firebase Functions SDK. Neste arbeid bør velges som en ny, avgrenset produkt- eller vedlikeholdsrunde etter produksjonsverifisering av v171.
+v164a-v169 har etablert modulgrensene som de nye rundene skal bygge videre på. v170a-v171 har lukket de åpne tekniske sporene for lokal snapshot-kvote og Firebase Functions SDK.
 
 Begrunnelse:
 - v143b har etablert en validert parameterkilde med trygg fallback
