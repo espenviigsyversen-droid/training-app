@@ -44,6 +44,8 @@ node --check domain-goals.js
 node --check domain-coach-rules.js
 node --check domain-coach.js
 node --check domain-fitness.js
+node --check domain-exercises.js
+node --check exercise-library-ui.js
 node --check workout-template-ui.js
 node --check workout-completion-ui.js
 node --check workout-history-ui.js
@@ -75,6 +77,8 @@ node functions\tests\ai-backend-tests.js
 - `domain-coach-rules.js` - validering, defaults og runtime-fallback for coach-regler
 - `domain-coach.js` - ren coach-logikk og prioritert beslutningsmodell
 - `domain-fitness.js` - ren, forklarbar nivå-, VO2- og PB-vurdering uten DOM/Firebase/state
+- `domain-exercises.js` - ren normalisering, snapshot-policy, URL-policy og formattering for øvelsesbibliotek og strukturerte styrkeplaner
+- `exercise-library-ui.js` - søk, skjema og bibliotekvisning for gjenbrukbare øvelser; state og persistence forblir i `app.js`
 - `workout-template-ui.js` - avgrenset øktmal-skjema, strukturert intervall-preview, bibliotek, søk og filter; lagring/state forblir i `app.js`
 - `workout-completion-ui.js` - fullføringsskjema, varighetsfelt, pace-preview og redigeringsfylling; lagring/state forblir i `app.js`
 - `workout-history-ui.js` - historikkfilter, kompakt liste og fullført-detaljvisning; sletting/state forblir i `app.js`
@@ -94,6 +98,7 @@ node functions\tests\ai-backend-tests.js
 - `AI_CHAT_PROJECTS_DESIGN.md` - datamodell, sikkerhet og roadmap for chat-historikk, prosjekter og egne instrukser
 - `COACH_KNOWLEDGE_DESIGN.md` - validert kunnskapsgrunnlag, AI-context v2 og grenser for prosjektinstrukser/langtidskontekst
 - `TRAINING_LEVEL_ASSESSMENT_DESIGN.md` - modell, referanser, sikkerhet og datagrunnlag for transparent treningsnivå
+- `STRUCTURED_EXERCISES_DESIGN.md` - versjonert datamodell, snapshots, URL-policy og avgrensning for øvelsesbibliotek og styrkemaler
 - `FIREBASE_AI_BACKEND_DEPLOY.md` - obligatorisk sikkerhets- og deployport for AI-backend
 - `ARKITEKT_CONTEXT.md` - veiledende produkt- og arkitekturkontekst
 - `tests/stability-tests.js` - lokal stabilitetstest
@@ -110,6 +115,8 @@ node --check domain-goals.js
 node --check domain-coach-rules.js
 node --check domain-coach.js
 node --check domain-fitness.js
+node --check domain-exercises.js
+node --check exercise-library-ui.js
 node --check workout-template-ui.js
 node --check workout-completion-ui.js
 node --check workout-history-ui.js
@@ -162,3 +169,4 @@ Oppsummer alltid:
 - hvilke sjekker som er kjørt
 - hvilke filer som er synkronisert direkte til GitHub, eller hvilke filer brukeren må laste opp manuelt hvis direkte synk ikke var mulig
 - om noe ikke ble testet
+
