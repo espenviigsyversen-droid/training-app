@@ -1325,13 +1325,154 @@ Hvis svaret er ja på flere av disse, bør ideen prioriteres.
 - `firebase-functions` er oppgradert fra 6.x til 7.3.0 uten endring i callable-kontrakter, AI-policy eller datamodell.
 - Node 22 beholdes. Backend-syntaks og hele AI-testpakken skal passere før deploy.
 
+## v172-v177 - Strukturert styrke, rikere treningsdata og målehistorikk
+
+Dette er neste prioriterte produktspor etter v171. Rekkefølgen er valgt etter umiddelbar brukerverdi, gjenbruk av samme datamodell og lav risiko for `app.js`.
+
+Felles guardrails:
+
+- Nye felter skal være valgfrie, versjonerte og bakoverkompatible.
+- Firestore-, backup-, snapshot- og importdata skal normaliseres før bruk.
+- Ren modell-, validerings-, import- og belastningslogikk skal ligge utenfor `app.js`.
+- `app.js` skal fortsatt være orchestrator for samlet state, bekreftelser, navigasjon og persistence-wrappers.
+- Nye runtime-moduler skal inn i PWA app shell og testes fra produksjonsfilene.
+- Manuelt registrerte treningsverdier skal ikke overskrives av import uten eksplisitt bekreftelse.
+- Helse- og kapasitetsdata skal presenteres forklarbart og uten medisinske diagnoser.
+
+### v172a - Design og datamodell for øvelsesbibliotek og strukturert styrke
+
+Mål:
+
+- Dokumenter en gjenbrukbar, versjonert modell for øvelser og øvelsesblokker.
+- Støtt øvelsesnavn, sett, repetisjoner eller varighet, pause, belastning/utstyr, beskrivelse, muskelgrupper, formål og ekstern `https`-lenke.
+- Støtt resepter som tekst der et enkelt tall ikke er nok, for eksempel `8-10 per side` eller `30 sekunder`.
+- Behold eksisterende fritekstfelt og gamle øktmaler uendret.
+- Avklar hvordan bibliotekøvelser settes inn som et snapshot i maler, slik at en senere biblioteksendring ikke endrer gamle maler eller fullførte økter.
+
+Foreslått modulgrense:
+
+- Ny `domain-exercises.js`: normalisering, validering, sikre defaults, URL-policy og rene sammendragsfunksjoner.
+- `app-state.js`: normalisering av valgfritt øvelsesbibliotek og nye malfelter.
+- Ingen omfattende UI- eller persistence-endring i designrunden.
+
+### v172b - Øvelsesbibliotek og strukturert styrke i øktmaler
+
+Mål:
+
+- Opprett, rediger, gjenbruk og søk i øvelser.
+- Bygg flere styrkemaler, eksempelvis generell løpsstyrke og spesifikke kne-/IT-bånd-relaterte oppsett.
+- Vis kompakt øvelsesrekkefølge i mal, planlagt økt og fullført detaljvisning.
+- La beskrivelse, muskelgrupper og videolenke åpnes ved behov uten å gjøre kortene tunge.
+- Eksterne lenker åpnes sikkert med `noopener`/`noreferrer`; appen bygger ikke videoinnbygging i første versjon.
+
+Foreslått modulgrense:
+
+- Ny `exercise-library-ui.js`: bibliotek, søk, redigering og valg.
+- Utvid `workout-template-ui.js` med styrkeblokker gjennom injiserte avhengigheter.
+- `workout-completion-ui.js` og `workout-history-ui.js` viser snapshots, men eier ikke lagring.
+- `training-repository.js` brukes for Firestore-operasjoner; `app.js` beholder små wrappers og bekreftelser.
+
+### v173 - Oppvarming og nedtrapping som gjenbrukbare øvelsesblokker
+
+Mål:
+
+- Bruk samme øvelsesmodell til valgfri oppvarming, hoveddel og nedtrapping.
+- La løpe- og andre kondisjonsmaler ha forberedelses- og avslutningsøvelser uten å endre dagens `structuredWorkout` for intervaller.
+- Støtt instruksjon, dosering og ekstern øvelseslenke på hver øvelse.
+- Behold mobilvisningen kompakt med sammenfoldede blokker som standard.
+
+Arkitektur:
+
+- Gjenbruk `domain-exercises.js` og `exercise-library-ui.js`.
+- Ikke legg en ny parallell normalisering eller egen øvelsesmodell direkte i `app.js`.
+- Fullførte økter beholder snapshot av faktisk planlagt øvelsesinnhold.
+
+### v174a - Garmin CSV-import: design, mapping og sikker importkontrakt
+
+Mål:
+
+- Dokumenter en adapterbasert importflyt for Garmin CSV, med senere mulighet for Strava eller annen kilde.
+- Kartlegg et avgrenset sett felt til appens kanoniske data og et valgfritt `externalData.garmin`-objekt.
+- Lag importfingeravtrykk fra normalisert aktivitetstype, starttid, varighet og distanse når stabil Garmin-ID mangler.
+- Definer matchnivåene `sikkert treff`, `mulig treff` og `ingen treff`.
+- Ekskluder rå CSV-rad og unødvendige felter fra Firestore for å begrense datastørrelse.
+
+Foreslått modulgrense:
+
+- Ny `garmin-csv-import.js`: CSV-parsing, feltmapping, normalisering, fingeravtrykk og duplikatkontroll uten DOM/Firebase.
+- Ny `training-import-ui.js`: filvalg, forhåndsvisning, matching og eksplisitte brukervalg.
+- `training-repository.js`: batchskriving etter godkjent import.
+- `app.js`: orchestrering og bekreftelser, ikke CSV-parsing eller matchalgoritme.
+
+### v174b - Garmin CSV-importveiviser
+
+Mål:
+
+- Importer CSV lokalt og vis en forhåndsvisning før data lagres.
+- La brukeren velge `berik eksisterende`, `opprett ny` eller `hopp over`.
+- Fyll bare tomme kanoniske felt automatisk; manuelt innhold vinner som standard.
+- Vis importresultat, duplikater og usikre treff tydelig.
+- Støtt blant annet puls, varighet, distanse, pace, Training Effect, stigning, nedstigning, kadens, kraft, temperatur, Body Battery og styrkesett/repetisjoner når data finnes.
+
+### v175 - Nedoverbelastning og todimensjonal høydevurdering
+
+Mål:
+
+- Registrer `elevationGainM` og valgfri `elevationLossM` separat.
+- Skill kardiovaskulær belastning fra muskel-/støtbelastning.
+- Bruk nedstigning som et sekundært, konservativt signal sammen med distanse, underlag, tilvenning og kroppssignaler.
+- Manglende nedstigningsdata skal være `ukjent`, ikke null.
+- Ikke gi medisinsk diagnose eller gjøre én terskel til hard fasit.
+
+Foreslått modulgrense:
+
+- Ren belastningsklassifisering i `domain-core.js` eller en avgrenset `domain-workout-load.js` dersom logikken blir stor.
+- Coach-policy og terskler skal ligge i validerte coach-regler/defaults, ikke spres i UI eller `app.js`.
+- UI skal først vise og forklare signalet; aggressiv automatisk coach-endring er utenfor første runde.
+
+### v176 - Labmålinger, VO2max og laktatprofil
+
+Mål:
+
+- Lagre datert historikk for laboratoriemålt VO2max, makspuls, protokoll, laboratorium/kilde og notat.
+- Skill tydelig mellom laboratoriemålt verdi, klokkeestimat og annen beregning.
+- Representer laktattest som belastningstrinn med fart/pace, puls, varighet og mmol/L, ikke som ett enkelt laktattall.
+- Støtt LT1/LT2 eller ventilatoriske terskler når laboratoriet oppgir dem.
+- Vis trend og målekilde uten å overskrive Garmin-historikk.
+- Endring av aktive treningssoner krever eksplisitt brukerbekreftelse.
+
+Foreslått modulgrense:
+
+- Ny `domain-lab-tests.js`: normalisering, validering, trinnmodell og formattering.
+- Ny `lab-tests-ui.js`: registrering, historikk og detaljvisning.
+- `training-repository.js` eller en tydelig avgrenset repository-utvidelse håndterer persistence.
+- Coach og AI får kun normalisert, relevant sammendrag gjennom eksisterende context-grenser.
+
+### v177 - Kroppsmål for klær og utstyr
+
+Mål:
+
+- Lagre daterte mål i centimeter, primært omkrets og lengde.
+- Støtt blant annet bryst, midje/mage, hofte, innside ben, armlengde, lår, legg og fotlengde.
+- Plasser funksjonen under Setup/profil som praktisk utstyrsdata.
+- Hold dataene utenfor treningsnivå, motivasjonsscore og coach-råd med mindre en senere, eksplisitt designrunde bestemmer annet.
+- Behold historikk, eksport, backup og Firestore-synk.
+
+Foreslått modulgrense:
+
+- Ny `domain-body-measurements.js` for normalisering og enhetsregler.
+- Ny `body-measurements-ui.js` for registrering og historikk.
+- `app.js` beholder kun navigasjon og persistence-wrappers.
+
+### Anbefalt start
+
+Neste implementeringsrunde er `v172a`. Den skal avklare datamodell, snapshots, normalisering, URL-policy, migreringsfri bakoverkompatibilitet og tester før styrke-UI bygges i `v172b`.
+
 ## Hva vi bør vente med
 
 ### Strava/Garmin-import
 
-Nyttig, men ikke viktigst akkurat nå.
-
-Vent til appen har bedre coachlogikk.
+Direkte API-integrasjon mot Garmin/Strava venter fortsatt. Kontrollert Garmin CSV-import er derimot løftet inn som v174 fordi appens coach-context, importgrenser og repository nå er modne nok.
 
 ### Full AI-coach
 
@@ -1349,9 +1490,9 @@ Ikke gjør alt på én gang. Dashboard-spesifikasjonen skal gjennomføres som sm
 
 ### Full styrkecoach
 
-Ikke nødvendig nå.
+Ikke nødvendig i v172-v173.
 
-Styrke bør støttes som logging/alternativ trening først.
+Styrke bygges først som strukturert bibliotek, mal, plan, logging og historikk. Egen styrkecoach og automatiske progresjonsprogrammer krever en senere designrunde.
 
 ## Risikoer
 
