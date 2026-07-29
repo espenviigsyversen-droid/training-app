@@ -6,6 +6,7 @@ import {
   normalizeRaceResultEntries
 } from './domain-goals.js';
 import { normalizeTrainingLevelProgress } from './domain-fitness.js';
+import { normalizeExerciseLibrary } from './domain-exercises.js';
 
 export const WORKOUT_ROLE_LABELS = {
   main_threshold: 'Hovedterskel',
@@ -86,6 +87,7 @@ export function freshDefaultSettings() {
 
 export function createEmptyAppState(settings = freshDefaultSettings()) {
   return {
+    exercises: [],
     templates: [],
     planned: [],
     completed: [],
@@ -228,6 +230,7 @@ export function normalizeSettings(settings = {}) {
 
 export function normalizeAppState(input = {}) {
   return {
+    exercises: normalizeExerciseLibrary(input.exercises),
     templates: normalizeTemplates(input.templates),
     planned: Array.isArray(input.planned) ? input.planned : [],
     completed: normalizeCompletedItems(input.completed),
