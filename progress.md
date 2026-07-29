@@ -270,10 +270,10 @@ Treningsapp/
 - Planlagte økter og fullført detaljvisning viser kompakt styrkesammendrag. Snapshots bevarer historisk innhold dersom bibliotekøvelsen senere redigeres eller slettes.
 - Gamle maler uten `exercisePlan`, gamle snapshots og backupfiler normaliseres fortsatt trygt. Sluttversjonen er v172b / `treningsapp-v172b`.
 
-### v172c - Oppstartspatch etter publiseringsfeil
+### v172c-v172d - Oppstartspatch etter publiseringsfeil
 
-- Rettet en produksjonsfeil der den publiserte kopien av `domain-core.js` hadde ugyldig JavaScript og stoppet appen på lasteskjermen før første render.
-- Den lokalt syntakssjekkede `domain-core.js` publiseres på nytt, og app/cache bumpes til v172c / `treningsapp-v172c` slik at PWA-en henter den korrigerte modulen.
+- Rettet en produksjonsfeil der nettleserens modulparser avviste et nestet template-uttrykk i `domain-core.js` og stoppet appen på lasteskjermen før første render.
+- Uttrykket er forenklet uten at rådlogikken endres, og app/cache bumpes til v172d / `treningsapp-v172d` slik at PWA-en henter den korrigerte modulen.
 - Ingen datamodell, brukerflyt eller styrkefunksjonalitet er endret.
 
 ---
