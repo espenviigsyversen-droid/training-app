@@ -130,7 +130,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       xWorkoutSuggestion
     } from './domain-training-plan.js';
 
-const APP_VERSION = 'v172e';
+const APP_VERSION = 'v172f';
     const APP_CACHE_NAME = `treningsapp-${APP_VERSION}`;
 
     const firebaseConfig = {
@@ -765,11 +765,14 @@ const APP_VERSION = 'v172e';
         } else {
           setSyncStatus(hasPendingLocalWrites ? 'pending' : 'offline');
         }
-        render();
       } catch (err) {
         console.error('Firestore load error:', err);
         setSyncStatus(navigator.onLine ? 'error' : 'offline');
+      }
+      try {
         render();
+      } catch (err) {
+        console.error('App render error:', err);
       }
     }
 
