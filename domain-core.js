@@ -428,7 +428,368 @@ export function todayCompletedWorkoutFeedback(input = {}) {
       action: stableOrBetter
         ? 'Resten av dagen handler om restitusjon og å bekrefte at smerten holder seg lav.'
         : 'Hold neste treningsvalg rolig til du ser at kroppen responderer stabilt.',
-      reason: `${label} er gjennomført${completedSummary ? ` (${com…3516 tokens truncated…ayIso, windowDays) {
+      reason: `${label} er gjennomført${completedSummary ? ` (${completedSummary})` : ''}. ${painText}`,
+      support: {
+        adjustment: stableOrBetter ? 'Planen bør nå vurderes ut fra responsen i kveld og i morgen.' : 'Ikke legg inn hard løping før smerteresponsen er stabil.',
+        support: 'Drikk godt og spis nok karbohydrater/protein etter økten. Logg smerteoppfølging i morgen.',
+        motivation: stableOrBetter ? 'Dette er akkurat verdien av kontrollert testing: du får data uten å jage form.' : 'En rolig justering nå kan spare deg for flere tapte treningsdager.'
+      }
+    };
+  }
+
+  if (isQuality) {
+    return {
+      mode: 'post_workout',
+      kicker: 'Dagens vurdering',
+      level: 'green',
+      title: 'Kvalitet gjennomført kontrollert',
+      action: 'La resten av dagen og neste økt støtte effekten av arbeidet.',
+      reason: `${label} er logget${completedSummary ? ` (${completedSummary})` : ''}.`,
+      support: {
+        adjustment: 'Neste valg bør være rolig, restitusjon eller lett styrke hvis kroppen er fin.',
+        support: 'Fyll på væske, karbohydrater og protein. Kvalitetsøkter virker best når restitusjonen sitter.',
+        motivation: 'Du har allerede gjort dagens viktigste treningsbidrag.'
+      }
+    };
+  }
+
+  return {
+    mode: 'post_workout',
+    kicker: 'Dagens vurdering',
+    level: isLowLoad ? 'green' : 'neutral',
+    title: isLowLoad ? 'Bra gjennomført rolig økt' : 'Økt gjennomført',
+    action: 'Bruk resten av dagen til å hente ut effekten av økten.',
+    reason: `${label} er logget${completedSummary ? ` (${completedSummary})` : ''}.${execution ? ` Gjennomføring: ${execution}.` : ''}`,
+    support: {
+      adjustment: 'Ikke jag mer trening i dag med mindre det er planlagt som lett bonus.',
+      support: 'Drikk godt og spis nok etter økten, spesielt hvis du trener igjen innen 24-48 timer.',
+      motivation: 'Dette bygger kontinuitet: én gjennomført økt teller mer enn en perfekt plan.'
+    }
+  };
+}
+
+export {
+  RACE_DISTANCE_PRESETS,
+  combinedRaceResults,
+  formatRaceTime,
+  goalMilestones,
+  goalMotivationSummary,
+  goalProgressScore,
+  normalizeRaceGoal,
+  normalizeRaceResult,
+  normalizeRaceResultEntries,
+  normalizeRaceResultEntry,
+  parseRaceTimeToSeconds,
+  personalBestSummary,
+  personalBestTrendLabel,
+  personalBestTrendSummary,
+  raceDistanceLabel,
+  raceGoalCountdown,
+  raceGoalPlan,
+  raceHistoryForDistance,
+  raceTestRecommendation,
+  raceWeekPlanContext,
+  raceReadinessSummary,
+  raceResultsFromCompleted
+} from './domain-goals.js';
+
+export function formatKm(km) {
+  const value = Number(km) || 0;
+  return `${value.toLocaleString('no-NO', { maximumFractionDigits: value < 10 ? 1 : 0 })} km`;
+}
+
+export function asArray(value) {
+  if (Array.isArray(value)) return value.filter(Boolean);
+  return value ? [value] : [];
+}
+
+export function normalizeStructuredWorkout(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const blocks = Array.isArray(value.blocks)
+    ? value.blocks
+        .filter(block => block && typeof block === 'object' && !Array.isArray(block))
+        .map(normalizeStructuredWorkoutBlock)
+        .filter(Boolean)
+    : [];
+  if (!blocks.length) return null;
+  return {
+    version: Number(value.version) || 1,
+    blocks,
+    note: typeof value.note === 'string' ? value.note : ''
+  };
+}
+
+export function normalizeStructuredWorkoutBlock(block = {}) {
+  const type = String(block.type || '').trim();
+  if (type === 'warmup' || type === 'cooldown') {
+    const durationSeconds = parseNonNegativeInteger(block.durationSeconds);
+    if (!durationSeconds) return null;
+    return {
+      type,
+      durationSeconds,
+      note: String(block.note || '')
+    };
+  }
+  if (type === 'interval') {
+    const repetitions = parseNonNegativeInteger(block.repetitions);
+    const workSeconds = parseNonNegativeInteger(block.workSeconds);
+    const restSeconds = parseNonNegativeInteger(block.restSeconds);
+    if (!repetitions || !workSeconds) return null;
+    return {
+      type,
+      repetitions,
+      workSeconds,
+      restSeconds,
+      restType: String(block.restType || ''),
+      intensity: String(block.intensity || ''),
+      note: String(block.note || '')
+    };
+  }
+  return null;
+}
+
+export function buildStructuredWorkout(input = {}) {
+  const source = input && typeof input === 'object' && !Array.isArray(input) ? input : {};
+  const blocks = [];
+  const warmupSeconds = parseNonNegativeInteger(source.warmupMinutes) * 60;
+  const cooldownSeconds = parseNonNegativeInteger(source.cooldownMinutes) * 60;
+  const repetitions = parseNonNegativeInteger(source.repetitions);
+  const workSeconds = parseNonNegativeInteger(source.workSeconds);
+  const restSeconds = parseNonNegativeInteger(source.restSeconds);
+
+  if (warmupSeconds) blocks.push({ type: 'warmup', durationSeconds: warmupSeconds });
+  if (repetitions && workSeconds) {
+    blocks.push({
+      type: 'interval',
+      repetitions,
+      workSeconds,
+      restSeconds,
+      restType: String(source.restType || ''),
+      intensity: String(source.intensity || ''),
+      note: String(source.intervalNote || '')
+    });
+  }
+  if (cooldownSeconds) blocks.push({ type: 'cooldown', durationSeconds: cooldownSeconds });
+
+  return normalizeStructuredWorkout({
+    version: 1,
+    blocks,
+    note: String(source.note || '')
+  });
+}
+
+export function structuredWorkoutWorkSeconds(structuredWorkout) {
+  const workout = normalizeStructuredWorkout(structuredWorkout);
+  if (!workout) return 0;
+  return workout.blocks.reduce((sum, block) => {
+    if (block.type !== 'interval') return sum;
+    return sum + (block.repetitions * block.workSeconds);
+  }, 0);
+}
+
+export function structuredWorkoutRestSeconds(structuredWorkout) {
+  const workout = normalizeStructuredWorkout(structuredWorkout);
+  if (!workout) return 0;
+  return workout.blocks.reduce((sum, block) => {
+    if (block.type !== 'interval') return sum;
+    return sum + (block.repetitions * block.restSeconds);
+  }, 0);
+}
+
+export function structuredWorkoutTotalSeconds(structuredWorkout) {
+  const workout = normalizeStructuredWorkout(structuredWorkout);
+  if (!workout) return 0;
+  return workout.blocks.reduce((sum, block) => {
+    if (block.type === 'warmup' || block.type === 'cooldown') return sum + block.durationSeconds;
+    if (block.type === 'interval') {
+      return sum + (block.repetitions * block.workSeconds) + (block.repetitions * block.restSeconds);
+    }
+    return sum;
+  }, 0);
+}
+
+export function structuredWorkoutWarmupSeconds(structuredWorkout) {
+  const workout = normalizeStructuredWorkout(structuredWorkout);
+  if (!workout) return 0;
+  return workout.blocks.reduce((sum, block) => (
+    block.type === 'warmup' ? sum + block.durationSeconds : sum
+  ), 0);
+}
+
+export function structuredWorkoutCooldownSeconds(structuredWorkout) {
+  const workout = normalizeStructuredWorkout(structuredWorkout);
+  if (!workout) return 0;
+  return workout.blocks.reduce((sum, block) => (
+    block.type === 'cooldown' ? sum + block.durationSeconds : sum
+  ), 0);
+}
+
+export function structuredWorkoutIntervalBlocks(structuredWorkout) {
+  const workout = normalizeStructuredWorkout(structuredWorkout);
+  return workout ? workout.blocks.filter(block => block.type === 'interval') : [];
+}
+
+export function hasStructuredIntervals(structuredWorkout) {
+  return structuredWorkoutIntervalBlocks(structuredWorkout)
+    .some(block => block.repetitions > 0 && block.workSeconds > 0);
+}
+
+function numberValue(value) {
+  const parsed = Number(String(value ?? '').replace(',', '.'));
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function lowerText(parts = []) {
+  return parts.filter(Boolean).join(' ').toLowerCase();
+}
+
+export function classifyWorkoutIntensityContext(input = {}) {
+  const completed = input.completed && typeof input.completed === 'object' ? input.completed : {};
+  const template = input.template && typeof input.template === 'object' ? input.template : {};
+  const profile = input.profile && typeof input.profile === 'object' ? input.profile : {};
+  const rules = input.rules && typeof input.rules === 'object' ? input.rules : getCoachRules();
+  const easyCeiling = rules?.thresholds?.easyCeiling || {};
+  const qualityThresholds = rules?.thresholds?.quality || {};
+  const structuredWorkout = template.structuredWorkout || completed.structuredWorkout || completed.templateSnapshot?.structuredWorkout;
+  const text = lowerText([
+    template.name,
+    template.type,
+    template.intensity,
+    template.role,
+    template.purpose,
+    template.load,
+    template.structure,
+    completed.manualName,
+    completed.trainingEffectType
+  ]);
+  const effectCategory = String(input.effectCategory || completed.trainingEffectCategory || '').toLowerCase();
+  const rpe = numberValue(input.rpe ?? completed.rpe);
+  const avgHr = numberValue(input.avgHeartRate ?? completed.avgHeartRate);
+  const maxHr = numberValue(input.maxHeartRate ?? completed.maxHeartRate);
+  const profileMaxHr = numberValue(input.profileMaxHeartRate ?? profile.maxHeartRate);
+  const thresholdHr = numberValue(input.thresholdHeartRate ?? profile.thresholdHeartRate);
+  const painBefore = numberValue(input.painBefore ?? completed.bodyStatus?.painBefore);
+  const painAfter = numberValue(input.painAfter ?? completed.bodyStatus?.painAfter);
+  const elevationGain = numberValue(input.elevationGainM ?? completed.elevationGainM);
+  const distanceKm = numberValue(input.distanceKm ?? completed.distanceKm);
+  const incline = numberValue(input.treadmillInclinePercent ?? completed.treadmillInclinePercent);
+  const elevationPerKm = distanceKm ? elevationGain / distanceKm : 0;
+
+  const structured = hasStructuredIntervals(structuredWorkout);
+  const raceIntent = template.role === 'race' || template.purpose === 'race' || /race|konkurranse|testløp|testlop/.test(text);
+  const qualityIntent = structured
+    || raceIntent
+    || /terskel|intervall|tempo|anaerob|threshold|vo2|hard/.test(text)
+    || ['main_threshold', 'support_threshold'].includes(template.role)
+    || ['threshold', 'interval', 'race'].includes(template.purpose);
+  const recoveryIntent = /restitusjon|recovery|mobilitet|rolig test/.test(text)
+    || template.role === 'recovery'
+    || template.purpose === 'recovery';
+  const baseIntent = !raceIntent && !qualityIntent && (
+    recoveryIntent
+    || /rolig|base|langtur|easy|low aerobic|lav aerob/.test(text)
+    || ['long_easy', 'easy', 'base'].includes(template.role)
+    || ['base', 'easy', 'aerobic'].includes(template.purpose)
+    || ['Rolig', 'Restitusjon'].includes(template.intensity)
+  );
+  const highPulse = Boolean(input.highPulse)
+    || effectCategory === 'high_aerobic'
+    || effectCategory === 'anaerobic'
+    || (avgHr && thresholdHr && avgHr / thresholdHr >= Number(easyCeiling.pctOfThresholdHr || 0.92))
+    || (avgHr && profileMaxHr && avgHr / profileMaxHr >= Number(easyCeiling.pctOfMaxHr || 0.82))
+    || (maxHr && profileMaxHr && maxHr / profileMaxHr >= Number(easyCeiling.maxPctOfMaxHr || 0.90));
+  const hillContext = incline >= 4 || elevationPerKm >= 20 || elevationGain >= 150;
+  const painRisk = painAfter >= 4 || painAfter > painBefore + 1;
+  const rpeHigh = rpe >= Number(qualityThresholds.hardRpeMin || 7);
+  const rpeModerate = rpe >= Number(qualityThresholds.moderateRpeMin || 6);
+  const intent = { baseIntent, qualityIntent, raceIntent, recoveryIntent };
+
+  if (painRisk || (rpeHigh && !qualityIntent)) {
+    return {
+      category: 'hard_risk',
+      label: 'Hard/risko-belastning',
+      loadLevel: 'high',
+      ...intent,
+      highPulseBase: false,
+      countsAsEasySupport: false,
+      countsAsHardQuality: false,
+      countsAsHardLoad: true,
+      reason: painRisk ? 'Smerte eller tydelig økning etter økten.' : 'Høy RPE uten tydelig rolig respons.'
+    };
+  }
+
+  if (qualityIntent) {
+    return {
+      category: 'quality',
+      label: raceIntent ? 'Konkurranse/testløp' : 'Kvalitetsøkt',
+      loadLevel: rpeModerate || highPulse || effectCategory === 'anaerobic' ? 'high' : 'moderate',
+      ...intent,
+      highPulseBase: false,
+      countsAsEasySupport: false,
+      countsAsHardQuality: true,
+      countsAsHardLoad: true,
+      reason: structured ? 'Strukturert intervall/terskel teller som kvalitet.' : 'Mal eller intensitet tilsier kvalitet.'
+    };
+  }
+
+  if (baseIntent && highPulse) {
+    return {
+      category: 'high_pulse_base',
+      label: 'Baseøkt med høy puls',
+      loadLevel: rpeModerate || hillContext || effectCategory === 'high_aerobic' ? 'moderate' : 'low',
+      ...intent,
+      highPulseBase: true,
+      countsAsEasySupport: true,
+      countsAsHardQuality: false,
+      countsAsHardLoad: false,
+      reason: hillContext
+        ? 'Rolig/base-intensjon, men puls/bakke gjorde belastningen høyere.'
+        : 'Rolig/base-intensjon, men pulsen var høyere enn helt rolig.'
+    };
+  }
+
+  if (baseIntent) {
+    return {
+      category: recoveryIntent || rpe <= 3 ? 'easy_recovery' : 'easy_base',
+      label: recoveryIntent || rpe <= 3 ? 'Rolig/restitusjon' : 'Baseøkt',
+      loadLevel: 'low',
+      ...intent,
+      highPulseBase: false,
+      countsAsEasySupport: true,
+      countsAsHardQuality: false,
+      countsAsHardLoad: false,
+      reason: 'Rolig/base-intensjon uten harde signaler.'
+    };
+  }
+
+  if (effectCategory === 'anaerobic' || effectCategory === 'high_aerobic') {
+    return {
+      category: 'quality',
+      label: effectCategory === 'anaerobic' ? 'Anaerob/hard økt' : 'Høy aerob økt',
+      loadLevel: effectCategory === 'anaerobic' ? 'high' : 'moderate',
+      ...intent,
+      highPulseBase: false,
+      countsAsEasySupport: false,
+      countsAsHardQuality: true,
+      countsAsHardLoad: true,
+      reason: 'Garmin-effekt tilsier moderat/hard kvalitet.'
+    };
+  }
+
+  return {
+    category: 'unknown',
+    label: 'Uklassifisert økt',
+    loadLevel: 'moderate',
+    ...intent,
+    highPulseBase: false,
+    countsAsEasySupport: false,
+    countsAsHardQuality: false,
+    countsAsHardLoad: false,
+    reason: 'Mangler nok øktkontekst til sikker klassifisering.'
+  };
+}
+
+function workoutItemsInWindow(items, todayIso, windowDays) {
   const source = Array.isArray(items) ? items.filter(Boolean) : [];
   if (!todayIso) return source;
   const startIso = addDays(todayIso, -(Math.max(1, Number(windowDays) || 1) - 1));
@@ -929,4 +1290,3 @@ export function weekPlanDatesInRange(rangeStart, rangeEnd, plannedItems = [], bl
 
   return dates.slice(0, count);
 }
-
