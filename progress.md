@@ -270,10 +270,13 @@ Treningsapp/
 - Planlagte økter og fullført detaljvisning viser kompakt styrkesammendrag. Snapshots bevarer historisk innhold dersom bibliotekøvelsen senere redigeres eller slettes.
 - Gamle maler uten `exercisePlan`, gamle snapshots og backupfiler normaliseres fortsatt trygt. Sluttversjonen er v172b / `treningsapp-v172b`.
 
-### v172c-v172d - Oppstartspatch etter publiseringsfeil
+### v172c-v172e - Oppstarts- og stilpatch etter publiseringsfeil
 
 - Rettet en produksjonsfeil der nettleserens modulparser avviste et nestet template-uttrykk i `domain-core.js` og stoppet appen på lasteskjermen før første render.
-- Uttrykket er forenklet uten at rådlogikken endres, og app/cache bumpes til v172d / `treningsapp-v172d` slik at PWA-en henter den korrigerte modulen.
+- Uttrykket er forenklet uten at rådlogikken endres.
+- Rettet deretter en separat publiseringsfeil der GitHub-versjonen av `styles.css` var fysisk avkortet midt i filen. Dette gjorde at nettleseren forkastet sentrale regler for innlogging, appskall, navigasjon og modaler.
+- Stabilitetstesten kontrollerer nå at stilarket har forventet minimumslengde, ikke inneholder overføringsmarkører og fortsatt har kritiske skallregler.
+- App/cache bumpes til v172e / `treningsapp-v172e` slik at PWA-en henter det komplette stilarket.
 - Ingen datamodell, brukerflyt eller styrkefunksjonalitet er endret.
 
 ---
