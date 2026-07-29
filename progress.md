@@ -207,10 +207,30 @@ Treningsapp/
 
 ## Neste steg (prioritert)
 
-1. **v170a-v170b og v171 - tekniske sikkerhetsrunder bygget**
-   - Lokal snapshot viser nå størrelse/status og faller tilbake til IndexedDB ved kvoteproblem.
-   - Recovery bruker samme fallback, og destruktiv import/reset avbrytes hvis recovery-kopien ikke kan lagres.
-   - `firebase-functions` er oppgradert isolert til 7.3.0 på Node 22; backend-testpakken passerer.
+1. **v172a-v172b - Strukturert styrke og øvelsesbibliotek**
+   - Start med versjonert datamodell, normalisering, snapshots, URL-policy og produksjonstester.
+   - Bygg deretter gjenbrukbart øvelsesbibliotek og styrkemaler med sett, repetisjoner/varighet, beskrivelse, muskelgrupper og sikre eksterne lenker.
+   - Ren logikk legges i planlagt `domain-exercises.js`, bibliotek-UI i `exercise-library-ui.js`, og eksisterende `workout-template-ui.js` utvides. `app.js` skal bare orchestrere.
+2. **v173 - Oppvarming og nedtrapping**
+   - Gjenbruk samme øvelsesmodell for løpe- og kondisjonsøkter uten å endre intervallmodellen.
+3. **v174a-v174b - Garmin CSV-import**
+   - Design mapping, fingeravtrykk og duplikatpolicy først.
+   - Bygg deretter en bekreftet importveiviser som aldri overskriver manuelle felt automatisk.
+4. **v175 - Nedoverbelastning**
+   - Skill stigning/nedstigning og kondisjons-/muskelbelastning.
+5. **v176 - Labmålinger og laktatprofil**
+   - Daterte, kildebevisste målinger og trinnvis laktatkurve.
+6. **v177 - Kroppsmål for klær og utstyr**
+   - Praktisk målehistorikk under Setup, uten kobling til coach- eller nivåscore.
+
+### Planlagt arkitektur for v172-v177
+
+- Nye datamodeller normaliseres i egne domenemoduler før UI og persistence kobles på.
+- CSV-parsing, importmatching, øvelseslogikk, labtester og kroppsmål skal ikke implementeres direkte i `app.js`.
+- Nye avgrensede UI-kontrollere får state og handlinger injisert, i samme mønster som `workout-template-ui.js`, `workout-completion-ui.js` og `calendar-ui.js`.
+- `training-repository.js` brukes eller utvides avgrenset for Firestore-skriving.
+- Nye runtime-moduler skal inn i PWA app shell og testes fra faktisk produksjonskode.
+- Ingen runtime-filer eller versjoner er endret i denne dokumentasjonsrunden.
 
 ### v167 - Øktmaler som egen UI-feature - Bygget
 
