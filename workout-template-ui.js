@@ -1,3 +1,12 @@
+import {
+  createExercisePrescription,
+  exercisePlanItems,
+  exercisePlanSearchText,
+  exercisePlanSummary,
+  exercisePrescriptionLabel,
+  normalizeExercisePlan
+} from './domain-exercises.js';
+
 const TEMPLATE_ROLE_ORDER = [
   'main_threshold',
   'support_threshold',
@@ -95,6 +104,7 @@ export function filterWorkoutTemplates({
       template.intensity,
       template.structure,
       structuredSummary(template.structuredWorkout),
+      exercisePlanSearchText(template.exercisePlan),
       roleLabel(template.role),
       purposeLabel(template.purpose),
       loadLabel(template.load),
@@ -126,6 +136,7 @@ export function createWorkoutTemplateUi({
   loadLabel
 }) {
   let coachFilter = 'all';
+  let strengthDraft = [];
 
   function element(id) {
     return documentRef.getElementById(id);
@@ -241,15 +252,166 @@ export function createWorkoutTemplateUi({
       </div>`;
   }
 
+  function exercisePlanFromForm() {
+    if (!element('templateStrengthEnabled')?.checked) return null;
+    return normalizeExercisePlan({
+      version: 1,
+      kind: 'strength',
+      sourceUrl: element('templateSourceUrl')?.value,
+      notes: element('templateStrengthNote')?.value,
+      blocks: [{
+        type: 'main',
+        title: 'Hoveddel',
+        exercises: strengthDraft
+      }]
+    });
+  }
+
+  function exercisePlanSummaryHtml(exercisePlan) {
+    const plan = normalizeExercisePlan(exercisePlan);
+    if (!plan) return '';
+    const items = exercisePlanItems(plan);
+    return `
+      <div class="exercise-plan-summary">
+        <strong>${escapeHtml(exercisePlanSummary(plan))}</strong>
+        <div class="exercise-plan-summary-list">
+          ${items.map(item => `<span>${escapeHtml(exercisePrescriptionLabel(item))}</span>`).join('')}
+        </div>
+        ${plan.notes ? `<p>${escapeHtml(plan.notes)}</p>` : ''}
+      </div>`;
+  }
+
+  function exerciseOptions(selectedId = '') {
+    const exercises = [...(getState().exercises || [])].sort((a, b) => compareText(a.name, b.name));
+    return [
+      '<option value="">Velg øvelse</option>',
+      ...exercises.map(exercise => `
+        <option value="${escapeHtml(exercise.id)}" ${exercise.id === selectedId ? 'selected' : ''}>
+          ${escapeHtml(exercise.name)}
+        </option>
+      `)
+    ].join('');
+  }
+
+  function renderStrengthRows() {
+    const wrapper = element('templateStrengthExerciseRows');
+    if (!wrapper) return;
+    wrapper.innerHTML = strengthDraft.length
+      ? strengthDraft.map((item, index) => `
+          <div class="strength-exercise-row">
+            <div class="strength-exercise-row-head">
+              <strong>Øvelse ${index + 1}</strong>
+              <button type="button" class="ghost danger-link compact-btn" onclick="removeTemplateStrengthExercise(${index})">Fjern</button>
+            </div>
+            <label>Øvelse
+              <select onchange="updateTemplateStrengthExercise(${index}, 'exerciseId', this.value)">
+                ${exerciseOptions(item.exerciseId)}
+              </select>
+            </label>
+            <div class="strength-prescription-grid">
+              <label>Sett
+                <input type="number" inputmode="numeric" min="0" value="${item.sets || ''}" onchange="updateTemplateStrengthExercise(${index}, 'sets', this.value)" placeholder="3" />
+              </label>
+              <label>Repetisjoner
+                <input value="${escapeHtml(item.reps || '')}" onchange="updateTemplateStrengthExercise(${index}, 'reps', this.value)" placeholder="8-10 per side" />
+              </label>
+              <label>Pause sek
+                <input type="number" inputmode="numeric" min="0" value="${item.restSeconds || ''}" onchange="updateTemplateStrengthExercise(${index}, 'restSeconds', this.value)" placeholder="60" />
+              </label>
+              <label>Belastning
+                <input value="${escapeHtml(item.loadText || '')}" onchange="updateTemplateStrengthExercise(${index}, 'loadText', this.value)" placeholder="Kroppsvekt / 10 kg" />
+              </label>
+            </div>
+            <label>Notat
+              <input value="${escapeHtml(item.note || '')}" onchange="updateTemplateStrengthExercise(${index}, 'note', this.value)" placeholder="Valgfri instruksjon for denne øvelsen" />
+            </label>
+          </div>
+        `).join('')
+      : '<p class="small-note">Legg til øvelser fra biblioteket. Opprett øvelsen under hvis den ikke finnes ennå.</p>';
+    const preview = element('templateStrengthPreview');
+    if (preview) {
+      preview.textContent = exercisePlanSummary(exercisePlanFromForm()) || 'Ingen strukturert styrkeinfo ennå.';
+    }
+  }
+
+  function toggleStrengthFields() {
+    const enabled = element('templateStrengthEnabled')?.checked;
+    element('templateStrengthFields')?.classList.toggle('hidden', !enabled);
+    if (enabled && !strengthDraft.length) addStrengthExercise();
+    else renderStrengthRows();
+  }
+
+  function addStrengthExercise() {
+    strengthDraft.push({
+      id: '',
+      exerciseId: '',
+      exerciseSnapshot: null,
+      sets: 3,
+      reps: '',
+      durationSeconds: 0,
+      restSeconds: 60,
+      loadText: '',
+      note: ''
+    });
+    renderStrengthRows();
+  }
+
+  function updateStrengthExercise(index, field, value) {
+    const current = strengthDraft[index];
+    if (!current) return;
+    if (field === 'exerciseId') {
+      const exercise = (getState().exercises || []).find(item => item.id === value);
+      strengthDraft[index] = exercise
+        ? createExercisePrescription(exercise, {
+            ...current,
+            exerciseId: value,
+            exerciseSnapshot: exercise
+          })
+        : { ...current, exerciseId: '', exerciseSnapshot: null };
+    } else if (['sets', 'restSeconds', 'durationSeconds'].includes(field)) {
+      strengthDraft[index] = { ...current, [field]: parseNonNegativeInteger(value) };
+    } else {
+      strengthDraft[index] = { ...current, [field]: String(value || '').trim() };
+    }
+    renderStrengthRows();
+  }
+
+  function removeStrengthExercise(index) {
+    strengthDraft.splice(index, 1);
+    renderStrengthRows();
+  }
+
+  function setExercisePlanForm(exercisePlan) {
+    const plan = normalizeExercisePlan(exercisePlan);
+    strengthDraft = plan ? exercisePlanItems(plan).map(item => ({ ...item })) : [];
+    if (element('templateStrengthEnabled')) element('templateStrengthEnabled').checked = Boolean(plan);
+    if (element('templateStrengthNote')) element('templateStrengthNote').value = plan?.notes || '';
+    toggleStrengthFields();
+  }
+
+  function clearExercisePlanForm() {
+    strengthDraft = [];
+    if (element('templateStrengthEnabled')) element('templateStrengthEnabled').checked = false;
+    if (element('templateStrengthNote')) element('templateStrengthNote').value = '';
+    toggleStrengthFields();
+  }
+
   function readForm() {
     const editingId = element('editingTemplateId')?.value || '';
     const name = element('templateName')?.value.trim() || '';
     if (!name) return { ok: false, error: 'Skriv inn navn på økten først.' };
     const structuredWorkout = structuredWorkoutFromForm();
+    const exercisePlan = exercisePlanFromForm();
     if (element('templateStructuredEnabled')?.checked && !structuredWorkout) {
       return {
         ok: false,
         error: 'Fyll inn repetisjoner og arbeidstid for strukturert intervallinfo, eller fjern avhukingen.'
+      };
+    }
+    if (element('templateStrengthEnabled')?.checked && !exercisePlan) {
+      return {
+        ok: false,
+        error: 'Velg minst én øvelse fra øvelsesbiblioteket, eller fjern avhukingen for strukturert styrke.'
       };
     }
     return {
@@ -265,7 +427,9 @@ export function createWorkoutTemplateUi({
         recommendedWhen: getCheckedValues('templateRecommendedWhen'),
         avoidWhen: getCheckedValues('templateAvoidWhen'),
         structure: element('templateStructure')?.value.trim() || '',
-        structuredWorkout
+        sourceUrl: element('templateSourceUrl')?.value.trim() || '',
+        structuredWorkout,
+        exercisePlan
       }
     };
   }
@@ -283,7 +447,9 @@ export function createWorkoutTemplateUi({
     setCheckedValues('templateRecommendedWhen', template.recommendedWhen);
     setCheckedValues('templateAvoidWhen', template.avoidWhen);
     element('templateStructure').value = template.structure || '';
+    element('templateSourceUrl').value = template.sourceUrl || '';
     setStructuredWorkoutForm(template.structuredWorkout);
+    setExercisePlanForm(template.exercisePlan);
     element('templateSubmitBtn').textContent = 'Lagre endringer';
     element('cancelEditTemplateBtn').classList.remove('hidden');
   }
@@ -297,7 +463,9 @@ export function createWorkoutTemplateUi({
     setCheckedValues('templateRecommendedWhen', []);
     setCheckedValues('templateAvoidWhen', []);
     element('templateStructure').value = '';
+    element('templateSourceUrl').value = '';
     clearStructuredWorkoutForm();
+    clearExercisePlanForm();
     element('templateSubmitBtn').textContent = 'Lagre øktmal';
     element('cancelEditTemplateBtn').classList.add('hidden');
   }
@@ -360,7 +528,9 @@ export function createWorkoutTemplateUi({
         ${tags.length ? `<div class="template-tags">${tags.map(tag => `<span class="tag template-tag">${escapeHtml(tag)}</span>`).join('')}</div>` : ''}
         ${readiness.ready ? '' : `<div class="template-missing">${readiness.missing.map(item => `<span>${escapeHtml(item)}</span>`).join('')}</div>`}
         ${structuredWorkoutSummaryHtml(template.structuredWorkout)}
+        ${exercisePlanSummaryHtml(template.exercisePlan)}
         ${template.structure ? `<p class="template-structure">${escapeHtml(template.structure)}</p>` : ''}
+        ${template.sourceUrl ? `<a class="template-source-link" href="${escapeHtml(template.sourceUrl)}" target="_blank" rel="noopener noreferrer">Åpne øktdemonstrasjon</a>` : ''}
         <div class="button-row">
           <button class="btn-primary" onclick="editTemplate('${escapeHtml(template.id)}')">Rediger</button>
           <button class="btn-soft" onclick="deleteTemplate('${escapeHtml(template.id)}')">Slett</button>
@@ -490,9 +660,16 @@ export function createWorkoutTemplateUi({
     refreshFormOptions,
     selectOptions,
     renderLibrary,
+    renderStrengthRows,
     renderStructuredWorkoutPreview,
+    addStrengthExercise,
+    updateStrengthExercise,
+    removeStrengthExercise,
     setCoachFilter,
+    toggleStrengthFields,
     toggleStructuredWorkoutFields,
-    structuredWorkoutSummaryHtml
+    structuredWorkoutSummaryHtml,
+    exercisePlanSummaryHtml
   };
 }
+
