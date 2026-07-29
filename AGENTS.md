@@ -12,6 +12,7 @@ Dette er en lokal kopi av en PWA som normalt kan synkroniseres direkte til GitHu
   `C:\Users\espen\Downloads\00_Organisert\02_Prosjekter_og_apper\Treningsapp`
 - Ikke bruk nettverk, full access eller tilgang utenfor prosjektmappen uten å forklare hvorfor og spørre først.
 - Etter kode- eller dokumentasjonsendringer skal relevante endrede filer deployes/synkroniseres direkte til GitHub-repoet via GitHub-connectoren når connectoren har skrivetilgang. Hvis direkte GitHub-synk ikke er mulig, skal brukeren få en presis opplastingsliste.
+- Ved synk av store tekstfiler som `app.js` og `styles.css` skal komplett lokalt filinnhold sendes direkte til GitHub uten å mellomlagres gjennom et avkortet verktøyresultat. Etter synk skal remote filstørrelse og fravær av tekst som `tokens truncated` verifiseres før deploy regnes som ferdig.
 - Last aldri opp `node_modules`, `.firebase`, lokale secrets, `.env`-filer, debug-logger eller midlertidige nøkkelfiler til GitHub.
 
 ## Veiledende arbeidskontekst
@@ -169,4 +170,3 @@ Oppsummer alltid:
 - hvilke sjekker som er kjørt
 - hvilke filer som er synkronisert direkte til GitHub, eller hvilke filer brukeren må laste opp manuelt hvis direkte synk ikke var mulig
 - om noe ikke ble testet
-
