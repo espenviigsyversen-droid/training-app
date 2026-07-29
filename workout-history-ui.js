@@ -73,6 +73,7 @@ export function createWorkoutHistoryUi({
   heartRateContextLabel,
   lastWorkoutCoachNote,
   structuredWorkoutSummaryHtml,
+  exercisePlanSummaryHtml,
   templateCalendarKind,
   uniqueValues,
   todayISO
@@ -139,6 +140,10 @@ export function createWorkoutHistoryUi({
         ${completed.rpe ? `<p class="detail-text"><strong>Opplevd intensitet:</strong> ${escapeHtml(completed.rpe)}/10</p>` : ''}`)}
       ${detailSection('Puls', heartRateLines)}
       ${detailSection('Strukturert intervall', structuredWorkoutSummaryHtml(template.structuredWorkout))}
+      ${detailSection('Styrkeøvelser', exercisePlanSummaryHtml(template.exercisePlan))}
+      ${detailSection('Øktlenke', template.sourceUrl
+        ? `<a href="${escapeHtml(template.sourceUrl)}" target="_blank" rel="noopener noreferrer">Åpne demonstrasjon</a>`
+        : '')}
       ${detailSection('Terreng og stigning', [
         detailLine('Høydemeter', completed.elevationGainM ? `${completed.elevationGainM} hm` : ''),
         detailLine('Møllestigning', completed.treadmillInclinePercent ? `${completed.treadmillInclinePercent}%` : '')
@@ -292,3 +297,4 @@ export function createWorkoutHistoryUi({
 
   return { detailHtml, filtered, renderFilterOptions, renderList, renderSummary, row };
 }
+
