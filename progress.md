@@ -277,6 +277,13 @@ Treningsapp/
 - Rettet deretter en separat publiseringsfeil der GitHub-versjonen av `styles.css` var fysisk avkortet midt i filen. Dette gjorde at nettleseren forkastet sentrale regler for innlogging, appskall, navigasjon og modaler.
 - Stabilitetstesten kontrollerer nå at stilarket har forventet minimumslengde, ikke inneholder overføringsmarkører og fortsatt har kritiske skallregler.
 - App/cache bumpes til v172e / `treningsapp-v172e` slik at PWA-en henter det komplette stilarket.
+
+### v172f - Komplett app-skall og tydelig feilgrense
+
+- Rettet en publiseringsfeil der GitHub-versjonen av `index.html` var fysisk avkortet. Det manglende DOM-skallet gjorde at innlogget rendering stoppet, navigasjon ble passiv og renderfeilen feilaktig ble vist som synkfeil.
+- Firestore-lasting og rendering har nå separate feilgrenser, slik at en UI-feil ikke lenger rapporteres som «Feil ved synk».
+- Stabilitetstesten avviser nå avkortet `index.html` og kontrollerer kritiske elementer samt komplett avslutning av dokumentet.
+- App/cache bumpes til v172f / `treningsapp-v172f`.
 - Ingen datamodell, brukerflyt eller styrkefunksjonalitet er endret.
 
 ---
