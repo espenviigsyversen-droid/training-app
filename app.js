@@ -108,8 +108,10 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     import { createTrainingRepository } from './training-repository.js';
     import { createCalendarUi } from './calendar-ui.js';
     import { createWorkoutTemplateUi } from './workout-template-ui.js';
+    import { createExerciseLibraryUi } from './exercise-library-ui.js';
     import { createWorkoutCompletionUi } from './workout-completion-ui.js';
     import { createWorkoutHistoryUi } from './workout-history-ui.js';
+    import { normalizeExercise } from './domain-exercises.js';
     import {
       applyRaceContextToSuggestionMix,
       assembleWeekPlanSuggestions,
@@ -128,7 +130,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       xWorkoutSuggestion
     } from './domain-training-plan.js';
 
-    const APP_VERSION = 'v171';
+    const APP_VERSION = 'v172b';
     const APP_CACHE_NAME = `treningsapp-${APP_VERSION}`;
 
     const firebaseConfig = {
@@ -1520,6 +1522,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     }
 
     let workoutTemplateUi = null;
+    let exerciseLibraryUi = null;
 
     function getWorkoutTemplateUi() {
       if (!workoutTemplateUi) {
@@ -1551,12 +1554,89 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       return getWorkoutTemplateUi().structuredWorkoutSummaryHtml(structuredWorkout);
     }
 
+    function exercisePlanSummaryHtml(exercisePlan) {
+      return getWorkoutTemplateUi().exercisePlanSummaryHtml(exercisePlan);
+    }
+
+    function getExerciseLibraryUi() {
+      if (!exerciseLibraryUi) {
+        exerciseLibraryUi = createExerciseLibraryUi({
+          getState: () => state,
+          escapeHtml
+        });
+      }
+      return exerciseLibraryUi;
+    }
+
     function renderStructuredWorkoutPreview() {
       getWorkoutTemplateUi().renderStructuredWorkoutPreview();
     }
 
     window.toggleStructuredWorkoutFields = function() {
       getWorkoutTemplateUi().toggleStructuredWorkoutFields();
+    };
+
+    window.toggleTemplateStrengthFields = function() {
+      getWorkoutTemplateUi().toggleStrengthFields();
+    };
+
+    window.addTemplateStrengthExercise = function() {
+      getWorkoutTemplateUi().addStrengthExercise();
+    };
+
+    window.updateTemplateStrengthExercise = function(index, field, value) {
+      getWorkoutTemplateUi().updateStrengthExercise(index, field, value);
+    };
+
+    window.removeTemplateStrengthExercise = function(index) {
+      getWorkoutTemplateUi().removeStrengthExercise(index);
+    };
+
+    window.saveExercise = async function() {
+      const form = getExerciseLibraryUi().readForm();
+      if (!form.ok) return alert(form.error);
+      const now = new Date().toISOString();
+      const existing = form.editingId
+        ? state.exercises.find(exercise => exercise.id === form.editingId)
+        : null;
+      if (form.editingId && !existing) return alert('Fant ikke øvelsen.');
+      const exercise = normalizeExercise({
+        ...existing,
+        ...form.data,
+        id: form.editingId || uid('exercise'),
+        createdAt: existing?.createdAt || now,
+        updatedAt: now
+      });
+      getExerciseLibraryUi().clearForm();
+      await safeStateWrite({
+        apply: () => {
+          const index = state.exercises.findIndex(item => item.id === exercise.id);
+          if (index >= 0) state.exercises[index] = exercise;
+          else state.exercises.push(exercise);
+        },
+        write: () => fsSet('exercises', exercise.id, exercise),
+        successMessage: form.editingId ? 'Øvelse oppdatert' : 'Øvelse lagret',
+        errorMessage: 'Kunne ikke lagre øvelsen'
+      });
+    };
+
+    window.editExercise = function(id) {
+      const exercise = state.exercises.find(item => item.id === id);
+      if (exercise) getExerciseLibraryUi().fillForm(exercise);
+    };
+
+    window.cancelEditExercise = function() {
+      getExerciseLibraryUi().clearForm();
+    };
+
+    window.deleteExercise = async function(id) {
+      if (!confirm('Slette øvelsen fra biblioteket? Eksisterende øktmaler beholder sitt lagrede snapshot.')) return;
+      await safeStateWrite({
+        apply: () => { state.exercises = state.exercises.filter(item => item.id !== id); },
+        write: () => fsDelete('exercises', id),
+        successMessage: 'Øvelse slettet',
+        errorMessage: 'Kunne ikke slette øvelsen'
+      });
     };
 
     window.saveTemplate = async function() {
@@ -2665,7 +2745,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
 
     // ── Render helpers ────────────────────────────────────────────────────────
     function getTemplate(id) {
-      return state.templates.find(t => t.id === id) || { name: 'Slettet øktmal', type: 'Annet', intensity: '', role: '', purpose: '', load: '', recommendedWhen: [], avoidWhen: [], structure: '' };
+      return state.templates.find(t => t.id === id) || { name: 'Slettet øktmal', type: 'Annet', intensity: '', role: '', purpose: '', load: '', recommendedWhen: [], avoidWhen: [], structure: '', sourceUrl: '', structuredWorkout: null, exercisePlan: null };
     }
 
     function completedTemplateSnapshot(templateId, manualName) {
@@ -2678,7 +2758,9 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         purpose: template?.purpose || '',
         load: template?.load || '',
         structure: template?.structure || '',
-        structuredWorkout: template?.structuredWorkout || null
+        sourceUrl: template?.sourceUrl || '',
+        structuredWorkout: template?.structuredWorkout || null,
+        exercisePlan: template?.exercisePlan || null
       };
     }
 
@@ -2693,7 +2775,9 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
         purpose: completed.templateSnapshot?.purpose || '',
         load: completed.templateSnapshot?.load || '',
         structure: completed.templateSnapshot?.structure || '',
-        structuredWorkout: completed.templateSnapshot?.structuredWorkout || null
+        sourceUrl: completed.templateSnapshot?.sourceUrl || '',
+        structuredWorkout: completed.templateSnapshot?.structuredWorkout || null,
+        exercisePlan: completed.templateSnapshot?.exercisePlan || null
       };
     }
 
@@ -2723,6 +2807,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
           heartRateContextLabel,
           lastWorkoutCoachNote,
           structuredWorkoutSummaryHtml,
+          exercisePlanSummaryHtml,
           templateCalendarKind,
           uniqueValues,
           todayISO
@@ -2754,6 +2839,8 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
           ${chips ? `<div class="calendar-context-row">${chips}</div>` : ''}
           ${t.structure ? `<p class="meta" style="white-space:pre-line;">${escapeHtml(t.structure)}</p>` : ''}
           ${structuredWorkoutSummaryHtml(t.structuredWorkout)}
+          ${exercisePlanSummaryHtml(t.exercisePlan)}
+          ${t.sourceUrl ? `<p><a class="template-source-link" href="${escapeHtml(t.sourceUrl)}" target="_blank" rel="noopener noreferrer">Åpne øktdemonstrasjon</a></p>` : ''}
           ${planned.notes ? `<p class="meta"><strong>Notat:</strong> ${escapeHtml(planned.notes)}</p>` : ''}
           <div class="button-row">
             ${planned.status !== 'done' ? `<button class="btn-success" onclick="openCompleteModal('${planned.id}')">Marker utført</button>` : ''}
@@ -2847,6 +2934,11 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
 
     window.renderTemplateLibrary = function() {
       getWorkoutTemplateUi().renderLibrary();
+    };
+
+    window.renderExerciseLibrary = function() {
+      getExerciseLibraryUi().renderLibrary();
+      getWorkoutTemplateUi().renderStrengthRows();
     };
 
     function completedCard(c) {
@@ -6757,6 +6849,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       document.getElementById('completeTemplate').innerHTML = templateSelectOptions({ includeManual: true });
 
       renderTemplateLibrary();
+      renderExerciseLibrary();
 
       getWorkoutHistoryUi().renderList();
     }
@@ -6808,7 +6901,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
           const keys = await caches.keys();
           await Promise.all(keys.filter(key => key.startsWith('treningsapp-')).map(key => caches.delete(key)));
         }
-        await Promise.all(['./index.html', './styles.css', './app.js', './ai-coach-client.js', './ai-coach-ui.js', './domain-core.js', './domain-coach.js', './domain-goals.js', './domain-coach-rules.js', './domain-fitness.js', './app-state.js', './local-state-store.js', './training-repository.js', './domain-training-plan.js', './calendar-ui.js', './workout-template-ui.js', './data/coach-rules.json', './service-worker.js'].map(path =>
+        await Promise.all(['./index.html', './styles.css', './app.js', './ai-coach-client.js', './ai-coach-ui.js', './domain-core.js', './domain-coach.js', './domain-goals.js', './domain-coach-rules.js', './domain-fitness.js', './domain-exercises.js', './app-state.js', './local-state-store.js', './training-repository.js', './domain-training-plan.js', './calendar-ui.js', './workout-template-ui.js', './workout-completion-ui.js', './workout-history-ui.js', './exercise-library-ui.js', './data/coach-rules.json', './service-worker.js'].map(path =>
           fetch(path, { cache: 'reload' }).catch(() => null)
         ));
       } finally {
