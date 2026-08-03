@@ -239,14 +239,14 @@ Prioritert backlog for videre utvikling av Treningsapp.
     - Ren normalisering og validering legges i ny `domain-exercises.js`.
     - Bibliotek og valg legges i ny `exercise-library-ui.js`; `workout-template-ui.js` utvides, mens `app.js` beholder orchestrering og persistence-wrappers.
 
-48. **v173a - Labtester og pulssoner: design** - Ferdig dokumentert
-    - `LAB_TESTS_AND_ZONES_DESIGN.md` kartlegger faktisk laboratorierapport, kildehierarki, laktattrinn, versjonerte sonesett og personvern.
-    - Rå test, treningsresept og aktivt soneoppsett holdes adskilt.
+48. **v173a - Testbaserte pulssoner: design** - Ferdig dokumentert
+    - `LAB_TESTS_AND_ZONES_DESIGN.md` kartlegger de faktiske pulssonene, kilde, historikk, grensepolicy og versjonerte sonesett.
+    - Eksempeløktene i laboratorierapporten er eksplisitt utenfor scope.
 
-49. **v173b - Labtesthistorikk og aktivt pulssoneoppsett**
-    - Daterte VO2-/laktattester med kilde, protokoll, terskelfart og trinn.
-    - Versjonerte femsonesett med eksplisitt aktivering og trygg profilbekreftelse.
-    - Ren logikk i `domain-lab-tests.js` og `domain-heart-rate-zones.js`; egne UI-moduler uten tung logikk i `app.js`.
+49. **v173b - Testbasert sonehistorikk og aktivt pulssoneoppsett** - Bygget
+    - Versjonerte femsonesett med kilde, testdato, gyldighetsdato og eksplisitt aktivering.
+    - Alle grenser kan redigeres manuelt, mens eldre sonesett beholdes som historikk.
+    - Ren logikk i `domain-heart-rate-zones.js` og egen `heart-rate-zones-ui.js`; `app.js` beholder små persistence-wrappers.
 
 50. **v174a-v174b - Sonefordeling og forklarbar etterlevelse**
     - Registrer Garmin-prosent per sone på fullførte økter og lagre sone-snapshot.
@@ -296,7 +296,7 @@ Disse punktene var del av den tidlige v142-idéen, men er bevisst flyttet ut av 
 
 ## Anbefalt neste steg
 
-`v173a` er dokumentert. Neste runde er `v173b`: labtesthistorikk og aktivt pulssoneoppsett. v174a-v174b legger sonefordeling og etterlevelse på fullførte økter før Garmin CSV-import bygges i v176.
+`v173a` er dokumentert og `v173b` er bygget. Neste runde er v174a-v174b: sonefordeling og forklarbar etterlevelse på fullførte økter før Garmin CSV-import bygges i v176.
 
 v164a-v169 har etablert modulgrensene som de nye rundene skal bygge videre på. v170a-v171 har lukket de åpne tekniske sporene for lokal snapshot-kvote og Firebase Functions SDK.
 
