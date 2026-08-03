@@ -1372,29 +1372,29 @@ Foreslått modulgrense:
 - `workout-completion-ui.js` og `workout-history-ui.js` viser snapshots, men eier ikke lagring.
 - `training-repository.js` brukes for Firestore-operasjoner; `app.js` beholder små wrappers og bekreftelser.
 
-### v173a - Labtester og pulssoner: design og rapportmapping - Dokumentert
+### v173a - Testbaserte pulssoner: design og rapportmapping - Dokumentert
 
 Mål:
 
 - Dokumenter datamodell og kildehierarki før Firestore/UI endres.
-- Kartlegg VO2max, HFmax, laktattrinn, terskelfart, protokoll og foreslåtte soner fra Idrettens testsenter.
-- Skill rå testresultat, treningsresept og aktivt soneoppsett.
-- Dokumenter snapshots, grensepolicy, personvern og trygg profiloppdatering i `LAB_TESTS_AND_ZONES_DESIGN.md`.
+- Kartlegg de faktiske pulssonene fra Idrettens testsenter som ett datert og redigerbart soneoppsett.
+- Avgrens v173 til pulssoner. VO2max, laktatkurve, testprotokoll og eksempeløkter fra rapporten registreres ikke i denne runden.
+- Dokumenter historikk, aktivering, grensepolicy og bakoverkompatibilitet i `LAB_TESTS_AND_ZONES_DESIGN.md`.
 
-### v173b - Labtesthistorikk og aktivt pulssoneoppsett
+### v173b - Testbasert sonehistorikk og aktivt pulssoneoppsett - Bygget
 
 Mål:
 
-- Lagre datert historikk for laboratoriemålt VO2max, makspuls, protokoll, laboratorium/kilde og notat.
-- Representer laktattest som belastningstrinn med fart, puls, varighet, Borg og mmol/L.
-- Opprett, rediger og aktiver versjonerte femsonesett med kilde og gyldighetsdato.
-- Krev eksplisitt bekreftelse før laboratorie-HFmax eller soner påvirker profil og coach.
-- Vis siste test, testhistorikk og aktivt soneoppsett under Setup/Tester og pulssoner.
+- Opprett, rediger, aktiver og slett versjonerte femsonesett med kilde, testdato og gyldighetsdato.
+- Behold tidligere sonesett som historikk når et nytt sett aktiveres.
+- Bruk en eksplisitt grensepolicy slik at delt grenseverdi, for eksempel 130 bpm, klassifiseres entydig i den høyere sonen.
+- Vis aktivt soneoppsett og lagrede soneprofiler under Setup -> Person og form -> Pulssoner.
+- Sonene kan alltid endres manuelt. Ingen eksempeløkter eller treningsresepter fra testrapporten lagres.
 
 Arkitektur:
 
-- Ny `domain-lab-tests.js` og `domain-heart-rate-zones.js` for all ren normalisering og validering.
-- Nye `lab-tests-ui.js` og `heart-rate-zones-ui.js` med injiserte state-/handlingsavhengigheter.
+- Ny `domain-heart-rate-zones.js` for ren normalisering, validering, aktivering og bpm-klassifisering.
+- Ny `heart-rate-zones-ui.js` med injiserte state-/handlingsavhengigheter.
 - `app-state.js` og `training-repository.js` utvides bakoverkompatibelt; `app.js` beholder små wrappers.
 
 ### v174a - Sonefordeling på fullførte økter
@@ -1493,13 +1493,13 @@ Foreslått modulgrense:
 
 `v172a-v172b` er bygget samlet. `STRUCTURED_EXERCISES_DESIGN.md` dokumenterer den versjonerte modellen, og produksjonen bruker `domain-exercises.js` og `exercise-library-ui.js`. Øvelser kan gjenbrukes i styrkemaler med sett, repetisjoner, pause, belastning, notat og sikre lenker. Malen lagrer snapshots slik at senere bibliotekendringer ikke endrer planlagte eller historiske økter.
 
-`v173a` er dokumentert i `LAB_TESTS_AND_ZONES_DESIGN.md` basert på den faktiske laboratorierapporten. Neste implementeringsrunde er `v173b`: labtesthistorikk og et eksplisitt aktivt pulssoneoppsett. Deretter bygges manuell sonefordeling og forklarbar soneetterlevelse i v174a-v174b før Garmin-importen i v176.
+`v173a` er dokumentert i `LAB_TESTS_AND_ZONES_DESIGN.md`, og `v173b` er bygget som testbasert sonehistorikk med et eksplisitt aktivt, manuelt redigerbart femsonesett. Eksempeløktene i laboratorierapporten er bevisst utelatt. Neste implementeringsrunde er v174a: manuell sonefordeling på fullførte økter, fulgt av forklarbar soneetterlevelse i v174b før Garmin-importen i v176.
 
 ## Hva vi bør vente med
 
 ### Strava/Garmin-import
 
-Direkte API-integrasjon mot Garmin/Strava venter fortsatt. Kontrollert Garmin CSV-import er flyttet til v176 slik at den kan fylle en ferdig, testet modell for labdata, pulssoner og øktens sonefordeling i stedet for å etablere parallelle felt.
+Direkte API-integrasjon mot Garmin/Strava venter fortsatt. Kontrollert Garmin CSV-import er flyttet til v176 slik at den kan fylle en ferdig, testet modell for pulssoner og øktens sonefordeling i stedet for å etablere parallelle felt.
 
 ### Full AI-coach
 
