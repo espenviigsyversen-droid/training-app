@@ -207,19 +207,23 @@ Treningsapp/
 
 ## Neste steg (prioritert)
 
-1. **v173 - Oppvarming og nedtrapping**
+1. **v173b - Labtesthistorikk og aktivt pulssoneoppsett**
+   - v173a-design er dokumentert fra faktisk VO2-/laktatrapport i `LAB_TESTS_AND_ZONES_DESIGN.md`.
+   - Bygg daterte tester, laktattrinn og eksplisitt aktivt femsonesett med kilde.
+2. **v174a-v174b - Sonefordeling og forklarbar etterlevelse**
+   - Registrer Garmin-prosent per sone på fullførte økter og behold sone-snapshot.
+   - Sammenlign forsiktig med planlagt intensjon uten å overstyre RPE eller kroppssignaler.
+3. **v175 - Oppvarming og nedtrapping**
    - Gjenbruk samme øvelsesmodell for løpe- og kondisjonsøkter uten å endre intervallmodellen.
-2. **v174a-v174b - Garmin CSV-import**
+4. **v176a-v176b - Garmin CSV-import**
    - Design mapping, fingeravtrykk og duplikatpolicy først.
    - Bygg deretter en bekreftet importveiviser som aldri overskriver manuelle felt automatisk.
-3. **v175 - Nedoverbelastning**
+5. **v177 - Nedoverbelastning**
    - Skill stigning/nedstigning og kondisjons-/muskelbelastning.
-4. **v176 - Labmålinger og laktatprofil**
-   - Daterte, kildebevisste målinger og trinnvis laktatkurve.
-5. **v177 - Kroppsmål for klær og utstyr**
+6. **v178 - Kroppsmål for klær og utstyr**
    - Praktisk målehistorikk under Setup, uten kobling til coach- eller nivåscore.
 
-### Planlagt arkitektur for v172-v177
+### Planlagt arkitektur for v172-v178
 
 - Nye datamodeller normaliseres i egne domenemoduler før UI og persistence kobles på.
 - CSV-parsing, importmatching, øvelseslogikk, labtester og kroppsmål skal ikke implementeres direkte i `app.js`.
@@ -227,6 +231,13 @@ Treningsapp/
 - `training-repository.js` brukes eller utvides avgrenset for Firestore-skriving.
 - Nye runtime-moduler skal inn i PWA app shell og testes fra faktisk produksjonskode.
 - v172a-v172b følger nå dette mønsteret med egne domene- og UI-moduler; senere runder skal bygge videre på samme grense.
+
+### v173a - Labtester og pulssoner design - Dokumentert
+
+- Den faktiske rapporten fra Idrettens testsenter er kartlagt med VO2max, laboratoriemålt HFmax, laktattrinn, terskelfart og to separate sone-/treningsresepttabeller.
+- `LAB_TESTS_AND_ZONES_DESIGN.md` definerer versjonerte labtester, aktive pulssoneoppsett, sone-snapshots på økter, prosentfordeling fra Garmin og en forsiktig samsvarsvurdering.
+- Laboratorieverdier skal ikke overskrive profil eller aktive soner uten eksplisitt bekreftelse.
+- Garmin CSV-import er flyttet etter lab-/sonemodellen, slik at importen senere beriker kanoniske felt i stedet for å opprette parallelle data.
 
 ### v167 - Øktmaler som egen UI-feature - Bygget
 
