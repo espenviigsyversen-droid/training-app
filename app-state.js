@@ -7,6 +7,7 @@ import {
 } from './domain-goals.js';
 import { normalizeTrainingLevelProgress } from './domain-fitness.js';
 import { normalizeExerciseLibrary } from './domain-exercises.js';
+import { normalizeHeartRateZoneSets } from './domain-heart-rate-zones.js';
 
 export const WORKOUT_ROLE_LABELS = {
   main_threshold: 'Hovedterskel',
@@ -96,6 +97,7 @@ export function createEmptyAppState(settings = freshDefaultSettings()) {
     blockedDays: [],
     raceResults: [],
     continuityFreezes: [],
+    heartRateZoneSets: [],
     settings: normalizeSettings(settings)
   };
 }
@@ -239,7 +241,7 @@ export function normalizeAppState(input = {}) {
     blockedDays: Array.isArray(input.blockedDays) ? input.blockedDays : [],
     raceResults: normalizeRaceResultEntries(input.raceResults),
     continuityFreezes: normalizeContinuityFreezes(input.continuityFreezes),
+    heartRateZoneSets: normalizeHeartRateZoneSets(input.heartRateZoneSets),
     settings: normalizeSettings(input.settings)
   };
 }
-
