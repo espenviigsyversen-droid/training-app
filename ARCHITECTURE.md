@@ -194,14 +194,13 @@ De neste produktsporene skal følge samme kontrollerte uttrekksmønster som v164
 - `domain-exercises.js`: eier øvelsesmodell, normalisering, validering, snapshot-regler, URL-policy og rene sammendrag.
 - `exercise-library-ui.js`: eier gjenbrukbart øvelsesbibliotek, søk, valg og redigering med injiserte state-/handlingsavhengigheter.
 - `workout-template-ui.js`: støtter strukturerte styrke- og øvelsesblokker, men eier fortsatt ikke persistence.
-- `domain-lab-tests.js`: normalisering, validering, laktattrinn, kildebevisst historikk og formattering.
-- `domain-heart-rate-zones.js`: aktive sonesett, grensepolicy, snapshots, prosentvalidering og forklarbar soneetterlevelse.
-- `lab-tests-ui.js` og `heart-rate-zones-ui.js`: registrering, historikk, aktivering og øktfordeling med injiserte handlinger.
+- `domain-heart-rate-zones.js`: normalisering, validering, historikk, aktivt sonesett, grensepolicy og bpm-klassifisering. Senere sone-snapshots og prosentvalidering skal bygge videre her.
+- `heart-rate-zones-ui.js`: registrering, manuell redigering, historikk og aktivering med injiserte handlinger.
 - `garmin-csv-import.js`: ren parsing, feltmapping, importfingeravtrykk, duplikatkontroll og matchforslag mot den etablerte sone-/øktmodellen.
 - `training-import-ui.js`: forhåndsvisning og eksplisitte valg før repository-skriving.
 - `domain-workout-load.js`: vurderes bare dersom todimensjonal høyde-/nedoverbelastning blir for stor for `domain-core.js`.
 - `domain-body-measurements.js` og `body-measurements-ui.js`: daterte omkrets-/lengdemål for klær og utstyr.
 
-`app.js` skal ikke eie CSV-parsing, importmatching, øvelsesnormalisering, laktatkurver, pulssoneklassifisering eller målevalidering. Filen beholder navigasjon, samlet state, bekreftelser og små persistence-wrappers. Firestore-operasjoner går via `training-repository.js` eller en senere, tydelig avgrenset repository-modul dersom datamodellen krever det.
+`app.js` skal ikke eie CSV-parsing, importmatching, øvelsesnormalisering, pulssoneklassifisering eller målevalidering. Filen beholder navigasjon, samlet state, bekreftelser og små persistence-wrappers. Firestore-operasjoner går via `training-repository.js` eller en senere, tydelig avgrenset repository-modul dersom datamodellen krever det.
 
 Nye runtime-moduler må lastes eksplisitt, inngå i PWA app shell når de trengs offline, og testes fra produksjonsfilene. Gamle maler, fullførte økter, backupfiler og Firestore-data skal fungere uten migrering.
