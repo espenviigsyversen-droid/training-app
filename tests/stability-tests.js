@@ -17,6 +17,8 @@ const calendarUiSource = read('calendar-ui.js');
 const workoutTemplateUiSource = read('workout-template-ui.js');
 const exerciseLibraryUiSource = read('exercise-library-ui.js');
 const exerciseDomainSource = read('domain-exercises.js');
+const heartRateZoneDomainSource = read('domain-heart-rate-zones.js');
+const heartRateZoneUiSource = read('heart-rate-zones-ui.js');
 const workoutCompletionUiSource = read('workout-completion-ui.js');
 const workoutHistoryUiSource = read('workout-history-ui.js');
 const aiCoachClient = read('ai-coach-client.js');
@@ -66,6 +68,7 @@ async function testAsync(name, fn) {
   const workoutTemplateUiDomain = await import(pathToFileURL(path.join(root, 'workout-template-ui.js')).href);
   const exerciseDomain = await import(pathToFileURL(path.join(root, 'domain-exercises.js')).href);
   const exerciseLibraryUiDomain = await import(pathToFileURL(path.join(root, 'exercise-library-ui.js')).href);
+  const heartRateZoneDomain = await import(pathToFileURL(path.join(root, 'domain-heart-rate-zones.js')).href);
   const workoutCompletionUiDomain = await import(pathToFileURL(path.join(root, 'workout-completion-ui.js')).href);
   const workoutHistoryUiDomain = await import(pathToFileURL(path.join(root, 'workout-history-ui.js')).href);
   const {
@@ -136,6 +139,14 @@ async function testAsync(name, fn) {
     normalizeExerciseUrl
   } = exerciseDomain;
   const { filterExercises } = exerciseLibraryUiDomain;
+  const {
+    activeHeartRateZoneSet,
+    formatHeartRateZoneRange,
+    heartRateZoneForBpm,
+    normalizeHeartRateZoneSet,
+    normalizeHeartRateZoneSets,
+    validateHeartRateZoneSet
+  } = heartRateZoneDomain;
   const { durationSecondsFromParts } = workoutCompletionUiDomain;
   const { filterWorkoutHistory, workoutHistoryPeriodRange } = workoutHistoryUiDomain;
   const {
@@ -482,7 +493,7 @@ async function testAsync(name, fn) {
   });
 
   test('all user data collections are included in replacement import', () => {
-    ['exercises', 'templates', 'planned', 'completed', 'wellness', 'challenges', 'blockedDays', 'raceResults', 'continuityFreezes'].forEach(collection => {
+    ['exercises', 'templates', 'planned', 'completed', 'wellness', 'challenges', 'blockedDays', 'raceResults', 'continuityFreezes', 'heartRateZoneSets'].forEach(collection => {
       assert.ok(repositorySource.includes(`'${collection}'`), `${collection} is missing from TRAINING_DATA_COLLECTIONS`);
     });
     assert.ok(app.includes('replaceFirestoreData(nextState)'), 'import does not call replaceFirestoreData(nextState)');
@@ -1807,6 +1818,71 @@ async function testAsync(name, fn) {
       { id: 'b', name: 'Seteløft', muscleGroups: ['Sete'] },
       { id: 'a', name: 'Tåhev', muscleGroups: ['Legg'] }
     ], 'legg').map(item => item.id), ['a']);
+  });
+
+  test('v173b test-based heart-rate zones normalize and classify shared boundaries safely', () => {
+    const labZones = normalizeHeartRateZoneSet({
+      id: 'steinkjer-2026',
+      name: 'Idrettens testsenter',
+      sourceType: 'lab',
+      sourceName: 'Steinkjer',
+      testedAt: '2026-08-01',
+      maxHeartRate: 183,
+      active: true,
+      zones: [
+        { label: 'Sone 1', minBpm: 110, maxBpm: 130 },
+        { label: 'Sone 2', minBpm: 130, maxBpm: 156 },
+        { label: 'Sone 3', minBpm: 156, maxBpm: 166 },
+        { label: 'Sone 4', minBpm: 166, maxBpm: 174 },
+        { label: 'Sone 5', minBpm: 174, maxBpm: 183 }
+      ]
+    });
+    assert.strictEqual(validateHeartRateZoneSet(labZones).valid, true);
+    assert.strictEqual(heartRateZoneForBpm(129, labZones).id, 'z1');
+    assert.strictEqual(heartRateZoneForBpm(130, labZones).id, 'z2', 'shared boundary should belong to the higher zone');
+    assert.strictEqual(heartRateZoneForBpm(183, labZones).id, 'z5');
+    assert.strictEqual(heartRateZoneForBpm(109, labZones), null);
+    assert.strictEqual(formatHeartRateZoneRange(labZones.zones[2]), '156-166 bpm');
+
+    const discontinuous = normalizeHeartRateZoneSet({
+      ...labZones,
+      zones: labZones.zones.map((zone, index) => index === 1 ? { ...zone, minBpm: 131 } : zone)
+    });
+    assert.strictEqual(validateHeartRateZoneSet(discontinuous).valid, false);
+  });
+
+  test('v173b keeps one active zone profile and preserves zone history through state normalization', () => {
+    const input = [
+      { id: 'latest', name: 'Ny test', active: true, zones: [
+        { minBpm: 110, maxBpm: 130 }, { minBpm: 130, maxBpm: 156 },
+        { minBpm: 156, maxBpm: 166 }, { minBpm: 166, maxBpm: 174 },
+        { minBpm: 174, maxBpm: 183 }
+      ] },
+      { id: 'older', name: 'Eldre test', active: true, zones: [
+        { minBpm: 105, maxBpm: 125 }, { minBpm: 125, maxBpm: 150 },
+        { minBpm: 150, maxBpm: 160 }, { minBpm: 160, maxBpm: 170 },
+        { minBpm: 170, maxBpm: 180 }
+      ] }
+    ];
+    const normalized = normalizeHeartRateZoneSets(input);
+    assert.strictEqual(normalized.length, 2);
+    assert.strictEqual(normalized.filter(item => item.active).length, 1);
+    assert.strictEqual(activeHeartRateZoneSet(normalized).id, 'latest');
+    const stateWithZones = normalizeAppState({ heartRateZoneSets: input });
+    assert.strictEqual(stateWithZones.heartRateZoneSets.length, 2);
+    assert.strictEqual(normalizeAppState({}).heartRateZoneSets.length, 0, 'old state should get a safe empty default');
+  });
+
+  test('v173b heart-rate zone UI is modular and excludes report workout prescriptions', () => {
+    assert.ok(index.includes('id="setupHeartRateZones"'), 'heart-rate zone setup section is missing');
+    assert.ok(index.includes('id="heartRateZoneSetList"'), 'heart-rate zone history list is missing');
+    assert.ok(app.includes("from './domain-heart-rate-zones.js'"), 'heart-rate zone domain is not imported');
+    assert.ok(app.includes("from './heart-rate-zones-ui.js'"), 'heart-rate zone UI is not imported');
+    assert.ok(serviceWorker.includes('./domain-heart-rate-zones.js'), 'heart-rate zone domain is missing from APP_SHELL');
+    assert.ok(serviceWorker.includes('./heart-rate-zones-ui.js'), 'heart-rate zone UI is missing from APP_SHELL');
+    assert.ok(heartRateZoneDomainSource.includes('lower_inclusive_upper_exclusive'), 'boundary policy is not explicit');
+    assert.ok(heartRateZoneUiSource.includes('createHeartRateZonesUi'), 'heart-rate zone UI controller is missing');
+    assert.ok(!heartRateZoneDomainSource.includes('repetitions'), 'example workout prescriptions must not be part of the zone model');
   });
 
   test('structured interval UI fields and summaries are wired into production files', () => {
