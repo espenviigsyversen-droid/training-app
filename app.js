@@ -111,7 +111,12 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     import { createExerciseLibraryUi } from './exercise-library-ui.js';
     import { createWorkoutCompletionUi } from './workout-completion-ui.js';
     import { createWorkoutHistoryUi } from './workout-history-ui.js';
+    import { createHeartRateZonesUi } from './heart-rate-zones-ui.js';
     import { normalizeExercise } from './domain-exercises.js';
+    import {
+      normalizeHeartRateZoneSet,
+      normalizeHeartRateZoneSets
+    } from './domain-heart-rate-zones.js';
     import {
       applyRaceContextToSuggestionMix,
       assembleWeekPlanSuggestions,
@@ -130,7 +135,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       xWorkoutSuggestion
     } from './domain-training-plan.js';
 
-const APP_VERSION = 'v172f';
+const APP_VERSION = 'v173b';
     const APP_CACHE_NAME = `treningsapp-${APP_VERSION}`;
 
     const firebaseConfig = {
@@ -1169,6 +1174,7 @@ const APP_VERSION = 'v172f';
         raceGoal: document.getElementById('setupRaceGoal'),
         trainingProfile: document.getElementById('setupTrainingProfile'),
         personProfile: document.getElementById('setupPersonProfile'),
+        heartRateZones: document.getElementById('setupHeartRateZones'),
         wellness: document.getElementById('setupWellness'),
         ai: document.getElementById('setupAi'),
         data: document.getElementById('setupData'),
@@ -1444,6 +1450,99 @@ const APP_VERSION = 'v172f';
       });
       await saveSettings();
       showToast('Personprofil lagret');
+    };
+
+    let heartRateZonesUi = null;
+
+    function getHeartRateZonesUi() {
+      if (!heartRateZonesUi) {
+        heartRateZonesUi = createHeartRateZonesUi({
+          getState: () => state,
+          escapeHtml,
+          formatDate
+        });
+      }
+      return heartRateZonesUi;
+    }
+
+    window.clearHeartRateZoneForm = function() {
+      getHeartRateZonesUi().clearForm();
+    };
+
+    window.editHeartRateZoneSet = function(id) {
+      const zoneSet = (state.heartRateZoneSets || []).find(item => item.id === id);
+      if (!zoneSet) return;
+      getHeartRateZonesUi().fillForm(zoneSet);
+      document.getElementById('heartRateZoneSetName')?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    };
+
+    window.saveHeartRateZoneSet = async function() {
+      const result = getHeartRateZonesUi().readForm();
+      if (!result.ok) return alert(result.error);
+      const now = new Date().toISOString();
+      const existing = (state.heartRateZoneSets || []).find(item => item.id === result.editingId);
+      const saved = normalizeHeartRateZoneSet({
+        ...result.data,
+        id: result.editingId || uid('heart-rate-zones'),
+        createdAt: existing?.createdAt || now,
+        updatedAt: now
+      });
+      const current = normalizeHeartRateZoneSets(state.heartRateZoneSets);
+      const next = current
+        .filter(item => item.id !== saved.id)
+        .map(item => saved.active ? { ...item, active: false, updatedAt: now } : item)
+        .concat(saved);
+      const changed = next.filter(item => {
+        const previous = current.find(candidate => candidate.id === item.id);
+        return !previous || JSON.stringify(previous) !== JSON.stringify(item);
+      });
+      await safeStateWrite({
+        apply: () => {
+          state.heartRateZoneSets = normalizeHeartRateZoneSets(next);
+        },
+        write: () => Promise.all(changed.map(item => fsSet('heartRateZoneSets', item.id, item))),
+        afterApply: () => getHeartRateZonesUi().clearForm(),
+        successMessage: saved.active ? 'Pulssoner lagret og aktivert' : 'Pulssoner lagret',
+        errorMessage: 'Kunne ikke lagre pulssonene'
+      });
+    };
+
+    window.activateHeartRateZoneSet = async function(id) {
+      const current = normalizeHeartRateZoneSets(state.heartRateZoneSets);
+      const selected = current.find(item => item.id === id);
+      if (!selected || selected.active) return;
+      const now = new Date().toISOString();
+      const next = current.map(item => ({ ...item, active: item.id === id, updatedAt: now }));
+      const changed = next.filter(item => {
+        const previous = current.find(candidate => candidate.id === item.id);
+        return previous?.active !== item.active;
+      });
+      await safeStateWrite({
+        apply: () => {
+          state.heartRateZoneSets = normalizeHeartRateZoneSets(next);
+        },
+        write: () => Promise.all(changed.map(item => fsSet('heartRateZoneSets', item.id, item))),
+        successMessage: `${selected.name} er nå aktiv`,
+        errorMessage: 'Kunne ikke aktivere pulssonene'
+      });
+    };
+
+    window.deleteHeartRateZoneSet = async function(id) {
+      const zoneSet = (state.heartRateZoneSets || []).find(item => item.id === id);
+      if (!zoneSet) return;
+      const warning = zoneSet.active
+        ? 'Dette er den aktive pulssoneprofilen. Sletter du den, har appen ingen aktive testsoner. Fortsette?'
+        : `Slette pulssoneprofilen «${zoneSet.name}»?`;
+      if (!confirm(warning)) return;
+      await safeStateWrite({
+        apply: () => {
+          state.heartRateZoneSets = (state.heartRateZoneSets || []).filter(item => item.id !== id);
+        },
+        write: () => fsDelete('heartRateZoneSets', id),
+        afterApply: () => getHeartRateZonesUi().clearForm(),
+        successMessage: 'Pulssoneprofil slettet',
+        errorMessage: 'Kunne ikke slette pulssoneprofilen'
+      });
     };
 
     window.clearWellnessForm = function() {
@@ -6816,6 +6915,7 @@ const APP_VERSION = 'v172f';
       state.blockedDays = Array.isArray(state.blockedDays) ? state.blockedDays : [];
       state.raceResults = normalizeRaceResultEntries(state.raceResults);
       state.continuityFreezes = normalizeContinuityFreezes(state.continuityFreezes);
+      state.heartRateZoneSets = normalizeHeartRateZoneSets(state.heartRateZoneSets);
 
       getWorkoutTemplateUi().refreshFormOptions();
       renderSettingsList('activityTypes', 'activityTypeList');
@@ -6826,6 +6926,7 @@ const APP_VERSION = 'v172f';
       renderManualRaceResultList();
       renderTrainingProfile();
       renderPersonProfile();
+      getHeartRateZonesUi().render();
       renderWellnessList();
       renderDashboardWellness();
       renderTrafficLight();
