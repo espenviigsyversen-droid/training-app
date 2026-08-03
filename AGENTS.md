@@ -100,6 +100,7 @@ node functions\tests\ai-backend-tests.js
 - `COACH_KNOWLEDGE_DESIGN.md` - validert kunnskapsgrunnlag, AI-context v2 og grenser for prosjektinstrukser/langtidskontekst
 - `TRAINING_LEVEL_ASSESSMENT_DESIGN.md` - modell, referanser, sikkerhet og datagrunnlag for transparent treningsnivå
 - `STRUCTURED_EXERCISES_DESIGN.md` - versjonert datamodell, snapshots, URL-policy og avgrensning for øvelsesbibliotek og styrkemaler
+- `LAB_TESTS_AND_ZONES_DESIGN.md` - datamodell, kildehierarki, pulssoner, laktatprofil og øktens sonefordeling
 - `FIREBASE_AI_BACKEND_DEPLOY.md` - obligatorisk sikkerhets- og deployport for AI-backend
 - `ARKITEKT_CONTEXT.md` - veiledende produkt- og arkitekturkontekst
 - `tests/stability-tests.js` - lokal stabilitetstest
