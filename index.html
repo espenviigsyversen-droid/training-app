@@ -757,6 +757,7 @@
           <p class="small-note">Bakgrunn og Garmin-målinger som gir bedre kontekst over tid.</p>
           <div class="setup-menu">
             <button class="setup-menu-item" onclick="openSetupSection('personProfile')"><span>Personprofil</span><small>Alder, puls, høyde, vekt og terskelpuls</small></button>
+            <button class="setup-menu-item" onclick="openSetupSection('heartRateZones')"><span>Pulssoner</span><small>Testbaserte eller manuelle soner med historikk</small></button>
             <button class="setup-menu-item" onclick="openSetupSection('wellness')"><span>Formmålinger</span><small>VO2 Max, HRV og hvilepuls fra Garmin</small></button>
           </div>
         </div>
@@ -1099,6 +1100,54 @@
             </div>
             <button class="btn-primary btn-full" onclick="savePersonProfile()">Lagre personprofil</button>
           </div>
+        </div>
+        </div>
+
+        <div id="setupHeartRateZones" class="setup-section hidden">
+        <div class="card">
+          <button class="btn-soft setup-back" onclick="openSetupSection('overview')">Tilbake til Setup</button>
+          <h2 class="section-title">Pulssoner</h2>
+          <p class="small-note">Lagre de faktiske sonene fra en test eller et manuelt oppsett. Bare én profil er aktiv om gangen, og du kan alltid redigere grensene senere.</p>
+          <div id="activeHeartRateZoneSummary" class="heart-rate-zone-active-summary"></div>
+          <details class="setup-collapsible" open>
+            <summary>Legg til eller rediger pulssoner</summary>
+            <div class="inline-form heart-rate-zone-form">
+              <input type="hidden" id="heartRateZoneEditingId" />
+              <div><label>Navn</label><input id="heartRateZoneSetName" placeholder="F.eks. Labtest Steinkjer august 2026" /></div>
+              <div class="grid-2">
+                <div>
+                  <label>Kilde</label>
+                  <select id="heartRateZoneSourceType">
+                    <option value="lab">Labtest</option>
+                    <option value="manual">Manuelt oppsett</option>
+                  </select>
+                </div>
+                <div><label>Teststed / kilde</label><input id="heartRateZoneSourceName" placeholder="Valgfritt" /></div>
+              </div>
+              <div class="grid-2">
+                <div><label>Testdato</label><input id="heartRateZoneTestedAt" type="date" /></div>
+                <div><label>Gyldig fra</label><input id="heartRateZoneEffectiveFrom" type="date" /></div>
+              </div>
+              <div><label>Maks puls fra oppsettet</label><input id="heartRateZoneMaxHeartRate" type="number" min="1" max="260" step="1" inputmode="numeric" placeholder="Valgfritt" /></div>
+              <div class="heart-rate-zone-grid" aria-label="Pulssonegrenser">
+                <div class="heart-rate-zone-row heart-rate-zone-row-head"><span>Sone</span><span>Fra bpm</span><span>Til bpm</span></div>
+                <div class="heart-rate-zone-row"><input id="heartRateZone1Label" aria-label="Navn sone 1" /><input id="heartRateZone1Min" type="number" min="1" max="260" inputmode="numeric" aria-label="Fra puls sone 1" /><input id="heartRateZone1Max" type="number" min="1" max="260" inputmode="numeric" aria-label="Til puls sone 1" /></div>
+                <div class="heart-rate-zone-row"><input id="heartRateZone2Label" aria-label="Navn sone 2" /><input id="heartRateZone2Min" type="number" min="1" max="260" inputmode="numeric" aria-label="Fra puls sone 2" /><input id="heartRateZone2Max" type="number" min="1" max="260" inputmode="numeric" aria-label="Til puls sone 2" /></div>
+                <div class="heart-rate-zone-row"><input id="heartRateZone3Label" aria-label="Navn sone 3" /><input id="heartRateZone3Min" type="number" min="1" max="260" inputmode="numeric" aria-label="Fra puls sone 3" /><input id="heartRateZone3Max" type="number" min="1" max="260" inputmode="numeric" aria-label="Til puls sone 3" /></div>
+                <div class="heart-rate-zone-row"><input id="heartRateZone4Label" aria-label="Navn sone 4" /><input id="heartRateZone4Min" type="number" min="1" max="260" inputmode="numeric" aria-label="Fra puls sone 4" /><input id="heartRateZone4Max" type="number" min="1" max="260" inputmode="numeric" aria-label="Til puls sone 4" /></div>
+                <div class="heart-rate-zone-row"><input id="heartRateZone5Label" aria-label="Navn sone 5" /><input id="heartRateZone5Min" type="number" min="1" max="260" inputmode="numeric" aria-label="Fra puls sone 5" /><input id="heartRateZone5Max" type="number" min="1" max="260" inputmode="numeric" aria-label="Til puls sone 5" /></div>
+              </div>
+              <p class="small-note">Ved en delt grense tilhører pulsen den høyere sonen. Eksempel: 130 bpm tilhører sone 2 når sone 1 slutter på 130.</p>
+              <label class="checkbox-row"><input id="heartRateZoneActive" type="checkbox" /> Bruk som aktiv pulssoneprofil</label>
+              <div><label>Notat</label><textarea id="heartRateZoneNote" rows="3" placeholder="Valgfritt"></textarea></div>
+              <div class="button-row">
+                <button id="heartRateZoneSubmitBtn" class="btn-primary" onclick="saveHeartRateZoneSet()">Lagre pulssoner</button>
+                <button id="cancelEditHeartRateZoneBtn" class="btn-soft hidden" onclick="clearHeartRateZoneForm()">Avbryt redigering</button>
+              </div>
+            </div>
+          </details>
+          <h3>Lagrede pulssoneprofiler</h3>
+          <div id="heartRateZoneSetList" class="settings-list"></div>
         </div>
         </div>
 
