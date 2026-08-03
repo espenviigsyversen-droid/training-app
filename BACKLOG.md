@@ -239,33 +239,42 @@ Prioritert backlog for videre utvikling av Treningsapp.
     - Ren normalisering og validering legges i ny `domain-exercises.js`.
     - Bibliotek og valg legges i ny `exercise-library-ui.js`; `workout-template-ui.js` utvides, mens `app.js` beholder orchestrering og persistence-wrappers.
 
-48. **v173 - Oppvarming og nedtrapping**
+48. **v173a - Labtester og pulssoner: design** - Ferdig dokumentert
+    - `LAB_TESTS_AND_ZONES_DESIGN.md` kartlegger faktisk laboratorierapport, kildehierarki, laktattrinn, versjonerte sonesett og personvern.
+    - Rå test, treningsresept og aktivt soneoppsett holdes adskilt.
+
+49. **v173b - Labtesthistorikk og aktivt pulssoneoppsett**
+    - Daterte VO2-/laktattester med kilde, protokoll, terskelfart og trinn.
+    - Versjonerte femsonesett med eksplisitt aktivering og trygg profilbekreftelse.
+    - Ren logikk i `domain-lab-tests.js` og `domain-heart-rate-zones.js`; egne UI-moduler uten tung logikk i `app.js`.
+
+50. **v174a-v174b - Sonefordeling og forklarbar etterlevelse**
+    - Registrer Garmin-prosent per sone på fullførte økter og lagre sone-snapshot.
+    - Vis kompakt fordeling og vurder økten forsiktig mot planlagt intensjon.
+    - RPE, smerte og kroppssignaler beholder høyere sikkerhetsprioritet enn soneprosent.
+
+51. **v175 - Oppvarming og nedtrapping**
     - Gjenbruk samme øvelsesbibliotek for valgfri oppvarming, hoveddel og nedtrapping.
     - Ikke bland øvelsesblokker inn i dagens intervallmodell.
     - Behold kompakt mobilvisning og snapshots i planlagte/fullførte økter.
 
-49. **v174a-v174b - Garmin CSV-import**
+52. **v176a-v176b - Garmin CSV-import**
     - Bygg først importkontrakt, mapping, fingeravtrykk og duplikatpolicy.
     - Deretter en veiviser for `berik eksisterende`, `opprett ny` eller `hopp over`.
     - Manuelle felt overskrives aldri uten eksplisitt bekreftelse.
     - Parsing og matching legges i `garmin-csv-import.js`; UI legges i `training-import-ui.js`; `app.js` skal ikke eie CSV-logikken.
 
-50. **v175 - Nedoverbelastning**
+53. **v177 - Nedoverbelastning**
     - Registrer stigning og nedstigning separat.
     - Skill kondisjonsbelastning fra muskel-/støtbelastning.
     - Bruk nedstigning konservativt sammen med kroppssignaler og tilvenning; manglende data er ukjent.
 
-51. **v176 - Labmålinger og laktatprofil**
-    - Datert historikk for laboratoriemålt VO2max, protokoll, kilde og terskler.
-    - Laktat lagres som belastningstrinn, ikke ett enkelt tall.
-    - Laboratoriedata og klokkeestimater beholdes som separate målekilder.
-
-52. **v177 - Kroppsmål for klær og utstyr**
+54. **v178 - Kroppsmål for klær og utstyr**
     - Daterte omkrets- og lengdemål under Setup/profil.
     - Dataene brukes ikke til treningsnivå eller coach-råd.
     - Egen domene- og UI-modul dersom runden bygges.
 
-53. **Mobil polish og mikro-UX**
+55. **Mobil polish og mikro-UX**
     - Små forbedringer som gjør appen mer behagelig i daglig bruk.
     - Eksempler: kortere tekster, bedre prioritering på Hjem/Mål, sticky handlinger i modaler og bedre tomtilstander.
 
@@ -287,7 +296,7 @@ Disse punktene var del av den tidlige v142-idéen, men er bevisst flyttet ut av 
 
 ## Anbefalt neste steg
 
-`v173` er neste runde: gjenbrukbare oppvarmings- og nedtrappingsblokker basert på øvelsesbiblioteket fra v172a-v172b. Deretter følger v174-v177 i rekkefølgen over.
+`v173a` er dokumentert. Neste runde er `v173b`: labtesthistorikk og aktivt pulssoneoppsett. v174a-v174b legger sonefordeling og etterlevelse på fullførte økter før Garmin CSV-import bygges i v176.
 
 v164a-v169 har etablert modulgrensene som de nye rundene skal bygge videre på. v170a-v171 har lukket de åpne tekniske sporene for lokal snapshot-kvote og Firebase Functions SDK.
 
@@ -303,4 +312,3 @@ Begrunnelse:
 - v155-reglene er testet i Firestore-emulator: eierens appdata fungerer, andre brukere avvises, chat-writes er backend-only og `apiKeys/{uid}` / `aiUsage/{uid}` er sperret
 - v154 har fungerende dynamisk tilkoblingsstatus, egen Chat-fane og bestått ende-til-ende-test med ekte OpenAI-svar
 - Produksjonsreglene er sammenlignet og deployet. Chat ligger i isolert `aiChatUsers/{uid}`-rot, og den sammenslåtte regelfilen bevarer eksisterende regler for `users`, `households`, `families`, `familyCodes` og `adminFamilyHealth`.
-
