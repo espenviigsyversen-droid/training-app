@@ -207,37 +207,41 @@ Treningsapp/
 
 ## Neste steg (prioritert)
 
-1. **v173b - Labtesthistorikk og aktivt pulssoneoppsett**
-   - v173a-design er dokumentert fra faktisk VO2-/laktatrapport i `LAB_TESTS_AND_ZONES_DESIGN.md`.
-   - Bygg daterte tester, laktattrinn og eksplisitt aktivt femsonesett med kilde.
-2. **v174a-v174b - Sonefordeling og forklarbar etterlevelse**
+1. **v174a-v174b - Sonefordeling og forklarbar etterlevelse**
    - Registrer Garmin-prosent per sone på fullførte økter og behold sone-snapshot.
    - Sammenlign forsiktig med planlagt intensjon uten å overstyre RPE eller kroppssignaler.
-3. **v175 - Oppvarming og nedtrapping**
+2. **v175 - Oppvarming og nedtrapping**
    - Gjenbruk samme øvelsesmodell for løpe- og kondisjonsøkter uten å endre intervallmodellen.
-4. **v176a-v176b - Garmin CSV-import**
+3. **v176a-v176b - Garmin CSV-import**
    - Design mapping, fingeravtrykk og duplikatpolicy først.
    - Bygg deretter en bekreftet importveiviser som aldri overskriver manuelle felt automatisk.
-5. **v177 - Nedoverbelastning**
+4. **v177 - Nedoverbelastning**
    - Skill stigning/nedstigning og kondisjons-/muskelbelastning.
-6. **v178 - Kroppsmål for klær og utstyr**
+5. **v178 - Kroppsmål for klær og utstyr**
    - Praktisk målehistorikk under Setup, uten kobling til coach- eller nivåscore.
 
 ### Planlagt arkitektur for v172-v178
 
 - Nye datamodeller normaliseres i egne domenemoduler før UI og persistence kobles på.
-- CSV-parsing, importmatching, øvelseslogikk, labtester og kroppsmål skal ikke implementeres direkte i `app.js`.
+- CSV-parsing, importmatching, øvelseslogikk, pulssonevalidering og kroppsmål skal ikke implementeres direkte i `app.js`.
 - Nye avgrensede UI-kontrollere får state og handlinger injisert, i samme mønster som `workout-template-ui.js`, `workout-completion-ui.js` og `calendar-ui.js`.
 - `training-repository.js` brukes eller utvides avgrenset for Firestore-skriving.
 - Nye runtime-moduler skal inn i PWA app shell og testes fra faktisk produksjonskode.
 - v172a-v172b følger nå dette mønsteret med egne domene- og UI-moduler; senere runder skal bygge videre på samme grense.
 
-### v173a - Labtester og pulssoner design - Dokumentert
+### v173a - Testbaserte pulssoner design - Dokumentert
 
-- Den faktiske rapporten fra Idrettens testsenter er kartlagt med VO2max, laboratoriemålt HFmax, laktattrinn, terskelfart og to separate sone-/treningsresepttabeller.
-- `LAB_TESTS_AND_ZONES_DESIGN.md` definerer versjonerte labtester, aktive pulssoneoppsett, sone-snapshots på økter, prosentfordeling fra Garmin og en forsiktig samsvarsvurdering.
-- Laboratorieverdier skal ikke overskrive profil eller aktive soner uten eksplisitt bekreftelse.
-- Garmin CSV-import er flyttet etter lab-/sonemodellen, slik at importen senere beriker kanoniske felt i stedet for å opprette parallelle data.
+- Den faktiske rapportens fem pulssoner er kartlagt som ett datert soneoppsett. Eksempeløktene nederst i rapporten er eksplisitt utelatt.
+- `LAB_TESTS_AND_ZONES_DESIGN.md` definerer versjonerte, manuelt redigerbare soneoppsett, grensepolicy, senere sone-snapshots på økter og prosentfordeling fra Garmin.
+- Garmin CSV-import er flyttet etter sonemodellen, slik at importen senere beriker kanoniske felt i stedet for å opprette parallelle data.
+
+### v173b - Testbasert sonehistorikk og aktivt pulssoneoppsett - Bygget
+
+- Ny `domain-heart-rate-zones.js` normaliserer og validerer femsonesett, sikrer maks ett aktivt sett og klassifiserer bpm med entydig grensepolicy.
+- Ny `heart-rate-zones-ui.js` gir Setup en avgrenset flate for å opprette, redigere, aktivere og slette sonesett.
+- De faktiske sonene kan registreres med kilde og testdato, og alle grenser kan endres manuelt senere.
+- `app-state.js`, lokal recovery/backup og `training-repository.js` håndterer `heartRateZoneSets` bakoverkompatibelt.
+- Ingen eksempeløkter, treningsresepter, laktattrinn eller full testprotokoll er lagt til i datamodellen.
 
 ### v167 - Øktmaler som egen UI-feature - Bygget
 
