@@ -254,7 +254,7 @@ Prioritert backlog for videre utvikling av Treningsapp.
     - v174c bruker øktens snapshot eller aktiv labprofil konsekvent for sone 1–5, og holder Bakken-beregnet gylne sone tydelig separat.
     - RPE, smerte og kroppssignaler beholder høyere sikkerhetsprioritet enn soneprosent.
 
-51. **v175 - Oppvarming og nedtrapping**
+51. **v175 - Oppvarming og nedtrapping** - Bygget
     - Gjenbruk samme øvelsesbibliotek for valgfri oppvarming, hoveddel og nedtrapping.
     - Ikke bland øvelsesblokker inn i dagens intervallmodell.
     - Behold kompakt mobilvisning og snapshots i planlagte/fullførte økter.
@@ -297,7 +297,7 @@ Disse punktene var del av den tidlige v142-idéen, men er bevisst flyttet ut av 
 
 ## Anbefalt neste steg
 
-`v173a` er dokumentert, og `v173b`, `v174a`, `v174b` og `v174c` er bygget. Neste runde er v175: gjenbrukbare oppvarmings- og nedtrappingsblokker før Garmin CSV-import bygges i v176.
+`v173a` er dokumentert, og `v173b`, `v174a`, `v174b`, `v174c` og `v175` er bygget. Neste runde er v176a: Garmin CSV-importkontrakt, mapping og duplikatpolicy før importveiviseren bygges i v176b.
 
 v164a-v169 har etablert modulgrensene som de nye rundene skal bygge videre på. v170a-v171 har lukket de åpne tekniske sporene for lokal snapshot-kvote og Firebase Functions SDK.
 
