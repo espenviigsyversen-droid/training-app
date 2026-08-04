@@ -1,4 +1,11 @@
 export const EXERCISE_PLAN_VERSION = 1;
+export const EXERCISE_BLOCK_TYPES = ['warmup', 'main', 'cooldown'];
+
+const EXERCISE_BLOCK_TITLES = {
+  warmup: 'Oppvarming',
+  main: 'Hoveddel',
+  cooldown: 'Nedtrapping'
+};
 
 function objectValue(value) {
   return value && typeof value === 'object' && !Array.isArray(value) ? value : {};
@@ -98,10 +105,12 @@ export function normalizeExerciseBlock(block = {}) {
     ? source.exercises.map(normalizeExercisePrescription).filter(Boolean)
     : [];
   if (!exercises.length) return null;
+  const candidateType = text(source.type).toLowerCase();
+  const type = EXERCISE_BLOCK_TYPES.includes(candidateType) ? candidateType : 'main';
   return {
     id: text(source.id),
-    type: text(source.type) || 'main',
-    title: text(source.title) || 'Hoveddel',
+    type,
+    title: text(source.title) || EXERCISE_BLOCK_TITLES[type],
     exercises
   };
 }
@@ -114,7 +123,7 @@ export function normalizeExercisePlan(plan = null) {
   if (!blocks.length) return null;
   return {
     version: EXERCISE_PLAN_VERSION,
-    kind: 'strength',
+    kind: text(source.kind) || (blocks.some(block => block.type !== 'main') ? 'exercise-blocks' : 'strength'),
     sourceUrl: normalizeExerciseUrl(source.sourceUrl),
     notes: text(source.notes),
     blocks
@@ -124,14 +133,29 @@ export function normalizeExercisePlan(plan = null) {
 export function exercisePrescriptionLabel(prescription = {}) {
   const item = normalizeExercisePrescription(prescription);
   if (!item) return '';
+  const duration = item.durationSeconds >= 60 && item.durationSeconds % 60 === 0
+    ? `${item.durationSeconds / 60} min`
+    : `${item.durationSeconds} sek`;
   const amount = item.durationSeconds
-    ? `${item.sets || 1} x ${Math.round(item.durationSeconds / 60)} min`
+    ? `${item.sets || 1} x ${duration}`
     : [item.sets, item.reps].filter(Boolean).join(' x ');
   return [
     item.exerciseSnapshot?.name || 'Øvelse',
     amount,
     item.loadText
   ].filter(Boolean).join(' · ');
+}
+
+export function exercisePlanBlock(plan = null, type = 'main') {
+  const normalized = normalizeExercisePlan(plan);
+  return normalized?.blocks.find(block => block.type === type) || null;
+}
+
+export function exercisePlanBlockSummary(block = null) {
+  const normalized = normalizeExerciseBlock(block);
+  if (!normalized) return '';
+  const count = normalized.exercises.length;
+  return `${normalized.title}: ${count} ${count === 1 ? 'øvelse' : 'øvelser'}`;
 }
 
 export function exercisePlanItems(plan = null) {
@@ -168,4 +192,3 @@ export function exercisePlanSearchText(plan = null) {
     ])
   ].filter(Boolean).join(' ');
 }
-
