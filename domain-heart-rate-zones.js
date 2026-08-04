@@ -1,8 +1,22 @@
+import {
+  classifyWorkoutIntensityContext,
+  structuredWorkoutBreakdown
+} from './domain-core.js';
+
 export const HEART_RATE_ZONE_SET_VERSION = 1;
 export const HEART_RATE_ZONE_COUNT = 5;
 export const HEART_RATE_BOUNDARY_POLICY = 'lower_inclusive_upper_exclusive';
 export const HEART_RATE_ZONE_DISTRIBUTION_VERSION = 1;
 export const HEART_RATE_ZONE_PERCENT_TOLERANCE = 2;
+export const HEART_RATE_ZONE_COMPLIANCE_VERSION = 1;
+
+const COMPLIANCE_LABELS = Object.freeze({
+  aligned: 'I tråd med planen',
+  mostly_aligned: 'Stort sett i tråd',
+  above_plan: 'Hardere enn planlagt',
+  below_plan: 'Roligere enn planlagt',
+  unknown: 'Ikke nok grunnlag'
+});
 
 const SOURCE_TYPES = new Set(['lab', 'manual']);
 
@@ -223,4 +237,180 @@ export function heartRateZoneDistributionRows(value, durationSeconds = 0) {
       estimated: !hasExactSeconds && Boolean(durationSeconds)
     };
   });
+}
+
+function zoneShare(distribution, zoneIds) {
+  return Math.round(distribution.zones.reduce((sum, zone) => (
+    zoneIds.includes(zone.zoneId) ? sum + (Number(zone.percent) || 0) : sum
+  ), 0) * 10) / 10;
+}
+
+function complianceResult(status, confidence, summary, reasons, extra = {}) {
+  return {
+    version: HEART_RATE_ZONE_COMPLIANCE_VERSION,
+    status,
+    label: COMPLIANCE_LABELS[status] || COMPLIANCE_LABELS.unknown,
+    confidence,
+    summary,
+    reasons: reasons.filter(Boolean),
+    ...extra
+  };
+}
+
+function workoutBodyResponse(completed = {}) {
+  const before = Number(completed.bodyStatus?.painBefore) || 0;
+  const after = Number(completed.bodyStatus?.painAfter) || 0;
+  const rpe = Number(completed.rpe) || 0;
+  const adaptation = String(completed.bodyStatus?.adaptation || '');
+  return {
+    before,
+    after,
+    rpe,
+    painConcern: after >= 4 || after > before + 1,
+    adapted: ['shorter', 'easier', 'alternative', 'aborted'].includes(adaptation)
+  };
+}
+
+export function assessHeartRateZoneCompliance({
+  distribution,
+  completed = {},
+  template = {},
+  profile = {},
+  rules,
+  intensityContext
+} = {}) {
+  const validation = validateHeartRateZoneDistribution(distribution);
+  if (!validation.valid || !validation.value) {
+    return complianceResult('unknown', 'low', 'Ingen gyldig sonefordeling er registrert.', []);
+  }
+
+  const normalized = validation.value;
+  const context = intensityContext || classifyWorkoutIntensityContext({ completed, template, profile, rules });
+  const body = workoutBodyResponse(completed);
+  const shares = {
+    easy: zoneShare(normalized, ['z1', 'z2']),
+    aerobic: zoneShare(normalized, ['z3']),
+    quality: zoneShare(normalized, ['z3', 'z4', 'z5']),
+    upper: zoneShare(normalized, ['z4', 'z5']),
+    veryHigh: zoneShare(normalized, ['z5'])
+  };
+  const common = {
+    intent: context?.raceIntent ? 'race'
+      : context?.qualityIntent ? 'quality'
+        : context?.recoveryIntent ? 'recovery'
+          : context?.baseIntent ? 'base' : 'unknown',
+    shares,
+    safetyPriority: body.painConcern || body.rpe >= 8
+  };
+
+  if (body.painConcern) {
+    return complianceResult(
+      'above_plan',
+      'high',
+      'Kroppsresponsen veier tyngre enn pulssonefordelingen.',
+      [`Smerte økte fra ${body.before}/10 til ${body.after}/10 eller var tydelig etter økten.`],
+      common
+    );
+  }
+  if (body.rpe >= 8 && !context?.raceIntent) {
+    return complianceResult(
+      'above_plan',
+      'high',
+      'Økten ble opplevd hardere enn en kontrollert gjennomføring.',
+      [`Opplevd intensitet var ${body.rpe}/10.`],
+      common
+    );
+  }
+  if (body.adapted) {
+    return complianceResult(
+      'unknown',
+      'low',
+      'Økten ble tilpasset underveis. Vurder kroppens respons foran prosentfordelingen.',
+      ['Tilpasningen gjør sammenligning med den opprinnelige planen usikker.'],
+      common
+    );
+  }
+
+  if (context?.recoveryIntent) {
+    if (shares.easy >= 90 && shares.upper <= 5) {
+      return complianceResult('aligned', 'high', 'Pulsen lå hovedsakelig i rolige soner som forventet for restitusjon.', [`${shares.easy} % i sone 1-2.`], common);
+    }
+    if (shares.easy >= 75 && shares.upper <= 10) {
+      return complianceResult('mostly_aligned', 'medium', 'Mesteparten var rolig, men noe mer tid gikk høyere enn ønsket.', [`${shares.easy} % i sone 1-2.`], common);
+    }
+    return complianceResult('above_plan', 'medium', 'Sonefordelingen ser hardere ut enn en restitusjonsøkt.', [`${shares.quality} % i sone 3-5.`], common);
+  }
+
+  if (context?.baseIntent && !context?.qualityIntent && !context?.raceIntent) {
+    if (shares.easy >= 80 && shares.upper <= 10) {
+      return complianceResult('aligned', 'high', 'Sonefordelingen støtter en rolig/basepreget gjennomføring.', [`${shares.easy} % i sone 1-2.`], common);
+    }
+    if (shares.easy >= 65 && shares.upper <= 15) {
+      return complianceResult('mostly_aligned', 'medium', 'Økten var hovedsakelig rolig, med noe mer arbeid i høyere soner.', [`${shares.easy} % i sone 1-2.`], common);
+    }
+    return complianceResult('above_plan', 'medium', 'Sonefordelingen ser hardere ut enn planens rolige/basepreg.', [`${shares.quality} % i sone 3-5.`], common);
+  }
+
+  if (context?.qualityIntent || context?.raceIntent) {
+    const structured = structuredWorkoutBreakdown(
+      template.structuredWorkout || completed.structuredWorkout || completed.templateSnapshot?.structuredWorkout
+    );
+    const plannedWorkShare = structured?.totalSeconds
+      ? Math.max(15, Math.min(45, Math.round((structured.workSeconds / structured.totalSeconds) * 100)))
+      : 20;
+    if (shares.quality >= plannedWorkShare) {
+      return complianceResult(
+        'aligned',
+        structured ? 'medium' : 'low',
+        context?.raceIntent
+          ? 'Sonefordelingen støtter en tydelig konkurranse-/testbelastning.'
+          : 'Sonefordelingen støtter at økten inneholdt planlagt kvalitetsarbeid.',
+        [`${shares.quality} % i sone 3-5. Oppvarming, pauser og nedjogg påvirker totalen.`],
+        common
+      );
+    }
+    if (shares.quality >= Math.max(8, Math.round(plannedWorkShare / 2))) {
+      return complianceResult('mostly_aligned', 'low', 'Noe kvalitetsarbeid er synlig, men totalfordelingen alene gir ikke en sikker fasit.', [`${shares.quality} % i sone 3-5.`], common);
+    }
+    return complianceResult('below_plan', 'low', 'Sonefordelingen ser roligere ut enn planlagt kvalitet, men puls kan henge etter på korte drag.', [`${shares.quality} % i sone 3-5.`], common);
+  }
+
+  return complianceResult('unknown', 'low', 'Øktens rolle eller intensitetsmål er ikke tydelig nok til å vurdere soneetterlevelse.', [], common);
+}
+
+export function heartRateZoneComplianceSummary(items = [], {
+  resolveTemplate = item => item?.template || item?.templateSnapshot || {},
+  profile = {},
+  rules
+} = {}) {
+  const assessments = (Array.isArray(items) ? items : [])
+    .filter(item => normalizeHeartRateZoneDistribution(item?.heartRateZoneDistribution))
+    .map(item => ({
+      id: item.id || '',
+      date: item.date || '',
+      name: resolveTemplate(item)?.name || item.manualName || 'Økt',
+      ...assessHeartRateZoneCompliance({
+        distribution: item.heartRateZoneDistribution,
+        completed: item,
+        template: resolveTemplate(item),
+        profile,
+        rules
+      })
+    }))
+    .sort((a, b) => String(b.date).localeCompare(String(a.date)));
+  const counts = assessments.reduce((result, item) => {
+    result[item.status] = (result[item.status] || 0) + 1;
+    return result;
+  }, { aligned: 0, mostly_aligned: 0, above_plan: 0, below_plan: 0, unknown: 0 });
+  const knownCount = assessments.length - counts.unknown;
+  return {
+    totalCount: assessments.length,
+    knownCount,
+    counts,
+    latest: assessments[0] || null,
+    assessments,
+    summary: knownCount
+      ? `${counts.aligned + counts.mostly_aligned} av ${knownCount} vurderbare økter var i eller stort sett i tråd med planen.`
+      : 'Ikke nok vurderbare økter med sonefordeling ennå.'
+  };
 }
