@@ -1973,8 +1973,10 @@ async function testAsync(name, fn) {
     assert.ok(workoutCompletionUiSource.includes('heartRateZoneSetSnapshot'), 'completion does not snapshot the active profile');
     assert.ok(workoutHistoryUiSource.includes('heartRateZoneDistributionRows'), 'history does not use production zone rows');
     assert.ok(workoutHistoryUiSource.includes('Tid i pulssoner'), 'completed detail is missing the heart-rate zone section');
-    assert.ok(app.includes("const APP_VERSION = 'v174a'"), 'visible app version must be v174a');
-    assert.ok(serviceWorker.includes('treningsapp-v174a'), 'cache version must match v174a');
+    assert.ok(!workoutHistoryUiSource.includes("row.estimated ? 'ca. '"), 'zone duration should not be prefixed with ca.');
+    assert.ok(!workoutHistoryUiSource.includes('heart-rate-zone-source'), 'zone profile source text should stay hidden in workout detail');
+    assert.ok(app.includes("const APP_VERSION = 'v174a1'"), 'visible app version must be v174a1');
+    assert.ok(serviceWorker.includes('treningsapp-v174a1'), 'cache version must match v174a1');
   });
 
   test('structured interval UI fields and summaries are wired into production files', () => {
