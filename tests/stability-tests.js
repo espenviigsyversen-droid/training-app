@@ -141,10 +141,15 @@ async function testAsync(name, fn) {
   const { filterExercises } = exerciseLibraryUiDomain;
   const {
     activeHeartRateZoneSet,
+    formatHeartRateZoneDuration,
     formatHeartRateZoneRange,
+    heartRateZoneDistributionRows,
+    heartRateZoneSetSnapshot,
     heartRateZoneForBpm,
+    normalizeHeartRateZoneDistribution,
     normalizeHeartRateZoneSet,
     normalizeHeartRateZoneSets,
+    validateHeartRateZoneDistribution,
     validateHeartRateZoneSet
   } = heartRateZoneDomain;
   const { durationSecondsFromParts } = workoutCompletionUiDomain;
@@ -1883,6 +1888,93 @@ async function testAsync(name, fn) {
     assert.ok(heartRateZoneDomainSource.includes('lower_inclusive_upper_exclusive'), 'boundary policy is not explicit');
     assert.ok(heartRateZoneUiSource.includes('createHeartRateZonesUi'), 'heart-rate zone UI controller is missing');
     assert.ok(!heartRateZoneDomainSource.includes('repetitions'), 'example workout prescriptions must not be part of the zone model');
+  });
+
+  test('v174a validates Garmin heart-rate zone percentages with a small rounding tolerance', () => {
+    const zoneSet = normalizeHeartRateZoneSet({
+      id: 'steinkjer-2026',
+      name: 'Idrettens testsenter',
+      active: true,
+      zones: [
+        { minBpm: 110, maxBpm: 130 }, { minBpm: 130, maxBpm: 156 },
+        { minBpm: 156, maxBpm: 166 }, { minBpm: 166, maxBpm: 174 },
+        { minBpm: 174, maxBpm: 183 }
+      ]
+    });
+    const snapshot = heartRateZoneSetSnapshot(zoneSet);
+    const roundedGarmin = normalizeHeartRateZoneDistribution({
+      source: 'garmin_manual',
+      zones: [2, 92, 4, 0, 0].map((percent, index) => ({ zoneId: `z${index + 1}`, percent })),
+      zoneSetSnapshot: snapshot
+    });
+
+    assert.strictEqual(roundedGarmin.totalPercent, 98);
+    assert.strictEqual(validateHeartRateZoneDistribution(roundedGarmin).valid, true);
+    assert.strictEqual(validateHeartRateZoneDistribution({
+      ...roundedGarmin,
+      zones: [1, 90, 4, 0, 0].map((percent, index) => ({ zoneId: `z${index + 1}`, percent }))
+    }).valid, false, 'larger rounding deviations must be rejected');
+    assert.strictEqual(validateHeartRateZoneDistribution(null).valid, true, 'old workouts without zones must stay valid');
+  });
+
+  test('v174a snapshots the active profile and derives Garmin-like time rows without future profile drift', () => {
+    const original = normalizeHeartRateZoneSet({
+      id: 'profile-a',
+      name: 'Labtest 2026',
+      sourceType: 'lab',
+      testedAt: '2026-08-03',
+      zones: [
+        { minBpm: 110, maxBpm: 130 }, { minBpm: 130, maxBpm: 156 },
+        { minBpm: 156, maxBpm: 166 }, { minBpm: 166, maxBpm: 174 },
+        { minBpm: 174, maxBpm: 183 }
+      ]
+    });
+    const distribution = normalizeHeartRateZoneDistribution({
+      zones: [2, 92, 4, 0, 0].map((percent, index) => ({ zoneId: `z${index + 1}`, percent })),
+      zoneSetSnapshot: heartRateZoneSetSnapshot(original)
+    });
+    const editedLater = normalizeHeartRateZoneSet({
+      ...original,
+      zones: original.zones.map(zone => ({ ...zone, minBpm: zone.minBpm + 5, maxBpm: zone.maxBpm + 5 }))
+    });
+    const rows = heartRateZoneDistributionRows(distribution, 3000);
+
+    assert.strictEqual(distribution.zoneSetSnapshot.zones[1].minBpm, 130);
+    assert.strictEqual(editedLater.zones[1].minBpm, 135);
+    assert.strictEqual(rows[1].seconds, 2760);
+    assert.strictEqual(formatHeartRateZoneDuration(rows[1].seconds), '46:00');
+    assert.strictEqual(rows[2].seconds, 120);
+  });
+
+  test('v174a preserves zone distribution through state normalization and wires completion to history', () => {
+    const zoneSetSnapshot = heartRateZoneSetSnapshot(normalizeHeartRateZoneSet({
+      id: 'profile-a',
+      name: 'Labtest',
+      zones: [
+        { minBpm: 110, maxBpm: 130 }, { minBpm: 130, maxBpm: 156 },
+        { minBpm: 156, maxBpm: 166 }, { minBpm: 166, maxBpm: 174 },
+        { minBpm: 174, maxBpm: 183 }
+      ]
+    }));
+    const normalized = normalizeAppState({
+      completed: [{
+        id: 'completed-a',
+        date: '2026-08-04',
+        heartRateZoneDistribution: {
+          zones: [2, 92, 4, 0, 0].map((percent, index) => ({ zoneId: `z${index + 1}`, percent })),
+          zoneSetSnapshot
+        }
+      }]
+    });
+
+    assert.strictEqual(normalized.completed[0].heartRateZoneDistribution.totalPercent, 98);
+    assert.strictEqual(normalizeAppState({ completed: [{ id: 'old-workout' }] }).completed[0].heartRateZoneDistribution, null);
+    assert.ok(index.includes('id="completeHrZone2Percent"'), 'completion form is missing zone percentage inputs');
+    assert.ok(workoutCompletionUiSource.includes('heartRateZoneSetSnapshot'), 'completion does not snapshot the active profile');
+    assert.ok(workoutHistoryUiSource.includes('heartRateZoneDistributionRows'), 'history does not use production zone rows');
+    assert.ok(workoutHistoryUiSource.includes('Tid i pulssoner'), 'completed detail is missing the heart-rate zone section');
+    assert.ok(app.includes("const APP_VERSION = 'v174a'"), 'visible app version must be v174a');
+    assert.ok(serviceWorker.includes('treningsapp-v174a'), 'cache version must match v174a');
   });
 
   test('structured interval UI fields and summaries are wired into production files', () => {
