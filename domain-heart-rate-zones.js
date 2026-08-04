@@ -1,5 +1,6 @@
 import {
   classifyWorkoutIntensityContext,
+  goldenZonePercentages,
   structuredWorkoutBreakdown
 } from './domain-core.js';
 
@@ -9,6 +10,7 @@ export const HEART_RATE_BOUNDARY_POLICY = 'lower_inclusive_upper_exclusive';
 export const HEART_RATE_ZONE_DISTRIBUTION_VERSION = 1;
 export const HEART_RATE_ZONE_PERCENT_TOLERANCE = 2;
 export const HEART_RATE_ZONE_COMPLIANCE_VERSION = 1;
+export const GOLDEN_ZONE_SOURCE_LABEL = 'Bakken-beregnet fra makspuls og treningsnivå';
 
 const COMPLIANCE_LABELS = Object.freeze({
   aligned: 'I tråd med planen',
@@ -141,6 +143,89 @@ export function heartRateZoneSetSummary(zoneSet) {
   const source = normalized.sourceType === 'lab' ? 'Labtest' : 'Manuelt oppsett';
   const date = normalized.testedAt || normalized.effectiveFrom;
   return [normalized.name, source, date].filter(Boolean).join(' · ');
+}
+
+export function heartRateReferenceContext({
+  zoneSet = null,
+  maxHeartRate = '',
+  thresholdHeartRate = '',
+  trainingLevel = 'beginner',
+  rules
+} = {}) {
+  const validatedZoneSet = zoneSet ? validateHeartRateZoneSet(zoneSet) : null;
+  const zoneSetSnapshot = validatedZoneSet?.valid
+    ? heartRateZoneSetSnapshot(validatedZoneSet.value)
+    : null;
+  const safeMaxHeartRate = positiveInteger(maxHeartRate) || null;
+  const safeThresholdHeartRate = positiveInteger(thresholdHeartRate) || null;
+  const { lowPct, highPct } = goldenZonePercentages(trainingLevel, rules);
+  return {
+    zoneSet: zoneSetSnapshot,
+    zoneSource: zoneSetSnapshot ? {
+      id: zoneSetSnapshot.id,
+      name: zoneSetSnapshot.name,
+      sourceType: zoneSetSnapshot.sourceType,
+      sourceName: zoneSetSnapshot.sourceName,
+      testedAt: zoneSetSnapshot.testedAt,
+      effectiveFrom: zoneSetSnapshot.effectiveFrom,
+      label: heartRateZoneSetSummary(zoneSetSnapshot)
+    } : null,
+    maxHeartRate: safeMaxHeartRate,
+    thresholdHeartRate: safeThresholdHeartRate,
+    goldenZone: safeMaxHeartRate ? {
+      low: Math.round(safeMaxHeartRate * lowPct),
+      high: Math.round(safeMaxHeartRate * highPct),
+      maxHeartRate: safeMaxHeartRate,
+      lowPct,
+      highPct,
+      source: 'coach_calculated',
+      sourceLabel: GOLDEN_ZONE_SOURCE_LABEL,
+      separateFromTestZones: true
+    } : null
+  };
+}
+
+export function heartRateValueContext(value, reference = {}) {
+  const bpm = Number(value);
+  if (!Number.isFinite(bpm) || bpm <= 0) return null;
+  const maxHeartRate = Number(reference.maxHeartRate) || 0;
+  const thresholdHeartRate = Number(reference.thresholdHeartRate) || 0;
+  const goldenZone = reference.goldenZone && typeof reference.goldenZone === 'object'
+    ? reference.goldenZone
+    : null;
+  let goldenZoneStatus = null;
+  if (goldenZone?.low && goldenZone?.high) {
+    goldenZoneStatus = bpm < goldenZone.low
+      ? 'below'
+      : bpm > goldenZone.high
+        ? 'above'
+        : 'within';
+  }
+  return {
+    bpm: Math.round(bpm),
+    zone: reference.zoneSet ? heartRateZoneForBpm(bpm, reference.zoneSet) : null,
+    maxPercent: maxHeartRate > 0 ? Math.round((bpm / maxHeartRate) * 100) : null,
+    thresholdPercent: thresholdHeartRate > 0 ? Math.round((bpm / thresholdHeartRate) * 100) : null,
+    goldenZoneStatus
+  };
+}
+
+export function heartRateValueContextLabel(value, reference = {}, { includeGoldenZone = false } = {}) {
+  const context = heartRateValueContext(value, reference);
+  if (!context) return '';
+  const parts = [];
+  if (context.zone?.label) parts.push(context.zone.label);
+  if (context.maxPercent !== null) parts.push(`${context.maxPercent}% maks`);
+  if (context.thresholdPercent !== null) parts.push(`${context.thresholdPercent}% terskel`);
+  if (includeGoldenZone && context.goldenZoneStatus) {
+    const label = context.goldenZoneStatus === 'within'
+      ? 'i gylne sone'
+      : context.goldenZoneStatus === 'above'
+        ? 'over gylne sone'
+        : 'under gylne sone';
+    parts.push(`${label} · Bakken-beregnet`);
+  }
+  return parts.length ? ` (${parts.join(' · ')})` : '';
 }
 
 export function heartRateZoneSetSnapshot(zoneSet) {
