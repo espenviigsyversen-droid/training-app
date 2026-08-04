@@ -1,5 +1,6 @@
 import {
   formatHeartRateZoneDuration,
+  heartRateValueContextLabel,
   heartRateZoneDistributionRows,
   normalizeHeartRateZoneDistribution
 } from './domain-heart-rate-zones.js';
@@ -76,7 +77,7 @@ export function createWorkoutHistoryUi({
   bodyStatusLabel,
   trainingEffectInfo,
   trainingEffectCategory,
-  heartRateContextLabel,
+  heartRateReferenceForCompleted,
   heartRateZoneCompliance,
   lastWorkoutCoachNote,
   structuredWorkoutSummaryHtml,
@@ -152,11 +153,20 @@ export function createWorkoutHistoryUi({
     const assessment = completedLoadAssessment(completed);
     const trainingEffect = trainingEffectInfo(completed.trainingEffectType);
     const coachNote = lastWorkoutCoachNote(completed, profile).replace(/^Siste økt/, 'Denne økten');
+    const heartRateReference = heartRateReferenceForCompleted(completed);
+    const zoneSource = heartRateReference.zoneSource;
+    const goldenZone = heartRateReference.goldenZone;
     const heartRateLines = [
-      detailLine('Snittpuls', completed.avgHeartRate ? `${completed.avgHeartRate} bpm${heartRateContextLabel(completed.avgHeartRate, personProfile, true)}` : ''),
-      detailLine('Makspuls økt', completed.maxHeartRate ? `${completed.maxHeartRate} bpm${heartRateContextLabel(completed.maxHeartRate, personProfile)}` : ''),
+      detailLine('Snittpuls', completed.avgHeartRate ? `${completed.avgHeartRate} bpm${heartRateValueContextLabel(completed.avgHeartRate, heartRateReference, { includeGoldenZone: true })}` : ''),
+      detailLine('Makspuls økt', completed.maxHeartRate ? `${completed.maxHeartRate} bpm${heartRateValueContextLabel(completed.maxHeartRate, heartRateReference)}` : ''),
       detailLine('Din maks/terskel', personProfile.maxHeartRate || personProfile.thresholdHeartRate
-        ? `${personProfile.maxHeartRate || '-'} / ${personProfile.thresholdHeartRate || '-'} bpm` : '')
+        ? `${personProfile.maxHeartRate || '-'} / ${personProfile.thresholdHeartRate || '-'} bpm` : ''),
+      detailLine('Sonekilde 1–5', zoneSource
+        ? `${zoneSource.name}${zoneSource.sourceName ? ` · ${zoneSource.sourceName}` : ''}${zoneSource.testedAt ? ` · test ${formatDate(zoneSource.testedAt)}` : ''}`
+        : ''),
+      detailLine('Gylne sone', goldenZone
+        ? `${goldenZone.low}–${goldenZone.high} bpm · ${goldenZone.sourceLabel}`
+        : '')
     ].join('');
     return `
       <div class="detail-hero">
