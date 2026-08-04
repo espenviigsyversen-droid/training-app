@@ -34,6 +34,7 @@ export function createCalendarUi({
   formatDate,
   escapeHtml,
   getTemplate,
+  plannedTemplate,
   completedTemplate,
   calendarKind,
   calendarEntryClass,
@@ -78,7 +79,7 @@ export function createCalendarUi({
     if (includePlanned) {
       state.planned
         .filter(item => item.date === dateIso && item.status !== 'done')
-        .forEach(item => items.push(entry('planned', getTemplate(item.templateId))));
+        .forEach(item => items.push(entry('planned', plannedTemplate ? plannedTemplate(item) : getTemplate(item.templateId))));
     }
     if (includeDone) {
       state.completed
@@ -211,4 +212,3 @@ export function createCalendarUi({
     getSelectedDate: () => selectedDate
   };
 }
-
