@@ -1952,6 +1952,32 @@
       border-color: #cfe3d7;
       background: #f8fcfa;
     }
+    .exercise-block-editor {
+      margin: 8px 0;
+      border-top: 1px solid var(--line);
+    }
+    .exercise-block-editor > summary,
+    .exercise-plan-block > summary {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 11px 2px;
+      cursor: pointer;
+      font-weight: 800;
+      list-style: none;
+    }
+    .exercise-block-editor > summary::-webkit-details-marker,
+    .exercise-plan-block > summary::-webkit-details-marker {
+      display: none;
+    }
+    .exercise-block-editor > summary::after {
+      content: '+';
+      color: var(--muted);
+    }
+    .exercise-block-editor[open] > summary::after {
+      content: '−';
+    }
     .strength-exercise-row {
       padding: 12px;
       margin-bottom: 10px;
@@ -1978,6 +2004,32 @@
       border: 1px solid #cfe3d7;
       border-radius: 8px;
       background: #f3faf6;
+    }
+    .exercise-plan-block {
+      border-top: 1px solid rgba(17, 17, 17, 0.09);
+    }
+    .exercise-plan-block:first-child {
+      margin-top: 7px;
+    }
+    .exercise-plan-block-content {
+      display: grid;
+      gap: 8px;
+      padding: 0 2px 10px;
+    }
+    .exercise-plan-item {
+      min-width: 0;
+      padding-left: 10px;
+      border-left: 2px solid var(--green);
+    }
+    .exercise-plan-item p {
+      margin: 4px 0 0;
+      overflow-wrap: anywhere;
+    }
+    .exercise-plan-item a {
+      display: inline-block;
+      margin-top: 5px;
+      color: var(--text);
+      font-weight: 800;
     }
     .exercise-plan-summary-list {
       display: grid;
@@ -2088,6 +2140,10 @@
       }
       .strength-exercise-row {
         padding: 10px;
+      }
+      .exercise-block-editor > summary,
+      .exercise-plan-block > summary {
+        padding: 10px 0;
       }
     }
 
