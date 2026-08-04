@@ -141,8 +141,10 @@ async function testAsync(name, fn) {
   const { filterExercises } = exerciseLibraryUiDomain;
   const {
     activeHeartRateZoneSet,
+    assessHeartRateZoneCompliance,
     formatHeartRateZoneDuration,
     formatHeartRateZoneRange,
+    heartRateZoneComplianceSummary,
     heartRateZoneDistributionRows,
     heartRateZoneSetSnapshot,
     heartRateZoneForBpm,
@@ -1975,8 +1977,104 @@ async function testAsync(name, fn) {
     assert.ok(workoutHistoryUiSource.includes('Tid i pulssoner'), 'completed detail is missing the heart-rate zone section');
     assert.ok(!workoutHistoryUiSource.includes("row.estimated ? 'ca. '"), 'zone duration should not be prefixed with ca.');
     assert.ok(!workoutHistoryUiSource.includes('heart-rate-zone-source'), 'zone profile source text should stay hidden in workout detail');
-    assert.ok(app.includes("const APP_VERSION = 'v174a1'"), 'visible app version must be v174a1');
-    assert.ok(serviceWorker.includes('treningsapp-v174a1'), 'cache version must match v174a1');
+    assert.ok(app.includes("const APP_VERSION = 'v174b'"), 'visible app version must be v174b');
+    assert.ok(serviceWorker.includes('treningsapp-v174b'), 'cache version must match v174b');
+  });
+
+  test('v174b evaluates easy and quality sessions without treating zone percentages as a hard truth', () => {
+    const snapshot = heartRateZoneSetSnapshot(normalizeHeartRateZoneSet({
+      id: 'profile-v174b',
+      name: 'Labtest',
+      zones: [
+        { minBpm: 110, maxBpm: 130 }, { minBpm: 130, maxBpm: 156 },
+        { minBpm: 156, maxBpm: 166 }, { minBpm: 166, maxBpm: 174 },
+        { minBpm: 174, maxBpm: 183 }
+      ]
+    }));
+    const distribution = percentages => ({
+      source: 'garmin_manual',
+      zones: percentages.map((percent, index) => ({ zoneId: `z${index + 1}`, percent })),
+      zoneSetSnapshot: snapshot
+    });
+    const easy = assessHeartRateZoneCompliance({
+      distribution: distribution([8, 84, 8, 0, 0]),
+      completed: { rpe: 3 },
+      template: { name: 'Rolig tur', type: 'Løping', intensity: 'Rolig', role: 'Aerob base' }
+    });
+    const hardEasy = assessHeartRateZoneCompliance({
+      distribution: distribution([2, 48, 35, 12, 3]),
+      completed: { rpe: 6 },
+      template: { name: 'Rolig tur', type: 'Løping', intensity: 'Rolig', role: 'Aerob base' }
+    });
+    const quality = assessHeartRateZoneCompliance({
+      distribution: distribution([18, 42, 30, 10, 0]),
+      completed: { rpe: 7 },
+      template: { name: '6 x 4 min terskel', type: 'Løping', intensity: 'Terskel', role: 'Hovedterskel' }
+    });
+
+    assert.strictEqual(easy.status, 'aligned');
+    assert.strictEqual(hardEasy.status, 'above_plan');
+    assert.strictEqual(quality.status, 'aligned');
+    assert.notStrictEqual(quality.confidence, 'high', 'total distribution should not be high-confidence truth for quality sessions');
+  });
+
+  test('v174b lets pain and RPE outrank zone distribution and keeps old workouts neutral', () => {
+    const snapshot = heartRateZoneSetSnapshot(normalizeHeartRateZoneSet({
+      id: 'profile-safety',
+      zones: [
+        { minBpm: 110, maxBpm: 130 }, { minBpm: 130, maxBpm: 156 },
+        { minBpm: 156, maxBpm: 166 }, { minBpm: 166, maxBpm: 174 },
+        { minBpm: 174, maxBpm: 183 }
+      ]
+    }));
+    const easyDistribution = {
+      zones: [10, 82, 8, 0, 0].map((percent, index) => ({ zoneId: `z${index + 1}`, percent })),
+      zoneSetSnapshot: snapshot
+    };
+    const pain = assessHeartRateZoneCompliance({
+      distribution: easyDistribution,
+      completed: { rpe: 3, bodyStatus: { painBefore: 1, painAfter: 4 } },
+      template: { name: 'Rolig tur', intensity: 'Rolig', role: 'Aerob base' }
+    });
+    const noZones = assessHeartRateZoneCompliance({
+      completed: { rpe: 3 },
+      template: { name: 'Gammel økt', intensity: 'Rolig' }
+    });
+
+    assert.strictEqual(pain.status, 'above_plan');
+    assert.strictEqual(pain.safetyPriority, true);
+    assert.strictEqual(noZones.status, 'unknown');
+  });
+
+  test('v174b aggregates explainable zone compliance from production assessments', () => {
+    const snapshot = heartRateZoneSetSnapshot(normalizeHeartRateZoneSet({
+      id: 'profile-summary',
+      zones: [
+        { minBpm: 110, maxBpm: 130 }, { minBpm: 130, maxBpm: 156 },
+        { minBpm: 156, maxBpm: 166 }, { minBpm: 166, maxBpm: 174 },
+        { minBpm: 174, maxBpm: 183 }
+      ]
+    }));
+    const items = [
+      { id: 'a', date: '2026-08-04', rpe: 3, template: { name: 'Rolig', intensity: 'Rolig', role: 'Aerob base' }, heartRateZoneDistribution: { zones: [5, 90, 5, 0, 0].map((percent, index) => ({ zoneId: `z${index + 1}`, percent })), zoneSetSnapshot: snapshot } },
+      { id: 'b', date: '2026-08-03', rpe: 6, template: { name: 'Rolig base', intensity: 'Rolig', role: 'Aerob base' }, heartRateZoneDistribution: { zones: [0, 50, 35, 15, 0].map((percent, index) => ({ zoneId: `z${index + 1}`, percent })), zoneSetSnapshot: snapshot } },
+      { id: 'old', date: '2026-08-02', template: { name: 'Uten soner', intensity: 'Rolig' } }
+    ];
+    const summary = heartRateZoneComplianceSummary(items);
+    assert.strictEqual(summary.totalCount, 2);
+    assert.strictEqual(summary.knownCount, 2);
+    assert.strictEqual(summary.counts.aligned, 1);
+    assert.strictEqual(summary.counts.above_plan, 1);
+    assert.strictEqual(summary.latest.name, 'Rolig');
+  });
+
+  test('v174b wires the same zone compliance model to Log, Insights and coach context', () => {
+    assert.ok(workoutHistoryUiSource.includes("detailSection('Etterlevelse av plan'"), 'workout detail is missing explainable compliance');
+    assert.ok(index.includes('id="insightHeartRateComplianceCard"'), 'Insights is missing the compliance card');
+    assert.ok(app.includes('heartRateZoneComplianceForItems(last28Days)'), 'coach context does not use the canonical compliance summary');
+    assert.ok(app.includes('renderHeartRateZoneComplianceInsight(today)'), 'Insights does not render canonical compliance');
+    assert.ok(app.includes("const APP_VERSION = 'v174b'"), 'visible app version must be v174b');
+    assert.ok(serviceWorker.includes('treningsapp-v174b'), 'cache version must match v174b');
   });
 
   test('structured interval UI fields and summaries are wired into production files', () => {
