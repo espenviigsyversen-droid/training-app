@@ -1,3 +1,12 @@
+import {
+  activeHeartRateZoneSet,
+  formatHeartRateZoneRange,
+  heartRateZoneSetSnapshot,
+  heartRateZoneSetSummary,
+  normalizeHeartRateZoneDistribution,
+  validateHeartRateZoneDistribution
+} from './domain-heart-rate-zones.js';
+
 export function durationSecondsFromParts(hours, minutes, seconds) {
   const safe = value => Math.max(0, Math.trunc(Number(value) || 0));
   return (safe(hours) * 3600) + (Math.min(safe(minutes), 59) * 60) + Math.min(safe(seconds), 59);
@@ -15,6 +24,8 @@ export function createWorkoutCompletionUi({
   normalizeRaceResult,
   trainingEffectCategory
 }) {
+  let currentZoneSetSnapshot = null;
+
   function element(id) {
     return documentRef.getElementById(id);
   }
@@ -56,6 +67,39 @@ export function createWorkoutCompletionUi({
     preview.classList.toggle('hidden', !pace.averageSpeedKmh);
   }
 
+  function distributionPercentages() {
+    return Array.from({ length: 5 }, (_, index) => value(`completeHrZone${index + 1}Percent`));
+  }
+
+  function updateHeartRateZoneDistributionSummary() {
+    const summary = element('completeHrZoneTotal');
+    if (!summary) return;
+    const entered = distributionPercentages().filter(item => item !== '');
+    const total = Math.round(entered.reduce((sum, item) => sum + (Number(item) || 0), 0) * 10) / 10;
+    summary.textContent = entered.length ? `Sum: ${total} %` : 'Fyll inn prosentene Garmin viser etter økten.';
+    summary.classList.toggle('valid', entered.length > 0 && total >= 98 && total <= 102);
+    summary.classList.toggle('invalid', entered.length > 0 && (total < 98 || total > 102));
+  }
+
+  function renderHeartRateZoneDistributionForm(snapshot = null) {
+    currentZoneSetSnapshot = snapshot || heartRateZoneSetSnapshot(activeHeartRateZoneSet(getState().heartRateZoneSets));
+    const profile = element('completeHrZoneProfile');
+    if (profile) {
+      profile.textContent = currentZoneSetSnapshot
+        ? `Bruker: ${heartRateZoneSetSummary(currentZoneSetSnapshot)}`
+        : 'Ingen aktiv pulssoneprofil. Lagre pulssoner i Setup før du registrerer fordelingen.';
+      profile.classList.toggle('missing', !currentZoneSetSnapshot);
+    }
+    Array.from({ length: 5 }, (_, index) => {
+      const zone = currentZoneSetSnapshot?.zones?.[index];
+      const range = element(`completeHrZone${index + 1}Range`);
+      const input = element(`completeHrZone${index + 1}Percent`);
+      if (range) range.textContent = zone ? formatHeartRateZoneRange(zone) : 'Ikke satt';
+      if (input) input.disabled = !currentZoneSetSnapshot;
+    });
+    updateHeartRateZoneDistributionSummary();
+  }
+
   function clearForm() {
     setValue('completePlannedId');
     setValue('editingCompletedId');
@@ -70,9 +114,11 @@ export function createWorkoutCompletionUi({
       'completeRaceDistance', 'completeRaceHours', 'completeRaceMinutes', 'completeRaceSeconds',
       'completeRaceCourse', 'completeRaceNote', 'completeNotes'
     ].forEach(id => setValue(id));
+    Array.from({ length: 5 }, (_, index) => setValue(`completeHrZone${index + 1}Percent`));
     setValue('completeAdaptation', 'none');
     if (element('completeRaceCountsPb')) element('completeRaceCountsPb').checked = true;
     updatePacePreview();
+    renderHeartRateZoneDistributionForm();
   }
 
   function setMode(mode) {
@@ -118,6 +164,12 @@ export function createWorkoutCompletionUi({
     const trainingEffectType = value('completeTrainingEffect');
     const areaRegion = value('completePainAreaRegion');
     const areaSide = value('completePainAreaSide');
+    const distributionResult = validateHeartRateZoneDistribution(normalizeHeartRateZoneDistribution({
+      source: 'garmin_manual',
+      zones: distributionPercentages().map((percent, index) => ({ zoneId: `z${index + 1}`, percent })),
+      zoneSetSnapshot: currentZoneSetSnapshot
+    }));
+    if (!distributionResult.valid) throw new Error(distributionResult.errors[0]);
     return {
       durationSeconds: durationSeconds || '',
       durationDisplay: durationSeconds ? formatDuration(durationSeconds) : '',
@@ -148,6 +200,7 @@ export function createWorkoutCompletionUi({
         adaptation: value('completeAdaptation') || 'none',
         notes: value('completeBodyNotes').trim()
       },
+      heartRateZoneDistribution: distributionResult.value,
       raceResult,
       notes: value('completeNotes').trim()
     };
@@ -187,12 +240,19 @@ export function createWorkoutCompletionUi({
     if (element('completeRaceCountsPb')) element('completeRaceCountsPb').checked = raceResult?.countsAsPersonalBest !== false;
     setValue('completeRaceNote', raceResult?.note);
     setValue('completeNotes', completed.notes);
+    const distribution = normalizeHeartRateZoneDistribution(completed.heartRateZoneDistribution);
+    distribution?.zones?.forEach((zone, index) => setValue(`completeHrZone${index + 1}Percent`, zone.percent));
+    renderHeartRateZoneDistributionForm(distribution?.zoneSetSnapshot || null);
+    const section = element('completeHeartRateZonesSection');
+    if (section && distribution) section.open = true;
     updatePacePreview();
   }
 
   function bindPacePreview() {
     ['completeDurationHours', 'completeDurationMinutes', 'completeDurationSeconds', 'completeDistance']
       .forEach(id => element(id)?.addEventListener('input', updatePacePreview));
+    Array.from({ length: 5 }, (_, index) => element(`completeHrZone${index + 1}Percent`)
+      ?.addEventListener('input', updateHeartRateZoneDistributionSummary));
   }
 
   return {
@@ -202,6 +262,7 @@ export function createWorkoutCompletionUi({
     durationFromForm,
     fillForm,
     readFormData,
+    renderHeartRateZoneDistributionForm,
     renderGoldenZoneHint,
     setDuration,
     setDurationFields,
