@@ -114,8 +114,11 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     import { createHeartRateZonesUi } from './heart-rate-zones-ui.js';
     import { normalizeExercise } from './domain-exercises.js';
     import {
+      activeHeartRateZoneSet,
       assessHeartRateZoneCompliance,
+      heartRateReferenceContext,
       heartRateZoneComplianceSummary,
+      normalizeHeartRateZoneDistribution,
       normalizeHeartRateZoneSet,
       normalizeHeartRateZoneSets
     } from './domain-heart-rate-zones.js';
@@ -137,7 +140,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       xWorkoutSuggestion
     } from './domain-training-plan.js';
 
-const APP_VERSION = 'v174b';
+const APP_VERSION = 'v174c';
     const APP_CACHE_NAME = `treningsapp-${APP_VERSION}`;
 
     const firebaseConfig = {
@@ -1980,9 +1983,7 @@ const APP_VERSION = 'v174b';
           calculatePaceMetrics,
           formatDuration,
           formatAreaLabel,
-          goldenZonePercentages,
-          normalizePersonProfile,
-          normalizeTrainingProfile,
+          heartRateReferenceForZoneSet,
           normalizeRaceResult,
           trainingEffectCategory
         });
@@ -2055,28 +2056,21 @@ const APP_VERSION = 'v174b';
       );
     }
 
-    function heartRateContextLabel(value, profile = normalizePersonProfile(state.settings.personProfile), includeZone = false) {
-      const hr = Number(value);
-      if (!Number.isFinite(hr) || hr <= 0) return '';
-      const parts = [];
-      const maxHeartRate = Number(profile.maxHeartRate);
-      const thresholdHeartRate = Number(profile.thresholdHeartRate);
-      if (Number.isFinite(maxHeartRate) && maxHeartRate > 0) {
-        parts.push(`${Math.round((hr / maxHeartRate) * 100)}% maks`);
-        if (includeZone) {
-          const level = normalizeTrainingProfile(state.settings.trainingProfile).level;
-          const { lowPct, highPct } = goldenZonePercentages(level);
-          const lowBpm = Math.round(maxHeartRate * lowPct);
-          const highBpm = Math.round(maxHeartRate * highPct);
-          if (hr >= lowBpm && hr <= highBpm) parts.push('gylne sone ✓');
-          else if (hr > highBpm) parts.push('over gylne sone');
-          else parts.push('under gylne sone');
-        }
-      }
-      if (Number.isFinite(thresholdHeartRate) && thresholdHeartRate > 0) {
-        parts.push(`${Math.round((hr / thresholdHeartRate) * 100)}% terskel`);
-      }
-      return parts.length ? ` (${parts.join(' · ')})` : '';
+    function heartRateReferenceForZoneSet(zoneSet = null) {
+      const personProfile = normalizePersonProfile(state.settings.personProfile);
+      const trainingProfile = normalizeTrainingProfile(state.settings.trainingProfile);
+      return heartRateReferenceContext({
+        zoneSet: zoneSet || activeHeartRateZoneSet(state.heartRateZoneSets),
+        maxHeartRate: personProfile.maxHeartRate,
+        thresholdHeartRate: personProfile.thresholdHeartRate,
+        trainingLevel: trainingProfile.level,
+        rules: getCoachRules()
+      });
+    }
+
+    function heartRateReferenceForCompleted(completed = {}) {
+      const distribution = normalizeHeartRateZoneDistribution(completed.heartRateZoneDistribution);
+      return heartRateReferenceForZoneSet(distribution?.zoneSetSnapshot || null);
     }
 
     function executionLabel(value) {
@@ -2935,7 +2929,7 @@ const APP_VERSION = 'v174b';
           bodyStatusLabel,
           trainingEffectInfo,
           trainingEffectCategory,
-          heartRateContextLabel,
+          heartRateReferenceForCompleted,
           heartRateZoneCompliance: heartRateZoneComplianceForCompleted,
           lastWorkoutCoachNote,
           structuredWorkoutSummaryHtml,
@@ -5691,9 +5685,9 @@ const APP_VERSION = 'v174b';
       const latestHrv = latestMetric('hrv7d');
       const latestRestingHr = latestMetric('restingHeartRate7d');
 
-      const maxHR = numberOrZero(personProfile.maxHeartRate);
-      const { lowPct, highPct } = goldenZonePercentages(trainingProfile.level);
-      const goldenZone = maxHR ? { low: Math.round(maxHR * lowPct), high: Math.round(maxHR * highPct), maxHR, lowPct, highPct } : null;
+      const heartRateReference = heartRateReferenceForZoneSet();
+      const goldenZone = heartRateReference.goldenZone;
+      const heartRateZoneProfile = heartRateReference.zoneSet;
 
       const weekPlanRoles = trainingProfile.weekPlanRoles || [];
       const completedRoles = new Set(
@@ -5737,7 +5731,7 @@ const APP_VERSION = 'v174b';
         bodySignals14, consecutiveDays, daysSinceLast, lastWorkout,
         volumeRamp, comeback, effectiveWeeklyTarget,
         latestHrv, latestRestingHr,
-        goldenZone, heartRateCompliance14, heartRateZoneCompliance28, intensityBalance14,
+        goldenZone, heartRateZoneProfile, heartRateCompliance14, heartRateZoneCompliance28, intensityBalance14,
         weekPlanRoles, completedRoles, missingRoles,
         activeChallenge, nextPlanned, tomorrowPlanned,
         hardCount7, hardCount14, easyCount14,
@@ -5890,6 +5884,7 @@ const APP_VERSION = 'v174b';
           trainingFocus: ctx.trainingProfile.trainingFocus,
           weeklySessionTarget: ctx.effectiveWeeklyTarget || ctx.goals.weeklySessionsTarget,
           goldenZone: ctx.goldenZone,
+          heartRateZoneProfile: ctx.heartRateZoneProfile,
           trainingLevelAssessment: {
             version: trainingLevelAssessment.version,
             level: trainingLevelAssessment.level.id,
@@ -6144,7 +6139,10 @@ const APP_VERSION = 'v174b';
         if (heartRateCompliance14.qualityViolationCount) {
           pulseSignals.push(`${heartRateCompliance14.qualityViolationCount} kvalitet over kontrollert sone`);
         }
-        parts.push(`Gylne sonen: ${goldenZone.low}–${goldenZone.high} bpm${pulseSignals.length ? ` (${pulseSignals.join(', ')})` : ''}`);
+        parts.push(`Gylne sonen (${goldenZone.sourceLabel || 'Bakken-beregnet'}): ${goldenZone.low}–${goldenZone.high} bpm${pulseSignals.length ? ` (${pulseSignals.join(', ')})` : ''}`);
+      }
+      if (ctx.heartRateZoneProfile) {
+        parts.push(`Pulssoner 1–5: ${ctx.heartRateZoneProfile.name} (test-/brukerdefinert profil, separat fra gylne sone)`);
       }
       if (heartRateZoneCompliance28?.knownCount) {
         const inPlan = heartRateZoneCompliance28.counts.aligned + heartRateZoneCompliance28.counts.mostly_aligned;
@@ -6502,6 +6500,13 @@ const APP_VERSION = 'v174b';
       }
       const inPlan = summary.counts.aligned + summary.counts.mostly_aligned;
       const latest = summary.latest;
+      const heartRateReference = heartRateReferenceForZoneSet();
+      const zoneSourceText = heartRateReference.zoneSource
+        ? `Sone 1–5 følger ${heartRateReference.zoneSource.name}. `
+        : 'Ingen aktiv test-/brukerdefinert soneprofil. ';
+      const goldenZoneText = heartRateReference.goldenZone
+        ? `Gylne sone (${heartRateReference.goldenZone.sourceLabel}) er et separat coach-begrep.`
+        : '';
       card.style.display = '';
       container.innerHTML = `
         <div class="zone-compliance-insight">
@@ -6515,6 +6520,7 @@ const APP_VERSION = 'v174b';
             <span>${escapeHtml(formatDate(latest.date))} · ${escapeHtml(latest.name)}</span>
             <p>${escapeHtml(latest.summary)}</p>
           </div>` : ''}
+          <p class="small-note">${escapeHtml(zoneSourceText + goldenZoneText)}</p>
           <p class="small-note">RPE, smerte og kroppssignaler veier tyngre enn pulssoneprosentene. Intervaller vurderes med ekstra varsomhet.</p>
         </div>`;
     }
