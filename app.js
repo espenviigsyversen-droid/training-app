@@ -135,7 +135,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       xWorkoutSuggestion
     } from './domain-training-plan.js';
 
-const APP_VERSION = 'v173b';
+const APP_VERSION = 'v174a';
     const APP_CACHE_NAME = `treningsapp-${APP_VERSION}`;
 
     const firebaseConfig = {
@@ -2713,6 +2713,13 @@ const APP_VERSION = 'v173b';
     };
 
     window.completeWorkout = async function() {
+      let formData;
+      try {
+        formData = completedFormData();
+      } catch (error) {
+        alert(error?.message || 'Kontroller pulssonefordelingen.');
+        return;
+      }
       const editingId = document.getElementById('editingCompletedId').value;
       if (editingId) {
         const completedIndex = state.completed.findIndex(c => c.id === editingId);
@@ -2727,7 +2734,7 @@ const APP_VERSION = 'v173b';
           templateId,
           manualName,
           templateSnapshot: completedTemplateSnapshot(templateId, manualName),
-          ...completedFormData(),
+          ...formData,
           updatedAt: new Date().toISOString()
         };
 
@@ -2764,7 +2771,7 @@ const APP_VERSION = 'v173b';
           manualName,
           templateSnapshot: completedTemplateSnapshot(templateId, manualName),
           date,
-          ...completedFormData(),
+          ...formData,
           completedAt: new Date().toISOString(),
           source: 'manual'
         };
@@ -2784,7 +2791,7 @@ const APP_VERSION = 'v173b';
         manualName: '',
         templateSnapshot: completedTemplateSnapshot(planned.templateId, ''),
         date: planned.date,
-        ...completedFormData(),
+        ...formData,
         completedAt: new Date().toISOString()
       };
       closeCompleteModal();
