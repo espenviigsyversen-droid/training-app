@@ -602,6 +602,7 @@ function aiComeback(value) {
 function aiProfile(value) {
   const profile = aiPlainObject(value);
   const goldenZone = aiPlainObject(profile.goldenZone);
+  const heartRateZoneProfile = aiPlainObject(profile.heartRateZoneProfile);
   const levelAssessment = aiPlainObject(profile.trainingLevelAssessment);
   const rawLevel = aiNullableText(profile.level, 80);
   const levelLabel = rawLevel === 'experienced'
@@ -649,8 +650,33 @@ function aiProfile(value) {
       maxHeartRate: aiNumber(goldenZone.maxHeartRate ?? goldenZone.maxHR, { min: 20, max: 250 }),
       lowPct: aiNumber(goldenZone.lowPct, { min: 0.4, max: 1 }),
       highPct: aiNumber(goldenZone.highPct, { min: 0.4, max: 1 }),
-      appliesTo: 'controlled_running_quality'
-    }
+      appliesTo: 'controlled_running_quality',
+      source: 'coach_calculated',
+      sourceLabel: aiNullableText(goldenZone.sourceLabel, 120),
+      separateFromTestZones: true
+    },
+    heartRateZoneProfile: heartRateZoneProfile.id ? {
+      id: aiNullableText(heartRateZoneProfile.id, 120),
+      name: aiNullableText(heartRateZoneProfile.name, 160),
+      sourceType: aiNullableText(heartRateZoneProfile.sourceType, 20),
+      sourceName: aiNullableText(heartRateZoneProfile.sourceName, 160),
+      testedAt: aiNullableText(heartRateZoneProfile.testedAt, 10),
+      effectiveFrom: aiNullableText(heartRateZoneProfile.effectiveFrom, 10),
+      boundaryPolicy: aiNullableText(heartRateZoneProfile.boundaryPolicy, 80),
+      zones: (Array.isArray(heartRateZoneProfile.zones) ? heartRateZoneProfile.zones : [])
+        .slice(0, 5)
+        .map(item => {
+          const zone = aiPlainObject(item);
+          return {
+            id: aiNullableText(zone.id, 20),
+            label: aiNullableText(zone.label, 80),
+            minBpm: aiNumber(zone.minBpm, { min: 20, max: 250 }),
+            maxBpm: aiNumber(zone.maxBpm, { min: 20, max: 250 })
+          };
+        })
+        .filter(zone => zone.id && zone.minBpm !== null && zone.maxBpm !== null),
+      separateFromGoldenZone: true
+    } : null
   };
 }
 
