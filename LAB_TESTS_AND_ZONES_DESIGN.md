@@ -86,10 +86,10 @@ Manuell redigering bruker samme validerte modell som labtest. Sonene må være s
 - `training-repository.js`: Firestore-samlingen inngår i load, backup/import, reset og recovery
 - `app.js`: små state- og persistence-wrappers; ingen soneberegning
 
-## Neste steg
+## Status og neste steg
 
-- v173b: sonehistorikk, aktiv profil og manuell redigering
-- v174a: registrer prosent per sone fra Garmin på fullført økt og lagre snapshot av brukt soneprofil
+- v173b: sonehistorikk, aktiv profil og manuell redigering - bygget
+- v174a: prosent per sone fra Garmin på fullført økt, snapshot av brukt soneprofil og Garmin-inspirert detaljvisning - bygget
 - v174b: forklarbar etterlevelse mot planlagt intensjon, med RPE og kroppssignaler foran soneprosent
 - v176: Garmin CSV-import beriker den etablerte økt- og sonemodellen
 
@@ -101,4 +101,7 @@ Manuell redigering bruker samme validerte modell som labtest. Sonene må være s
 - bare én profil er aktiv
 - manuell redigering bevarer id og historikk
 - backup/import/recovery bevarer alle soneprofiler
+- Garmin-prosent på 98-102 godtas som avrunding, mens større avvik avvises
+- fullført økt bevarer brukt soneprofil som snapshot
+- gammel økt uten sonefordeling åpnes uten feil
 - eksempeløkter fra rapporten finnes ikke i datamodellen
