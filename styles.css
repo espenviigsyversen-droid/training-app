@@ -2528,6 +2528,49 @@
       flex: 0 0 auto;
     }
 
+    .heart-rate-zone-entry { margin-top: 2px; }
+    .heart-rate-zone-entry #completeHrZoneProfile.missing { color: var(--red); }
+    .heart-rate-zone-input-list { display: grid; gap: 8px; }
+    .heart-rate-zone-input-list label {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 92px;
+      align-items: center;
+      gap: 12px;
+      margin: 0;
+      padding: 8px 0;
+      border-bottom: 1px solid var(--warm-gray-1);
+      text-transform: none;
+    }
+    .heart-rate-zone-input-list label:last-child { border-bottom: 0; }
+    .heart-rate-zone-input-list label > span { min-width: 0; }
+    .heart-rate-zone-input-list strong,
+    .heart-rate-zone-input-list small { display: block; }
+    .heart-rate-zone-input-list small { margin-top: 2px; color: var(--warm-gray-3); font-weight: 500; }
+    .heart-rate-zone-input-list input { text-align: right; }
+    .heart-rate-zone-total { margin: 0; color: var(--warm-gray-3); font-weight: 800; }
+    .heart-rate-zone-total.valid { color: var(--success); }
+    .heart-rate-zone-total.invalid { color: var(--red); }
+
+    .heart-rate-zone-chart { display: grid; gap: 12px; }
+    .heart-rate-zone-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 5px 10px;
+      align-items: end;
+    }
+    .heart-rate-zone-label { display: flex; gap: 7px; align-items: baseline; min-width: 0; }
+    .heart-rate-zone-label strong { color: var(--black); }
+    .heart-rate-zone-label span { color: var(--warm-gray-3); font-size: 0.82rem; overflow-wrap: anywhere; }
+    .heart-rate-zone-value { display: flex; gap: 9px; align-items: baseline; white-space: nowrap; font-size: 0.84rem; }
+    .heart-rate-zone-value strong { color: var(--black); }
+    .heart-rate-zone-track { grid-column: 1 / -1; height: 10px; overflow: hidden; background: var(--warm-gray-1); }
+    .heart-rate-zone-track span { display: block; height: 100%; min-width: 0; background: #9ca3af; }
+    .heart-rate-zone-row.zone-z2 .heart-rate-zone-track span { background: #3b82f6; }
+    .heart-rate-zone-row.zone-z3 .heart-rate-zone-track span { background: #22c55e; }
+    .heart-rate-zone-row.zone-z4 .heart-rate-zone-track span { background: #f59e0b; }
+    .heart-rate-zone-row.zone-z5 .heart-rate-zone-track span { background: #ef4444; }
+    .heart-rate-zone-source { margin-top: 2px !important; font-size: 0.8rem !important; }
+
     .tag.weekly-good { background: rgba(31,157,85,0.12); color: var(--success); }
     .tag.weekly-calm { background: rgba(255,79,46,0.13); color: var(--burgundy); }
     .tag.weekly-caution { background: rgba(225,29,72,0.12); color: var(--red); }
