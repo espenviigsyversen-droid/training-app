@@ -1,6 +1,6 @@
 import {
   createExercisePrescription,
-  exercisePlanItems,
+  exercisePlanBlockSummary,
   exercisePlanSearchText,
   exercisePlanSummary,
   exercisePrescriptionLabel,
@@ -136,7 +136,13 @@ export function createWorkoutTemplateUi({
   loadLabel
 }) {
   let coachFilter = 'all';
-  let strengthDraft = [];
+  let exerciseDrafts = { warmup: [], main: [], cooldown: [] };
+
+  const exerciseBlockConfig = {
+    warmup: { title: 'Oppvarming', rowsId: 'templateWarmupExerciseRows' },
+    main: { title: 'Hoveddel', rowsId: 'templateStrengthExerciseRows' },
+    cooldown: { title: 'Nedtrapping', rowsId: 'templateCooldownExerciseRows' }
+  };
 
   function element(id) {
     return documentRef.getElementById(id);
@@ -254,28 +260,48 @@ export function createWorkoutTemplateUi({
 
   function exercisePlanFromForm() {
     if (!element('templateStrengthEnabled')?.checked) return null;
+    const blocks = Object.entries(exerciseBlockConfig)
+      .filter(([type]) => exerciseDrafts[type].length)
+      .map(([type, config]) => ({
+        type,
+        title: config.title,
+        exercises: exerciseDrafts[type]
+      }));
     return normalizeExercisePlan({
       version: 1,
-      kind: 'strength',
+      kind: 'exercise-blocks',
       sourceUrl: element('templateSourceUrl')?.value,
       notes: element('templateStrengthNote')?.value,
-      blocks: [{
-        type: 'main',
-        title: 'Hoveddel',
-        exercises: strengthDraft
-      }]
+      blocks
     });
   }
 
   function exercisePlanSummaryHtml(exercisePlan) {
     const plan = normalizeExercisePlan(exercisePlan);
     if (!plan) return '';
-    const items = exercisePlanItems(plan);
     return `
       <div class="exercise-plan-summary">
         <strong>${escapeHtml(exercisePlanSummary(plan))}</strong>
-        <div class="exercise-plan-summary-list">
-          ${items.map(item => `<span>${escapeHtml(exercisePrescriptionLabel(item))}</span>`).join('')}
+        <div class="exercise-plan-block-list">
+          ${plan.blocks.map(block => `
+            <details class="exercise-plan-block">
+              <summary>
+                <span>${escapeHtml(exercisePlanBlockSummary(block))}</span>
+                <span aria-hidden="true">›</span>
+              </summary>
+              <div class="exercise-plan-block-content">
+                ${block.exercises.map(item => `
+                  <div class="exercise-plan-item">
+                    <strong>${escapeHtml(exercisePrescriptionLabel(item))}</strong>
+                    ${item.exerciseSnapshot?.description ? `<p>${escapeHtml(item.exerciseSnapshot.description)}</p>` : ''}
+                    ${item.exerciseSnapshot?.muscleGroups?.length ? `<p><b>Muskelgrupper:</b> ${escapeHtml(item.exerciseSnapshot.muscleGroups.join(', '))}</p>` : ''}
+                    ${item.note ? `<p><b>Notat:</b> ${escapeHtml(item.note)}</p>` : ''}
+                    ${item.exerciseSnapshot?.mediaUrl ? `<a href="${escapeHtml(item.exerciseSnapshot.mediaUrl)}" target="_blank" rel="noopener noreferrer">Se øvelsen</a>` : ''}
+                  </div>
+                `).join('')}
+              </div>
+            </details>
+          `).join('')}
         </div>
         ${plan.notes ? `<p>${escapeHtml(plan.notes)}</p>` : ''}
       </div>`;
@@ -293,75 +319,85 @@ export function createWorkoutTemplateUi({
     ].join('');
   }
 
-  function renderStrengthRows() {
-    const wrapper = element('templateStrengthExerciseRows');
+  function renderExerciseRows(type = 'main') {
+    const config = exerciseBlockConfig[type] || exerciseBlockConfig.main;
+    const draft = exerciseDrafts[type] || [];
+    const wrapper = element(config.rowsId);
     if (!wrapper) return;
-    wrapper.innerHTML = strengthDraft.length
-      ? strengthDraft.map((item, index) => `
+    wrapper.innerHTML = draft.length
+      ? draft.map((item, index) => `
           <div class="strength-exercise-row">
             <div class="strength-exercise-row-head">
-              <strong>Øvelse ${index + 1}</strong>
-              <button type="button" class="ghost danger-link compact-btn" onclick="removeTemplateStrengthExercise(${index})">Fjern</button>
+              <strong>${escapeHtml(config.title)} ${index + 1}</strong>
+              <button type="button" class="ghost danger-link compact-btn" onclick="removeTemplateExercise('${type}', ${index})">Fjern</button>
             </div>
             <label>Øvelse
-              <select onchange="updateTemplateStrengthExercise(${index}, 'exerciseId', this.value)">
+              <select onchange="updateTemplateExercise('${type}', ${index}, 'exerciseId', this.value)">
                 ${exerciseOptions(item.exerciseId)}
               </select>
             </label>
             <div class="strength-prescription-grid">
               <label>Sett
-                <input type="number" inputmode="numeric" min="0" value="${item.sets || ''}" onchange="updateTemplateStrengthExercise(${index}, 'sets', this.value)" placeholder="3" />
+                <input type="number" inputmode="numeric" min="0" value="${item.sets || ''}" onchange="updateTemplateExercise('${type}', ${index}, 'sets', this.value)" placeholder="1" />
               </label>
               <label>Repetisjoner
-                <input value="${escapeHtml(item.reps || '')}" onchange="updateTemplateStrengthExercise(${index}, 'reps', this.value)" placeholder="8-10 per side" />
+                <input value="${escapeHtml(item.reps || '')}" onchange="updateTemplateExercise('${type}', ${index}, 'reps', this.value)" placeholder="8-10 per side" />
+              </label>
+              <label>Varighet sek
+                <input type="number" inputmode="numeric" min="0" value="${item.durationSeconds || ''}" onchange="updateTemplateExercise('${type}', ${index}, 'durationSeconds', this.value)" placeholder="30" />
               </label>
               <label>Pause sek
-                <input type="number" inputmode="numeric" min="0" value="${item.restSeconds || ''}" onchange="updateTemplateStrengthExercise(${index}, 'restSeconds', this.value)" placeholder="60" />
+                <input type="number" inputmode="numeric" min="0" value="${item.restSeconds || ''}" onchange="updateTemplateExercise('${type}', ${index}, 'restSeconds', this.value)" placeholder="30" />
               </label>
               <label>Belastning
-                <input value="${escapeHtml(item.loadText || '')}" onchange="updateTemplateStrengthExercise(${index}, 'loadText', this.value)" placeholder="Kroppsvekt / 10 kg" />
+                <input value="${escapeHtml(item.loadText || '')}" onchange="updateTemplateExercise('${type}', ${index}, 'loadText', this.value)" placeholder="Kroppsvekt / 10 kg" />
               </label>
             </div>
             <label>Notat
-              <input value="${escapeHtml(item.note || '')}" onchange="updateTemplateStrengthExercise(${index}, 'note', this.value)" placeholder="Valgfri instruksjon for denne øvelsen" />
+              <input value="${escapeHtml(item.note || '')}" onchange="updateTemplateExercise('${type}', ${index}, 'note', this.value)" placeholder="Valgfri dosering eller instruksjon" />
             </label>
           </div>
         `).join('')
-      : '<p class="small-note">Legg til øvelser fra biblioteket. Opprett øvelsen under hvis den ikke finnes ennå.</p>';
+      : `<p class="small-note">Ingen øvelser i ${escapeHtml(config.title.toLowerCase())}.</p>`;
+  }
+
+  function renderExercisePlanRows() {
+    Object.keys(exerciseBlockConfig).forEach(renderExerciseRows);
     const preview = element('templateStrengthPreview');
     if (preview) {
-      preview.textContent = exercisePlanSummary(exercisePlanFromForm()) || 'Ingen strukturert styrkeinfo ennå.';
+      preview.textContent = exercisePlanSummary(exercisePlanFromForm()) || 'Ingen øvelsesblokker ennå.';
     }
   }
 
   function toggleStrengthFields() {
     const enabled = element('templateStrengthEnabled')?.checked;
     element('templateStrengthFields')?.classList.toggle('hidden', !enabled);
-    if (enabled && !strengthDraft.length) addStrengthExercise();
-    else renderStrengthRows();
+    renderExercisePlanRows();
   }
 
-  function addStrengthExercise() {
-    strengthDraft.push({
+  function addExercise(type = 'main') {
+    const blockType = exerciseBlockConfig[type] ? type : 'main';
+    exerciseDrafts[blockType].push({
       id: '',
       exerciseId: '',
       exerciseSnapshot: null,
-      sets: 3,
+      sets: blockType === 'main' ? 3 : 1,
       reps: '',
       durationSeconds: 0,
-      restSeconds: 60,
+      restSeconds: blockType === 'main' ? 60 : 0,
       loadText: '',
       note: ''
     });
-    renderStrengthRows();
+    renderExercisePlanRows();
   }
 
-  function updateStrengthExercise(index, field, value) {
-    const current = strengthDraft[index];
+  function updateExercise(type, index, field, value) {
+    const blockType = exerciseBlockConfig[type] ? type : 'main';
+    const current = exerciseDrafts[blockType][index];
     if (!current) return;
     if (field === 'exerciseId') {
       const exercise = (getState().exercises || []).find(item => item.id === value);
-      strengthDraft[index] = exercise
+      exerciseDrafts[blockType][index] = exercise
         ? createExercisePrescription(exercise, {
             ...current,
             exerciseId: value,
@@ -369,28 +405,32 @@ export function createWorkoutTemplateUi({
           })
         : { ...current, exerciseId: '', exerciseSnapshot: null };
     } else if (['sets', 'restSeconds', 'durationSeconds'].includes(field)) {
-      strengthDraft[index] = { ...current, [field]: parseNonNegativeInteger(value) };
+      exerciseDrafts[blockType][index] = { ...current, [field]: parseNonNegativeInteger(value) };
     } else {
-      strengthDraft[index] = { ...current, [field]: String(value || '').trim() };
+      exerciseDrafts[blockType][index] = { ...current, [field]: String(value || '').trim() };
     }
-    renderStrengthRows();
+    renderExercisePlanRows();
   }
 
-  function removeStrengthExercise(index) {
-    strengthDraft.splice(index, 1);
-    renderStrengthRows();
+  function removeExercise(type, index) {
+    const blockType = exerciseBlockConfig[type] ? type : 'main';
+    exerciseDrafts[blockType].splice(index, 1);
+    renderExercisePlanRows();
   }
 
   function setExercisePlanForm(exercisePlan) {
     const plan = normalizeExercisePlan(exercisePlan);
-    strengthDraft = plan ? exercisePlanItems(plan).map(item => ({ ...item })) : [];
+    exerciseDrafts = { warmup: [], main: [], cooldown: [] };
+    (plan?.blocks || []).forEach(block => {
+      exerciseDrafts[block.type] = block.exercises.map(item => ({ ...item }));
+    });
     if (element('templateStrengthEnabled')) element('templateStrengthEnabled').checked = Boolean(plan);
     if (element('templateStrengthNote')) element('templateStrengthNote').value = plan?.notes || '';
     toggleStrengthFields();
   }
 
   function clearExercisePlanForm() {
-    strengthDraft = [];
+    exerciseDrafts = { warmup: [], main: [], cooldown: [] };
     if (element('templateStrengthEnabled')) element('templateStrengthEnabled').checked = false;
     if (element('templateStrengthNote')) element('templateStrengthNote').value = '';
     toggleStrengthFields();
@@ -411,7 +451,7 @@ export function createWorkoutTemplateUi({
     if (element('templateStrengthEnabled')?.checked && !exercisePlan) {
       return {
         ok: false,
-        error: 'Velg minst én øvelse fra øvelsesbiblioteket, eller fjern avhukingen for strukturert styrke.'
+        error: 'Legg til minst én øvelse i oppvarming, hoveddel eller nedtrapping, eller fjern avhukingen.'
       };
     }
     return {
@@ -660,11 +700,14 @@ export function createWorkoutTemplateUi({
     refreshFormOptions,
     selectOptions,
     renderLibrary,
-    renderStrengthRows,
+    renderStrengthRows: renderExercisePlanRows,
     renderStructuredWorkoutPreview,
-    addStrengthExercise,
-    updateStrengthExercise,
-    removeStrengthExercise,
+    addStrengthExercise: () => addExercise('main'),
+    updateStrengthExercise: (index, field, value) => updateExercise('main', index, field, value),
+    removeStrengthExercise: index => removeExercise('main', index),
+    addExercise,
+    updateExercise,
+    removeExercise,
     setCoachFilter,
     toggleStrengthFields,
     toggleStructuredWorkoutFields,
@@ -672,4 +715,3 @@ export function createWorkoutTemplateUi({
     exercisePlanSummaryHtml
   };
 }
-
