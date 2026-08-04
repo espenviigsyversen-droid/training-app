@@ -129,6 +129,8 @@ async function testAsync(name, fn) {
   } = workoutTemplateUiDomain;
   const {
     createExercisePrescription,
+    exercisePlanBlock,
+    exercisePlanBlockSummary,
     exercisePlanItems,
     exercisePlanSearchText,
     exercisePlanSummary,
@@ -1812,6 +1814,43 @@ async function testAsync(name, fn) {
     assert.strictEqual(template.sourceUrl, 'https://example.com/workout');
   });
 
+  test('v175 exercise plans preserve warmup, main and cooldown blocks for every workout type', () => {
+    const warmup = normalizeExercise({ id: 'warmup', name: 'Dynamisk utfall', muscleGroups: ['Hofte'] });
+    const main = normalizeExercise({ id: 'main', name: 'Ettbeins knebøy', muscleGroups: ['Lår', 'Sete'] });
+    const cooldown = normalizeExercise({ id: 'cooldown', name: 'Leggstrekk', muscleGroups: ['Legg'] });
+    const plan = normalizeExercisePlan({
+      kind: 'exercise-blocks',
+      blocks: [
+        { type: 'warmup', exercises: [createExercisePrescription(warmup, { durationSeconds: 60 })] },
+        { type: 'main', exercises: [createExercisePrescription(main, { sets: 3, reps: '8 per side' })] },
+        { type: 'cooldown', exercises: [createExercisePrescription(cooldown, { durationSeconds: 90 })] }
+      ]
+    });
+    const runningTemplate = normalizeTemplate({ id: 'run-with-exercises', name: 'Rolig med rutine', type: 'Løping', exercisePlan: plan });
+    assert.deepStrictEqual(runningTemplate.exercisePlan.blocks.map(block => block.type), ['warmup', 'main', 'cooldown']);
+    assert.match(exercisePlanBlockSummary(exercisePlanBlock(plan, 'warmup')), /Oppvarming: 1 øvelse/);
+    assert.match(exercisePrescriptionLabel(exercisePlanBlock(plan, 'cooldown').exercises[0]), /1 x 90 sek/);
+    assert.strictEqual(normalizeExercisePlan({ blocks: [{ type: 'future-type', exercises: [createExercisePrescription(main)] }] }).blocks[0].type, 'main');
+  });
+
+  test('v175 planned and completed template snapshots normalize exercise blocks safely', () => {
+    const snapshot = {
+      id: 'run-template',
+      name: 'Løp med oppvarming',
+      type: 'Løping',
+      exercisePlan: {
+        blocks: [{ type: 'warmup', exercises: [{ exerciseSnapshot: { id: 'drill', name: 'A-skip' }, durationSeconds: 45 }] }]
+      }
+    };
+    const normalized = normalizeAppState({
+      planned: [{ id: 'planned-1', templateId: 'run-template', templateSnapshot: snapshot }],
+      completed: [{ id: 'done-1', templateId: 'run-template', templateSnapshot: snapshot }]
+    });
+    assert.strictEqual(exercisePlanBlock(normalized.planned[0].templateSnapshot.exercisePlan, 'warmup').exercises[0].exerciseSnapshot.name, 'A-skip');
+    assert.strictEqual(exercisePlanBlock(normalized.completed[0].templateSnapshot.exercisePlan, 'warmup').exercises[0].durationSeconds, 45);
+    assert.strictEqual(normalizeAppState({ planned: [{ id: 'legacy-planned' }] }).planned[0].templateSnapshot, null);
+  });
+
   test('v172 exercise and strength UI is wired to production modules', () => {
     assert.ok(index.includes('id="exerciseLibraryList"'), 'exercise library list is missing');
     assert.ok(index.includes('id="templateStrengthEnabled"'), 'structured strength toggle is missing');
@@ -1821,7 +1860,12 @@ async function testAsync(name, fn) {
     assert.ok(serviceWorker.includes('./domain-exercises.js'), 'exercise domain is missing from APP_SHELL');
     assert.ok(serviceWorker.includes('./exercise-library-ui.js'), 'exercise UI is missing from APP_SHELL');
     assert.ok(workoutTemplateUiSource.includes('exercisePlanFromForm'), 'template UI should build an exercise plan');
-    assert.ok(workoutHistoryUiSource.includes("detailSection('Styrkeøvelser'"), 'completed details should show strength exercises');
+    assert.ok(workoutHistoryUiSource.includes("detailSection('Øvelsesplan'"), 'completed details should show the exercise plan');
+    assert.ok(index.includes('id="templateWarmupExerciseRows"'), 'warmup exercise block is missing');
+    assert.ok(index.includes('id="templateCooldownExerciseRows"'), 'cooldown exercise block is missing');
+    assert.ok(workoutTemplateUiSource.includes("addExercise('warmup')") || index.includes("addTemplateExercise('warmup')"), 'warmup exercise action is missing');
+    assert.ok(appStateSource.includes('normalizePlannedItems'), 'planned template snapshots should be normalized');
+    assert.ok(app.includes('templateSnapshot: planned.templateSnapshot || completedTemplateSnapshot'), 'completion should preserve the planned snapshot');
     assert.ok(exerciseLibraryUiSource.includes('createExerciseLibraryUi'), 'exercise library controller is missing');
     assert.ok(exerciseDomainSource.includes('exerciseSnapshot'), 'exercise snapshots should be part of the production model');
     assert.deepStrictEqual(filterExercises([
@@ -1979,8 +2023,8 @@ async function testAsync(name, fn) {
     assert.ok(workoutHistoryUiSource.includes('heartRateZoneDistributionRows'), 'history does not use production zone rows');
     assert.ok(workoutHistoryUiSource.includes('Tid i pulssoner'), 'completed detail is missing the heart-rate zone section');
     assert.ok(!workoutHistoryUiSource.includes("row.estimated ? 'ca. '"), 'zone duration should not be prefixed with ca.');
-    assert.ok(app.includes("const APP_VERSION = 'v174c'"), 'visible app version must be v174c');
-    assert.ok(serviceWorker.includes('treningsapp-v174c'), 'cache version must match v174c');
+    assert.ok(app.includes("const APP_VERSION = 'v175'"), 'visible app version must be v175');
+    assert.ok(serviceWorker.includes('treningsapp-v175'), 'cache version must match v175');
   });
 
   test('v174b evaluates easy and quality sessions without treating zone percentages as a hard truth', () => {
@@ -2075,8 +2119,8 @@ async function testAsync(name, fn) {
     assert.ok(index.includes('id="insightHeartRateComplianceCard"'), 'Insights is missing the compliance card');
     assert.ok(app.includes('heartRateZoneComplianceForItems(last28Days)'), 'coach context does not use the canonical compliance summary');
     assert.ok(app.includes('renderHeartRateZoneComplianceInsight(today)'), 'Insights does not render canonical compliance');
-    assert.ok(app.includes("const APP_VERSION = 'v174c'"), 'visible app version must be v174c');
-    assert.ok(serviceWorker.includes('treningsapp-v174c'), 'cache version must match v174c');
+    assert.ok(app.includes("const APP_VERSION = 'v175'"), 'visible app version must be v175');
+    assert.ok(serviceWorker.includes('treningsapp-v175'), 'cache version must match v175');
   });
 
   test('v174c uses the test profile for zones and keeps the golden zone as a separate coach reference', () => {
@@ -2150,7 +2194,8 @@ async function testAsync(name, fn) {
     assert.ok(workoutTemplateUiSource.includes('structuredWorkoutFromForm'), 'structured interval form wrapper is missing');
     assert.ok(workoutTemplateUiSource.includes('structuredWorkoutSummaryHtml(template.structuredWorkout)'), 'structured interval summary is not rendered for templates');
     assert.ok(app.includes('structuredWorkoutSummaryHtml(t.structuredWorkout)'), 'structured interval summary is not rendered for planned/completed workouts');
-    assert.ok(app.includes("structuredWorkout: template?.structuredWorkout || null"), 'completed template snapshot should preserve structuredWorkout');
+    assert.ok(app.includes('return templateSnapshotFromTemplate(template ||'), 'completed template snapshots should use the shared normalized snapshot helper');
+    assert.ok(app.includes('const normalized = normalizeTemplate(template || {})'), 'shared template snapshots should preserve structuredWorkout and exercisePlan through production normalization');
     assert.ok(index.includes('id="insightStructuredIntervalsCard"'), 'structured interval insight card is missing');
   });
 
