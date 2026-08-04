@@ -1,5 +1,5 @@
 # Treningsapp — progress.md
-Oppdatert: 2026-08-04 (siste runtime-endring: v174c)
+Oppdatert: 2026-08-04 (siste runtime-endring: v175)
 
 ---
 
@@ -207,14 +207,12 @@ Treningsapp/
 
 ## Neste steg (prioritert)
 
-1. **v175 - Oppvarming og nedtrapping**
-   - Gjenbruk samme øvelsesmodell for løpe- og kondisjonsøkter uten å endre intervallmodellen.
-2. **v176a-v176b - Garmin CSV-import**
+1. **v176a-v176b - Garmin CSV-import**
    - Design mapping, fingeravtrykk og duplikatpolicy først.
    - Bygg deretter en bekreftet importveiviser som aldri overskriver manuelle felt automatisk.
-3. **v177 - Nedoverbelastning**
+2. **v177 - Nedoverbelastning**
    - Skill stigning/nedstigning og kondisjons-/muskelbelastning.
-4. **v178 - Kroppsmål for klær og utstyr**
+3. **v178 - Kroppsmål for klær og utstyr**
    - Praktisk målehistorikk under Setup, uten kobling til coach- eller nivåscore.
 
 ### Planlagt arkitektur for v172-v178
@@ -268,6 +266,15 @@ Treningsapp/
 - Snittpuls og makspuls i Logg viser faktisk testsone, og visningen oppgir både kilde for sone 1–5 og separat kilde for gylne sone.
 - Fullføring, Innsikt og coach-/AI-kontekst bruker samme kildehierarki. AI-konteksten mottar bare en normalisert, sensitivt avgrenset soneprofil.
 - Ingen sonegrenser, coach-terskler eller belastningspolicy er endret.
+
+### v175 - Gjenbrukbare øvelsesblokker - Bygget
+
+- Øktmaler støtter valgfrie blokker for oppvarming, hoveddel og nedtrapping for løping, styrke og andre aktivitetstyper.
+- Den eksisterende øvelsesmodellen brukes videre med bibliotek-snapshot, instruksjon, muskelgrupper, dosering, notat og ekstern lenke.
+- Blokkene er sammenfoldet som standard for en kompakt mobilflyt, mens full informasjon er tilgjengelig ved behov.
+- Planlagte økter lagrer et normalisert malsnapshot; fullføring viderefører dette slik at historiske øvelser ikke endres når malen eller biblioteket redigeres senere.
+- Gamle styrkemaler blir trygt behandlet som hoveddel, og gamle planlagte/fullførte økter uten snapshots fortsetter med bakoverkompatibel fallback.
+- Strukturert intervallinformasjon er ikke endret og ligger fortsatt separat i `structuredWorkout`.
 
 ### v167 - Øktmaler som egen UI-feature - Bygget
 
