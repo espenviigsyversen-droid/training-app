@@ -7,7 +7,10 @@ import {
 } from './domain-goals.js';
 import { normalizeTrainingLevelProgress } from './domain-fitness.js';
 import { normalizeExerciseLibrary } from './domain-exercises.js';
-import { normalizeHeartRateZoneSets } from './domain-heart-rate-zones.js';
+import {
+  normalizeHeartRateZoneDistribution,
+  normalizeHeartRateZoneSets
+} from './domain-heart-rate-zones.js';
 
 export const WORKOUT_ROLE_LABELS = {
   main_threshold: 'Hovedterskel',
@@ -206,7 +209,11 @@ export function normalizeCompletedItems(items = []) {
   return Array.isArray(items)
     ? items
         .filter(item => item && typeof item === 'object' && !Array.isArray(item))
-        .map(item => ({ ...item, raceResult: normalizeRaceResult(item.raceResult) }))
+        .map(item => ({
+          ...item,
+          raceResult: normalizeRaceResult(item.raceResult),
+          heartRateZoneDistribution: normalizeHeartRateZoneDistribution(item.heartRateZoneDistribution)
+        }))
     : [];
 }
 
