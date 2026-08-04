@@ -18,9 +18,7 @@ export function createWorkoutCompletionUi({
   calculatePaceMetrics,
   formatDuration,
   formatAreaLabel,
-  goldenZonePercentages,
-  normalizePersonProfile,
-  normalizeTrainingProfile,
+  heartRateReferenceForZoneSet,
   normalizeRaceResult,
   trainingEffectCategory
 }) {
@@ -136,16 +134,15 @@ export function createWorkoutCompletionUi({
   function renderGoldenZoneHint() {
     const hint = element('completeGoldenZoneHint');
     if (!hint) return;
-    const state = getState();
-    const personProfile = normalizePersonProfile(state.settings.personProfile);
-    const trainingProfile = normalizeTrainingProfile(state.settings.trainingProfile);
-    const maxHeartRate = Number(personProfile.maxHeartRate) || 0;
-    if (!maxHeartRate) {
+    const reference = heartRateReferenceForZoneSet(currentZoneSetSnapshot);
+    if (!reference?.goldenZone) {
       hint.hidden = true;
       return;
     }
-    const { lowPct, highPct } = goldenZonePercentages(trainingProfile.level);
-    hint.textContent = `Din gylne sone: ${Math.round(maxHeartRate * lowPct)}–${Math.round(maxHeartRate * highPct)} bpm (${Math.round(lowPct * 100)}–${Math.round(highPct * 100)}% av maks)`;
+    const testZoneText = reference.zoneSource
+      ? `Aktive sone 1–5: ${reference.zoneSource.name}. `
+      : '';
+    hint.textContent = `${testZoneText}Gylne sone (${reference.goldenZone.sourceLabel}): ${reference.goldenZone.low}–${reference.goldenZone.high} bpm (${Math.round(reference.goldenZone.lowPct * 100)}–${Math.round(reference.goldenZone.highPct * 100)}% av maks). Begrepene er ikke det samme.`;
     hint.hidden = false;
   }
 
