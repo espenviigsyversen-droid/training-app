@@ -1,5 +1,5 @@
 # Treningsapp — progress.md
-Oppdatert: 2026-08-04 (siste runtime-endring: v174b)
+Oppdatert: 2026-08-04 (siste runtime-endring: v174c)
 
 ---
 
@@ -260,6 +260,14 @@ Treningsapp/
 - RPE, smerteøkning og kroppstilpasning veier tyngre enn soneprosentene.
 - Fullført øktdetalj viser forklaring og vurderingssikkerhet. Innsikt viser en kompakt 28-dagers oppsummering, og coach-context bruker samme produksjonsoppsummering som sekundærsignal.
 - Gamle økter uten sonefordeling fungerer uendret og gir ingen falsk vurdering.
+
+### v174c - Kanonisk pulssonekilde og tydelige begreper - Bygget
+
+- Ny ren referansemodell i `domain-heart-rate-zones.js` samler faktisk soneprofil, maks-/terskelprosenter og Bakken-beregnet gylne sone uten å blande begrepene.
+- Historiske økter bruker lagret soneprofil-snapshot. Ellers brukes aktiv lab-/brukerprofil; manglende profil gir en trygg fallback uten oppdiktet sone 1–5.
+- Snittpuls og makspuls i Logg viser faktisk testsone, og visningen oppgir både kilde for sone 1–5 og separat kilde for gylne sone.
+- Fullføring, Innsikt og coach-/AI-kontekst bruker samme kildehierarki. AI-konteksten mottar bare en normalisert, sensitivt avgrenset soneprofil.
+- Ingen sonegrenser, coach-terskler eller belastningspolicy er endret.
 
 ### v167 - Øktmaler som egen UI-feature - Bygget
 
