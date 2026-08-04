@@ -1,4 +1,4 @@
-const CACHE_NAME = "treningsapp-v174b";
+const CACHE_NAME = "treningsapp-v174c";
 const FIREBASE_MODULES = [
   "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js",
   "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js",
