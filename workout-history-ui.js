@@ -77,6 +77,7 @@ export function createWorkoutHistoryUi({
   trainingEffectInfo,
   trainingEffectCategory,
   heartRateContextLabel,
+  heartRateZoneCompliance,
   lastWorkoutCoachNote,
   structuredWorkoutSummaryHtml,
   exercisePlanSummaryHtml,
@@ -126,6 +127,22 @@ export function createWorkoutHistoryUi({
     </div>`;
   }
 
+  function heartRateZoneComplianceHtml(completed) {
+    if (!normalizeHeartRateZoneDistribution(completed.heartRateZoneDistribution)) return '';
+    const result = heartRateZoneCompliance?.(completed);
+    if (!result) return '';
+    const confidence = { high: 'høy', medium: 'middels', low: 'lav' }[result.confidence] || 'lav';
+    return `<div class="zone-compliance-detail status-${escapeHtml(result.status)}">
+      <div class="zone-compliance-detail-head">
+        <strong>${escapeHtml(result.label)}</strong>
+        <span>${escapeHtml(confidence)} vurderingssikkerhet</span>
+      </div>
+      <p>${escapeHtml(result.summary)}</p>
+      ${result.reasons?.length ? `<ul>${result.reasons.slice(0, 2).map(reason => `<li>${escapeHtml(reason)}</li>`).join('')}</ul>` : ''}
+      <small>RPE og kroppssignaler veier tyngre enn soneprosentene.</small>
+    </div>`;
+  }
+
   function detailHtml(completed) {
     const template = completedTemplate(completed);
     const state = getState();
@@ -159,6 +176,7 @@ export function createWorkoutHistoryUi({
         ${completed.rpe ? `<p class="detail-text"><strong>Opplevd intensitet:</strong> ${escapeHtml(completed.rpe)}/10</p>` : ''}`)}
       ${detailSection('Puls', heartRateLines)}
       ${detailSection('Tid i pulssoner', heartRateZoneDistributionHtml(completed))}
+      ${detailSection('Etterlevelse av plan', heartRateZoneComplianceHtml(completed))}
       ${detailSection('Strukturert intervall', structuredWorkoutSummaryHtml(template.structuredWorkout))}
       ${detailSection('Styrkeøvelser', exercisePlanSummaryHtml(template.exercisePlan))}
       ${detailSection('Øktlenke', template.sourceUrl
