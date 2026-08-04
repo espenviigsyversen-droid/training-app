@@ -188,7 +188,7 @@ export function createWorkoutHistoryUi({
       ${detailSection('Tid i pulssoner', heartRateZoneDistributionHtml(completed))}
       ${detailSection('Etterlevelse av plan', heartRateZoneComplianceHtml(completed))}
       ${detailSection('Strukturert intervall', structuredWorkoutSummaryHtml(template.structuredWorkout))}
-      ${detailSection('Styrkeøvelser', exercisePlanSummaryHtml(template.exercisePlan))}
+      ${detailSection('Øvelsesplan', exercisePlanSummaryHtml(template.exercisePlan))}
       ${detailSection('Øktlenke', template.sourceUrl
         ? `<a href="${escapeHtml(template.sourceUrl)}" target="_blank" rel="noopener noreferrer">Åpne demonstrasjon</a>`
         : '')}
