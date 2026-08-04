@@ -90,7 +90,7 @@ Manuell redigering bruker samme validerte modell som labtest. Sonene må være s
 
 - v173b: sonehistorikk, aktiv profil og manuell redigering - bygget
 - v174a: prosent per sone fra Garmin på fullført økt, snapshot av brukt soneprofil og Garmin-inspirert detaljvisning - bygget
-- v174b: forklarbar etterlevelse mot planlagt intensjon, med RPE og kroppssignaler foran soneprosent
+- v174b: bygget forklarbar etterlevelse mot planlagt intensjon, med RPE og kroppssignaler foran soneprosent
 - v176: Garmin CSV-import beriker den etablerte økt- og sonemodellen
 
 ## Testkrav
