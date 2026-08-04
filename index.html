@@ -311,15 +311,29 @@
                 <p id="templateStructuredPreview" class="small-note"></p>
               </div>
             </div>
-            <div class="structured-workout-box strength-plan-box">
+            <div class="structured-workout-box strength-plan-box exercise-blocks-box">
               <label class="checkbox-option structured-workout-toggle">
                 <input id="templateStrengthEnabled" type="checkbox" onchange="toggleTemplateStrengthFields()" />
-                Strukturert styrkeøkt
+                Oppvarming, øvelser og nedtrapping
               </label>
               <div id="templateStrengthFields" class="structured-workout-fields hidden">
-                <div id="templateStrengthExerciseRows"></div>
-                <button type="button" class="btn-soft btn-full" onclick="addTemplateStrengthExercise()">Legg til øvelse</button>
-                <div><label>Notat til styrkeøkten</label><input id="templateStrengthNote" placeholder="Valgfri felles instruksjon" /></div>
+                <p class="small-note">Bruk øvelsesbiblioteket på alle økttyper. Instruksjon og demonstrasjonslenke følger øvelsen.</p>
+                <details class="exercise-block-editor">
+                  <summary>Oppvarming</summary>
+                  <div id="templateWarmupExerciseRows"></div>
+                  <button type="button" class="btn-soft btn-full" onclick="addTemplateExercise('warmup')">Legg til oppvarmingsøvelse</button>
+                </details>
+                <details class="exercise-block-editor">
+                  <summary>Hoveddel</summary>
+                  <div id="templateStrengthExerciseRows"></div>
+                  <button type="button" class="btn-soft btn-full" onclick="addTemplateExercise('main')">Legg til øvelse i hoveddel</button>
+                </details>
+                <details class="exercise-block-editor">
+                  <summary>Nedtrapping</summary>
+                  <div id="templateCooldownExerciseRows"></div>
+                  <button type="button" class="btn-soft btn-full" onclick="addTemplateExercise('cooldown')">Legg til nedtrappingsøvelse</button>
+                </details>
+                <div><label>Felles notat til øvelsesplanen</label><input id="templateStrengthNote" placeholder="Valgfri felles instruksjon" /></div>
                 <p id="templateStrengthPreview" class="small-note"></p>
               </div>
             </div>
