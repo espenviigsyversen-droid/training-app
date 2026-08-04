@@ -248,9 +248,9 @@ Prioritert backlog for videre utvikling av Treningsapp.
     - Alle grenser kan redigeres manuelt, mens eldre sonesett beholdes som historikk.
     - Ren logikk i `domain-heart-rate-zones.js` og egen `heart-rate-zones-ui.js`; `app.js` beholder små persistence-wrappers.
 
-50. **v174a-v174b - Sonefordeling og forklarbar etterlevelse**
-    - Registrer Garmin-prosent per sone på fullførte økter og lagre sone-snapshot.
-    - Vis kompakt fordeling og vurder økten forsiktig mot planlagt intensjon.
+50. **v174a-v174b - Sonefordeling og forklarbar etterlevelse** - v174a bygget
+    - v174a registrerer Garmin-prosent per sone på fullførte økter, lagrer sone-snapshot og viser en kompakt Garmin-inspirert fordeling.
+    - v174b skal vurdere økten forsiktig mot planlagt intensjon.
     - RPE, smerte og kroppssignaler beholder høyere sikkerhetsprioritet enn soneprosent.
 
 51. **v175 - Oppvarming og nedtrapping**
@@ -296,7 +296,7 @@ Disse punktene var del av den tidlige v142-idéen, men er bevisst flyttet ut av 
 
 ## Anbefalt neste steg
 
-`v173a` er dokumentert og `v173b` er bygget. Neste runde er v174a-v174b: sonefordeling og forklarbar etterlevelse på fullførte økter før Garmin CSV-import bygges i v176.
+`v173a` er dokumentert, og `v173b` samt `v174a` er bygget. Neste runde er v174b: forklarbar soneetterlevelse på fullførte økter før Garmin CSV-import bygges i v176.
 
 v164a-v169 har etablert modulgrensene som de nye rundene skal bygge videre på. v170a-v171 har lukket de åpne tekniske sporene for lokal snapshot-kvote og Firebase Functions SDK.
 
