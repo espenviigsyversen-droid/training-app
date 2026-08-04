@@ -1397,14 +1397,15 @@ Arkitektur:
 - Ny `heart-rate-zones-ui.js` med injiserte state-/handlingsavhengigheter.
 - `app-state.js` og `training-repository.js` utvides bakoverkompatibelt; `app.js` beholder små wrappers.
 
-### v174a - Sonefordeling på fullførte økter
+### v174a - Sonefordeling på fullførte økter - Bygget
 
 Mål:
 
 - Registrer prosent per pulssone fra Garmin i fullførings- og redigeringsflyten.
 - Lagre soneoppsett-snapshot på økten, slik at historiske økter ikke endres når soner justeres.
 - Tillat små avrundingsavvik rundt 100 %, men vis tydelig sum og valider større avvik.
-- Vis kompakt stablet sonegraf i fullført detaljvisning.
+- Vis en kompakt Garmin-inspirert radgraf med prosent og estimert sonetid i fullført detaljvisning.
+- Gamle økter uten sonefordeling normaliseres trygt, og redigering gjenbruker øktens lagrede snapshot.
 
 ### v174b - Forklarbar soneetterlevelse
 
@@ -1493,7 +1494,7 @@ Foreslått modulgrense:
 
 `v172a-v172b` er bygget samlet. `STRUCTURED_EXERCISES_DESIGN.md` dokumenterer den versjonerte modellen, og produksjonen bruker `domain-exercises.js` og `exercise-library-ui.js`. Øvelser kan gjenbrukes i styrkemaler med sett, repetisjoner, pause, belastning, notat og sikre lenker. Malen lagrer snapshots slik at senere bibliotekendringer ikke endrer planlagte eller historiske økter.
 
-`v173a` er dokumentert i `LAB_TESTS_AND_ZONES_DESIGN.md`, og `v173b` er bygget som testbasert sonehistorikk med et eksplisitt aktivt, manuelt redigerbart femsonesett. Eksempeløktene i laboratorierapporten er bevisst utelatt. Neste implementeringsrunde er v174a: manuell sonefordeling på fullførte økter, fulgt av forklarbar soneetterlevelse i v174b før Garmin-importen i v176.
+`v173a` er dokumentert i `LAB_TESTS_AND_ZONES_DESIGN.md`, og `v173b` er bygget som testbasert sonehistorikk med et eksplisitt aktivt, manuelt redigerbart femsonesett. `v174a` er også bygget: fullførings- og redigeringsflyten kan registrere Garmins prosent per sone, lagre brukt soneprofil som snapshot og vise fordelingen i øktdetaljen. Eksempeløktene i laboratorierapporten er bevisst utelatt. Neste implementeringsrunde er v174b: forklarbar soneetterlevelse før Garmin-importen i v176.
 
 ## Hva vi bør vente med
 
