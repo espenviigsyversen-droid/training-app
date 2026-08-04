@@ -2,7 +2,7 @@
 
 Strategisk utviklingsroadmap for Treningsapp etter v138.
 
-Oppdatert: 2026-07-07
+Oppdatert: 2026-08-04
 
 ## Formål
 
@@ -1423,6 +1423,16 @@ Levert:
 - Samme vurdering brukes i fullført øktdetalj, aggregert Innsikt og coach-context.
 - RPE, smerteøkning og kroppstilpasning går foran pulssoneprosentene.
 
+### v174c - Kanonisk pulssonekilde og tydelige begreper - Bygget
+
+Mål og levert:
+
+- Aktiv lab-/brukerdefinert profil er sannhetskilden for sone 1–5, mens historiske økter bruker sitt lagrede soneprofil-snapshot.
+- Snittpuls og makspuls viser faktisk testsone når et gyldig sonesett finnes. Uten profil vises bare sikre maks-/terskelprosenter.
+- «Gylne sone» beholdes som et separat, Bakken-beregnet coach-begrep og omtales ikke som sone 3.
+- Fullføring, Logg, Innsikt og coach-/AI-kontekst bruker samme rene kilde- og klassifiseringsfunksjoner fra `domain-heart-rate-zones.js`.
+- Ingen sonegrenser, coach-terskler eller sikkerhetsprioriteringer er endret.
+
 ### v175 - Oppvarming og nedtrapping som gjenbrukbare øvelsesblokker
 
 Mål:
@@ -1501,7 +1511,7 @@ Foreslått modulgrense:
 
 `v172a-v172b` er bygget samlet. `STRUCTURED_EXERCISES_DESIGN.md` dokumenterer den versjonerte modellen, og produksjonen bruker `domain-exercises.js` og `exercise-library-ui.js`. Øvelser kan gjenbrukes i styrkemaler med sett, repetisjoner, pause, belastning, notat og sikre lenker. Malen lagrer snapshots slik at senere bibliotekendringer ikke endrer planlagte eller historiske økter.
 
-`v173a` er dokumentert i `LAB_TESTS_AND_ZONES_DESIGN.md`, og `v173b` er bygget som testbasert sonehistorikk med et eksplisitt aktivt, manuelt redigerbart femsonesett. `v174a` registrerer Garmins prosent per sone og bevarer brukt soneprofil som snapshot. `v174b` legger til forklarbar og forsiktig etterlevelsesvurdering i Logg, Innsikt og coach-context. Eksempeløktene i laboratorierapporten er bevisst utelatt. Neste implementeringsrunde er v175: gjenbrukbare oppvarmings- og nedtrappingsblokker.
+`v173a` er dokumentert i `LAB_TESTS_AND_ZONES_DESIGN.md`, og `v173b` er bygget som testbasert sonehistorikk med et eksplisitt aktivt, manuelt redigerbart femsonesett. `v174a` registrerer Garmins prosent per sone og bevarer brukt soneprofil som snapshot. `v174b` legger til forklarbar og forsiktig etterlevelsesvurdering i Logg, Innsikt og coach-context. `v174c` samler kildehierarkiet og skiller labsoner fra Bakken-beregnet gylne sone på alle relevante flater. Eksempeløktene i laboratorierapporten er bevisst utelatt. Neste implementeringsrunde er v175: gjenbrukbare oppvarmings- og nedtrappingsblokker.
 
 ## Hva vi bør vente med
 
