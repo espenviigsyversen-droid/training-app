@@ -1,3 +1,9 @@
+import {
+  formatHeartRateZoneDuration,
+  heartRateZoneDistributionRows,
+  normalizeHeartRateZoneDistribution
+} from './domain-heart-rate-zones.js';
+
 function normalizedText(value) {
   return String(value || '').trim().toLowerCase();
 }
@@ -107,6 +113,20 @@ export function createWorkoutHistoryUi({
     ].join('');
   }
 
+  function heartRateZoneDistributionHtml(completed) {
+    const distribution = normalizeHeartRateZoneDistribution(completed.heartRateZoneDistribution);
+    if (!distribution) return '';
+    const rows = heartRateZoneDistributionRows(distribution, completed.durationSeconds || 0).reverse();
+    return `<div class="heart-rate-zone-chart">
+      ${rows.map(row => `<div class="heart-rate-zone-row zone-${escapeHtml(row.zoneId)}">
+        <div class="heart-rate-zone-label"><strong>${escapeHtml(row.label)}</strong><span>${escapeHtml(row.range)}</span></div>
+        <div class="heart-rate-zone-value"><span>${row.estimated ? 'ca. ' : ''}${escapeHtml(formatHeartRateZoneDuration(row.seconds))}</span><strong>${escapeHtml(row.percent)} %</strong></div>
+        <div class="heart-rate-zone-track"><span style="width:${Math.max(0, Math.min(100, row.percent))}%"></span></div>
+      </div>`).join('')}
+      <p class="heart-rate-zone-source">${escapeHtml(distribution.zoneSetSnapshot?.name || 'Lagret pulssoneprofil')} · ${escapeHtml(distribution.totalPercent)} % registrert${rows.some(row => row.estimated) ? ' · tid er estimert fra prosent' : ''}</p>
+    </div>`;
+  }
+
   function detailHtml(completed) {
     const template = completedTemplate(completed);
     const state = getState();
@@ -139,6 +159,7 @@ export function createWorkoutHistoryUi({
         ${trainingEffect ? `<p class="detail-text"><strong>Garmin:</strong> ${escapeHtml(trainingEffect.label)} · ${escapeHtml(trainingEffect.categoryLabel)}</p>` : ''}
         ${completed.rpe ? `<p class="detail-text"><strong>Opplevd intensitet:</strong> ${escapeHtml(completed.rpe)}/10</p>` : ''}`)}
       ${detailSection('Puls', heartRateLines)}
+      ${detailSection('Tid i pulssoner', heartRateZoneDistributionHtml(completed))}
       ${detailSection('Strukturert intervall', structuredWorkoutSummaryHtml(template.structuredWorkout))}
       ${detailSection('Styrkeøvelser', exercisePlanSummaryHtml(template.exercisePlan))}
       ${detailSection('Øktlenke', template.sourceUrl
@@ -297,4 +318,3 @@ export function createWorkoutHistoryUi({
 
   return { detailHtml, filtered, renderFilterOptions, renderList, renderSummary, row };
 }
-
