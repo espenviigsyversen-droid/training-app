@@ -1,5 +1,5 @@
 # Treningsapp — progress.md
-Oppdatert: 2026-07-17 (siste runtime-endring: v166)
+Oppdatert: 2026-08-04 (siste runtime-endring: v174b)
 
 ---
 
@@ -207,16 +207,14 @@ Treningsapp/
 
 ## Neste steg (prioritert)
 
-1. **v174b - Forklarbar soneetterlevelse**
-   - Sammenlign den lagrede sonefordelingen forsiktig med planlagt intensjon uten å overstyre RPE eller kroppssignaler.
-2. **v175 - Oppvarming og nedtrapping**
+1. **v175 - Oppvarming og nedtrapping**
    - Gjenbruk samme øvelsesmodell for løpe- og kondisjonsøkter uten å endre intervallmodellen.
-3. **v176a-v176b - Garmin CSV-import**
+2. **v176a-v176b - Garmin CSV-import**
    - Design mapping, fingeravtrykk og duplikatpolicy først.
    - Bygg deretter en bekreftet importveiviser som aldri overskriver manuelle felt automatisk.
-4. **v177 - Nedoverbelastning**
+3. **v177 - Nedoverbelastning**
    - Skill stigning/nedstigning og kondisjons-/muskelbelastning.
-5. **v178 - Kroppsmål for klær og utstyr**
+4. **v178 - Kroppsmål for klær og utstyr**
    - Praktisk målehistorikk under Setup, uten kobling til coach- eller nivåscore.
 
 ### Planlagt arkitektur for v172-v178
@@ -254,6 +252,14 @@ Treningsapp/
 - Tidsverdiene i pulssonediagrammet vises uten prefikset `ca.`.
 - Profilnavn og estimatforklaring under diagrammet er fjernet for en renere detaljvisning.
 - Datamodell, sone-snapshot og beregning er uendret; v174b er fortsatt neste vurderingsrunde.
+
+### v174b - Forklarbar soneetterlevelse - Bygget
+
+- Ny ren vurdering i `domain-heart-rate-zones.js` klassifiserer soneetterlevelse som i tråd, stort sett i tråd, hardere, roligere eller ukjent.
+- Vurderingen følger øktens rolle og intensjon, og bruker lavere sikkerhet for intervall/kvalitet fordi totalfordelingen også inkluderer oppvarming, pauser og nedjogg.
+- RPE, smerteøkning og kroppstilpasning veier tyngre enn soneprosentene.
+- Fullført øktdetalj viser forklaring og vurderingssikkerhet. Innsikt viser en kompakt 28-dagers oppsummering, og coach-context bruker samme produksjonsoppsummering som sekundærsignal.
+- Gamle økter uten sonefordeling fungerer uendret og gir ingen falsk vurdering.
 
 ### v167 - Øktmaler som egen UI-feature - Bygget
 
