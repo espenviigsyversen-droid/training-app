@@ -1,6 +1,6 @@
 # Testbaserte pulssoner og sonefordeling
 
-Designgrunnlag for v173a-v174b. Dokumentet avgrenser løsningen til faktiske pulssoner og senere registrering av tid/prosent i sonene.
+Designgrunnlag for v173a-v174c. Dokumentet avgrenser løsningen til faktiske pulssoner, registrering av tid/prosent i sonene og et tydelig kildehierarki mot appens separate coach-begrep «gylne sone».
 
 ## Avgrensning
 
@@ -91,7 +91,17 @@ Manuell redigering bruker samme validerte modell som labtest. Sonene må være s
 - v173b: sonehistorikk, aktiv profil og manuell redigering - bygget
 - v174a: prosent per sone fra Garmin på fullført økt, snapshot av brukt soneprofil og Garmin-inspirert detaljvisning - bygget
 - v174b: bygget forklarbar etterlevelse mot planlagt intensjon, med RPE og kroppssignaler foran soneprosent
+- v174c: bygget ett kanonisk kildehierarki der øktens snapshot går foran aktiv lab-/brukerprofil. Sone 1–5 og gylne sone vises og sendes til coach/AI som uttrykkelig separate begreper.
 - v176: Garmin CSV-import beriker den etablerte økt- og sonemodellen
+
+## Kildehierarki og begreper
+
+1. Historiske og fullførte økter bruker soneprofil-snapshotet som ble lagret på økten.
+2. Nye vurderinger bruker aktiv lab-/brukerdefinert femsoneprofil.
+3. Hvis ingen femsoneprofil finnes, kan appen fortsatt vise prosent av registrert maks- og terskelpuls uten å late som den kjenner sone 1–5.
+4. «Gylne sone» er Bakken-beregnet fra makspuls og treningsnivå. Den er et separat coach-begrep og er ikke synonym med sone 3 eller en annen labsone.
+
+Samme kildehierarki brukes i fullføringsflyt, Logg, Innsikt og coach-/AI-kontekst. Ingen av disse flatene skal klassifisere den samme pulsen med ulike sonekilder.
 
 ## Testkrav
 
