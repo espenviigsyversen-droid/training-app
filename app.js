@@ -140,7 +140,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       xWorkoutSuggestion
     } from './domain-training-plan.js';
 
-const APP_VERSION = 'v174c';
+const APP_VERSION = 'v175';
     const APP_CACHE_NAME = `treningsapp-${APP_VERSION}`;
 
     const firebaseConfig = {
@@ -1691,12 +1691,24 @@ const APP_VERSION = 'v174c';
       getWorkoutTemplateUi().addStrengthExercise();
     };
 
+    window.addTemplateExercise = function(type) {
+      getWorkoutTemplateUi().addExercise(type);
+    };
+
     window.updateTemplateStrengthExercise = function(index, field, value) {
       getWorkoutTemplateUi().updateStrengthExercise(index, field, value);
     };
 
     window.removeTemplateStrengthExercise = function(index) {
       getWorkoutTemplateUi().removeStrengthExercise(index);
+    };
+
+    window.updateTemplateExercise = function(type, index, field, value) {
+      getWorkoutTemplateUi().updateExercise(type, index, field, value);
+    };
+
+    window.removeTemplateExercise = function(type, index) {
+      getWorkoutTemplateUi().removeExercise(type, index);
     };
 
     window.saveExercise = async function() {
@@ -1864,16 +1876,17 @@ const APP_VERSION = 'v174c';
 
       const plannedGroupId = uid('group');
       const workoutsToAdd = [];
+      const templateSnapshot = templateSnapshotFromTemplate(getTemplate(templateId));
 
       if (repeat === 'none') {
-        workoutsToAdd.push({ id: uid('planned'), templateId, date, status: 'planned', notes, repeatGroupId: null, createdAt: todayISO() });
+        workoutsToAdd.push({ id: uid('planned'), templateId, templateSnapshot, date, status: 'planned', notes, repeatGroupId: null, createdAt: todayISO() });
       } else {
         if (!repeatWeeks || repeatWeeks < 1) return alert('Velg antall uker frem i tid.');
         for (let weekOffset = 0; weekOffset <= repeatWeeks; weekOffset += intervalWeeks) {
           const plannedDate = addDays(date, weekOffset * 7);
           if (isBlockedTrainingDate(plannedDate)) continue;
           workoutsToAdd.push({
-            id: uid('planned'), templateId, date: plannedDate,
+            id: uid('planned'), templateId, templateSnapshot, date: plannedDate,
             status: 'planned', notes, repeatGroupId: plannedGroupId,
             repeatRule: { type: repeat, intervalWeeks, totalWeeks: repeatWeeks },
             createdAt: todayISO()
@@ -2411,7 +2424,7 @@ const APP_VERSION = 'v174c';
 
     function lastWorkoutCoachNote(completed, profile) {
       if (!completed) return '';
-      const template = getTemplate(completed.templateId);
+      const template = completedTemplate(completed);
       const assessment = completedLoadAssessment(completed);
       const painBefore = numberOrZero(completed.bodyStatus?.painBefore);
       const painAfter = numberOrZero(completed.bodyStatus?.painAfter);
@@ -2624,7 +2637,7 @@ const APP_VERSION = 'v174c';
       card.style.display = '';
       note.textContent = weeklyBodySignalNote(signalItems);
       list.innerHTML = signalItems.map(item => {
-        const template = getTemplate(item.templateId);
+        const template = completedTemplate(item);
         const body = item.bodyStatus || {};
         const chips = [
           hasPainSignal(item) ? 'Smerte' : null,
@@ -2743,13 +2756,17 @@ const APP_VERSION = 'v174c';
         const date = document.getElementById('completeDate').value || state.completed[completedIndex].date;
         const templateId = document.getElementById('completeTemplate').value || state.completed[completedIndex].templateId;
         const manualName = document.getElementById('completeManualName').value.trim();
+        const existingCompleted = state.completed[completedIndex];
+        const preservedSnapshot = templateId === existingCompleted.templateId && existingCompleted.templateSnapshot
+          ? templateSnapshotFromTemplate(existingCompleted.templateSnapshot, manualName)
+          : completedTemplateSnapshot(templateId, manualName);
 
         const updatedCompleted = {
-          ...state.completed[completedIndex],
+          ...existingCompleted,
           date,
           templateId,
           manualName,
-          templateSnapshot: completedTemplateSnapshot(templateId, manualName),
+          templateSnapshot: preservedSnapshot,
           ...formData,
           updatedAt: new Date().toISOString()
         };
@@ -2805,7 +2822,7 @@ const APP_VERSION = 'v174c';
         plannedWorkoutId: plannedId,
         templateId: planned.templateId,
         manualName: '',
-        templateSnapshot: completedTemplateSnapshot(planned.templateId, ''),
+        templateSnapshot: planned.templateSnapshot || completedTemplateSnapshot(planned.templateId, ''),
         date: planned.date,
         ...formData,
         completedAt: new Date().toISOString()
@@ -2873,24 +2890,40 @@ const APP_VERSION = 'v174c';
       return state.templates.find(t => t.id === id) || { name: 'Slettet øktmal', type: 'Annet', intensity: '', role: '', purpose: '', load: '', recommendedWhen: [], avoidWhen: [], structure: '', sourceUrl: '', structuredWorkout: null, exercisePlan: null };
     }
 
+    function templateSnapshotFromTemplate(template, manualName = '') {
+      const normalized = normalizeTemplate(template || {});
+      return normalizeTemplate({
+        ...normalized,
+        id: normalized.id || '',
+        name: manualName || normalized.name || 'Historisk økt'
+      });
+    }
+
     function completedTemplateSnapshot(templateId, manualName) {
       const template = state.templates.find(t => t.id === templateId);
+      return templateSnapshotFromTemplate(template || { name: manualName || 'Historisk økt' }, manualName);
+    }
+
+    function plannedTemplate(planned) {
+      const liveTemplate = state.templates.find(t => t.id === planned?.templateId);
+      if (!planned?.templateSnapshot) return liveTemplate || getTemplate(planned?.templateId);
       return {
-        name: manualName || template?.name || 'Historisk økt',
-        type: template?.type || 'Annet',
-        intensity: template?.intensity || '',
-        role: template?.role || '',
-        purpose: template?.purpose || '',
-        load: template?.load || '',
-        structure: template?.structure || '',
-        sourceUrl: template?.sourceUrl || '',
-        structuredWorkout: template?.structuredWorkout || null,
-        exercisePlan: template?.exercisePlan || null
+        ...(liveTemplate || {}),
+        ...normalizeTemplate(planned.templateSnapshot),
+        id: planned.templateId || planned.templateSnapshot.id || ''
       };
     }
 
     function completedTemplate(completed) {
       const template = state.templates.find(t => t.id === completed.templateId);
+      if (completed.templateSnapshot) {
+        return {
+          ...(template || {}),
+          ...normalizeTemplate(completed.templateSnapshot),
+          id: completed.templateId || completed.templateSnapshot.id || '',
+          name: completed.manualName || completed.templateSnapshot.name || template?.name || 'Historisk økt'
+        };
+      }
       if (template) return { ...template, name: completed.manualName || template.name };
       return {
         name: completed.manualName || completed.templateSnapshot?.name || 'Historisk økt',
@@ -2950,7 +2983,7 @@ const APP_VERSION = 'v174c';
     };
 
     function workoutCard(planned, options = {}) {
-      const t = getTemplate(planned.templateId);
+      const t = plannedTemplate(planned);
       const kind = templateCalendarKind(t);
       const chips = templateCalendarChips(t);
       return `
@@ -3122,6 +3155,7 @@ const APP_VERSION = 'v174c';
           formatDate,
           escapeHtml,
           getTemplate,
+          plannedTemplate,
           completedTemplate,
           calendarKind: templateCalendarKind,
           calendarEntryClass,
@@ -3741,7 +3775,8 @@ const APP_VERSION = 'v174c';
     }
 
     function itemWorkoutRole(item) {
-      return inferredWorkoutRole(getTemplate(item.templateId));
+      const isCompleted = state.completed.some(entry => entry.id === item.id);
+      return inferredWorkoutRole(isCompleted ? completedTemplate(item) : plannedTemplate(item));
     }
 
     function itemsWithWorkoutRole(items = []) {
@@ -3903,7 +3938,7 @@ const APP_VERSION = 'v174c';
     }
 
     function plannedWeekItem(item) {
-      const template = getTemplate(item.templateId);
+      const template = plannedTemplate(item);
       const kind = templateCalendarKind(template);
       const chips = templateCalendarChips(template);
       return `
@@ -4071,6 +4106,7 @@ const APP_VERSION = 'v174c';
       const workoutsToAdd = suggestions.map((item, index) => ({
         id: uid('planned'),
         templateId: item.template.id,
+        templateSnapshot: templateSnapshotFromTemplate(item.template),
         date: item.date,
         status: 'planned',
         notes: `${scope === 'next' ? 'Neste uke' : 'Ukeplan'} forslag ${index + 1}: ${item.suggestion.title}. Juster etter dagsform.`,
@@ -4154,7 +4190,7 @@ const APP_VERSION = 'v174c';
       const completedToday = ctx.completedToday?.[ctx.completedToday.length - 1] || null;
       const completedMeta = completedToday ? completedWorkoutAdviceMeta(completedToday) : null;
       const firstPlanned = primaryItems[0] || null;
-      const template = firstPlanned ? getTemplate(firstPlanned.templateId) : null;
+      const template = firstPlanned ? plannedTemplate(firstPlanned) : null;
       const nextDateLabel = firstPlanned?.date && firstPlanned.date !== ctx.today ? formatDate(firstPlanned.date).toLowerCase() : '';
       return homeHeroState({
         completedToday: completedMeta,
@@ -4232,7 +4268,7 @@ const APP_VERSION = 'v174c';
     window.swapHeroPlannedWorkout = async function(plannedId, action = 'swap_easy') {
       const planned = state.planned.find(item => item.id === plannedId);
       if (!planned) return alert('Fant ikke den planlagte økten.');
-      const currentTemplate = getTemplate(planned.templateId);
+      const currentTemplate = plannedTemplate(planned);
       const suggestion = action === 'swap_recovery'
         ? recoverySuggestion('Byttet fra hard økt fordi dagsform eller kroppssignal tilsier lav risiko.')
         : gentleBaseSuggestion('Byttet fra hard økt fordi intensitetsbalansen tilsier mer rolig støtte.');
@@ -4248,6 +4284,7 @@ const APP_VERSION = 'v174c';
           const item = state.planned.find(entry => entry.id === plannedId);
           if (!item) return;
           item.templateId = alternative.id;
+          item.templateSnapshot = templateSnapshotFromTemplate(alternative);
           item.notes = [item.notes, 'Byttet fra heltekortet fordi dagsform/belastning tilsa lettere økt.']
             .filter(Boolean).join('\n');
           item.updatedAt = new Date().toISOString();
@@ -4278,7 +4315,7 @@ const APP_VERSION = 'v174c';
 
       const completedToday = ctx.completedToday?.[ctx.completedToday.length - 1] || null;
       const firstPlanned = primaryItems[0] || null;
-      const template = firstPlanned ? getTemplate(firstPlanned.templateId) : null;
+      const template = firstPlanned ? plannedTemplate(firstPlanned) : null;
       const isPostWorkout = Boolean(completedToday && decision?.mode === 'post_workout');
       const completedMeta = completedToday ? completedWorkoutAdviceMeta(completedToday) : null;
       const heroState = heroStateForContext(ctx, primaryItems, todayItems, decision);
@@ -4614,7 +4651,7 @@ const APP_VERSION = 'v174c';
 
     function buildTodayDecision(ctx, primaryItems = [], todayItems = []) {
       const firstPlanned = primaryItems[0] || ctx.nextPlanned || null;
-      const template = firstPlanned ? getTemplate(firstPlanned.templateId) : null;
+      const template = firstPlanned ? plannedTemplate(firstPlanned) : null;
       const painImproving = improvingPainFollowup(ctx);
       const plannedMeta = plannedWorkoutAdviceMeta(firstPlanned);
       const tomorrowMeta = plannedWorkoutAdviceMeta(ctx.tomorrowPlanned);
@@ -4747,7 +4784,7 @@ const APP_VERSION = 'v174c';
 
     function plannedWorkoutAdviceMeta(planned) {
       if (!planned) return {};
-      const template = getTemplate(planned.templateId);
+      const template = plannedTemplate(planned);
       return {
         label: template.name || '',
         intensity: template.intensity || '',
@@ -4805,7 +4842,7 @@ const APP_VERSION = 'v174c';
       const completedToday = ctx.completedToday?.[ctx.completedToday.length - 1] || null;
       const completedMeta = completedToday ? completedWorkoutAdviceMeta(completedToday) : null;
       const planned = primaryPlanned || ctx.nextPlanned || null;
-      const plannedTemplate = planned ? getTemplate(planned.templateId) : null;
+      const plannedTemplateValue = planned ? plannedTemplate(planned) : null;
       const readinessConfig = ctx.dailyReadiness?.level ? TRAFFIC_LIGHT_CONFIG[ctx.dailyReadiness.level] : null;
       const injury = ctx.injurySummary7?.hasSignal ? ctx.injurySummary7 : null;
       const weekSessions = ctx.weekSummary?.sessions || 0;
@@ -4840,12 +4877,12 @@ const APP_VERSION = 'v174c';
             : completedMeta.loadLabel,
           status: decision?.level || completedMeta.loadLevel || 'neutral'
         } : null,
-        planned: plannedTemplate ? {
-          label: plannedTemplate.name,
+        planned: plannedTemplateValue ? {
+          label: plannedTemplateValue.name,
           hasPlannedToday: planned?.date === ctx.today,
           detail: [
-            plannedTemplate.type,
-            plannedTemplate.intensity,
+            plannedTemplateValue.type,
+            plannedTemplateValue.intensity,
             planned?.date && planned.date !== ctx.today ? formatDate(planned.date) : ''
           ].filter(Boolean).join(' · '),
           status: planned?.date === ctx.today ? 'green' : 'neutral'
@@ -4931,7 +4968,7 @@ const APP_VERSION = 'v174c';
     }
 
     function isHardWorkout(completed) {
-      const template = getTemplate(completed.templateId);
+      const template = completedTemplate(completed);
       const context = completedIntensityContext(completed);
       return context.countsAsHardQuality
         || context.countsAsHardLoad
@@ -5414,7 +5451,7 @@ const APP_VERSION = 'v174c';
     };
 
     function templateForCompleted(item) {
-      return getTemplate(item.templateId);
+      return completedTemplate(item);
     }
 
     function isWalkingCompleted(item) {
@@ -5691,7 +5728,7 @@ const APP_VERSION = 'v174c';
 
       const weekPlanRoles = trainingProfile.weekPlanRoles || [];
       const completedRoles = new Set(
-        thisWeek.map(c => getTemplate(c.templateId).role).filter(Boolean)
+        thisWeek.map(c => completedTemplate(c).role).filter(Boolean)
       );
       const missingRoles = weekPlanRoles.filter(role => role && !completedRoles.has(role));
 
@@ -5742,7 +5779,7 @@ const APP_VERSION = 'v174c';
 
     function aiWorkoutFromPlanned(planned) {
       if (!planned) return null;
-      const template = getTemplate(planned.templateId);
+      const template = plannedTemplate(planned);
       const structured = template.structuredWorkout ? structuredWorkoutBreakdown(template.structuredWorkout) : null;
       return {
         date: planned.date || '',
@@ -7122,8 +7159,8 @@ const APP_VERSION = 'v174c';
       if (!confirm('Legge inn demo-data?')) return;
       const t1 = normalizeTemplate({ id: uid('template'), name: '6 x 6 min terskel', type: 'Løping', intensity: 'Terskel', structure: '10 min oppvarming\n6 x 6 min terskel\n90 sek pause\n10 min nedjogg', createdAt: todayISO() });
       const t2 = normalizeTemplate({ id: uid('template'), name: 'Basis styrke', type: 'Styrke', intensity: 'Styrke', structure: 'Deadbugs 3 x 10\nTåhev 3 x 15\nUtfall 3 x 10 per bein\nPlanke 3 x 30 sek\nPushups 3 x kontrollert', createdAt: todayISO() });
-      const p1 = { id: uid('planned'), templateId: t1.id, date: todayISO(), status: 'planned', notes: 'Hold kontrollert terskel, ikke makse.', createdAt: todayISO() };
-      const p2 = { id: uid('planned'), templateId: t2.id, date: todayISO(), status: 'planned', notes: '', createdAt: todayISO() };
+      const p1 = { id: uid('planned'), templateId: t1.id, templateSnapshot: templateSnapshotFromTemplate(t1), date: todayISO(), status: 'planned', notes: 'Hold kontrollert terskel, ikke makse.', createdAt: todayISO() };
+      const p2 = { id: uid('planned'), templateId: t2.id, templateSnapshot: templateSnapshotFromTemplate(t2), date: todayISO(), status: 'planned', notes: '', createdAt: todayISO() };
       state.templates.push(t1, t2);
       state.planned.push(p1, p2);
       render();
