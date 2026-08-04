@@ -205,12 +205,29 @@ export function normalizeTemplates(templates = []) {
   return Array.isArray(templates) ? templates.map(normalizeTemplate).filter(template => template.id) : [];
 }
 
+function normalizeOptionalTemplateSnapshot(snapshot) {
+  if (!snapshot || typeof snapshot !== 'object' || Array.isArray(snapshot)) return null;
+  return normalizeTemplate(snapshot);
+}
+
+export function normalizePlannedItems(items = []) {
+  return Array.isArray(items)
+    ? items
+        .filter(item => item && typeof item === 'object' && !Array.isArray(item))
+        .map(item => ({
+          ...item,
+          templateSnapshot: normalizeOptionalTemplateSnapshot(item.templateSnapshot)
+        }))
+    : [];
+}
+
 export function normalizeCompletedItems(items = []) {
   return Array.isArray(items)
     ? items
         .filter(item => item && typeof item === 'object' && !Array.isArray(item))
         .map(item => ({
           ...item,
+          templateSnapshot: normalizeOptionalTemplateSnapshot(item.templateSnapshot),
           raceResult: normalizeRaceResult(item.raceResult),
           heartRateZoneDistribution: normalizeHeartRateZoneDistribution(item.heartRateZoneDistribution)
         }))
@@ -241,7 +258,7 @@ export function normalizeAppState(input = {}) {
   return {
     exercises: normalizeExerciseLibrary(input.exercises),
     templates: normalizeTemplates(input.templates),
-    planned: Array.isArray(input.planned) ? input.planned : [],
+    planned: normalizePlannedItems(input.planned),
     completed: normalizeCompletedItems(input.completed),
     wellness: Array.isArray(input.wellness) ? input.wellness : [],
     challenges: Array.isArray(input.challenges) ? input.challenges : [],
