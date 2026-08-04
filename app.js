@@ -114,6 +114,8 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     import { createHeartRateZonesUi } from './heart-rate-zones-ui.js';
     import { normalizeExercise } from './domain-exercises.js';
     import {
+      assessHeartRateZoneCompliance,
+      heartRateZoneComplianceSummary,
       normalizeHeartRateZoneSet,
       normalizeHeartRateZoneSets
     } from './domain-heart-rate-zones.js';
@@ -135,7 +137,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       xWorkoutSuggestion
     } from './domain-training-plan.js';
 
-const APP_VERSION = 'v174a1';
+const APP_VERSION = 'v174b';
     const APP_CACHE_NAME = `treningsapp-${APP_VERSION}`;
 
     const firebaseConfig = {
@@ -2250,6 +2252,26 @@ const APP_VERSION = 'v174a1';
       });
     }
 
+    function heartRateZoneComplianceForCompleted(completed) {
+      const profile = normalizePersonProfile(state.settings.personProfile);
+      return assessHeartRateZoneCompliance({
+        distribution: completed?.heartRateZoneDistribution,
+        completed,
+        template: completedTemplate(completed),
+        profile,
+        rules: getCoachRules(),
+        intensityContext: completedIntensityContext(completed, profile)
+      });
+    }
+
+    function heartRateZoneComplianceForItems(items = []) {
+      return heartRateZoneComplianceSummary(items, {
+        resolveTemplate: completedTemplate,
+        profile: normalizePersonProfile(state.settings.personProfile),
+        rules: getCoachRules()
+      });
+    }
+
     function completedItemsForIntensityDomain(items = []) {
       return items.map(completed => ({
         ...completed,
@@ -2914,6 +2936,7 @@ const APP_VERSION = 'v174a1';
           trainingEffectInfo,
           trainingEffectCategory,
           heartRateContextLabel,
+          heartRateZoneCompliance: heartRateZoneComplianceForCompleted,
           lastWorkoutCoachNote,
           structuredWorkoutSummaryHtml,
           exercisePlanSummaryHtml,
@@ -5634,6 +5657,7 @@ const APP_VERSION = 'v174a1';
       const load7 = loadBreakdown(last7Days);
       const intensityBalance14 = canonicalBalanceForCompleted(last14Days, today);
       const heartRateCompliance14 = heartRateComplianceForCompleted(last14Days, today);
+      const heartRateZoneCompliance28 = heartRateZoneComplianceForItems(last28Days);
 
       const bodySignals14 = {
         pain: last14Days.filter(hasPainSignal).length + injuryCheckins14.filter(item => Number(item.painNow) > 0).length,
@@ -5713,7 +5737,7 @@ const APP_VERSION = 'v174a1';
         bodySignals14, consecutiveDays, daysSinceLast, lastWorkout,
         volumeRamp, comeback, effectiveWeeklyTarget,
         latestHrv, latestRestingHr,
-        goldenZone, heartRateCompliance14, intensityBalance14,
+        goldenZone, heartRateCompliance14, heartRateZoneCompliance28, intensityBalance14,
         weekPlanRoles, completedRoles, missingRoles,
         activeChallenge, nextPlanned, tomorrowPlanned,
         hardCount7, hardCount14, easyCount14,
@@ -6066,7 +6090,7 @@ const APP_VERSION = 'v174a1';
 
     function buildCoachBasis(ctx) {
       const { last14Days, bodySignals14, consecutiveDays, daysSinceLast,
-              goldenZone, heartRateCompliance14, intensityBalance14, latestHrv, latestRestingHr,
+              goldenZone, heartRateCompliance14, heartRateZoneCompliance28, intensityBalance14, latestHrv, latestRestingHr,
               gradedPain, dailyReadiness, structuredIntervals, injuryCheckins14,
               volumeRamp, comeback } = ctx;
       const parts = [];
@@ -6121,6 +6145,10 @@ const APP_VERSION = 'v174a1';
           pulseSignals.push(`${heartRateCompliance14.qualityViolationCount} kvalitet over kontrollert sone`);
         }
         parts.push(`Gylne sonen: ${goldenZone.low}–${goldenZone.high} bpm${pulseSignals.length ? ` (${pulseSignals.join(', ')})` : ''}`);
+      }
+      if (heartRateZoneCompliance28?.knownCount) {
+        const inPlan = heartRateZoneCompliance28.counts.aligned + heartRateZoneCompliance28.counts.mostly_aligned;
+        parts.push(`Soneetterlevelse: ${inPlan} av ${heartRateZoneCompliance28.knownCount} vurderbare økter i eller stort sett i tråd med plan`);
       }
       if (structuredIntervals?.last14.count > 0) {
         const latest = structuredIntervals.latest?.date ? `, siste ${formatDate(structuredIntervals.latest.date)}` : '';
@@ -6422,6 +6450,7 @@ const APP_VERSION = 'v174a1';
       renderTrainingLevelAssessment(coachCtx);
       renderBakkenPatterns();
       renderStructuredIntervalInsights(today);
+      renderHeartRateZoneComplianceInsight(today);
       renderInjurySignalInsight(today);
       renderWellnessInsights();
       const insightCoachNote = document.getElementById('insightCoachNote');
@@ -6457,6 +6486,37 @@ const APP_VERSION = 'v174a1';
         ? `Siste: ${formatDate(insight.latest.date)} · ${insight.latest.name} · ${insight.latest.summary}`
         : '';
       note.textContent = 'Strukturert intervallarbeid hjelper deg å se faktisk kvalitetstid, ikke bare total økttid.';
+    }
+
+    function renderHeartRateZoneComplianceInsight(today) {
+      const card = document.getElementById('insightHeartRateComplianceCard');
+      const container = document.getElementById('insightHeartRateCompliance');
+      if (!card || !container) return;
+      const start = addDays(today, -27);
+      const items = state.completed.filter(item => item.date >= start && item.date <= today);
+      const summary = heartRateZoneComplianceForItems(items);
+      if (!summary.totalCount) {
+        card.style.display = 'none';
+        container.innerHTML = '';
+        return;
+      }
+      const inPlan = summary.counts.aligned + summary.counts.mostly_aligned;
+      const latest = summary.latest;
+      card.style.display = '';
+      container.innerHTML = `
+        <div class="zone-compliance-insight">
+          <div class="insight-grid">
+            <div class="insight-stat"><strong>${inPlan}/${summary.knownCount || '-'}</strong><span>I tråd</span></div>
+            <div class="insight-stat"><strong>${summary.counts.above_plan}</strong><span>Hardere</span></div>
+            <div class="insight-stat"><strong>${summary.counts.below_plan}</strong><span>Roligere</span></div>
+          </div>
+          ${latest ? `<div class="zone-compliance-latest status-${escapeHtml(latest.status)}">
+            <strong>Siste vurdering: ${escapeHtml(latest.label)}</strong>
+            <span>${escapeHtml(formatDate(latest.date))} · ${escapeHtml(latest.name)}</span>
+            <p>${escapeHtml(latest.summary)}</p>
+          </div>` : ''}
+          <p class="small-note">RPE, smerte og kroppssignaler veier tyngre enn pulssoneprosentene. Intervaller vurderes med ekstra varsomhet.</p>
+        </div>`;
     }
 
     function renderInjurySignalInsight(today) {
