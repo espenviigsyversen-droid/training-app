@@ -207,9 +207,8 @@ Treningsapp/
 
 ## Neste steg (prioritert)
 
-1. **v174a-v174b - Sonefordeling og forklarbar etterlevelse**
-   - Registrer Garmin-prosent per sone på fullførte økter og behold sone-snapshot.
-   - Sammenlign forsiktig med planlagt intensjon uten å overstyre RPE eller kroppssignaler.
+1. **v174b - Forklarbar soneetterlevelse**
+   - Sammenlign den lagrede sonefordelingen forsiktig med planlagt intensjon uten å overstyre RPE eller kroppssignaler.
 2. **v175 - Oppvarming og nedtrapping**
    - Gjenbruk samme øvelsesmodell for løpe- og kondisjonsøkter uten å endre intervallmodellen.
 3. **v176a-v176b - Garmin CSV-import**
@@ -242,6 +241,13 @@ Treningsapp/
 - De faktiske sonene kan registreres med kilde og testdato, og alle grenser kan endres manuelt senere.
 - `app-state.js`, lokal recovery/backup og `training-repository.js` håndterer `heartRateZoneSets` bakoverkompatibelt.
 - Ingen eksempeløkter, treningsresepter, laktattrinn eller full testprotokoll er lagt til i datamodellen.
+
+### v174a - Sonefordeling på fullførte økter - Bygget
+
+- Fullførings- og redigeringsflyten kan registrere Garmins prosentandel for sone 1-5, med synlig sum og toleranse for små avrundingsavvik på 98-102 prosent.
+- Den aktive pulssoneprofilen lagres som snapshot på økten, slik at senere endringer av sonene ikke omskriver historikken.
+- Fullført detaljvisning viser en kompakt Garmin-inspirert radgraf med sonegrenser, prosent og estimert tid basert på øktens varighet.
+- Gamle økter uten sonefordeling normaliseres til `null` og fungerer uendret. v174a gjør ingen vurdering av etterlevelse; dette ligger fortsatt i v174b.
 
 ### v167 - Øktmaler som egen UI-feature - Bygget
 
