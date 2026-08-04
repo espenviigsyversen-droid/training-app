@@ -144,6 +144,9 @@ async function testAsync(name, fn) {
     assessHeartRateZoneCompliance,
     formatHeartRateZoneDuration,
     formatHeartRateZoneRange,
+    heartRateReferenceContext,
+    heartRateValueContext,
+    heartRateValueContextLabel,
     heartRateZoneComplianceSummary,
     heartRateZoneDistributionRows,
     heartRateZoneSetSnapshot,
@@ -1976,9 +1979,8 @@ async function testAsync(name, fn) {
     assert.ok(workoutHistoryUiSource.includes('heartRateZoneDistributionRows'), 'history does not use production zone rows');
     assert.ok(workoutHistoryUiSource.includes('Tid i pulssoner'), 'completed detail is missing the heart-rate zone section');
     assert.ok(!workoutHistoryUiSource.includes("row.estimated ? 'ca. '"), 'zone duration should not be prefixed with ca.');
-    assert.ok(!workoutHistoryUiSource.includes('heart-rate-zone-source'), 'zone profile source text should stay hidden in workout detail');
-    assert.ok(app.includes("const APP_VERSION = 'v174b'"), 'visible app version must be v174b');
-    assert.ok(serviceWorker.includes('treningsapp-v174b'), 'cache version must match v174b');
+    assert.ok(app.includes("const APP_VERSION = 'v174c'"), 'visible app version must be v174c');
+    assert.ok(serviceWorker.includes('treningsapp-v174c'), 'cache version must match v174c');
   });
 
   test('v174b evaluates easy and quality sessions without treating zone percentages as a hard truth', () => {
@@ -2073,8 +2075,72 @@ async function testAsync(name, fn) {
     assert.ok(index.includes('id="insightHeartRateComplianceCard"'), 'Insights is missing the compliance card');
     assert.ok(app.includes('heartRateZoneComplianceForItems(last28Days)'), 'coach context does not use the canonical compliance summary');
     assert.ok(app.includes('renderHeartRateZoneComplianceInsight(today)'), 'Insights does not render canonical compliance');
-    assert.ok(app.includes("const APP_VERSION = 'v174b'"), 'visible app version must be v174b');
-    assert.ok(serviceWorker.includes('treningsapp-v174b'), 'cache version must match v174b');
+    assert.ok(app.includes("const APP_VERSION = 'v174c'"), 'visible app version must be v174c');
+    assert.ok(serviceWorker.includes('treningsapp-v174c'), 'cache version must match v174c');
+  });
+
+  test('v174c uses the test profile for zones and keeps the golden zone as a separate coach reference', () => {
+    const zoneSet = normalizeHeartRateZoneSet({
+      id: 'lab-v174c',
+      name: 'Laktatprofil august 2026',
+      sourceType: 'lab',
+      sourceName: 'Idrettens testsenter',
+      testedAt: '2026-08-03',
+      active: true,
+      zones: [
+        { minBpm: 110, maxBpm: 130 }, { minBpm: 130, maxBpm: 156 },
+        { minBpm: 156, maxBpm: 166 }, { minBpm: 166, maxBpm: 174 },
+        { minBpm: 174, maxBpm: 183 }
+      ]
+    });
+    const reference = heartRateReferenceContext({
+      zoneSet,
+      maxHeartRate: 188,
+      thresholdHeartRate: 174,
+      trainingLevel: 'beginner'
+    });
+    const average = heartRateValueContext(149, reference);
+    const maximum = heartRateValueContext(163, reference);
+
+    assert.strictEqual(average.zone.id, 'z2');
+    assert.strictEqual(maximum.zone.id, 'z3');
+    assert.strictEqual(reference.zoneSource.name, 'Laktatprofil august 2026');
+    assert.strictEqual(reference.goldenZone.separateFromTestZones, true);
+    assert.ok(reference.goldenZone.sourceLabel.includes('Bakken-beregnet'));
+    assert.ok(heartRateValueContextLabel(149, reference, { includeGoldenZone: true }).includes('Sone 2'));
+    assert.ok(heartRateValueContextLabel(149, reference, { includeGoldenZone: true }).includes('Bakken-beregnet'));
+    const aiContext = buildAiCoachContext({
+      profile: {
+        goldenZone: reference.goldenZone,
+        heartRateZoneProfile: reference.zoneSet
+      }
+    }, { generatedAt: '2026-08-04T10:00:00.000Z' });
+    assert.strictEqual(aiContext.profile.heartRateZoneProfile.zones[1].label, 'Sone 2');
+    assert.strictEqual(aiContext.profile.heartRateZoneProfile.separateFromGoldenZone, true);
+    assert.strictEqual(aiContext.profile.goldenZone.separateFromTestZones, true);
+  });
+
+  test('v174c safely falls back when no valid test profile exists', () => {
+    const reference = heartRateReferenceContext({
+      maxHeartRate: 188,
+      thresholdHeartRate: 174,
+      trainingLevel: 'beginner'
+    });
+    const value = heartRateValueContext(149, reference);
+    assert.strictEqual(reference.zoneSet, null);
+    assert.strictEqual(value.zone, null);
+    assert.strictEqual(value.maxPercent, 79);
+    assert.strictEqual(value.thresholdPercent, 86);
+    assert.ok(reference.goldenZone);
+  });
+
+  test('v174c wires the canonical pulse reference to completion, Log and coach context', () => {
+    assert.ok(workoutCompletionUiSource.includes('heartRateReferenceForZoneSet'), 'completion should use the shared pulse reference');
+    assert.ok(workoutHistoryUiSource.includes('heartRateReferenceForCompleted'), 'history should resolve the workout pulse source');
+    assert.ok(workoutHistoryUiSource.includes("detailLine('Sonekilde 1–5'"), 'history should disclose the test-zone source');
+    assert.ok(workoutHistoryUiSource.includes("detailLine('Gylne sone'"), 'history should label the separate golden-zone source');
+    assert.ok(app.includes('heartRateZoneProfile: ctx.heartRateZoneProfile'), 'AI coach context should include the active test-zone profile');
+    assert.ok(app.includes('distribution?.zoneSetSnapshot || null'), 'historical zone snapshots should outrank the current profile');
   });
 
   test('structured interval UI fields and summaries are wired into production files', () => {
@@ -2723,7 +2789,17 @@ async function testAsync(name, fn) {
     assert.strictEqual(context.profile.primaryFocus, 'running');
     assert.strictEqual(context.profile.levelLabel, 'Viderekommen');
     assert.strictEqual(context.profile.levelSource, 'user_configured');
-    assert.deepStrictEqual(context.profile.goldenZone, { low: 147, high: 160, maxHeartRate: 190, lowPct: 0.78, highPct: 0.85, appliesTo: 'controlled_running_quality' });
+    assert.deepStrictEqual(context.profile.goldenZone, {
+      low: 147,
+      high: 160,
+      maxHeartRate: 190,
+      lowPct: 0.78,
+      highPct: 0.85,
+      appliesTo: 'controlled_running_quality',
+      source: 'coach_calculated',
+      sourceLabel: null,
+      separateFromTestZones: true
+    });
     assert.strictEqual(context.coachKnowledge.concepts[0].id, 'golden_zone');
     assert.deepStrictEqual(context.coachKnowledge.goldenZoneModel.ranges[2], { level: 'experienced', lowPct: 0.8, highPct: 0.87 });
     assert.strictEqual(context.coachKnowledge.goldenZoneModel.dailyReadinessChangesRange, false);
