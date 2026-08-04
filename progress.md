@@ -249,6 +249,12 @@ Treningsapp/
 - Fullført detaljvisning viser en kompakt Garmin-inspirert radgraf med sonegrenser, prosent og estimert tid basert på øktens varighet.
 - Gamle økter uten sonefordeling normaliseres til `null` og fungerer uendret. v174a gjør ingen vurdering av etterlevelse; dette ligger fortsatt i v174b.
 
+### v174a1 - Kompakt pulssonevisning - Bygget
+
+- Tidsverdiene i pulssonediagrammet vises uten prefikset `ca.`.
+- Profilnavn og estimatforklaring under diagrammet er fjernet for en renere detaljvisning.
+- Datamodell, sone-snapshot og beregning er uendret; v174b er fortsatt neste vurderingsrunde.
+
 ### v167 - Øktmaler som egen UI-feature - Bygget
 
 - Ny `workout-template-ui.js` eier skjema-lesing og -fylling, strukturert intervall-preview, select-options, sortering, søk/filter, coach-klarhet og bibliotek-rendering.
