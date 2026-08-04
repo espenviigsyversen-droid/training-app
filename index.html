@@ -1393,6 +1393,19 @@
           <div><label>Makspuls</label><input id="completeMaxHr" type="number" min="0" step="1" /></div>
         </div>
         <div id="completeGoldenZoneHint" class="scale-help" hidden></div>
+        <details id="completeHeartRateZonesSection" class="optional-form-section heart-rate-zone-entry">
+          <summary>Pulssoner fra Garmin</summary>
+          <p id="completeHrZoneProfile" class="small-note"></p>
+          <p class="small-note">Registrer prosentandelen Garmin viser. Avrunding mellom 98 og 102 % godtas.</p>
+          <div class="heart-rate-zone-input-list">
+            <label><span><strong>Sone 1</strong><small id="completeHrZone1Range">Ikke satt</small></span><input id="completeHrZone1Percent" type="number" min="0" max="100" step="0.1" inputmode="decimal" placeholder="%" /></label>
+            <label><span><strong>Sone 2</strong><small id="completeHrZone2Range">Ikke satt</small></span><input id="completeHrZone2Percent" type="number" min="0" max="100" step="0.1" inputmode="decimal" placeholder="%" /></label>
+            <label><span><strong>Sone 3</strong><small id="completeHrZone3Range">Ikke satt</small></span><input id="completeHrZone3Percent" type="number" min="0" max="100" step="0.1" inputmode="decimal" placeholder="%" /></label>
+            <label><span><strong>Sone 4</strong><small id="completeHrZone4Range">Ikke satt</small></span><input id="completeHrZone4Percent" type="number" min="0" max="100" step="0.1" inputmode="decimal" placeholder="%" /></label>
+            <label><span><strong>Sone 5</strong><small id="completeHrZone5Range">Ikke satt</small></span><input id="completeHrZone5Percent" type="number" min="0" max="100" step="0.1" inputmode="decimal" placeholder="%" /></label>
+          </div>
+          <p id="completeHrZoneTotal" class="heart-rate-zone-total">Fyll inn prosentene Garmin viser etter økten.</p>
+        </details>
         <div class="grid-2">
           <div>
             <label>Høydemeter</label>
