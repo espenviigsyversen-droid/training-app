@@ -38,6 +38,13 @@ const { extractOutputText, extractWebMetadata, providerError, runOpenAiCoach } =
 const { buildAiCoachSystemPrompt } = require("../ai/system-prompt");
 const { getAiPreferences, saveAiPreferences } = require("../ai/ai-preferences");
 const { publicAiProfileCatalog, resolveAiResponseProfile, validateAiPreferences } = require("../ai/model-profiles");
+const {
+  extractJsonObject,
+  handleAiCoachAssessWorkout,
+  normalizeAssessment,
+  validateWorkout
+} = require("../ai/workout-assessment");
+const { buildWorkoutAssessmentPrompt } = require("../ai/workout-assessment-prompt");
 
 const TEST_ENCRYPTION_SECRET = "test-encryption-secret-that-is-longer-than-thirty-two-characters";
 
@@ -421,6 +428,55 @@ function fakeChatDb() {
     assert.strictEqual(logs.length, 1);
     assert.ok(!JSON.stringify(logs).includes("Hvorfor hvile"));
     assert.ok(!JSON.stringify(logs).includes("sk-test"));
+  });
+
+  await test("workout assessment validates bounded input and strict structured output", () => {
+    const workout = { schemaVersion: 1, date: "2026-08-04", label: "Easy Run", averageHeartRate: 149 };
+    assert.strictEqual(validateWorkout(workout).valid, true);
+    assert.strictEqual(validateWorkout({ ...workout, notes: "must not pass" }).valid, false);
+    assert.strictEqual(validateWorkout({ ...workout, bodyResponse: { painBefore: 1, privateNote: "must not pass" } }).valid, false);
+    const parsed = extractJsonObject('```json\n{"headline":"Rolig økt","evidence":["92 % i sone 2.","RPE 3/10."],"planFit":"I tråd med planen.","nextStep":"Fortsett normalt.","uncertainty":""}\n```');
+    assert.strictEqual(normalizeAssessment(parsed).headline, "Rolig økt");
+    assert.strictEqual(normalizeAssessment({ headline: "Ufullstendig" }), null);
+    const prompt = buildWorkoutAssessmentPrompt();
+    assert.match(prompt, /uten tidsserie/);
+    assert.match(prompt, /Ikke gi medisinsk diagnose/);
+    assert.match(prompt, /kun ett gyldig JSON-objekt/);
+  });
+
+  await test("workout assessment is explicit, stateless, without web search and does not persist training data", async () => {
+    const db = fakeDb({ "apiKeys/user-1": { openaiEncrypted: encryptOpenAiKey("sk-test", TEST_ENCRYPTION_SECRET) } });
+    let requestBody = null;
+    const result = await handleAiCoachAssessWorkout({
+      db,
+      uid: "user-1",
+      data: {
+        context: validContext(),
+        workout: { schemaVersion: 1, date: "2026-08-04", label: "Easy Run", averageHeartRate: 149, rpe: 3 }
+      },
+      logger: { info: () => {}, warn: () => {} },
+      encryptionSecret: TEST_ENCRYPTION_SECRET,
+      fetchImpl: async (_url, options) => {
+        requestBody = JSON.parse(options.body);
+        return response({
+          id: "resp_workout",
+          output_text: JSON.stringify({
+            headline: "Kontrollert rolig økt",
+            evidence: ["Snittpulsen var 149 bpm.", "RPE var 3/10."],
+            planFit: "Økten støttet en rolig dag.",
+            nextStep: "Fortsett normal plan dersom kroppen kjennes bra.",
+            uncertainty: ""
+          }),
+          usage: { input_tokens: 200, output_tokens: 80, total_tokens: 280 }
+        });
+      }
+    });
+    assert.strictEqual(result.ok, true);
+    assert.strictEqual(result.assessment.evidence.length, 2);
+    assert.strictEqual(requestBody.store, false);
+    assert.ok(!requestBody.tools);
+    assert.ok(requestBody.safety_identifier);
+    assert.ok(![...db._store.keys()].some(key => key.includes("completed")));
   });
 
   await test("chat persistence contracts normalize bounded owner resources", () => {
