@@ -112,6 +112,13 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     import { createWorkoutCompletionUi } from './workout-completion-ui.js';
     import { createWorkoutHistoryUi } from './workout-history-ui.js';
     import { buildWorkoutCoachAssessment } from './domain-workout-assessment.js';
+    import {
+      aiWorkoutAssessmentFingerprint,
+      buildAiWorkoutAssessmentInput,
+      isAiWorkoutAssessmentStale,
+      normalizeAiWorkoutAssessment,
+      storedAiWorkoutAssessment
+    } from './domain-ai-workout-assessment.js';
     import { createHeartRateZonesUi } from './heart-rate-zones-ui.js';
     import { createTrainingImportUi } from './training-import-ui.js';
     import { normalizeExercise } from './domain-exercises.js';
@@ -142,7 +149,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       xWorkoutSuggestion
     } from './domain-training-plan.js';
 
-const APP_VERSION = 'v176d1';
+const APP_VERSION = 'v176e';
     const APP_CACHE_NAME = `treningsapp-${APP_VERSION}`;
 
     const firebaseConfig = {
@@ -3010,6 +3017,11 @@ const APP_VERSION = 'v176d1';
           exercisePlanSummaryHtml,
           templateCalendarKind,
           uniqueValues,
+          aiAssessmentState: completed => {
+            const assessment = normalizeAiWorkoutAssessment(completed.aiCoachAssessment);
+            const fingerprint = aiWorkoutAssessmentFingerprint(workoutAiAssessmentInput(completed));
+            return { assessment, stale: isAiWorkoutAssessmentStale(assessment, fingerprint) };
+          },
           todayISO
         });
       }
@@ -3021,6 +3033,63 @@ const APP_VERSION = 'v176d1';
       if (!completed) return;
       document.getElementById('workoutDetailContent').innerHTML = getWorkoutHistoryUi().detailHtml(completed);
       document.getElementById('workoutDetailModal').classList.add('active');
+    };
+
+    const pendingAiWorkoutAssessments = new Set();
+
+    function workoutAiAssessmentInput(completed) {
+      const template = completedTemplate(completed);
+      return buildAiWorkoutAssessmentInput({
+        completed,
+        template,
+        loadAssessment: completedLoadAssessment(completed),
+        zoneCompliance: heartRateZoneComplianceForCompleted(completed)
+      });
+    }
+
+    window.requestAiWorkoutAssessment = async function(completedId) {
+      const completed = state.completed.find(item => item.id === completedId);
+      if (!completed || pendingAiWorkoutAssessments.has(completedId)) return;
+      pendingAiWorkoutAssessments.add(completedId);
+      const button = document.querySelector(`.ai-workout-assessment-btn[data-workout-id="${CSS.escape(completedId)}"]`);
+      const originalLabel = button?.textContent || '';
+      if (button) {
+        button.disabled = true;
+        button.textContent = 'Vurderer økten …';
+      }
+      try {
+        const workout = workoutAiAssessmentInput(completed);
+        const inputFingerprint = aiWorkoutAssessmentFingerprint(workout);
+        const result = await aiCoachClient.assessWorkout({
+          workout,
+          context: buildCurrentAiCoachContext()
+        });
+        if (!result?.ok) {
+          alert(result?.message || 'AI-coachen kunne ikke vurdere økten. Prøv igjen senere.');
+          return;
+        }
+        const assessment = storedAiWorkoutAssessment(result.assessment, inputFingerprint);
+        if (!assessment) {
+          alert('AI-coachen ga et ufullstendig svar. Ingen vurdering ble lagret.');
+          return;
+        }
+        const updatedCompleted = { ...completed, aiCoachAssessment: assessment, updatedAt: new Date().toISOString() };
+        await safeStateWrite({
+          apply: () => {
+            state.completed = state.completed.map(item => item.id === completedId ? updatedCompleted : item);
+          },
+          write: () => fsSet('completed', completedId, updatedCompleted),
+          afterApply: () => window.openWorkoutDetail(completedId),
+          successMessage: 'AI-vurdering lagret',
+          errorMessage: 'Kunne ikke lagre AI-vurderingen'
+        });
+      } finally {
+        pendingAiWorkoutAssessments.delete(completedId);
+        if (button?.isConnected) {
+          button.disabled = false;
+          button.textContent = originalLabel;
+        }
+      }
     };
 
     function workoutCard(planned, options = {}) {
