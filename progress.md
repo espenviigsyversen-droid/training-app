@@ -27,7 +27,7 @@ Standard Bakken-uke: Hoved-terskel → Støtte-terskel → Lang rolig → Valgfr
 **Hosting:** GitHub Pages.  
 **Backend:** Firebase (prosjekt `home-tasks-app-18de3`) — Firestore + Google Auth.  
 **Frontend:** Vanilla JS + HTML + CSS, single-page app, tab-navigasjon.  
-**Versjon:** v166 (konstant i `app.js`).
+**Versjon:** v175b (konstant i `app.js`).
 
 ### Filer
 
@@ -207,9 +207,9 @@ Treningsapp/
 
 ## Neste steg (prioritert)
 
-1. **v176a-v176b - Garmin CSV-import**
-   - Design mapping, fingeravtrykk og duplikatpolicy først.
-   - Bygg deretter en bekreftet importveiviser som aldri overskriver manuelle felt automatisk.
+1. **v176b - Garmin CSV-importveiviser**
+   - Bygg videre på den ferdige v176a-adapteren med forhåndsvisning, eksplisitte valg og kontrollert persistence.
+   - Veiviseren skal aldri overskrive manuelle felt automatisk.
 2. **v177 - Nedoverbelastning**
    - Skill stigning/nedstigning og kondisjons-/muskelbelastning.
 3. **v178 - Kroppsmål for klær og utstyr**
@@ -284,6 +284,16 @@ Treningsapp/
 - Øvelsesflaten forklarer forskjellen mellom en gjenbrukbar enkeltøvelse og en komplett øktmal.
 - Mal-kortene viser et kort innholdssammendrag, mens full struktur og coachgrunnlag ligger i en valgfri detaljvisning.
 - Datamodell, snapshots, normalisering, Firestore og backupformat er uendret.
+
+### v176a - Garmin CSV-importkontrakt og ren adapter - Bygget
+
+- `GARMIN_CSV_IMPORT_DESIGN.md` dokumenterer den verifiserte 44-kolonners Garmin Activities-eksporten, aktivitetsspesifikke enheter, kanonisk mapping, minimert `externalData.garmin`, fingeravtrykk, matchnivåer og merge-policy.
+- Ny `garmin-csv-import.js` parser CSV uten DOM/Firebase/state og håndterer BOM, siterte komma, desimaltid, `--`, tusenskilletegn og apostrof-prefikset negativ verdi.
+- Den lokale eksporten med 106 aktiviteter parses uten avviste rader og brukes bare som lokal verifikasjon; personlig CSV skal ikke lastes opp.
+- Eksporten har ikke stabil Garmin-ID eller pulssonefordeling. Adapteren bruker derfor versjonert fingeravtrykk og oppretter aldri `heartRateZoneDistribution`.
+- Match klassifiseres som sikkert, mulig eller ingen treff. Eksisterende Garmin-fingeravtrykk oppdages som duplikat.
+- Ren merge fyller bare tomme objektive felt som standard. Manuelle verdier, RPE, kroppssignal, notater og annen ekstern proveniens bevares.
+- Ingen UI, Firestore-skriving, state-normalisering, runtime-import eller PWA-versjonsbump er gjort i v176a. v176b bygger den eksplisitte importveiviseren på denne kontrakten.
 
 ### v167 - Øktmaler som egen UI-feature - Bygget
 
