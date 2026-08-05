@@ -75,6 +75,7 @@ Foreslått Functions-deploy:
 ```powershell
 firebase deploy --only functions:aiCoachStatus,functions:aiCoachSaveOpenAiKey,functions:aiCoachTestOpenAiKey,functions:aiCoachDeleteOpenAiKey
 firebase deploy --only functions:aiCoachChat
+firebase deploy --only functions:aiCoachAssessWorkout
 ```
 
 ## Konfigurasjon
@@ -120,4 +121,3 @@ Før bredere bruk bør Firebase App Check designes og aktiveres i en egen sikker
 - kontroll av produksjonsregler
 - ekte OpenAI-kall
 - kontroll av faktiske kostnader
-
