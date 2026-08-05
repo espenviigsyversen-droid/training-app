@@ -137,6 +137,7 @@ export function createWorkoutTemplateUi({
 }) {
   let coachFilter = 'all';
   let exerciseDrafts = { warmup: [], main: [], cooldown: [] };
+  let workspace = 'templates';
 
   const exerciseBlockConfig = {
     warmup: { title: 'Oppvarming', rowsId: 'templateWarmupExerciseRows' },
@@ -146,6 +147,37 @@ export function createWorkoutTemplateUi({
 
   function element(id) {
     return documentRef.getElementById(id);
+  }
+
+  function setWorkspace(nextWorkspace = 'templates') {
+    workspace = nextWorkspace === 'exercises' ? 'exercises' : 'templates';
+    const showingExercises = workspace === 'exercises';
+    element('templateWorkspaceCard')?.classList.toggle('hidden', showingExercises);
+    element('templateEditorCard')?.classList.toggle('library-workspace-hidden', showingExercises);
+    element('exerciseWorkspaceCard')?.classList.toggle('hidden', !showingExercises);
+    element('templateWorkspaceTab')?.classList.toggle('active', !showingExercises);
+    element('exerciseWorkspaceTab')?.classList.toggle('active', showingExercises);
+    element('templateWorkspaceTab')?.setAttribute('aria-selected', String(!showingExercises));
+    element('exerciseWorkspaceTab')?.setAttribute('aria-selected', String(showingExercises));
+    return workspace;
+  }
+
+  function setEditorVisible(visible, { focus = true } = {}) {
+    const card = element('templateEditorCard');
+    if (!card) return;
+    card.classList.toggle('hidden', !visible);
+    if (visible) {
+      setWorkspace('templates');
+      card.querySelector('.template-editor-section')?.setAttribute('open', '');
+      card.scrollIntoView?.({ block: 'start', behavior: 'smooth' });
+      if (focus) element('templateName')?.focus();
+    }
+  }
+
+  function startNewForm() {
+    clearForm({ keepOpen: true });
+    if (element('templateEditorTitle')) element('templateEditorTitle').textContent = 'Ny øktmal';
+    setEditorVisible(true);
   }
 
   function durationSecondsFromParts(minutesId, secondsId) {
@@ -476,6 +508,8 @@ export function createWorkoutTemplateUi({
 
   function fillForm(template) {
     if (!template) return;
+    setWorkspace('templates');
+    setEditorVisible(true, { focus: false });
     element('editingTemplateId').value = template.id;
     element('templateName').value = template.name;
     const state = getState();
@@ -492,9 +526,11 @@ export function createWorkoutTemplateUi({
     setExercisePlanForm(template.exercisePlan);
     element('templateSubmitBtn').textContent = 'Lagre endringer';
     element('cancelEditTemplateBtn').classList.remove('hidden');
+    if (element('templateEditorTitle')) element('templateEditorTitle').textContent = `Rediger ${template.name || 'øktmal'}`;
+    element('templateName')?.focus();
   }
 
-  function clearForm() {
+  function clearForm({ keepOpen = false } = {}) {
     element('editingTemplateId').value = '';
     element('templateName').value = '';
     element('templateRole').value = '';
@@ -508,6 +544,8 @@ export function createWorkoutTemplateUi({
     clearExercisePlanForm();
     element('templateSubmitBtn').textContent = 'Lagre øktmal';
     element('cancelEditTemplateBtn').classList.add('hidden');
+    if (element('templateEditorTitle')) element('templateEditorTitle').textContent = 'Ny øktmal';
+    if (!keepOpen) setEditorVisible(false, { focus: false });
   }
 
   function refreshFormOptions() {
@@ -556,6 +594,14 @@ export function createWorkoutTemplateUi({
       labelsFromMap(template.recommendedWhen, RECOMMENDED_WHEN_LABELS),
       labelsFromMap(template.avoidWhen, AVOID_WHEN_LABELS)
     ].filter(Boolean);
+    const structureLines = String(template.structure || '')
+      .split(/\r?\n/)
+      .map(line => line.trim())
+      .filter(Boolean);
+    const contentSummary = exercisePlanSummary(template.exercisePlan)
+      || structuredWorkoutSummary(template.structuredWorkout)
+      || structureLines.slice(0, 2).join(' · ')
+      || 'Ingen øktbeskrivelse lagt til.';
     return `
       <div class="workout-card template-card">
         <div class="workout-top">
@@ -565,13 +611,19 @@ export function createWorkoutTemplateUi({
           </div>
           <span class="tag ${readiness.ready ? 'tag-ready' : 'tag-warning'}">${readiness.ready ? 'Coach-klar' : `Mangler ${readiness.missing.length}`}</span>
         </div>
-        ${tags.length ? `<div class="template-tags">${tags.map(tag => `<span class="tag template-tag">${escapeHtml(tag)}</span>`).join('')}</div>` : ''}
-        ${readiness.ready ? '' : `<div class="template-missing">${readiness.missing.map(item => `<span>${escapeHtml(item)}</span>`).join('')}</div>`}
-        ${structuredWorkoutSummaryHtml(template.structuredWorkout)}
-        ${exercisePlanSummaryHtml(template.exercisePlan)}
-        ${template.structure ? `<p class="template-structure">${escapeHtml(template.structure)}</p>` : ''}
-        ${template.sourceUrl ? `<a class="template-source-link" href="${escapeHtml(template.sourceUrl)}" target="_blank" rel="noopener noreferrer">Åpne øktdemonstrasjon</a>` : ''}
-        <div class="button-row">
+        <p class="template-card-summary">${escapeHtml(contentSummary)}</p>
+        <details class="template-card-details">
+          <summary>Vis innhold og coachgrunnlag</summary>
+          <div class="template-card-details-body">
+            ${tags.length ? `<div class="template-tags">${tags.map(tag => `<span class="tag template-tag">${escapeHtml(tag)}</span>`).join('')}</div>` : ''}
+            ${readiness.ready ? '' : `<div class="template-missing">${readiness.missing.map(item => `<span>${escapeHtml(item)}</span>`).join('')}</div>`}
+            ${structuredWorkoutSummaryHtml(template.structuredWorkout)}
+            ${exercisePlanSummaryHtml(template.exercisePlan)}
+            ${template.structure ? `<p class="template-structure">${escapeHtml(template.structure)}</p>` : ''}
+            ${template.sourceUrl ? `<a class="template-source-link" href="${escapeHtml(template.sourceUrl)}" target="_blank" rel="noopener noreferrer">Åpne øktdemonstrasjon</a>` : ''}
+          </div>
+        </details>
+        <div class="button-row template-card-actions">
           <button class="btn-primary" onclick="editTemplate('${escapeHtml(template.id)}')">Rediger</button>
           <button class="btn-soft" onclick="deleteTemplate('${escapeHtml(template.id)}')">Slett</button>
         </div>
@@ -709,6 +761,8 @@ export function createWorkoutTemplateUi({
     updateExercise,
     removeExercise,
     setCoachFilter,
+    setWorkspace,
+    startNewForm,
     toggleStrengthFields,
     toggleStructuredWorkoutFields,
     structuredWorkoutSummaryHtml,
