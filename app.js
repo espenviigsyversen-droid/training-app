@@ -111,6 +111,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     import { createExerciseLibraryUi } from './exercise-library-ui.js';
     import { createWorkoutCompletionUi } from './workout-completion-ui.js';
     import { createWorkoutHistoryUi } from './workout-history-ui.js';
+    import { buildWorkoutCoachAssessment } from './domain-workout-assessment.js';
     import { createHeartRateZonesUi } from './heart-rate-zones-ui.js';
     import { createTrainingImportUi } from './training-import-ui.js';
     import { normalizeExercise } from './domain-exercises.js';
@@ -141,7 +142,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       xWorkoutSuggestion
     } from './domain-training-plan.js';
 
-const APP_VERSION = 'v176c';
+const APP_VERSION = 'v176d';
     const APP_CACHE_NAME = `treningsapp-${APP_VERSION}`;
 
     const firebaseConfig = {
@@ -2443,38 +2444,13 @@ const APP_VERSION = 'v176c';
       if (!completed) return '';
       const template = completedTemplate(completed);
       const assessment = completedLoadAssessment(completed);
-      const painBefore = numberOrZero(completed.bodyStatus?.painBefore);
-      const painAfter = numberOrZero(completed.bodyStatus?.painAfter);
-      const adaptation = completed.bodyStatus?.adaptation || '';
-      const incline = numberOrZero(completed.treadmillInclinePercent);
-      const elevationGain = numberOrZero(completed.elevationGainM);
-      const distance = numberOrZero(completed.distanceKm);
-      const elevationPerKm = distance ? elevationGain / distance : 0;
-      const hillContext = incline >= 4 || elevationPerKm >= 20 || elevationGain >= 150;
-      const runningBakkenFocus = profile.primaryFocus === 'running' && profile.philosophy === 'bakken_threshold';
-      const intro = `Siste økt (${template.name}) vurderes som ${assessment.label.toLowerCase()}.`;
-
-      if (painAfter >= 4 || painAfter > painBefore + 1) {
-        return `${intro} Siden smerte ble registrert eller økte, bør neste økt være rolig, alternativ eller hvile hvis samme område fortsatt kjennes. ${coachPrincipleLine(['body_signals_first', 'recovery_is_training'])}`;
-      }
-      if (assessment.level === 'high') {
-        return runningBakkenFocus
-          ? `${intro} Med Bakken-inspirert løpsfokus bør neste økt gi overskudd tilbake: rolig volum, mobilitet eller hvile før mer kvalitet. ${coachPrincipleLine(['golden_zone', 'fresh_legs'])}`
-          : `${intro} Neste økt bør trolig være rolig eller kontrollert, spesielt hvis beina kjennes tunge.`;
-      }
-      if (adaptation && adaptation !== 'none') {
-        return `${intro} Økten ble tilpasset (${adaptationLabel(adaptation).toLowerCase()}). Bruk neste økt til å bekrefte at kroppen responderer fint før du øker belastningen. ${coachPrincipleLine(['body_signals_first'])}`;
-      }
-      if (assessment.intensityContext?.highPulseBase) {
-        return `${intro} Dette teller som base/rolig støtte, men pulsen viser at den ikke var helt lett. Neste kvalitet bør komme først når beina kjennes friske; ellers bygg videre rolig. ${coachPrincipleLine(['easy_support', 'golden_zone'])}`;
-      }
-      if (hillContext && assessment.level === 'moderate') {
-        return `${intro} Bakke eller møllestigning forklarer noe av innsatsen, så vurder neste økt etter bein og pulsrespons, ikke bare tempo.`;
-      }
-      if (assessment.level === 'moderate') {
-        return `${intro} Dette er en fin treningsbelastning, men neste kvalitetsøkt bør helst komme med friske bein. ${coachPrincipleLine(['fresh_legs'])}`;
-      }
-      return `${intro} Kroppen ser ut til å tåle normal plan videre, så lenge dagsformen fortsatt er grei.`;
+      return buildWorkoutCoachAssessment({
+        completed,
+        template,
+        loadAssessment: assessment,
+        zoneCompliance: heartRateZoneComplianceForCompleted(completed),
+        trainingProfile: profile
+      }).text;
     }
 
     function weeklyTrainingStatus(weekItems, weekSummary, goals, profile) {
@@ -3017,7 +2993,6 @@ const APP_VERSION = 'v176c';
           formatRaceTime,
           raceDistanceLabel,
           normalizeRaceResult,
-          normalizePersonProfile,
           normalizeTrainingProfile,
           completedTemplate,
           completedDurationLabel,
@@ -3031,7 +3006,6 @@ const APP_VERSION = 'v176c';
           trainingEffectCategory,
           heartRateReferenceForCompleted,
           heartRateZoneCompliance: heartRateZoneComplianceForCompleted,
-          lastWorkoutCoachNote,
           structuredWorkoutSummaryHtml,
           exercisePlanSummaryHtml,
           templateCalendarKind,
@@ -7182,7 +7156,7 @@ const APP_VERSION = 'v176c';
           const keys = await caches.keys();
           await Promise.all(keys.filter(key => key.startsWith('treningsapp-')).map(key => caches.delete(key)));
         }
-        await Promise.all(['./index.html', './styles.css', './app.js', './ai-coach-client.js', './ai-coach-ui.js', './domain-core.js', './domain-coach.js', './domain-goals.js', './domain-coach-rules.js', './domain-fitness.js', './domain-exercises.js', './domain-heart-rate-zones.js', './garmin-csv-import.js', './training-import-controller.js', './training-import-ui.js', './app-state.js', './local-state-store.js', './training-repository.js', './domain-training-plan.js', './calendar-ui.js', './workout-template-ui.js', './workout-completion-ui.js', './workout-history-ui.js', './exercise-library-ui.js', './heart-rate-zones-ui.js', './data/coach-rules.json', './service-worker.js'].map(path =>
+        await Promise.all(['./index.html', './styles.css', './app.js', './ai-coach-client.js', './ai-coach-ui.js', './domain-core.js', './domain-coach.js', './domain-goals.js', './domain-coach-rules.js', './domain-fitness.js', './domain-exercises.js', './domain-heart-rate-zones.js', './domain-workout-assessment.js', './garmin-csv-import.js', './training-import-controller.js', './training-import-ui.js', './app-state.js', './local-state-store.js', './training-repository.js', './domain-training-plan.js', './calendar-ui.js', './workout-template-ui.js', './workout-completion-ui.js', './workout-history-ui.js', './exercise-library-ui.js', './heart-rate-zones-ui.js', './data/coach-rules.json', './service-worker.js'].map(path =>
           fetch(path, { cache: 'reload' }).catch(() => null)
         ));
       } finally {
