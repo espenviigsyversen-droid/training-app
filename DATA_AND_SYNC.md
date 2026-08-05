@@ -65,6 +65,8 @@ Dette reduserer risikoen for at appen viser en endring som ikke faktisk ble lagr
 
 Import skal erstatte data, ikke bare skrive oppå.
 
+Dette avsnittet beskriver full JSON-backupimport. Garmin CSV-import fra v176 er en separat, inkrementell aktivitetsimport: forhåndsvisning skriver ingenting, brukeren velger handling per aktivitet, og bare godkjente nye eller berikede `completed`-dokumenter skrives. Garmin-import skal aldri kalle repositoryets fullstendige `replace()`-flyt.
+
 Korrekt importflyt:
 
 ```text
@@ -95,4 +97,3 @@ Dette er ikke en erstatning for manuell eksport, men et ekstra sikkerhetsnett.
 - Endringer i dataformat uten bakoverkompatibel normalisering
 - Offline-visning som forveksles med redigerbar sync-modus
 - `localStorage` kan nå kvoten når komplett state-snapshot vokser. Firestore/IndexedDB fortsetter, men den egne fallback-snapshoten kan bli utdatert; dette er registrert som eget backlogpunkt.
-
