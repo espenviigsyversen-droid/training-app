@@ -25,6 +25,7 @@ const heartRateZoneUiSource = read('heart-rate-zones-ui.js');
 const workoutCompletionUiSource = read('workout-completion-ui.js');
 const workoutHistoryUiSource = read('workout-history-ui.js');
 const workoutAssessmentSource = read('domain-workout-assessment.js');
+const aiWorkoutAssessmentSource = read('domain-ai-workout-assessment.js');
 const aiCoachClient = read('ai-coach-client.js');
 const aiCoachUi = read('ai-coach-ui.js');
 const aiCoachBackend = read('functions/ai/ai-chat.js');
@@ -79,6 +80,7 @@ async function testAsync(name, fn) {
   const workoutCompletionUiDomain = await import(pathToFileURL(path.join(root, 'workout-completion-ui.js')).href);
   const workoutHistoryUiDomain = await import(pathToFileURL(path.join(root, 'workout-history-ui.js')).href);
   const workoutAssessmentDomain = await import(pathToFileURL(path.join(root, 'domain-workout-assessment.js')).href);
+  const aiWorkoutAssessmentDomain = await import(pathToFileURL(path.join(root, 'domain-ai-workout-assessment.js')).href);
   const {
     assessTrafficLight,
     buildStructuredWorkout,
@@ -2069,8 +2071,8 @@ async function testAsync(name, fn) {
     assert.ok(workoutHistoryUiSource.includes('heartRateZoneDistributionRows'), 'history does not use production zone rows');
     assert.ok(workoutHistoryUiSource.includes('Tid i pulssoner'), 'completed detail is missing the heart-rate zone section');
     assert.ok(!workoutHistoryUiSource.includes("row.estimated ? 'ca. '"), 'zone duration should not be prefixed with ca.');
-    assert.ok(app.includes("const APP_VERSION = 'v176d1'"), 'visible app version must be v176d1');
-    assert.ok(serviceWorker.includes('treningsapp-v176d1'), 'cache version must match v176d1');
+    assert.ok(app.includes("const APP_VERSION = 'v176e'"), 'visible app version must be v176e');
+    assert.ok(serviceWorker.includes('treningsapp-v176e'), 'cache version must match v176e');
   });
 
   test('v174b evaluates easy and quality sessions without treating zone percentages as a hard truth', () => {
@@ -2165,8 +2167,8 @@ async function testAsync(name, fn) {
     assert.ok(index.includes('id="insightHeartRateComplianceCard"'), 'Insights is missing the compliance card');
     assert.ok(app.includes('heartRateZoneComplianceForItems(last28Days)'), 'coach context does not use the canonical compliance summary');
     assert.ok(app.includes('renderHeartRateZoneComplianceInsight(today)'), 'Insights does not render canonical compliance');
-    assert.ok(app.includes("const APP_VERSION = 'v176d1'"), 'visible app version must be v176d1');
-    assert.ok(serviceWorker.includes('treningsapp-v176d1'), 'cache version must match v176d1');
+    assert.ok(app.includes("const APP_VERSION = 'v176e'"), 'visible app version must be v176e');
+    assert.ok(serviceWorker.includes('treningsapp-v176e'), 'cache version must match v176e');
   });
 
   test('v174c uses the test profile for zones and keeps the golden zone as a separate coach reference', () => {
@@ -2537,6 +2539,37 @@ async function testAsync(name, fn) {
     assert.ok(styles.includes('.modal.detail-modal { padding: 0; overflow: hidden; }'), 'workout detail should have only the inner content scrollbar');
   });
 
+  test('v176e builds a privacy-bounded workout input and stores versioned AI assessments', () => {
+    const input = aiWorkoutAssessmentDomain.buildAiWorkoutAssessmentInput({
+      completed: {
+        date: '2026-08-04', durationSeconds: 2942, distanceKm: 6.44, avgHeartRate: 149, maxHeartRate: 163,
+        notes: 'privat øktnotat', bodyStatus: { painBefore: 1, painAfter: 1, notes: 'privat kroppsnotat' },
+        heartRateZoneDistribution: { zones: { z1: { percent: 3 }, z2: { percent: 92 }, z3: { percent: 5 } } }
+      },
+      template: { name: 'Easy Run', type: 'Løping', intensity: 'Rolig' },
+      loadAssessment: { level: 'low', label: 'Lav belastning' }
+    });
+    const serialized = JSON.stringify(input);
+    assert.ok(!serialized.includes('privat øktnotat'));
+    assert.ok(!serialized.includes('privat kroppsnotat'));
+    assert.deepStrictEqual(input.heartRateZonePercent, { z1: 3, z2: 92, z3: 5 });
+    const fingerprint = aiWorkoutAssessmentDomain.aiWorkoutAssessmentFingerprint(input);
+    const stored = aiWorkoutAssessmentDomain.storedAiWorkoutAssessment({
+      headline: 'Kontrollert rolig økt', evidence: ['92 % i sone 2.', 'RPE var lav.'],
+      planFit: 'I tråd med planen.', nextStep: 'Fortsett normal plan.', modelProfileId: 'auto', modelLabel: 'Automatisk'
+    }, fingerprint, '2026-08-05T12:00:00.000Z');
+    assert.strictEqual(stored.version, 1);
+    assert.strictEqual(aiWorkoutAssessmentDomain.isAiWorkoutAssessmentStale(stored, fingerprint), false);
+    assert.strictEqual(aiWorkoutAssessmentDomain.isAiWorkoutAssessmentStale(stored, 'v1-changed'), true);
+    assert.ok(aiWorkoutAssessmentSource.includes('normalizeAiWorkoutAssessment'));
+    assert.ok(workoutHistoryUiSource.includes("detailSection('AI-vurdering'"));
+    assert.ok(workoutHistoryUiSource.includes('Få AI-vurdering'));
+    assert.ok(app.includes('requestAiWorkoutAssessment'));
+    assert.ok(aiCoachClient.includes("callable('aiCoachAssessWorkout')"));
+    assert.ok(functionsIndex.includes('exports.aiCoachAssessWorkout'));
+    assert.ok(serviceWorker.includes('./domain-ai-workout-assessment.js'));
+  });
+
   await testAsync('v176b repository batches approved completed and planned writes with partial progress metadata', async () => {
     const committed = [];
     const firestore = {
@@ -2586,8 +2619,8 @@ async function testAsync(name, fn) {
     assert.ok(trainingImportControllerSource.includes("action: duplicate ? 'skip'"), 'duplicates should be skipped by default');
     assert.ok(!trainingImportControllerSource.includes('heartRateZoneDistribution'), 'controller must not synthesize pulse zones');
     assert.ok(styles.includes('.garmin-import-row'), 'Garmin preview styling is missing');
-    assert.ok(app.includes("const APP_VERSION = 'v176d1'"));
-    assert.ok(serviceWorker.includes('treningsapp-v176d1'));
+    assert.ok(app.includes("const APP_VERSION = 'v176e'"));
+    assert.ok(serviceWorker.includes('treningsapp-v176e'));
   });
 
   test('structured interval UI fields and summaries are wired into production files', () => {
