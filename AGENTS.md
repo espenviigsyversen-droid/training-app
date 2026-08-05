@@ -47,6 +47,7 @@ node --check domain-coach.js
 node --check domain-fitness.js
 node --check domain-exercises.js
 node --check domain-heart-rate-zones.js
+node --check domain-workout-assessment.js
 node --check exercise-library-ui.js
 node --check heart-rate-zones-ui.js
 node --check workout-template-ui.js
@@ -82,6 +83,7 @@ node functions\tests\ai-backend-tests.js
 - `domain-fitness.js` - ren, forklarbar nivå-, VO2- og PB-vurdering uten DOM/Firebase/state
 - `domain-exercises.js` - ren normalisering, snapshot-policy, URL-policy og formattering for øvelsesbibliotek og strukturerte styrkeplaner
 - `domain-heart-rate-zones.js` - ren normalisering, validering, historikk, aktivering og bpm-klassifisering for testbaserte pulssoner
+- `domain-workout-assessment.js` - ren, forklarbar vurdering av en fullført økt fra belastning, pulsfordeling, RPE, terreng og kroppssignaler
 - `exercise-library-ui.js` - søk, skjema og bibliotekvisning for gjenbrukbare øvelser; state og persistence forblir i `app.js`
 - `heart-rate-zones-ui.js` - avgrenset Setup-UI for registrering, manuell redigering, historikk og aktivering av pulssoner
 - `workout-template-ui.js` - avgrenset øktmal-skjema, strukturert intervall-preview, bibliotek, søk og filter; lagring/state forblir i `app.js`
@@ -127,6 +129,7 @@ node --check domain-coach.js
 node --check domain-fitness.js
 node --check domain-exercises.js
 node --check domain-heart-rate-zones.js
+node --check domain-workout-assessment.js
 node --check exercise-library-ui.js
 node --check heart-rate-zones-ui.js
 node --check workout-template-ui.js
@@ -181,3 +184,4 @@ Oppsummer alltid:
 - hvilke sjekker som er kjørt
 - hvilke filer som er synkronisert direkte til GitHub, eller hvilke filer brukeren må laste opp manuelt hvis direkte synk ikke var mulig
 - om noe ikke ble testet
+
