@@ -191,6 +191,7 @@ export function createWorkoutHistoryUi({
   exercisePlanSummaryHtml,
   templateCalendarKind,
   uniqueValues,
+  aiAssessmentState,
   todayISO
 }) {
   function element(id) {
@@ -290,6 +291,27 @@ export function createWorkoutHistoryUi({
     </div>`;
   }
 
+  function aiCoachAssessmentHtml(completed) {
+    const state = aiAssessmentState?.(completed) || {};
+    const result = state.assessment;
+    if (!result) {
+      return `<div class="ai-workout-assessment empty">
+        <p>Be AI-coachen vurdere økten opp mot målet, planen og treningsbelastningen din.</p>
+        <button class="btn-primary ai-workout-assessment-btn" data-workout-id="${escapeHtml(completed.id)}" onclick="requestAiWorkoutAssessment('${completed.id}')">Få AI-vurdering</button>
+      </div>`;
+    }
+    return `<div class="ai-workout-assessment${state.stale ? ' stale' : ''}">
+      ${state.stale ? '<div class="ai-assessment-stale">Øktgrunnlaget er endret siden denne vurderingen ble laget.</div>' : ''}
+      <strong class="workout-coach-headline">${escapeHtml(result.headline)}</strong>
+      <div><span>Observasjoner</span><ul>${result.evidence.map(item => `<li>${escapeHtml(item)}</li>`).join('')}</ul></div>
+      <div><span>Samsvar med planen</span><p>${escapeHtml(result.planFit)}</p></div>
+      <div><span>Neste steg</span><p>${escapeHtml(result.nextStep)}</p></div>
+      ${result.uncertainty ? `<div><span>Usikkerhet</span><p>${escapeHtml(result.uncertainty)}</p></div>` : ''}
+      <div class="ai-assessment-meta">${escapeHtml([result.modelLabel, result.generatedAt ? new Date(result.generatedAt).toLocaleString('nb-NO') : ''].filter(Boolean).join(' · '))}</div>
+      <button class="btn-soft ai-workout-assessment-btn" data-workout-id="${escapeHtml(completed.id)}" onclick="requestAiWorkoutAssessment('${completed.id}')">Vurder på nytt</button>
+    </div>`;
+  }
+
   function detailHtml(completed) {
     const template = completedTemplate(completed);
     const state = getState();
@@ -352,6 +374,7 @@ export function createWorkoutHistoryUi({
         detailLine('Kroppsnotat', completed.bodyStatus?.notes || '')
       ].join(''))}
       ${detailSection('Coach-vurdering', coachAssessmentHtml(coachAssessment))}
+      ${detailSection('AI-vurdering', aiCoachAssessmentHtml(completed))}
       ${detailSection('Egne notater', completed.notes ? `<p>${escapeHtml(completed.notes)}</p>` : '')}
       <div class="button-row">
         <button class="btn-primary" onclick="editCompleted('${completed.id}'); closeWorkoutDetailModal();">Rediger</button>
