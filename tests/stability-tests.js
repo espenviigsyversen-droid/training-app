@@ -24,6 +24,7 @@ const trainingImportUiSource = read('training-import-ui.js');
 const heartRateZoneUiSource = read('heart-rate-zones-ui.js');
 const workoutCompletionUiSource = read('workout-completion-ui.js');
 const workoutHistoryUiSource = read('workout-history-ui.js');
+const workoutAssessmentSource = read('domain-workout-assessment.js');
 const aiCoachClient = read('ai-coach-client.js');
 const aiCoachUi = read('ai-coach-ui.js');
 const aiCoachBackend = read('functions/ai/ai-chat.js');
@@ -77,6 +78,7 @@ async function testAsync(name, fn) {
   const trainingRepositoryDomain = await import(pathToFileURL(path.join(root, 'training-repository.js')).href);
   const workoutCompletionUiDomain = await import(pathToFileURL(path.join(root, 'workout-completion-ui.js')).href);
   const workoutHistoryUiDomain = await import(pathToFileURL(path.join(root, 'workout-history-ui.js')).href);
+  const workoutAssessmentDomain = await import(pathToFileURL(path.join(root, 'domain-workout-assessment.js')).href);
   const {
     assessTrafficLight,
     buildStructuredWorkout,
@@ -167,6 +169,7 @@ async function testAsync(name, fn) {
   } = heartRateZoneDomain;
   const { durationSecondsFromParts } = workoutCompletionUiDomain;
   const { filterWorkoutHistory, workoutActivityDetails, workoutHistoryPeriodRange } = workoutHistoryUiDomain;
+  const { buildWorkoutCoachAssessment } = workoutAssessmentDomain;
   const {
     classifyGarminMatch,
     garminActivityType,
@@ -2066,8 +2069,8 @@ async function testAsync(name, fn) {
     assert.ok(workoutHistoryUiSource.includes('heartRateZoneDistributionRows'), 'history does not use production zone rows');
     assert.ok(workoutHistoryUiSource.includes('Tid i pulssoner'), 'completed detail is missing the heart-rate zone section');
     assert.ok(!workoutHistoryUiSource.includes("row.estimated ? 'ca. '"), 'zone duration should not be prefixed with ca.');
-    assert.ok(app.includes("const APP_VERSION = 'v176c'"), 'visible app version must be v176c');
-    assert.ok(serviceWorker.includes('treningsapp-v176c'), 'cache version must match v176c');
+    assert.ok(app.includes("const APP_VERSION = 'v176d'"), 'visible app version must be v176d');
+    assert.ok(serviceWorker.includes('treningsapp-v176d'), 'cache version must match v176d');
   });
 
   test('v174b evaluates easy and quality sessions without treating zone percentages as a hard truth', () => {
@@ -2162,8 +2165,8 @@ async function testAsync(name, fn) {
     assert.ok(index.includes('id="insightHeartRateComplianceCard"'), 'Insights is missing the compliance card');
     assert.ok(app.includes('heartRateZoneComplianceForItems(last28Days)'), 'coach context does not use the canonical compliance summary');
     assert.ok(app.includes('renderHeartRateZoneComplianceInsight(today)'), 'Insights does not render canonical compliance');
-    assert.ok(app.includes("const APP_VERSION = 'v176c'"), 'visible app version must be v176c');
-    assert.ok(serviceWorker.includes('treningsapp-v176c'), 'cache version must match v176c');
+    assert.ok(app.includes("const APP_VERSION = 'v176d'"), 'visible app version must be v176d');
+    assert.ok(serviceWorker.includes('treningsapp-v176d'), 'cache version must match v176d');
   });
 
   test('v174c uses the test profile for zones and keeps the golden zone as a separate coach reference', () => {
@@ -2224,8 +2227,9 @@ async function testAsync(name, fn) {
   test('v174c wires the canonical pulse reference to completion, Log and coach context', () => {
     assert.ok(workoutCompletionUiSource.includes('heartRateReferenceForZoneSet'), 'completion should use the shared pulse reference');
     assert.ok(workoutHistoryUiSource.includes('heartRateReferenceForCompleted'), 'history should resolve the workout pulse source');
-    assert.ok(workoutHistoryUiSource.includes("detailLine('Sonekilde 1–5'"), 'history should disclose the test-zone source');
-    assert.ok(workoutHistoryUiSource.includes("detailLine('Gylne sone'"), 'history should label the separate golden-zone source');
+    assert.ok(!workoutHistoryUiSource.includes('Sonekilde 1–5'), 'history should keep test-zone provenance in Setup');
+    assert.ok(!workoutHistoryUiSource.includes('Din maks/terskel'), 'history should not repeat profile configuration');
+    assert.ok(workoutHistoryUiSource.includes('heart-rate-golden-chip'), 'history should keep the golden zone as a compact reference');
     assert.ok(app.includes('heartRateZoneProfile: ctx.heartRateZoneProfile'), 'AI coach context should include the active test-zone profile');
     assert.ok(app.includes('distribution?.zoneSetSnapshot || null'), 'historical zone snapshots should outrank the current profile');
   });
@@ -2501,6 +2505,37 @@ async function testAsync(name, fn) {
     assert.ok(styles.includes('.detail-data-grid'), 'categorized workout details need compact responsive styling');
   });
 
+  test('v176d gives completed workouts a concise pulse summary and structured coach assessment', () => {
+    const result = buildWorkoutCoachAssessment({
+      completed: {
+        rpe: 3,
+        distanceKm: 6.44,
+        elevationGainM: 96,
+        heartRateZoneDistribution: { zones: [
+          { zoneId: 'z1', percent: 3 },
+          { zoneId: 'z2', percent: 92 },
+          { zoneId: 'z3', percent: 5 }
+        ] },
+        externalData: { garmin: { aerobicTrainingEffect: 3.2 } }
+      },
+      template: { name: 'Easy Run', purpose: 'recovery', intensity: 'Rolig' },
+      loadAssessment: { level: 'low' },
+      zoneCompliance: { summary: 'Pulsen lå hovedsakelig i rolige soner som forventet for restitusjon.' }
+    });
+    assert.strictEqual(result.headline, 'Kontrollert rolig økt');
+    assert.ok(result.evidence.includes('95 % av tiden var i sone 1–2'));
+    assert.ok(result.evidence.includes('RPE 3/10'));
+    assert.ok(result.evidence.includes('aerob treningseffekt 3,2'));
+    assert.ok(result.planFit.includes('96 høydemeter'));
+    assert.ok(result.nextStep.includes('Normal plan kan fortsette'));
+    assert.ok(workoutHistoryUiSource.includes('heart-rate-summary-card'));
+    assert.ok(workoutHistoryUiSource.includes("detailSection('Coach-vurdering'"));
+    assert.ok(serviceWorker.includes('./domain-workout-assessment.js'));
+    assert.ok(app.includes("from './domain-workout-assessment.js'"));
+    assert.ok(styles.includes('.workout-coach-assessment'));
+    assert.ok(workoutAssessmentSource.includes('buildWorkoutCoachAssessment'));
+  });
+
   await testAsync('v176b repository batches approved completed and planned writes with partial progress metadata', async () => {
     const committed = [];
     const firestore = {
@@ -2550,8 +2585,8 @@ async function testAsync(name, fn) {
     assert.ok(trainingImportControllerSource.includes("action: duplicate ? 'skip'"), 'duplicates should be skipped by default');
     assert.ok(!trainingImportControllerSource.includes('heartRateZoneDistribution'), 'controller must not synthesize pulse zones');
     assert.ok(styles.includes('.garmin-import-row'), 'Garmin preview styling is missing');
-    assert.ok(app.includes("const APP_VERSION = 'v176c'"));
-    assert.ok(serviceWorker.includes('treningsapp-v176c'));
+    assert.ok(app.includes("const APP_VERSION = 'v176d'"));
+    assert.ok(serviceWorker.includes('treningsapp-v176d'));
   });
 
   test('structured interval UI fields and summaries are wired into production files', () => {
