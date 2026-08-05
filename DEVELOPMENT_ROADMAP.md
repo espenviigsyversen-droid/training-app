@@ -1456,6 +1456,17 @@ Levert:
 - `structuredWorkout` for intervaller er uendret og holdes separat fra øvelsesblokkene.
 - Fullførte økter beholder snapshot av faktisk planlagt øvelsesinnhold.
 
+### v175b - Tydelig skille mellom øktmaler og enkeltøvelser - Bygget
+
+Mål og levert:
+
+- Setup-biblioteket har en intern, mobilvennlig veksling mellom `Øktmaler` og `Øvelser`; øktmaler er standardflaten.
+- Malbiblioteket og øvelsesbiblioteket vises før opprettingsskjemaene. `Ny øktmal` og `Ny øvelse` åpner eksplisitte editorer ved behov.
+- Øktmal-editoren er gruppert i `Grunninformasjon`, `Coach-metadata` og `Øktinnhold`, og fritekstfeltet heter nå `Overordnet øktbeskrivelse`.
+- Øvelsesflaten forklarer at biblioteket inneholder gjenbrukbare enkeltøvelser som kan settes inn i oppvarming, hoveddel og nedtrapping.
+- Øktmalkort er komprimert: kort sammendrag er synlig, mens innhold og coachgrunnlag kan utvides ved behov.
+- Datamodell, snapshots, normalisering og persistence er uendret. UI-state eies fortsatt av `workout-template-ui.js` og `exercise-library-ui.js`; `app.js` inneholder bare små wrappers.
+
 ### v176a - Garmin CSV-import: design, mapping og sikker importkontrakt
 
 Mål:
@@ -1519,7 +1530,7 @@ Foreslått modulgrense:
 
 `v172a-v172b` er bygget samlet. `STRUCTURED_EXERCISES_DESIGN.md` dokumenterer den versjonerte modellen, og produksjonen bruker `domain-exercises.js` og `exercise-library-ui.js`. Øvelser kan gjenbrukes i styrkemaler med sett, repetisjoner, pause, belastning, notat og sikre lenker. Malen lagrer snapshots slik at senere bibliotekendringer ikke endrer planlagte eller historiske økter.
 
-`v173a` er dokumentert i `LAB_TESTS_AND_ZONES_DESIGN.md`, og `v173b` er bygget som testbasert sonehistorikk med et eksplisitt aktivt, manuelt redigerbart femsonesett. `v174a` registrerer Garmins prosent per sone og bevarer brukt soneprofil som snapshot. `v174b` legger til forklarbar og forsiktig etterlevelsesvurdering i Logg, Innsikt og coach-context. `v174c` samler kildehierarkiet og skiller labsoner fra Bakken-beregnet gylne sone på alle relevante flater. `v175` gjenbruker øvelsesmodellen for oppvarming, hoveddel og nedtrapping og bevarer innholdet i planlagte og fullførte snapshots. Eksempeløktene i laboratorierapporten er bevisst utelatt. Neste implementeringsrunde er v176a: Garmin CSV-importkontrakt og mapping før importveiviseren bygges.
+`v173a` er dokumentert i `LAB_TESTS_AND_ZONES_DESIGN.md`, og `v173b` er bygget som testbasert sonehistorikk med et eksplisitt aktivt, manuelt redigerbart femsonesett. `v174a` registrerer Garmins prosent per sone og bevarer brukt soneprofil som snapshot. `v174b` legger til forklarbar og forsiktig etterlevelsesvurdering i Logg, Innsikt og coach-context. `v174c` samler kildehierarkiet og skiller labsoner fra Bakken-beregnet gylne sone på alle relevante flater. `v175` gjenbruker øvelsesmodellen for oppvarming, hoveddel og nedtrapping og bevarer innholdet i planlagte og fullførte snapshots. `v175b` rydder Setup-biblioteket i separate arbeidsflater for øktmaler og enkeltøvelser uten å endre dataflyten. Eksempeløktene i laboratorierapporten er bevisst utelatt. Neste implementeringsrunde er v176a: Garmin CSV-importkontrakt og mapping før importveiviseren bygges.
 
 ## Hva vi bør vente med
 
