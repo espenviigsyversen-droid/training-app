@@ -1,5 +1,5 @@
 # Treningsapp — progress.md
-Oppdatert: 2026-08-04 (siste runtime-endring: v175)
+Oppdatert: 2026-08-05 (siste runtime-endring: v175b)
 
 ---
 
@@ -275,6 +275,15 @@ Treningsapp/
 - Planlagte økter lagrer et normalisert malsnapshot; fullføring viderefører dette slik at historiske øvelser ikke endres når malen eller biblioteket redigeres senere.
 - Gamle styrkemaler blir trygt behandlet som hoveddel, og gamle planlagte/fullførte økter uten snapshots fortsetter med bakoverkompatibel fallback.
 - Strukturert intervallinformasjon er ikke endret og ligger fortsatt separat i `structuredWorkout`.
+
+### v175b - Tydelig bibliotek- og editorflyt - Bygget
+
+- Setup-biblioteket åpner nå på `Øktmaler`, med en tydelig intern veksling til `Øvelser`.
+- Bibliotekinnholdet vises først. Opprettings- og redigeringsskjema åpnes eksplisitt via `Ny øktmal`, `Ny øvelse` eller `Rediger`.
+- Øktmal-editoren er delt i grunninformasjon, coach-metadata og øktinnhold. Fritekstfeltet er omdøpt til `Overordnet øktbeskrivelse`.
+- Øvelsesflaten forklarer forskjellen mellom en gjenbrukbar enkeltøvelse og en komplett øktmal.
+- Mal-kortene viser et kort innholdssammendrag, mens full struktur og coachgrunnlag ligger i en valgfri detaljvisning.
+- Datamodell, snapshots, normalisering, Firestore og backupformat er uendret.
 
 ### v167 - Øktmaler som egen UI-feature - Bygget
 
