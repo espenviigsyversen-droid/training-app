@@ -2,6 +2,8 @@
 
 Design- og datakontrakt for v176a-v176b. Dokumentet bygger på den faktiske Garmin Connect-eksporten `Activities_5_8_2026.csv`, kontrollert 5. august 2026.
 
+**Implementeringsstatus:** v176a-adapteren og v176b-importveiviseren er bygget. Runtime-versjonen er `v176b`.
+
 ## Mål
 
 Importen skal redusere manuell registrering uten å gjøre Garmin til en parallell treningsmodell. Den skal:
@@ -220,10 +222,11 @@ Hvis en senere eksport har sonetider, kreves en ny adapterkontrakt og eksplisitt
 ## Modulgrenser
 
 - `garmin-csv-import.js`: parsing, mapping, normalisering, fingeravtrykk, duplikater, matching og sikker merge
-- `training-import-ui.js` i v176b: filvalg, forhåndsvisning, konflikter og eksplisitte handlinger med injiserte callbacks
-- `training-repository.js` i v176b: kontrollert, chunket batch for godkjente writes
-- `app-state.js` i v176b: normalisering av valgfritt `externalData.garmin`
-- `app.js` i v176b: kun state-orchestrering, recovery, bekreftelse og små persistence-wrappers
+- `training-import-controller.js`: ren forhåndsvisningsmodell, handlingsplan, konfliktfelt og materialisering av nye, berikede eller plan-koblede økter
+- `training-import-ui.js`: lokal fillesing, forhåndsvisning, treffgrunnlag, konflikter og eksplisitte handlinger med injiserte callbacks
+- `training-repository.js`: kontrollert, chunket batch for godkjente `completed`- og `planned`-writes med delvis fremdriftsmetadata ved feil
+- `app-state.js`: whitelist-normalisering av valgfritt `externalData.garmin`
+- `app.js`: kun state-orchestrering, recovery, bekreftelse og liten persistence-wrapper
 
 `app.js` skal ikke parse CSV, beregne fingeravtrykk, matche aktiviteter eller implementere merge-policy.
 
