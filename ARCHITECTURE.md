@@ -29,6 +29,7 @@ Treningsapp/
 ├── domain-training-plan.js
 ├── calendar-ui.js
 ├── workout-template-ui.js
+├── garmin-csv-import.js
 ├── domain-core.js
 ├── domain-goals.js
 ├── domain-coach-rules.js
@@ -44,6 +45,7 @@ Treningsapp/
 ├── ARCHITECTURE.md
 ├── DATA_AND_SYNC.md
 ├── INTERVALS_DESIGN.md
+├── GARMIN_CSV_IMPORT_DESIGN.md
 ├── TESTING.md
 ├── RELEASE_CHECKLIST.md
 ├── tests/
@@ -196,7 +198,7 @@ De neste produktsporene skal følge samme kontrollerte uttrekksmønster som v164
 - `workout-template-ui.js`: støtter strukturerte styrke- og øvelsesblokker, men eier fortsatt ikke persistence.
 - `domain-heart-rate-zones.js`: normalisering, validering, historikk, aktivt sonesett, grensepolicy og bpm-klassifisering. Senere sone-snapshots og prosentvalidering skal bygge videre her.
 - `heart-rate-zones-ui.js`: registrering, manuell redigering, historikk og aktivering med injiserte handlinger.
-- `garmin-csv-import.js`: ren parsing, feltmapping, importfingeravtrykk, duplikatkontroll og matchforslag mot den etablerte sone-/øktmodellen.
+- `garmin-csv-import.js`: implementert i v176a; ren parsing, feltmapping, importfingeravtrykk, duplikatkontroll, matchforslag og merge-policy mot den etablerte øktmodellen.
 - `training-import-ui.js`: forhåndsvisning og eksplisitte valg før repository-skriving.
 - `domain-workout-load.js`: vurderes bare dersom todimensjonal høyde-/nedoverbelastning blir for stor for `domain-core.js`.
 - `domain-body-measurements.js` og `body-measurements-ui.js`: daterte omkrets-/lengdemål for klær og utstyr.
