@@ -1,5 +1,5 @@
 # Treningsapp — progress.md
-Oppdatert: 2026-08-05 (siste runtime-endring: v176b)
+Oppdatert: 2026-08-05 (siste runtime-endring: v176c)
 
 ---
 
@@ -27,7 +27,7 @@ Standard Bakken-uke: Hoved-terskel → Støtte-terskel → Lang rolig → Valgfr
 **Hosting:** GitHub Pages.  
 **Backend:** Firebase (prosjekt `home-tasks-app-18de3`) — Firestore + Google Auth.  
 **Frontend:** Vanilla JS + HTML + CSS, single-page app, tab-navigasjon.  
-**Versjon:** v176b (konstant i `app.js`).
+**Versjon:** v176c (konstant i `app.js`).
 
 ### Filer
 
@@ -304,6 +304,13 @@ Treningsapp/
 - Recovery snapshot er obligatorisk før import. Import blokkeres uten innlogging, nett eller i offline snapshot-visning.
 - `app.js` inneholder bare factory, state-apply/recovery og repository-wrapper; CSV, matching, konfliktpolicy og rendering ligger i egne moduler.
 - PWA app shell, cache og synlig versjon er oppdatert til `v176b`.
+
+### v176c - Kategorisert aktivitetsinformasjon i øktdetaljer - Bygget
+
+- `workout-history-ui.js` viser de bevarte aktivitetsfeltene i naturlige kategorier for tid og bevegelse, belastning, puls og pust, fart og tempo, løpsdynamikk, terreng og høyde, effekt, energi og omgivelser, svømming og styrke.
+- Bare kategorier og felt som har data vises. Datakilde eller importopprinnelse bruker ikke plass i detaljvisningen.
+- Eksisterende kanoniske felter, manuelle registreringer, sikker merge-policy, Firestore-format og backupformat er uendret.
+- PWA-cache og synlig versjon er oppdatert til `v176c`.
 
 ### v167 - Øktmaler som egen UI-feature - Bygget
 
