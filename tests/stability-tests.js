@@ -19,6 +19,8 @@ const exerciseLibraryUiSource = read('exercise-library-ui.js');
 const exerciseDomainSource = read('domain-exercises.js');
 const heartRateZoneDomainSource = read('domain-heart-rate-zones.js');
 const garminCsvDomainSource = read('garmin-csv-import.js');
+const trainingImportControllerSource = read('training-import-controller.js');
+const trainingImportUiSource = read('training-import-ui.js');
 const heartRateZoneUiSource = read('heart-rate-zones-ui.js');
 const workoutCompletionUiSource = read('workout-completion-ui.js');
 const workoutHistoryUiSource = read('workout-history-ui.js');
@@ -71,6 +73,8 @@ async function testAsync(name, fn) {
   const exerciseLibraryUiDomain = await import(pathToFileURL(path.join(root, 'exercise-library-ui.js')).href);
   const heartRateZoneDomain = await import(pathToFileURL(path.join(root, 'domain-heart-rate-zones.js')).href);
   const garminCsvDomain = await import(pathToFileURL(path.join(root, 'garmin-csv-import.js')).href);
+  const trainingImportControllerDomain = await import(pathToFileURL(path.join(root, 'training-import-controller.js')).href);
+  const trainingRepositoryDomain = await import(pathToFileURL(path.join(root, 'training-repository.js')).href);
   const workoutCompletionUiDomain = await import(pathToFileURL(path.join(root, 'workout-completion-ui.js')).href);
   const workoutHistoryUiDomain = await import(pathToFileURL(path.join(root, 'workout-history-ui.js')).href);
   const {
@@ -174,6 +178,12 @@ async function testAsync(name, fn) {
     parseGarminDuration
   } = garminCsvDomain;
   const {
+    buildGarminImportCommit,
+    createGarminImportPreview,
+    garminMergeConflicts
+  } = trainingImportControllerDomain;
+  const { createTrainingRepository } = trainingRepositoryDomain;
+  const {
     combinedRaceResults,
     formatRaceTime,
     goalMilestones,
@@ -218,6 +228,7 @@ async function testAsync(name, fn) {
     DEFAULT_SETTINGS,
     WORKOUT_ROLE_LABELS,
     createEmptyAppState,
+    normalizeGarminExternalData,
     normalizeAppState,
     normalizeSettings
   } = appStateDomain;
@@ -2055,8 +2066,8 @@ async function testAsync(name, fn) {
     assert.ok(workoutHistoryUiSource.includes('heartRateZoneDistributionRows'), 'history does not use production zone rows');
     assert.ok(workoutHistoryUiSource.includes('Tid i pulssoner'), 'completed detail is missing the heart-rate zone section');
     assert.ok(!workoutHistoryUiSource.includes("row.estimated ? 'ca. '"), 'zone duration should not be prefixed with ca.');
-    assert.ok(app.includes("const APP_VERSION = 'v175b'"), 'visible app version must be v175b');
-    assert.ok(serviceWorker.includes('treningsapp-v175b'), 'cache version must match v175b');
+    assert.ok(app.includes("const APP_VERSION = 'v176b'"), 'visible app version must be v176b');
+    assert.ok(serviceWorker.includes('treningsapp-v176b'), 'cache version must match v176b');
   });
 
   test('v174b evaluates easy and quality sessions without treating zone percentages as a hard truth', () => {
@@ -2151,8 +2162,8 @@ async function testAsync(name, fn) {
     assert.ok(index.includes('id="insightHeartRateComplianceCard"'), 'Insights is missing the compliance card');
     assert.ok(app.includes('heartRateZoneComplianceForItems(last28Days)'), 'coach context does not use the canonical compliance summary');
     assert.ok(app.includes('renderHeartRateZoneComplianceInsight(today)'), 'Insights does not render canonical compliance');
-    assert.ok(app.includes("const APP_VERSION = 'v175b'"), 'visible app version must be v175b');
-    assert.ok(serviceWorker.includes('treningsapp-v175b'), 'cache version must match v175b');
+    assert.ok(app.includes("const APP_VERSION = 'v176b'"), 'visible app version must be v176b');
+    assert.ok(serviceWorker.includes('treningsapp-v176b'), 'cache version must match v176b');
   });
 
   test('v174c uses the test profile for zones and keeps the golden zone as a separate coach reference', () => {
@@ -2337,6 +2348,182 @@ async function testAsync(name, fn) {
     assert.strictEqual(result.activities[0].completedDraft.date, '2026-08-04');
     assert.strictEqual(result.activities[0].completedDraft.distanceKm, 6.44);
     assert.strictEqual(result.activities[0].completedDraft.externalData.garmin.aerobicTrainingEffect, 3.2);
+  });
+
+  test('v176b preview keeps duplicates locked and requires choices for matched activities', () => {
+    const csv = [
+      'Activity Type,Date,Title,Time,Distance,Avg HR',
+      'Running,2026-08-04 16:21:02,Rolig løp,00:49:02,6.44,149',
+      'Strength Training,2026-08-03 10:00:00,Styrke,00:40:00,0,--',
+      'Walking,2026-08-02 12:00:00,Gåtur,00:30:00,2.5,105',
+      'Running,2026-08-01 08:00:00,Duplikat,00:30:00,5,145'
+    ].join('\n');
+    const firstPass = parseGarminActivitiesCsv(csv);
+    const duplicateFingerprint = firstPass.activities[3].fingerprint;
+    const completed = [
+      {
+        id: 'existing-run', date: '2026-08-04', manualName: 'Rolig løp', durationSeconds: 3000,
+        distanceKm: 6.5, notes: 'Behold meg', rpe: 4, templateSnapshot: { name: 'Rolig løp', type: 'Løping' }
+      },
+      {
+        id: 'already-imported', date: '2026-08-01', templateSnapshot: { name: 'Duplikat', type: 'Løping' },
+        externalData: { garmin: { fingerprint: duplicateFingerprint } }
+      }
+    ];
+    const planned = [{
+      id: 'planned-strength', date: '2026-08-03', status: 'planned', templateId: 'strength-template',
+      templateSnapshot: { id: 'strength-template', name: 'Styrke', type: 'Styrke' }
+    }];
+    const preview = createGarminImportPreview(csv, {
+      completedItems: completed,
+      plannedItems: planned,
+      resolveTemplate: item => item.templateSnapshot
+    });
+    assert.deepStrictEqual(preview.rows.map(row => row.action), ['review', 'review', 'create', 'skip']);
+    assert.strictEqual(preview.rows[0].matches[0].kind, 'completed');
+    assert.strictEqual(preview.rows[1].matches[0].kind, 'planned');
+    assert.strictEqual(preview.rows[3].duplicate.id, 'already-imported');
+    assert.ok(garminMergeConflicts(completed[0], preview.rows[0].candidate).some(item => item.field === 'durationSeconds'));
+  });
+
+  test('v176b commit plan preserves manual fields and materializes new and linked workouts', () => {
+    const csv = [
+      'Activity Type,Date,Title,Time,Distance,Avg HR',
+      'Running,2026-08-04 16:21:02,Rolig løp,00:49:02,6.44,149',
+      'Strength Training,2026-08-03 10:00:00,Styrke,00:40:00,0,--',
+      'Walking,2026-08-02 12:00:00,Gåtur,00:30:00,2.5,105'
+    ].join('\n');
+    const completed = [{
+      id: 'existing-run', date: '2026-08-04', manualName: 'Mitt navn', durationSeconds: 3000,
+      distanceKm: '', notes: 'Manuelt notat', rpe: 4, templateSnapshot: { name: 'Rolig løp', type: 'Løping' },
+      externalData: { otherProvider: { id: 'keep' } }
+    }];
+    const planned = [{
+      id: 'planned-strength', date: '2026-08-03', status: 'planned', templateId: 'strength-template',
+      templateSnapshot: { id: 'strength-template', name: 'Planlagt styrke', type: 'Styrke', role: 'strength' }
+    }];
+    const preview = createGarminImportPreview(csv, {
+      completedItems: completed,
+      plannedItems: planned,
+      resolveTemplate: item => item.templateSnapshot
+    });
+    preview.rows[0].action = 'enrich';
+    preview.rows[0].overwriteFields = ['durationSeconds'];
+    preview.rows[1].action = 'link';
+    let sequence = 0;
+    const plan = buildGarminImportCommit(preview, {
+      createId: prefix => `${prefix}-${++sequence}`,
+      now: '2026-08-05T12:00:00.000Z',
+      resolveTemplate: item => item.templateSnapshot
+    });
+    assert.deepStrictEqual(plan.stats, { imported: 1, enriched: 1, linked: 1, skipped: 0, duplicates: 0, rejected: 0 });
+    assert.strictEqual(plan.completedItems.length, 3);
+    const enriched = plan.completedItems.find(item => item.id === 'existing-run');
+    assert.strictEqual(enriched.durationSeconds, 2942);
+    assert.strictEqual(enriched.distanceKm, 6.44, 'empty objective fields should be enriched');
+    assert.strictEqual(enriched.notes, 'Manuelt notat');
+    assert.strictEqual(enriched.rpe, 4);
+    assert.strictEqual(enriched.externalData.otherProvider.id, 'keep');
+    assert.strictEqual(enriched.externalData.garmin.importedAt, '2026-08-05T12:00:00.000Z');
+    const linked = plan.completedItems.find(item => item.plannedWorkoutId === 'planned-strength');
+    assert.strictEqual(linked.templateSnapshot.name, 'Planlagt styrke');
+    assert.strictEqual(linked.templateSnapshot.role, 'strength');
+    assert.strictEqual(plan.plannedItems[0].status, 'done');
+    assert.strictEqual(plan.plannedItems[0].completedWorkoutId, linked.id);
+    const created = plan.completedItems.find(item => item.manualName === 'Gåtur');
+    assert.strictEqual(created.templateSnapshot.type, 'Gange');
+    assert.ok(!('heartRateZoneDistribution' in created));
+  });
+
+  test('v176b commit refuses unresolved rows and duplicate target reuse', () => {
+    const csv = [
+      'Activity Type,Date,Title,Time,Distance',
+      'Running,2026-08-04 08:00:00,Løp A,00:30:00,5',
+      'Running,2026-08-04 18:00:00,Løp B,00:31:00,5.1'
+    ].join('\n');
+    const completed = [{
+      id: 'same-target', date: '2026-08-04', durationSeconds: 1800, distanceKm: 5,
+      templateSnapshot: { name: 'Løp', type: 'Løping' }
+    }];
+    const preview = createGarminImportPreview(csv, { completedItems: completed });
+    assert.throws(() => buildGarminImportCommit(preview, { createId: () => 'id' }), /mangler valgt handling/);
+    preview.rows.forEach(row => { row.action = 'enrich'; });
+    assert.throws(() => buildGarminImportCommit(preview, { createId: () => 'id' }), /samme økt/);
+  });
+
+  test('v176b app-state whitelists Garmin provenance and keeps other providers', () => {
+    const normalizedGarmin = normalizeGarminExternalData({
+      version: '1', adapter: 'activities_csv', fingerprint: 'garmin_csv_v1_1234567890abcdef',
+      activityCode: 'running', steps: '8006', rawRow: 'must disappear',
+      pace: { averagePaceSecondsPerKm: '457', unexpected: 'remove' }
+    });
+    assert.strictEqual(normalizedGarmin.steps, 8006);
+    assert.strictEqual(normalizedGarmin.pace.averagePaceSecondsPerKm, 457);
+    assert.ok(!('rawRow' in normalizedGarmin));
+    assert.ok(!('unexpected' in normalizedGarmin.pace));
+    const normalizedState = normalizeAppState({ completed: [{
+      id: 'garmin-normalized',
+      externalData: {
+        garmin: { fingerprint: 'garmin_csv_v1_1234567890abcdef', steps: '12', csvRow: 'remove' },
+        otherProvider: { id: 'keep' }
+      }
+    }] });
+    assert.strictEqual(normalizedState.completed[0].externalData.garmin.steps, 12);
+    assert.strictEqual(normalizedState.completed[0].externalData.otherProvider.id, 'keep');
+    assert.ok(!('csvRow' in normalizedState.completed[0].externalData.garmin));
+  });
+
+  await testAsync('v176b repository batches approved completed and planned writes with partial progress metadata', async () => {
+    const committed = [];
+    const firestore = {
+      collection: (...parts) => ({ parts }),
+      doc: (...parts) => ({ parts }),
+      getDoc: async () => ({ exists: () => false }),
+      getDocs: async () => ({ docs: [] }),
+      setDoc: async () => {},
+      deleteDoc: async () => {},
+      writeBatch: () => {
+        const writes = [];
+        return {
+          set: (ref, data) => writes.push({ ref, data }),
+          delete: () => {},
+          commit: async () => { committed.push(writes); }
+        };
+      }
+    };
+    const repository = createTrainingRepository({
+      db: { id: 'db' },
+      getCurrentUser: () => ({ uid: 'user-1' }),
+      firestore,
+      normalizeState: value => value,
+      defaultSettings: () => ({})
+    });
+    const result = await repository.importActivities({
+      completedItems: [{ id: 'done-1', date: '2026-08-04' }, { id: 'done-2', date: '2026-08-03' }],
+      plannedItems: [{ id: 'plan-1', status: 'done' }]
+    }, 2);
+    assert.deepStrictEqual(result, { committedOperations: 3, committedChunks: 2, totalOperations: 3 });
+    assert.strictEqual(committed.length, 2);
+    assert.strictEqual(committed[0][0].ref.parts.at(-2), 'completed');
+    assert.strictEqual(committed[1][0].ref.parts.at(-2), 'planned');
+    assert.ok(!('id' in committed[0][0].data));
+  });
+
+  test('v176b Garmin import is modular, local-first and present in the PWA shell', () => {
+    ['./garmin-csv-import.js', './training-import-controller.js', './training-import-ui.js']
+      .forEach(file => assert.ok(serviceWorker.includes(file), `${file} is missing from APP_SHELL`));
+    assert.ok(app.includes("from './training-import-ui.js'"), 'app should import the dedicated training import UI');
+    assert.ok(app.includes('trainingRepository.importActivities(plan)'), 'app should delegate approved writes to the repository');
+    assert.ok(app.includes("saveRecoverySnapshot('before-garmin-import')"), 'a recovery snapshot must precede Garmin writes');
+    assert.ok(index.includes('id="setupGarminImport"'), 'Garmin import Setup section is missing');
+    assert.ok(index.includes('id="garminCsvFile"'), 'local Garmin file input is missing');
+    assert.ok(trainingImportUiSource.includes('await file.text()'), 'CSV should be read locally in the browser');
+    assert.ok(trainingImportUiSource.includes('escapeHtml'), 'untrusted Garmin text must be escaped');
+    assert.ok(trainingImportControllerSource.includes("action: duplicate ? 'skip'"), 'duplicates should be skipped by default');
+    assert.ok(!trainingImportControllerSource.includes('heartRateZoneDistribution'), 'controller must not synthesize pulse zones');
+    assert.ok(styles.includes('.garmin-import-row'), 'Garmin preview styling is missing');
+    assert.ok(app.includes("const APP_VERSION = 'v176b'"));
+    assert.ok(serviceWorker.includes('treningsapp-v176b'));
   });
 
   test('structured interval UI fields and summaries are wired into production files', () => {
