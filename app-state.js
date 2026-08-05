@@ -210,6 +210,95 @@ function normalizeOptionalTemplateSnapshot(snapshot) {
   return normalizeTemplate(snapshot);
 }
 
+function optionalFiniteNumber(value, { integer = false } = {}) {
+  if (value === '' || value === null || value === undefined) return undefined;
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return undefined;
+  return integer ? Math.round(numeric) : numeric;
+}
+
+function optionalText(value, maxLength) {
+  const text = String(value ?? '').trim();
+  return text ? text.slice(0, maxLength) : undefined;
+}
+
+function compactRecord(record) {
+  return Object.fromEntries(Object.entries(record).filter(([, value]) =>
+    value !== undefined && value !== null && value !== '' &&
+    !(typeof value === 'object' && !Array.isArray(value) && !Object.keys(value).length)
+  ));
+}
+
+function numericRecord(input, fields) {
+  const source = input && typeof input === 'object' && !Array.isArray(input) ? input : {};
+  return compactRecord(Object.fromEntries(fields.map(field => [field, optionalFiniteNumber(source[field])])));
+}
+
+export function normalizeGarminExternalData(input) {
+  const source = input && typeof input === 'object' && !Array.isArray(input) ? input : {};
+  const fingerprint = optionalText(source.fingerprint, 80);
+  if (!fingerprint || !/^garmin_csv_v\d+_[a-f0-9]{16}$/i.test(fingerprint)) return null;
+  const sourceDistanceInput = source.sourceDistance && typeof source.sourceDistance === 'object' ? source.sourceDistance : {};
+  const sourceDistance = compactRecord({
+    value: optionalFiniteNumber(sourceDistanceInput.value),
+    unit: ['km', 'm'].includes(sourceDistanceInput.unit) ? sourceDistanceInput.unit : undefined
+  });
+  const cadence = numericRecord(source.cadence, ['averageSpm', 'maxSpm']);
+  const pace = numericRecord(source.pace, [
+    'averagePaceSecondsPerKm', 'bestPaceSecondsPerKm', 'averageGapSecondsPerKm',
+    'averagePaceSecondsPer100m', 'bestPaceSecondsPer100m', 'averageSpeedKmh', 'maxSpeedKmh'
+  ]);
+  const temperatureC = numericRecord(source.temperatureC, ['min', 'max']);
+  const respiration = numericRecord(source.respiration, ['average', 'min', 'max']);
+  const elevationM = numericRecord(source.elevationM, ['min', 'max']);
+  return compactRecord({
+    version: Math.max(1, optionalFiniteNumber(source.version, { integer: true }) || 1),
+    adapter: optionalText(source.adapter, 40),
+    fingerprint,
+    fingerprintVersion: Math.max(1, optionalFiniteNumber(source.fingerprintVersion, { integer: true }) || 1),
+    startedAtLocal: optionalText(source.startedAtLocal, 40),
+    activityType: optionalText(source.activityType, 80),
+    activityCode: optionalText(source.activityCode, 60),
+    sourceDistance,
+    calories: optionalFiniteNumber(source.calories, { integer: true }),
+    movingTimeSeconds: optionalFiniteNumber(source.movingTimeSeconds, { integer: true }),
+    elapsedTimeSeconds: optionalFiniteNumber(source.elapsedTimeSeconds, { integer: true }),
+    aerobicTrainingEffect: optionalFiniteNumber(source.aerobicTrainingEffect),
+    cadence,
+    pace,
+    totalDescentM: optionalFiniteNumber(source.totalDescentM),
+    strideLengthM: optionalFiniteNumber(source.strideLengthM),
+    verticalRatioPercent: optionalFiniteNumber(source.verticalRatioPercent),
+    verticalOscillationCm: optionalFiniteNumber(source.verticalOscillationCm),
+    groundContactTimeMs: optionalFiniteNumber(source.groundContactTimeMs),
+    normalizedPowerW: optionalFiniteNumber(source.normalizedPowerW),
+    trainingStressScore: optionalFiniteNumber(source.trainingStressScore),
+    averagePowerW: optionalFiniteNumber(source.averagePowerW),
+    maxPowerW: optionalFiniteNumber(source.maxPowerW),
+    totalStrokes: optionalFiniteNumber(source.totalStrokes, { integer: true }),
+    averageSwolf: optionalFiniteNumber(source.averageSwolf),
+    averageStrokeRate: optionalFiniteNumber(source.averageStrokeRate),
+    steps: optionalFiniteNumber(source.steps, { integer: true }),
+    totalReps: optionalFiniteNumber(source.totalReps, { integer: true }),
+    totalSets: optionalFiniteNumber(source.totalSets, { integer: true }),
+    bodyBatteryDrain: optionalFiniteNumber(source.bodyBatteryDrain),
+    temperatureC,
+    respiration,
+    numberOfLaps: optionalFiniteNumber(source.numberOfLaps, { integer: true }),
+    elevationM,
+    importedAt: optionalText(source.importedAt, 40)
+  });
+}
+
+function normalizeExternalData(input) {
+  if (!input || typeof input !== 'object' || Array.isArray(input)) return null;
+  const { garmin: garminInput, ...otherProviders } = input;
+  const garmin = normalizeGarminExternalData(garminInput);
+  const normalized = { ...otherProviders };
+  if (garmin) normalized.garmin = garmin;
+  return Object.keys(normalized).length ? normalized : null;
+}
+
 export function normalizePlannedItems(items = []) {
   return Array.isArray(items)
     ? items
@@ -225,12 +314,18 @@ export function normalizeCompletedItems(items = []) {
   return Array.isArray(items)
     ? items
         .filter(item => item && typeof item === 'object' && !Array.isArray(item))
-        .map(item => ({
-          ...item,
-          templateSnapshot: normalizeOptionalTemplateSnapshot(item.templateSnapshot),
-          raceResult: normalizeRaceResult(item.raceResult),
-          heartRateZoneDistribution: normalizeHeartRateZoneDistribution(item.heartRateZoneDistribution)
-        }))
+        .map(item => {
+          const normalized = {
+            ...item,
+            templateSnapshot: normalizeOptionalTemplateSnapshot(item.templateSnapshot),
+            raceResult: normalizeRaceResult(item.raceResult),
+            heartRateZoneDistribution: normalizeHeartRateZoneDistribution(item.heartRateZoneDistribution)
+          };
+          const externalData = normalizeExternalData(item.externalData);
+          if (externalData) normalized.externalData = externalData;
+          else delete normalized.externalData;
+          return normalized;
+        })
     : [];
 }
 
