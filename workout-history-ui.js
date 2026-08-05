@@ -1,9 +1,10 @@
 import {
   formatHeartRateZoneDuration,
-  heartRateValueContextLabel,
+  heartRateValueContext,
   heartRateZoneDistributionRows,
   normalizeHeartRateZoneDistribution
 } from './domain-heart-rate-zones.js';
+import { buildWorkoutCoachAssessment } from './domain-workout-assessment.js';
 
 function normalizedText(value) {
   return String(value || '').trim().toLowerCase();
@@ -173,7 +174,6 @@ export function createWorkoutHistoryUi({
   formatRaceTime,
   raceDistanceLabel,
   normalizeRaceResult,
-  normalizePersonProfile,
   normalizeTrainingProfile,
   completedTemplate,
   completedDurationLabel,
@@ -187,7 +187,6 @@ export function createWorkoutHistoryUi({
   trainingEffectCategory,
   heartRateReferenceForCompleted,
   heartRateZoneCompliance,
-  lastWorkoutCoachNote,
   structuredWorkoutSummaryHtml,
   exercisePlanSummaryHtml,
   templateCalendarKind,
@@ -259,31 +258,56 @@ export function createWorkoutHistoryUi({
     </div>`;
   }
 
+  function heartRateSummaryHtml(completed, reference) {
+    const cards = [
+      { label: 'Snittpuls', value: completed.avgHeartRate },
+      { label: 'Makspuls', value: completed.maxHeartRate }
+    ].filter(item => Number(item.value) > 0).map(item => {
+      const context = heartRateValueContext(item.value, reference);
+      const details = [
+        context?.zone?.label || '',
+        context?.maxPercent !== null && context?.maxPercent !== undefined ? `${context.maxPercent} % av maks` : '',
+        context?.thresholdPercent !== null && context?.thresholdPercent !== undefined ? `${context.thresholdPercent} % av terskel` : ''
+      ].filter(Boolean).join(' · ');
+      return `<div class="heart-rate-summary-card">
+        <span>${escapeHtml(item.label)}</span>
+        <strong>${escapeHtml(`${Math.round(Number(item.value))} bpm`)}</strong>
+        ${details ? `<small>${escapeHtml(details)}</small>` : ''}
+      </div>`;
+    });
+    const goldenZone = reference.goldenZone;
+    if (!cards.length && !goldenZone) return '';
+    return `<div class="heart-rate-summary-grid">${cards.join('')}</div>
+      ${goldenZone ? `<div class="heart-rate-golden-chip">Gyllen sone ${escapeHtml(`${goldenZone.low}–${goldenZone.high} bpm`)}</div>` : ''}`;
+  }
+
+  function coachAssessmentHtml(result) {
+    return `<div class="workout-coach-assessment">
+      <strong class="workout-coach-headline">${escapeHtml(result.headline)}</strong>
+      <div><span>Hva økten viser</span><p>${escapeHtml(result.evidence)}</p></div>
+      <div><span>Samsvar med planen</span><p>${escapeHtml(result.planFit)}</p></div>
+      <div><span>Neste steg</span><p>${escapeHtml(result.nextStep)}</p></div>
+    </div>`;
+  }
+
   function detailHtml(completed) {
     const template = completedTemplate(completed);
     const state = getState();
-    const personProfile = normalizePersonProfile(state.settings.personProfile);
     const profile = normalizeTrainingProfile(state.settings.trainingProfile);
     const pace = completedPaceMetrics(completed);
     const assessment = completedLoadAssessment(completed);
     const trainingEffect = trainingEffectInfo(completed.trainingEffectType);
     const activityDetails = workoutActivityDetails(completed);
-    const coachNote = lastWorkoutCoachNote(completed, profile).replace(/^Siste økt/, 'Denne økten');
     const heartRateReference = heartRateReferenceForCompleted(completed);
-    const zoneSource = heartRateReference.zoneSource;
-    const goldenZone = heartRateReference.goldenZone;
-    const heartRateLines = [
-      detailLine('Snittpuls', completed.avgHeartRate ? `${completed.avgHeartRate} bpm${heartRateValueContextLabel(completed.avgHeartRate, heartRateReference, { includeGoldenZone: true })}` : ''),
-      detailLine('Makspuls økt', completed.maxHeartRate ? `${completed.maxHeartRate} bpm${heartRateValueContextLabel(completed.maxHeartRate, heartRateReference)}` : ''),
-      detailLine('Din maks/terskel', personProfile.maxHeartRate || personProfile.thresholdHeartRate
-        ? `${personProfile.maxHeartRate || '-'} / ${personProfile.thresholdHeartRate || '-'} bpm` : ''),
-      detailLine('Sonekilde 1–5', zoneSource
-        ? `${zoneSource.name}${zoneSource.sourceName ? ` · ${zoneSource.sourceName}` : ''}${zoneSource.testedAt ? ` · test ${formatDate(zoneSource.testedAt)}` : ''}`
-        : ''),
-      detailLine('Gylne sone', goldenZone
-        ? `${goldenZone.low}–${goldenZone.high} bpm · ${goldenZone.sourceLabel}`
-        : '')
-    ].join('');
+    const zoneCompliance = heartRateZoneCompliance?.(completed);
+    const coachAssessment = buildWorkoutCoachAssessment({
+      completed,
+      template,
+      loadAssessment: assessment,
+      zoneCompliance,
+      trainingProfile: profile
+    });
+    const heartRateSummary = heartRateSummaryHtml(completed, heartRateReference);
     return `
       <div class="detail-hero">
         <span class="tag done">Utført</span>
@@ -302,7 +326,7 @@ export function createWorkoutHistoryUi({
         ${trainingEffect ? `<p class="detail-text"><strong>Treningseffekt:</strong> ${escapeHtml(trainingEffect.label)} · ${escapeHtml(trainingEffect.categoryLabel)}</p>` : ''}
         ${completed.rpe ? `<p class="detail-text"><strong>Opplevd intensitet:</strong> ${escapeHtml(completed.rpe)}/10</p>` : ''}
         ${detailDataGrid(activityDetails.load)}`)}
-      ${detailSection(activityDetails.breathing.length ? 'Puls og pust' : 'Puls', `${heartRateLines}${detailDataGrid(activityDetails.breathing)}`)}
+      ${detailSection(activityDetails.breathing.length ? 'Puls og pust' : 'Puls', `${heartRateSummary}${detailDataGrid(activityDetails.breathing)}`)}
       ${detailSection('Tid i pulssoner', heartRateZoneDistributionHtml(completed))}
       ${detailSection('Fart og tempo', detailDataGrid(activityDetails.speed))}
       ${detailSection('Løpsdynamikk', detailDataGrid(activityDetails.runningDynamics))}
@@ -327,7 +351,7 @@ export function createWorkoutHistoryUi({
         detailLine('Status', bodyStatusLabel(completed.bodyStatus)),
         detailLine('Kroppsnotat', completed.bodyStatus?.notes || '')
       ].join(''))}
-      ${detailSection('Coach-notat', `<p>${escapeHtml(coachNote)}</p>`)}
+      ${detailSection('Coach-vurdering', coachAssessmentHtml(coachAssessment))}
       ${detailSection('Egne notater', completed.notes ? `<p>${escapeHtml(completed.notes)}</p>` : '')}
       <div class="button-row">
         <button class="btn-primary" onclick="editCompleted('${completed.id}'); closeWorkoutDetailModal();">Rediger</button>
