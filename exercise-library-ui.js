@@ -32,6 +32,22 @@ export function createExerciseLibraryUi({
     return documentRef.getElementById(id);
   }
 
+  function setFormVisible(visible, { focus = true } = {}) {
+    const panel = element('exerciseEditorPanel');
+    if (!panel) return;
+    panel.classList.toggle('hidden', !visible);
+    if (visible) {
+      panel.scrollIntoView?.({ block: 'start', behavior: 'smooth' });
+      if (focus) element('exerciseName')?.focus();
+    }
+  }
+
+  function startNewForm() {
+    clearForm({ keepOpen: true });
+    if (element('exerciseEditorTitle')) element('exerciseEditorTitle').textContent = 'Ny øvelse';
+    setFormVisible(true);
+  }
+
   function readForm() {
     const name = element('exerciseName')?.value.trim() || '';
     if (!name) return { ok: false, error: 'Skriv inn navn på øvelsen først.' };
@@ -51,6 +67,7 @@ export function createExerciseLibraryUi({
 
   function fillForm(exercise) {
     if (!exercise) return;
+    setFormVisible(true, { focus: false });
     element('editingExerciseId').value = exercise.id;
     element('exerciseName').value = exercise.name || '';
     element('exerciseDescription').value = exercise.description || '';
@@ -60,10 +77,11 @@ export function createExerciseLibraryUi({
     element('exerciseMediaUrl').value = exercise.mediaUrl || '';
     element('exerciseSubmitBtn').textContent = 'Lagre endringer';
     element('cancelEditExerciseBtn').classList.remove('hidden');
-    element('exerciseName').focus();
+    if (element('exerciseEditorTitle')) element('exerciseEditorTitle').textContent = `Rediger ${exercise.name || 'øvelse'}`;
+    element('exerciseName')?.focus();
   }
 
-  function clearForm() {
+  function clearForm({ keepOpen = false } = {}) {
     [
       'editingExerciseId',
       'exerciseName',
@@ -75,6 +93,8 @@ export function createExerciseLibraryUi({
     ].forEach(id => { if (element(id)) element(id).value = ''; });
     if (element('exerciseSubmitBtn')) element('exerciseSubmitBtn').textContent = 'Lagre øvelse';
     element('cancelEditExerciseBtn')?.classList.add('hidden');
+    if (element('exerciseEditorTitle')) element('exerciseEditorTitle').textContent = 'Ny øvelse';
+    if (!keepOpen) setFormVisible(false, { focus: false });
   }
 
   function exerciseCard(exercise) {
@@ -119,7 +139,8 @@ export function createExerciseLibraryUi({
     readForm,
     fillForm,
     clearForm,
+    startNewForm,
+    setFormVisible,
     renderLibrary
   };
 }
-
