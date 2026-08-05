@@ -1467,7 +1467,7 @@ Mål og levert:
 - Øktmalkort er komprimert: kort sammendrag er synlig, mens innhold og coachgrunnlag kan utvides ved behov.
 - Datamodell, snapshots, normalisering og persistence er uendret. UI-state eies fortsatt av `workout-template-ui.js` og `exercise-library-ui.js`; `app.js` inneholder bare små wrappers.
 
-### v176a - Garmin CSV-import: design, mapping og sikker importkontrakt
+### v176a - Garmin CSV-import: design, mapping og sikker importkontrakt - Bygget
 
 Mål:
 
@@ -1483,6 +1483,14 @@ Foreslått modulgrense:
 - Ny `training-import-ui.js`: filvalg, forhåndsvisning, matching og eksplisitte brukervalg.
 - `training-repository.js`: batchskriving etter godkjent import.
 - `app.js`: orchestrering og bekreftelser, ikke CSV-parsing eller matchalgoritme.
+
+Levert:
+
+- `GARMIN_CSV_IMPORT_DESIGN.md` låser adapterkontrakt, aktivitetsspesifikke enheter, dataminimering, matching og merge-policy mot en verifisert Garmin Activities CSV.
+- Ny ren `garmin-csv-import.js` parser, mapper, normaliserer, lager versjonert fingeravtrykk, oppdager duplikater og klassifiserer treff uten DOM, Firebase eller global state.
+- Den verifiserte eksporten inneholder 106 aktiviteter og 44 kolonner, men ingen stabil Garmin-ID eller pulssonefordeling. Fingeravtrykk er derfor obligatorisk, og v174-sonedata blir ikke oppdiktet.
+- Testene bruker produksjonsmodulen og kontrollerer både syntetiske grenseverdier og den lokale eksporten når den finnes.
+- v176a endrer ikke runtime, app-state, Firestore, UI eller PWA-versjon. Dette kobles på kontrollert i v176b.
 
 ### v176b - Garmin CSV-importveiviser
 
@@ -1530,7 +1538,7 @@ Foreslått modulgrense:
 
 `v172a-v172b` er bygget samlet. `STRUCTURED_EXERCISES_DESIGN.md` dokumenterer den versjonerte modellen, og produksjonen bruker `domain-exercises.js` og `exercise-library-ui.js`. Øvelser kan gjenbrukes i styrkemaler med sett, repetisjoner, pause, belastning, notat og sikre lenker. Malen lagrer snapshots slik at senere bibliotekendringer ikke endrer planlagte eller historiske økter.
 
-`v173a` er dokumentert i `LAB_TESTS_AND_ZONES_DESIGN.md`, og `v173b` er bygget som testbasert sonehistorikk med et eksplisitt aktivt, manuelt redigerbart femsonesett. `v174a` registrerer Garmins prosent per sone og bevarer brukt soneprofil som snapshot. `v174b` legger til forklarbar og forsiktig etterlevelsesvurdering i Logg, Innsikt og coach-context. `v174c` samler kildehierarkiet og skiller labsoner fra Bakken-beregnet gylne sone på alle relevante flater. `v175` gjenbruker øvelsesmodellen for oppvarming, hoveddel og nedtrapping og bevarer innholdet i planlagte og fullførte snapshots. `v175b` rydder Setup-biblioteket i separate arbeidsflater for øktmaler og enkeltøvelser uten å endre dataflyten. Eksempeløktene i laboratorierapporten er bevisst utelatt. Neste implementeringsrunde er v176a: Garmin CSV-importkontrakt og mapping før importveiviseren bygges.
+`v173a` er dokumentert i `LAB_TESTS_AND_ZONES_DESIGN.md`, og `v173b` er bygget som testbasert sonehistorikk med et eksplisitt aktivt, manuelt redigerbart femsonesett. `v174a` registrerer Garmins prosent per sone og bevarer brukt soneprofil som snapshot. `v174b` legger til forklarbar og forsiktig etterlevelsesvurdering i Logg, Innsikt og coach-context. `v174c` samler kildehierarkiet og skiller labsoner fra Bakken-beregnet gylne sone på alle relevante flater. `v175` gjenbruker øvelsesmodellen for oppvarming, hoveddel og nedtrapping og bevarer innholdet i planlagte og fullførte snapshots. `v175b` rydder Setup-biblioteket i separate arbeidsflater for øktmaler og enkeltøvelser uten å endre dataflyten. `v176a` har nå låst og testet Garmin CSV-kontrakten i en egen ren adapter uten runtime-kobling. Eksempeløktene i laboratorierapporten er bevisst utelatt. Neste implementeringsrunde er v176b: importveiviser og kontrollert persistence.
 
 ## Hva vi bør vente med
 
