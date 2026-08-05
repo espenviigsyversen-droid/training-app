@@ -1492,7 +1492,7 @@ Levert:
 - Testene bruker produksjonsmodulen og kontrollerer både syntetiske grenseverdier og den lokale eksporten når den finnes.
 - v176a endrer ikke runtime, app-state, Firestore, UI eller PWA-versjon. Dette kobles på kontrollert i v176b.
 
-### v176b - Garmin CSV-importveiviser
+### v176b - Garmin CSV-importveiviser - Bygget
 
 Mål:
 
@@ -1501,6 +1501,17 @@ Mål:
 - Fyll bare tomme kanoniske felt automatisk; manuelt innhold vinner som standard.
 - Vis importresultat, duplikater og usikre treff tydelig.
 - Støtt blant annet puls, varighet, distanse, pace, Training Effect, stigning, nedstigning, kadens, kraft, temperatur, Body Battery og styrkesett/repetisjoner når data finnes.
+
+Levert:
+
+- Ny `training-import-controller.js` bygger en ren forhåndsvisnings- og commitplan med duplikatlås, sikre/mulige treff, konfliktfelt og vern mot at flere aktiviteter kobles til samme økt.
+- Ny `training-import-ui.js` leser CSV lokalt, viser treffgrunnlag og handling per aktivitet og krever eksplisitt valg ved alle foreslåtte treff.
+- Nye aktiviteter materialiseres med templatesnapshot og minimert Garmin-proveniens; planlagte økter kan kobles og fullføres i samme kontrollerte batch.
+- `training-repository.js` skriver godkjente `completed`- og `planned`-dokumenter i avgrensede batcher og rapporterer eventuell delvis fremdrift.
+- `app-state.js` whitelist-normaliserer `externalData.garmin`; rå CSV-rad og ukjente Garmin-felt overlever ikke backup eller Firestore-normalisering.
+- Recovery snapshot opprettes før første write. Vanlig offline-visning og manglende nett/innlogging blokkerer import.
+- `app.js` beholder bare factory, state-apply/recovery og repository-kall. Parsing, matching, konfliktpolicy og UI ligger i egne moduler.
+- PWA-runtime og synlig versjon er oppdatert til `v176b`.
 
 ### v177 - Nedoverbelastning og todimensjonal høydevurdering
 
@@ -1538,7 +1549,7 @@ Foreslått modulgrense:
 
 `v172a-v172b` er bygget samlet. `STRUCTURED_EXERCISES_DESIGN.md` dokumenterer den versjonerte modellen, og produksjonen bruker `domain-exercises.js` og `exercise-library-ui.js`. Øvelser kan gjenbrukes i styrkemaler med sett, repetisjoner, pause, belastning, notat og sikre lenker. Malen lagrer snapshots slik at senere bibliotekendringer ikke endrer planlagte eller historiske økter.
 
-`v173a` er dokumentert i `LAB_TESTS_AND_ZONES_DESIGN.md`, og `v173b` er bygget som testbasert sonehistorikk med et eksplisitt aktivt, manuelt redigerbart femsonesett. `v174a` registrerer Garmins prosent per sone og bevarer brukt soneprofil som snapshot. `v174b` legger til forklarbar og forsiktig etterlevelsesvurdering i Logg, Innsikt og coach-context. `v174c` samler kildehierarkiet og skiller labsoner fra Bakken-beregnet gylne sone på alle relevante flater. `v175` gjenbruker øvelsesmodellen for oppvarming, hoveddel og nedtrapping og bevarer innholdet i planlagte og fullførte snapshots. `v175b` rydder Setup-biblioteket i separate arbeidsflater for øktmaler og enkeltøvelser uten å endre dataflyten. `v176a` har nå låst og testet Garmin CSV-kontrakten i en egen ren adapter uten runtime-kobling. Eksempeløktene i laboratorierapporten er bevisst utelatt. Neste implementeringsrunde er v176b: importveiviser og kontrollert persistence.
+`v173a` er dokumentert i `LAB_TESTS_AND_ZONES_DESIGN.md`, og `v173b` er bygget som testbasert sonehistorikk med et eksplisitt aktivt, manuelt redigerbart femsonesett. `v174a` registrerer Garmins prosent per sone og bevarer brukt soneprofil som snapshot. `v174b` legger til forklarbar og forsiktig etterlevelsesvurdering i Logg, Innsikt og coach-context. `v174c` samler kildehierarkiet og skiller labsoner fra Bakken-beregnet gylne sone på alle relevante flater. `v175` gjenbruker øvelsesmodellen for oppvarming, hoveddel og nedtrapping og bevarer innholdet i planlagte og fullførte snapshots. `v175b` rydder Setup-biblioteket i separate arbeidsflater for øktmaler og enkeltøvelser uten å endre dataflyten. `v176a` låste Garmin CSV-kontrakten i en ren adapter, og `v176b` kobler den til en lokal forhåndsvisningsveiviser med recovery og kontrollert repository-skriving. Eksempeløktene i laboratorierapporten er bevisst utelatt. Neste implementeringsrunde er v177: nedoverbelastning.
 
 ## Hva vi bør vente med
 
