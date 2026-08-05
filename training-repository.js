@@ -66,6 +66,44 @@ export function createTrainingRepository({
     await batch.commit();
   }
 
+  async function importActivities({ completedItems = [], plannedItems = [] } = {}, chunkSize = 400) {
+    const completed = Array.isArray(completedItems) ? completedItems : [];
+    const planned = Array.isArray(plannedItems) ? plannedItems : [];
+    const safeChunkSize = Math.max(1, Math.min(450, Math.round(Number(chunkSize) || 400)));
+    const entries = [
+      ...completed.map(item => ({ collectionName: 'completed', item })),
+      ...planned.map(item => ({ collectionName: 'planned', item }))
+    ];
+    if (!entries.length) return { committedOperations: 0, committedChunks: 0, totalOperations: 0 };
+    entries.forEach(({ collectionName, item }) => {
+      if (!item?.id) throw new Error(`Import item in ${collectionName} is missing an id`);
+    });
+
+    let committedOperations = 0;
+    let committedChunks = 0;
+    for (let index = 0; index < entries.length; index += safeChunkSize) {
+      const chunk = entries.slice(index, index + safeChunkSize);
+      const batch = writeBatch(db);
+      chunk.forEach(({ collectionName, item }) => {
+        const { id, ...rest } = item;
+        batch.set(userDocument(collectionName, id), rest);
+      });
+      try {
+        await batch.commit();
+        committedOperations += chunk.length;
+        committedChunks += 1;
+      } catch (error) {
+        error.importResult = {
+          committedOperations,
+          committedChunks,
+          totalOperations: entries.length
+        };
+        throw error;
+      }
+    }
+    return { committedOperations, committedChunks, totalOperations: entries.length };
+  }
+
   async function load() {
     const snapshots = await Promise.all([
       ...dataCollections.map(name => getDocs(userCollection(name))),
@@ -111,5 +149,5 @@ export function createTrainingRepository({
     await commitOperations(deleteOperations);
   }
 
-  return { load, set, remove, batchSet, replace, clearData };
+  return { load, set, remove, batchSet, importActivities, replace, clearData };
 }
