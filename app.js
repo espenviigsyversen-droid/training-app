@@ -112,6 +112,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     import { createWorkoutCompletionUi } from './workout-completion-ui.js';
     import { createWorkoutHistoryUi } from './workout-history-ui.js';
     import { createHeartRateZonesUi } from './heart-rate-zones-ui.js';
+    import { createTrainingImportUi } from './training-import-ui.js';
     import { normalizeExercise } from './domain-exercises.js';
     import {
       activeHeartRateZoneSet,
@@ -140,7 +141,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       xWorkoutSuggestion
     } from './domain-training-plan.js';
 
-const APP_VERSION = 'v175b';
+const APP_VERSION = 'v176b';
     const APP_CACHE_NAME = `treningsapp-${APP_VERSION}`;
 
     const firebaseConfig = {
@@ -1181,6 +1182,7 @@ const APP_VERSION = 'v175b';
         personProfile: document.getElementById('setupPersonProfile'),
         heartRateZones: document.getElementById('setupHeartRateZones'),
         wellness: document.getElementById('setupWellness'),
+        garminImport: document.getElementById('setupGarminImport'),
         ai: document.getElementById('setupAi'),
         data: document.getElementById('setupData'),
         danger: document.getElementById('setupDanger')
@@ -2952,6 +2954,56 @@ const APP_VERSION = 'v175b';
         structuredWorkout: completed.templateSnapshot?.structuredWorkout || null,
         exercisePlan: completed.templateSnapshot?.exercisePlan || null
       };
+    }
+
+    async function commitGarminImport(plan) {
+      if (!currentUser || offlineSnapshotMode || !navigator.onLine) {
+        throw new Error('Garmin-import krever innlogging og nettforbindelse.');
+      }
+      const previousState = cloneAppState();
+      const recoverySaved = await saveRecoverySnapshot('before-garmin-import');
+      if (!recoverySaved) throw new Error('Kunne ikke opprette lokal gjenopprettingskopi. Importen er avbrutt.');
+      const replaceById = (items, updates) => {
+        const result = new Map((items || []).map(item => [item.id, item]));
+        (updates || []).forEach(item => result.set(item.id, item));
+        return [...result.values()];
+      };
+      try {
+        setSyncStatus('syncing');
+        state.completed = replaceById(state.completed, plan.completedItems);
+        state.planned = replaceById(state.planned, plan.plannedItems);
+        state = normalizeAppState(state);
+        await saveLocalStateSnapshot();
+        render();
+        const repositoryResult = await trainingRepository.importActivities(plan);
+        await saveLocalStateSnapshot();
+        setSyncStatus('ok');
+        return { stats: plan.stats, repositoryResult };
+      } catch (err) {
+        const committed = Number(err?.importResult?.committedOperations) || 0;
+        if (committed > 0) {
+          await loadFromFirestore();
+          throw new Error(`Importen stoppet etter ${committed} lagrede operasjoner. Appen er lastet på nytt fra Firestore; kontroller resultatet før du prøver igjen.`);
+        }
+        restoreAppState(previousState);
+        setSyncStatus(navigator.onLine ? 'error' : 'offline');
+        throw new Error('Importen kunne ikke lagres. Lokale endringer er rullet tilbake.');
+      }
+    }
+
+    let trainingImportUi = null;
+
+    function getTrainingImportUi() {
+      if (!trainingImportUi) {
+        trainingImportUi = createTrainingImportUi({
+          getState: () => state,
+          resolveTemplate: item => plannedTemplate(item),
+          commitImport: commitGarminImport,
+          createId: uid,
+          canWrite: () => Boolean(currentUser && navigator.onLine && !offlineSnapshotMode)
+        });
+      }
+      return trainingImportUi;
     }
 
     let workoutHistoryUi = null;
@@ -7130,7 +7182,7 @@ const APP_VERSION = 'v175b';
           const keys = await caches.keys();
           await Promise.all(keys.filter(key => key.startsWith('treningsapp-')).map(key => caches.delete(key)));
         }
-        await Promise.all(['./index.html', './styles.css', './app.js', './ai-coach-client.js', './ai-coach-ui.js', './domain-core.js', './domain-coach.js', './domain-goals.js', './domain-coach-rules.js', './domain-fitness.js', './domain-exercises.js', './app-state.js', './local-state-store.js', './training-repository.js', './domain-training-plan.js', './calendar-ui.js', './workout-template-ui.js', './workout-completion-ui.js', './workout-history-ui.js', './exercise-library-ui.js', './data/coach-rules.json', './service-worker.js'].map(path =>
+        await Promise.all(['./index.html', './styles.css', './app.js', './ai-coach-client.js', './ai-coach-ui.js', './domain-core.js', './domain-coach.js', './domain-goals.js', './domain-coach-rules.js', './domain-fitness.js', './domain-exercises.js', './domain-heart-rate-zones.js', './garmin-csv-import.js', './training-import-controller.js', './training-import-ui.js', './app-state.js', './local-state-store.js', './training-repository.js', './domain-training-plan.js', './calendar-ui.js', './workout-template-ui.js', './workout-completion-ui.js', './workout-history-ui.js', './exercise-library-ui.js', './heart-rate-zones-ui.js', './data/coach-rules.json', './service-worker.js'].map(path =>
           fetch(path, { cache: 'reload' }).catch(() => null)
         ));
       } finally {
@@ -7208,6 +7260,7 @@ const APP_VERSION = 'v175b';
     };
 
     getWorkoutCompletionUi().bindPacePreview();
+    getTrainingImportUi().bind();
 
     [
       'templateWarmupMinutes',
