@@ -1,5 +1,5 @@
 # Treningsapp — progress.md
-Oppdatert: 2026-08-05 (siste runtime-endring: v175b)
+Oppdatert: 2026-08-05 (siste runtime-endring: v176b)
 
 ---
 
@@ -27,7 +27,7 @@ Standard Bakken-uke: Hoved-terskel → Støtte-terskel → Lang rolig → Valgfr
 **Hosting:** GitHub Pages.  
 **Backend:** Firebase (prosjekt `home-tasks-app-18de3`) — Firestore + Google Auth.  
 **Frontend:** Vanilla JS + HTML + CSS, single-page app, tab-navigasjon.  
-**Versjon:** v175b (konstant i `app.js`).
+**Versjon:** v176b (konstant i `app.js`).
 
 ### Filer
 
@@ -207,12 +207,9 @@ Treningsapp/
 
 ## Neste steg (prioritert)
 
-1. **v176b - Garmin CSV-importveiviser**
-   - Bygg videre på den ferdige v176a-adapteren med forhåndsvisning, eksplisitte valg og kontrollert persistence.
-   - Veiviseren skal aldri overskrive manuelle felt automatisk.
-2. **v177 - Nedoverbelastning**
+1. **v177 - Nedoverbelastning**
    - Skill stigning/nedstigning og kondisjons-/muskelbelastning.
-3. **v178 - Kroppsmål for klær og utstyr**
+2. **v178 - Kroppsmål for klær og utstyr**
    - Praktisk målehistorikk under Setup, uten kobling til coach- eller nivåscore.
 
 ### Planlagt arkitektur for v172-v178
@@ -294,6 +291,19 @@ Treningsapp/
 - Match klassifiseres som sikkert, mulig eller ingen treff. Eksisterende Garmin-fingeravtrykk oppdages som duplikat.
 - Ren merge fyller bare tomme objektive felt som standard. Manuelle verdier, RPE, kroppssignal, notater og annen ekstern proveniens bevares.
 - Ingen UI, Firestore-skriving, state-normalisering, runtime-import eller PWA-versjonsbump er gjort i v176a. v176b bygger den eksplisitte importveiviseren på denne kontrakten.
+
+### v176b - Garmin CSV-importveiviser og kontrollert lagring - Bygget
+
+- Setup har en egen Garmin-importflate som leser Activities CSV lokalt og viser gyldige, avviste, nye, matchede og allerede importerte aktiviteter før lagring.
+- `training-import-controller.js` eier forhåndsvisningsmodell, handlingsplan, konfliktfelt, ny økt-materialisering og kobling mot planlagt økt.
+- `training-import-ui.js` eier filvalg, lokal lesing, escaping av Garmin-tekst, treffgrunnlag, eksplisitte handlinger og sluttrapport.
+- Sikkert eller mulig treff starter med `Velg handling`; ingen eksisterende eller planlagt økt berikes/fullføres automatisk.
+- Konflikter i objektive felt vises før skriving. Manuelle og subjektive felt beholdes, og hvert objektivt overskrivingsfelt krever egen avkrysning.
+- `training-repository.js` har en avgrenset, chunket importbatch for `completed` og `planned`, med fremdriftsmetadata dersom en senere batch feiler.
+- `app-state.js` whitelist-normaliserer valgfri Garmin-proveniens og fjerner rå/ukjente Garmin-felt.
+- Recovery snapshot er obligatorisk før import. Import blokkeres uten innlogging, nett eller i offline snapshot-visning.
+- `app.js` inneholder bare factory, state-apply/recovery og repository-wrapper; CSV, matching, konfliktpolicy og rendering ligger i egne moduler.
+- PWA app shell, cache og synlig versjon er oppdatert til `v176b`.
 
 ### v167 - Øktmaler som egen UI-feature - Bygget
 
