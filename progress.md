@@ -1,5 +1,5 @@
 # Treningsapp — progress.md
-Oppdatert: 2026-08-05 (siste runtime-endring: v176d)
+Oppdatert: 2026-08-05 (siste runtime-endring: v176d1)
 
 ---
 
@@ -320,6 +320,12 @@ Treningsapp/
 - Vurderingen bruker tilgjengelige objektive data sammen med RPE og kroppssignaler; smerte og tilpasning overstyrer mindre viktige prestasjonssignaler.
 - `app.js` beholder bare en liten wrapper for eksisterende coachflater. Ingen datamodell eller persistence er endret.
 - PWA-cache og synlig versjon er oppdatert til `v176d`.
+
+### v176d1 - Én scrollbar i øktdetaljen - Bygget
+
+- Den generelle modalregelen overstyrte detaljmodalens `overflow: hidden`, slik at både ytre modal og innhold fikk hver sin scrollbar.
+- Selektoren er gjort spesifikk for `.modal.detail-modal`; bare `#workoutDetailContent` ruller nå.
+- Ingen innhold, datamodell eller coach-logikk er endret. PWA-cache og synlig versjon er `v176d1`.
 
 ### v167 - Øktmaler som egen UI-feature - Bygget
 
