@@ -266,8 +266,8 @@ Prioritert backlog for videre utvikling av Treningsapp.
     - Behold datamodell, snapshots og persistence uendret i de eksisterende modulgrensene.
 
 52. **v176a-v176b - Garmin CSV-import**
-    - Bygg først importkontrakt, mapping, fingeravtrykk og duplikatpolicy.
-    - Deretter en veiviser for `berik eksisterende`, `opprett ny` eller `hopp over`.
+    - v176a er bygget: verifisert importkontrakt, mapping, ren CSV-adapter, fingeravtrykk, duplikatpolicy, matchnivåer og sikker merge-policy.
+    - Neste runde er v176b: veiviser for `berik eksisterende`, `opprett ny` eller `hopp over`.
     - Manuelle felt overskrives aldri uten eksplisitt bekreftelse.
     - Parsing og matching legges i `garmin-csv-import.js`; UI legges i `training-import-ui.js`; `app.js` skal ikke eie CSV-logikken.
 
@@ -303,7 +303,7 @@ Disse punktene var del av den tidlige v142-idéen, men er bevisst flyttet ut av 
 
 ## Anbefalt neste steg
 
-`v173a` er dokumentert, og `v173b`, `v174a`, `v174b`, `v174c`, `v175` og `v175b` er bygget. Neste runde er v176a: Garmin CSV-importkontrakt, mapping og duplikatpolicy før importveiviseren bygges i v176b.
+`v173a` er dokumentert, og `v173b`, `v174a`, `v174b`, `v174c`, `v175`, `v175b` og `v176a` er bygget. Neste runde er v176b: Garmin CSV-importveiviser med eksplisitte valg og kontrollert repository-skriving.
 
 v164a-v169 har etablert modulgrensene som de nye rundene skal bygge videre på. v170a-v171 har lukket de åpne tekniske sporene for lokal snapshot-kvote og Firebase Functions SDK.
 
