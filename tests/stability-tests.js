@@ -166,7 +166,7 @@ async function testAsync(name, fn) {
     validateHeartRateZoneSet
   } = heartRateZoneDomain;
   const { durationSecondsFromParts } = workoutCompletionUiDomain;
-  const { filterWorkoutHistory, workoutHistoryPeriodRange } = workoutHistoryUiDomain;
+  const { filterWorkoutHistory, workoutActivityDetails, workoutHistoryPeriodRange } = workoutHistoryUiDomain;
   const {
     classifyGarminMatch,
     garminActivityType,
@@ -2066,8 +2066,8 @@ async function testAsync(name, fn) {
     assert.ok(workoutHistoryUiSource.includes('heartRateZoneDistributionRows'), 'history does not use production zone rows');
     assert.ok(workoutHistoryUiSource.includes('Tid i pulssoner'), 'completed detail is missing the heart-rate zone section');
     assert.ok(!workoutHistoryUiSource.includes("row.estimated ? 'ca. '"), 'zone duration should not be prefixed with ca.');
-    assert.ok(app.includes("const APP_VERSION = 'v176b'"), 'visible app version must be v176b');
-    assert.ok(serviceWorker.includes('treningsapp-v176b'), 'cache version must match v176b');
+    assert.ok(app.includes("const APP_VERSION = 'v176c'"), 'visible app version must be v176c');
+    assert.ok(serviceWorker.includes('treningsapp-v176c'), 'cache version must match v176c');
   });
 
   test('v174b evaluates easy and quality sessions without treating zone percentages as a hard truth', () => {
@@ -2162,8 +2162,8 @@ async function testAsync(name, fn) {
     assert.ok(index.includes('id="insightHeartRateComplianceCard"'), 'Insights is missing the compliance card');
     assert.ok(app.includes('heartRateZoneComplianceForItems(last28Days)'), 'coach context does not use the canonical compliance summary');
     assert.ok(app.includes('renderHeartRateZoneComplianceInsight(today)'), 'Insights does not render canonical compliance');
-    assert.ok(app.includes("const APP_VERSION = 'v176b'"), 'visible app version must be v176b');
-    assert.ok(serviceWorker.includes('treningsapp-v176b'), 'cache version must match v176b');
+    assert.ok(app.includes("const APP_VERSION = 'v176c'"), 'visible app version must be v176c');
+    assert.ok(serviceWorker.includes('treningsapp-v176c'), 'cache version must match v176c');
   });
 
   test('v174c uses the test profile for zones and keeps the golden zone as a separate coach reference', () => {
@@ -2473,6 +2473,34 @@ async function testAsync(name, fn) {
     assert.ok(!('csvRow' in normalizedState.completed[0].externalData.garmin));
   });
 
+  test('v176c categorizes available activity details without exposing data origin', () => {
+    const details = workoutActivityDetails({
+      elevationGainM: 96,
+      externalData: { garmin: {
+        startedAtLocal: '2026-08-04T18:12:00',
+        movingTimeSeconds: 2942,
+        elapsedTimeSeconds: 3000,
+        aerobicTrainingEffect: 2.6,
+        cadence: { averageSpm: 168, maxSpm: 182 },
+        pace: { bestPaceSecondsPerKm: 390, maxSpeedKmh: 12.4 },
+        totalDescentM: 94,
+        steps: 8006,
+        bodyBatteryDrain: -9,
+        respiration: { average: 28.4 },
+        temperatureC: { min: 12, max: 17 }
+      } }
+    });
+    assert.deepStrictEqual(details.timing.map(item => item.label), ['Starttid', 'Tid i bevegelse', 'Total tid']);
+    assert.ok(details.load.some(item => item.label === 'Aerob treningseffekt' && item.value === '2,6'));
+    assert.ok(details.speed.some(item => item.label === 'Beste tempo' && item.value === '6:30 min/km'));
+    assert.ok(details.runningDynamics.some(item => item.label === 'Steg' && item.value === '8 006'));
+    assert.ok(details.terrain.some(item => item.label === 'Nedstigning' && item.value === '94 hm'));
+    assert.ok(details.energyAndEnvironment.some(item => item.label === 'Body Battery-endring' && item.value === '−9'));
+    assert.strictEqual(details.power.length, 0);
+    assert.ok(!workoutHistoryUiSource.includes('<strong>Garmin:</strong>'), 'workout detail should not spend space on data origin');
+    assert.ok(styles.includes('.detail-data-grid'), 'categorized workout details need compact responsive styling');
+  });
+
   await testAsync('v176b repository batches approved completed and planned writes with partial progress metadata', async () => {
     const committed = [];
     const firestore = {
@@ -2522,8 +2550,8 @@ async function testAsync(name, fn) {
     assert.ok(trainingImportControllerSource.includes("action: duplicate ? 'skip'"), 'duplicates should be skipped by default');
     assert.ok(!trainingImportControllerSource.includes('heartRateZoneDistribution'), 'controller must not synthesize pulse zones');
     assert.ok(styles.includes('.garmin-import-row'), 'Garmin preview styling is missing');
-    assert.ok(app.includes("const APP_VERSION = 'v176b'"));
-    assert.ok(serviceWorker.includes('treningsapp-v176b'));
+    assert.ok(app.includes("const APP_VERSION = 'v176c'"));
+    assert.ok(serviceWorker.includes('treningsapp-v176c'));
   });
 
   test('structured interval UI fields and summaries are wired into production files', () => {
