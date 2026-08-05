@@ -184,4 +184,3 @@ Oppsummer alltid:
 - hvilke sjekker som er kjørt
 - hvilke filer som er synkronisert direkte til GitHub, eller hvilke filer brukeren må laste opp manuelt hvis direkte synk ikke var mulig
 - om noe ikke ble testet
-
