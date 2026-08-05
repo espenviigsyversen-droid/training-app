@@ -834,6 +834,7 @@
           <h2 class="section-title">Data og system</h2>
           <p class="small-note">Oppdater appen, ta backup eller administrer konto.</p>
           <div class="setup-menu">
+            <button class="setup-menu-item" onclick="openSetupSection('garminImport')"><span>Importer fra Garmin</span><small>Forhåndsvis Activities CSV før valgte økter lagres</small></button>
             <button class="setup-menu-item" onclick="openSetupSection('data')"><span>Backup og oppdatering</span><small>Eksport, import, demo og appoppdatering</small></button>
             <button class="setup-menu-item" onclick="openSetupSection('ai')"><span>API-integrasjoner</span><small>OpenAI-status og sikker nøkkeladministrasjon</small></button>
             <button class="setup-menu-item danger" onclick="openSetupSection('danger')"><span>Faresone</span><small>Slett data eller logg ut</small></button>
@@ -1270,6 +1271,27 @@
             <strong>Data som kan sendes ved chat</strong>
             <p>Coach-beslutning, dagsform, relevante kroppssignaler, aggregerte 7/14/28-dagerssummer, mål og siste relevante økt. Identitet, secrets, backup og full historikk er ekskludert.</p>
           </div>
+        </div>
+        </div>
+
+        <div id="setupGarminImport" class="setup-section hidden">
+        <div class="card">
+          <button class="btn-soft setup-back" onclick="openSetupSection('overview')">Tilbake til Setup</button>
+          <h2 class="section-title">Importer aktiviteter fra Garmin</h2>
+          <p class="small-note">Velg <strong>Activities CSV</strong> fra Garmin Connect. Filen leses lokalt og sendes ikke til backend, AI eller andre tjenester.</p>
+          <div class="garmin-import-file-row">
+            <button class="btn-primary" type="button" onclick="document.getElementById('garminCsvFile').click()">Velg Garmin CSV</button>
+            <input id="garminCsvFile" type="file" accept=".csv,text/csv" class="hidden" />
+            <button id="garminImportResetBtn" class="btn-soft" type="button">Nullstill</button>
+          </div>
+          <p id="garminImportStatus" class="small-note garmin-import-status" role="status">Velg en Activities CSV-fil fra Garmin Connect. Filen behandles bare lokalt.</p>
+          <div id="garminImportResult"></div>
+          <div id="garminImportSummary"></div>
+        </div>
+        <div id="garminImportList" class="garmin-import-list"></div>
+        <div id="garminImportActions" class="card garmin-import-actions hidden">
+          <p class="small-note">Kontroller alle aktiviteter som krever valg. Manuelle og subjektive felt beholdes med mindre du eksplisitt velger å overskrive et objektivt felt.</p>
+          <button id="garminImportCommitBtn" class="btn-primary btn-full" type="button">Bekreft og importer</button>
         </div>
         </div>
 
