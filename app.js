@@ -140,7 +140,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       xWorkoutSuggestion
     } from './domain-training-plan.js';
 
-const APP_VERSION = 'v175';
+const APP_VERSION = 'v175b';
     const APP_CACHE_NAME = `treningsapp-${APP_VERSION}`;
 
     const firebaseConfig = {
@@ -1741,11 +1741,27 @@ const APP_VERSION = 'v175';
 
     window.editExercise = function(id) {
       const exercise = state.exercises.find(item => item.id === id);
-      if (exercise) getExerciseLibraryUi().fillForm(exercise);
+      if (!exercise) return;
+      getWorkoutTemplateUi().setWorkspace('exercises');
+      getExerciseLibraryUi().fillForm(exercise);
     };
 
     window.cancelEditExercise = function() {
       getExerciseLibraryUi().clearForm();
+    };
+
+    window.setTrainingLibraryView = function(view) {
+      const selected = getWorkoutTemplateUi().setWorkspace(view);
+      if (selected === 'exercises') getExerciseLibraryUi().renderLibrary();
+    };
+
+    window.openNewTemplateForm = function() {
+      getWorkoutTemplateUi().startNewForm();
+    };
+
+    window.openNewExerciseForm = function() {
+      getWorkoutTemplateUi().setWorkspace('exercises');
+      getExerciseLibraryUi().startNewForm();
     };
 
     window.deleteExercise = async function(id) {
@@ -1791,7 +1807,6 @@ const APP_VERSION = 'v175';
       const t = state.templates.find(t => t.id === id);
       if (!t) return;
       getWorkoutTemplateUi().fillForm(t);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
     };
 
     window.cancelEditTemplate = function() { getWorkoutTemplateUi().clearForm(); };
