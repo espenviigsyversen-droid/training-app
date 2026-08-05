@@ -107,6 +107,8 @@ node functions\tests\ai-backend-tests.js
 - `LAB_TESTS_AND_ZONES_DESIGN.md` - datamodell, kildehierarki og grensepolicy for manuelt redigerbare testbaserte pulssoner samt senere sonefordeling på økter
 - `GARMIN_CSV_IMPORT_DESIGN.md` - verifisert Garmin Activities CSV-kontrakt, mapping, fingeravtrykk, matchnivåer, dataminimering og sikker merge-policy
 - `garmin-csv-import.js` - ren CSV-parsing, Garmin-mapping, duplikatkontroll og matchforslag uten DOM/Firebase/state
+- `training-import-controller.js` - ren forhåndsvisnings- og commitplan for Garmin-import, konflikter, materialisering og plan-kobling
+- `training-import-ui.js` - lokal fillesing, importforhåndsvisning, eksplisitte valg og sluttrapport med injiserte avhengigheter
 - `FIREBASE_AI_BACKEND_DEPLOY.md` - obligatorisk sikkerhets- og deployport for AI-backend
 - `ARKITEKT_CONTEXT.md` - veiledende produkt- og arkitekturkontekst
 - `tests/stability-tests.js` - lokal stabilitetstest
