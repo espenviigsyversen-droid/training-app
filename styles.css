@@ -1836,6 +1836,173 @@
 
     .template-group { margin-top: 14px; }
 
+    .garmin-import-file-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 14px;
+    }
+
+    .garmin-import-status {
+      margin-top: 12px;
+      overflow-wrap: anywhere;
+    }
+
+    .garmin-import-status.error { color: var(--red); }
+    .garmin-import-status.success { color: #04742f; }
+    .garmin-import-status.ready { color: #8a5200; }
+
+    .garmin-import-summary-grid {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 7px;
+      margin-top: 12px;
+    }
+
+    .garmin-import-summary-grid > div {
+      display: grid;
+      gap: 2px;
+      min-width: 0;
+      padding: 9px 6px;
+      border: 1px solid var(--line);
+      border-radius: 9px;
+      background: rgba(255,255,255,0.72);
+      text-align: center;
+    }
+
+    .garmin-import-summary-grid strong { font-size: 1rem; }
+
+    .garmin-import-summary-grid span {
+      color: var(--warm-gray-3);
+      font-size: 0.66rem;
+      font-weight: 850;
+      overflow-wrap: anywhere;
+    }
+
+    .garmin-rejected {
+      margin-top: 10px;
+      padding: 9px 10px;
+      border-radius: 9px;
+      background: rgba(239,68,68,0.07);
+      color: var(--red);
+      font-size: 0.78rem;
+    }
+
+    .garmin-rejected summary { cursor: pointer; font-weight: 900; }
+    .garmin-rejected p { margin: 6px 0 0; }
+
+    .garmin-import-list {
+      display: grid;
+      gap: 9px;
+      margin: 10px 0;
+    }
+
+    .garmin-import-row {
+      border: 1px solid var(--line);
+      border-left: 4px solid #16a34a;
+      border-radius: 12px;
+      background: var(--card);
+      overflow: hidden;
+    }
+
+    .garmin-import-row.review { border-left-color: #f59e0b; }
+    .garmin-import-row.duplicate { border-left-color: var(--warm-gray-2); }
+
+    .garmin-import-row > summary {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 12px;
+      cursor: pointer;
+      list-style: none;
+    }
+
+    .garmin-import-row > summary::-webkit-details-marker { display: none; }
+
+    .garmin-import-row > summary > span:first-child {
+      display: grid;
+      gap: 3px;
+      min-width: 0;
+    }
+
+    .garmin-import-row > summary strong,
+    .garmin-import-row > summary small {
+      overflow-wrap: anywhere;
+    }
+
+    .garmin-import-row > summary small {
+      color: var(--warm-gray-3);
+      font-size: 0.73rem;
+      font-weight: 750;
+    }
+
+    .garmin-import-chip {
+      flex: 0 0 auto;
+      padding: 4px 7px;
+      border-radius: 999px;
+      background: rgba(34,197,94,0.13);
+      color: #04742f;
+      font-size: 0.68rem;
+      font-weight: 900;
+    }
+
+    .garmin-import-row.review .garmin-import-chip {
+      background: rgba(245,158,11,0.15);
+      color: #8a5200;
+    }
+
+    .garmin-import-row.duplicate .garmin-import-chip {
+      background: var(--warm-gray-1);
+      color: var(--warm-gray-3);
+    }
+
+    .garmin-import-row-body {
+      display: grid;
+      gap: 10px;
+      padding: 12px;
+      border-top: 1px solid var(--line);
+    }
+
+    .garmin-import-row-body > p { margin: 0; }
+
+    .garmin-conflicts {
+      display: grid;
+      gap: 8px;
+      margin: 0;
+      padding: 10px;
+      border: 1px solid rgba(245,158,11,0.35);
+      border-radius: 10px;
+      background: rgba(245,158,11,0.07);
+    }
+
+    .garmin-conflicts legend { padding: 0 4px; font-weight: 900; }
+    .garmin-conflicts p { margin: 0; }
+
+    .garmin-import-actions {
+      position: sticky;
+      bottom: calc(72px + env(safe-area-inset-bottom));
+      z-index: 7;
+      box-shadow: 0 -8px 28px rgba(17,17,17,0.10);
+    }
+
+    .garmin-import-result {
+      display: grid;
+      gap: 4px;
+      margin-top: 12px;
+      padding: 11px 12px;
+      border-radius: 10px;
+      background: rgba(34,197,94,0.12);
+      color: #04742f;
+      font-size: 0.8rem;
+    }
+
+    @media (max-width: 520px) {
+      .garmin-import-summary-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+      .garmin-import-row > summary { align-items: flex-start; }
+      .garmin-import-chip { white-space: nowrap; }
+    }
+
     .template-group-header {
       display: flex;
       align-items: baseline;
