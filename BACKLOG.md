@@ -265,10 +265,11 @@ Prioritert backlog for videre utvikling av Treningsapp.
     - Grupper mal-editoren i tre forståelige steg og hold mal-kortene kompakte med detaljer ved behov.
     - Behold datamodell, snapshots og persistence uendret i de eksisterende modulgrensene.
 
-52. **v176a-v176c - Garmin CSV-import og aktivitetsdetaljer** - Bygget
+52. **v176a-v176d - Garmin CSV-import og aktivitetsdetaljer** - Bygget
     - v176a er bygget: verifisert importkontrakt, mapping, ren CSV-adapter, fingeravtrykk, duplikatpolicy, matchnivåer og sikker merge-policy.
     - v176b er bygget: lokal forhåndsvisning, `berik eksisterende`, `koble til plan`, `opprett ny` og `hopp over`, med recovery før batchskriving.
     - v176c er bygget: alle bevarte aktivitetsfelt vises i naturlige, datadrevne kategorier uten synlig merking av datakilde.
+    - v176d er bygget: pulsseksjonen prioriterer øktens pulsverdier fremfor profilenes proveniens, og en ny ren domenemodul gir en strukturert regelbasert coach-vurdering.
     - Manuelle felt overskrives aldri uten eksplisitt bekreftelse.
     - Parsing og matching ligger i `garmin-csv-import.js`, handlingsplan i `training-import-controller.js` og UI i `training-import-ui.js`; `app.js` eier ikke CSV-logikken.
 
@@ -304,7 +305,7 @@ Disse punktene var del av den tidlige v142-idéen, men er bevisst flyttet ut av 
 
 ## Anbefalt neste steg
 
-`v173a` er dokumentert, og `v173b`, `v174a`, `v174b`, `v174c`, `v175`, `v175b`, `v176a`, `v176b` og `v176c` er bygget. Neste runde er v177: konservativ modell for nedoverbelastning.
+`v173a` er dokumentert, og `v173b`, `v174a`, `v174b`, `v174c`, `v175`, `v175b`, `v176a`, `v176b`, `v176c` og `v176d` er bygget. Neste runde er v177: konservativ modell for nedoverbelastning.
 
 v164a-v169 har etablert modulgrensene som de nye rundene skal bygge videre på. v170a-v171 har lukket de åpne tekniske sporene for lokal snapshot-kvote og Firebase Functions SDK.
 
@@ -320,3 +321,4 @@ Begrunnelse:
 - v155-reglene er testet i Firestore-emulator: eierens appdata fungerer, andre brukere avvises, chat-writes er backend-only og `apiKeys/{uid}` / `aiUsage/{uid}` er sperret
 - v154 har fungerende dynamisk tilkoblingsstatus, egen Chat-fane og bestått ende-til-ende-test med ekte OpenAI-svar
 - Produksjonsreglene er sammenlignet og deployet. Chat ligger i isolert `aiChatUsers/{uid}`-rot, og den sammenslåtte regelfilen bevarer eksisterende regler for `users`, `households`, `families`, `familyCodes` og `adminFamilyHealth`.
+
