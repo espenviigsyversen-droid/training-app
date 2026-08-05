@@ -2860,6 +2860,37 @@
     .detail-section p strong,
     .detail-text strong { color: var(--black); }
 
+    .detail-data-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px 14px;
+      margin-top: 10px;
+    }
+
+    .detail-data-item {
+      min-width: 0;
+      padding: 8px 0;
+      border-bottom: 1px solid var(--warm-gray-1);
+    }
+
+    .detail-data-item span,
+    .detail-data-item strong {
+      display: block;
+      overflow-wrap: anywhere;
+    }
+
+    .detail-data-item span {
+      color: var(--warm-gray-3);
+      font-size: 0.75rem;
+      font-weight: 800;
+    }
+
+    .detail-data-item strong {
+      margin-top: 3px;
+      color: var(--black);
+      font-size: 0.95rem;
+    }
+
     #workoutDetailContent .tag {
       max-width: 100%;
       white-space: normal;
