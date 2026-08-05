@@ -2069,8 +2069,8 @@ async function testAsync(name, fn) {
     assert.ok(workoutHistoryUiSource.includes('heartRateZoneDistributionRows'), 'history does not use production zone rows');
     assert.ok(workoutHistoryUiSource.includes('Tid i pulssoner'), 'completed detail is missing the heart-rate zone section');
     assert.ok(!workoutHistoryUiSource.includes("row.estimated ? 'ca. '"), 'zone duration should not be prefixed with ca.');
-    assert.ok(app.includes("const APP_VERSION = 'v176d'"), 'visible app version must be v176d');
-    assert.ok(serviceWorker.includes('treningsapp-v176d'), 'cache version must match v176d');
+    assert.ok(app.includes("const APP_VERSION = 'v176d1'"), 'visible app version must be v176d1');
+    assert.ok(serviceWorker.includes('treningsapp-v176d1'), 'cache version must match v176d1');
   });
 
   test('v174b evaluates easy and quality sessions without treating zone percentages as a hard truth', () => {
@@ -2165,8 +2165,8 @@ async function testAsync(name, fn) {
     assert.ok(index.includes('id="insightHeartRateComplianceCard"'), 'Insights is missing the compliance card');
     assert.ok(app.includes('heartRateZoneComplianceForItems(last28Days)'), 'coach context does not use the canonical compliance summary');
     assert.ok(app.includes('renderHeartRateZoneComplianceInsight(today)'), 'Insights does not render canonical compliance');
-    assert.ok(app.includes("const APP_VERSION = 'v176d'"), 'visible app version must be v176d');
-    assert.ok(serviceWorker.includes('treningsapp-v176d'), 'cache version must match v176d');
+    assert.ok(app.includes("const APP_VERSION = 'v176d1'"), 'visible app version must be v176d1');
+    assert.ok(serviceWorker.includes('treningsapp-v176d1'), 'cache version must match v176d1');
   });
 
   test('v174c uses the test profile for zones and keeps the golden zone as a separate coach reference', () => {
@@ -2534,6 +2534,7 @@ async function testAsync(name, fn) {
     assert.ok(app.includes("from './domain-workout-assessment.js'"));
     assert.ok(styles.includes('.workout-coach-assessment'));
     assert.ok(workoutAssessmentSource.includes('buildWorkoutCoachAssessment'));
+    assert.ok(styles.includes('.modal.detail-modal { padding: 0; overflow: hidden; }'), 'workout detail should have only the inner content scrollbar');
   });
 
   await testAsync('v176b repository batches approved completed and planned writes with partial progress metadata', async () => {
@@ -2585,8 +2586,8 @@ async function testAsync(name, fn) {
     assert.ok(trainingImportControllerSource.includes("action: duplicate ? 'skip'"), 'duplicates should be skipped by default');
     assert.ok(!trainingImportControllerSource.includes('heartRateZoneDistribution'), 'controller must not synthesize pulse zones');
     assert.ok(styles.includes('.garmin-import-row'), 'Garmin preview styling is missing');
-    assert.ok(app.includes("const APP_VERSION = 'v176d'"));
-    assert.ok(serviceWorker.includes('treningsapp-v176d'));
+    assert.ok(app.includes("const APP_VERSION = 'v176d1'"));
+    assert.ok(serviceWorker.includes('treningsapp-v176d1'));
   });
 
   test('structured interval UI fields and summaries are wired into production files', () => {
