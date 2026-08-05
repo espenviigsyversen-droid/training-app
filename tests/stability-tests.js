@@ -1874,6 +1874,26 @@ async function testAsync(name, fn) {
     ], 'legg').map(item => item.id), ['a']);
   });
 
+  test('v175b separates workout templates from reusable exercises and keeps editors opt-in', () => {
+    assert.ok(index.includes('id="templateWorkspaceTab"'), 'template workspace tab is missing');
+    assert.ok(index.includes('id="exerciseWorkspaceTab"'), 'exercise workspace tab is missing');
+    assert.ok(index.includes('id="templateEditorCard" class="card hidden"'), 'template editor should be closed by default');
+    assert.ok(index.includes('id="exerciseEditorPanel" class="exercise-library-form hidden"'), 'exercise editor should be closed by default');
+    assert.ok(index.includes('onclick="openNewTemplateForm()"'), 'explicit new-template action is missing');
+    assert.ok(index.includes('onclick="openNewExerciseForm()"'), 'explicit new-exercise action is missing');
+    assert.ok(index.includes('Overordnet øktbeskrivelse'), 'template structure field is not clearly named');
+    assert.ok(index.includes('Gjenbrukbare enkeltøvelser'), 'exercise workspace lacks a clear reusable-exercise label');
+    assert.ok(app.includes('window.setTrainingLibraryView'), 'workspace navigation is not wired in app.js');
+    assert.ok(app.includes('window.openNewTemplateForm'), 'new-template wrapper is missing');
+    assert.ok(app.includes('window.openNewExerciseForm'), 'new-exercise wrapper is missing');
+    assert.ok(workoutTemplateUiSource.includes('function setWorkspace'), 'template controller does not own workspace switching');
+    assert.ok(workoutTemplateUiSource.includes('function setEditorVisible'), 'template editor visibility is not controller-owned');
+    assert.ok(exerciseLibraryUiSource.includes('function setFormVisible'), 'exercise editor visibility is not controller-owned');
+    assert.ok(workoutTemplateUiSource.includes('template-card-details'), 'template cards should hide detailed metadata by default');
+    assert.ok(styles.includes('.library-workspace-nav'), 'workspace navigation styles are missing');
+    assert.ok(styles.includes('.template-editor-section'), 'grouped template editor styles are missing');
+  });
+
   test('v173b test-based heart-rate zones normalize and classify shared boundaries safely', () => {
     const labZones = normalizeHeartRateZoneSet({
       id: 'steinkjer-2026',
@@ -2023,8 +2043,8 @@ async function testAsync(name, fn) {
     assert.ok(workoutHistoryUiSource.includes('heartRateZoneDistributionRows'), 'history does not use production zone rows');
     assert.ok(workoutHistoryUiSource.includes('Tid i pulssoner'), 'completed detail is missing the heart-rate zone section');
     assert.ok(!workoutHistoryUiSource.includes("row.estimated ? 'ca. '"), 'zone duration should not be prefixed with ca.');
-    assert.ok(app.includes("const APP_VERSION = 'v175'"), 'visible app version must be v175');
-    assert.ok(serviceWorker.includes('treningsapp-v175'), 'cache version must match v175');
+    assert.ok(app.includes("const APP_VERSION = 'v175b'"), 'visible app version must be v175b');
+    assert.ok(serviceWorker.includes('treningsapp-v175b'), 'cache version must match v175b');
   });
 
   test('v174b evaluates easy and quality sessions without treating zone percentages as a hard truth', () => {
@@ -2119,8 +2139,8 @@ async function testAsync(name, fn) {
     assert.ok(index.includes('id="insightHeartRateComplianceCard"'), 'Insights is missing the compliance card');
     assert.ok(app.includes('heartRateZoneComplianceForItems(last28Days)'), 'coach context does not use the canonical compliance summary');
     assert.ok(app.includes('renderHeartRateZoneComplianceInsight(today)'), 'Insights does not render canonical compliance');
-    assert.ok(app.includes("const APP_VERSION = 'v175'"), 'visible app version must be v175');
-    assert.ok(serviceWorker.includes('treningsapp-v175'), 'cache version must match v175');
+    assert.ok(app.includes("const APP_VERSION = 'v175b'"), 'visible app version must be v175b');
+    assert.ok(serviceWorker.includes('treningsapp-v175b'), 'cache version must match v175b');
   });
 
   test('v174c uses the test profile for zones and keeps the golden zone as a separate coach reference', () => {
