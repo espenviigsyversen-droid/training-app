@@ -6,6 +6,7 @@ const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const { defineSecret } = require("firebase-functions/params");
 const logger = require("firebase-functions/logger");
 const { handleAiCoachChat } = require("./ai/ai-chat");
+const { handleAiCoachAssessWorkout } = require("./ai/workout-assessment");
 const {
   deleteOpenAiKey,
   openAiKeyStatus,
@@ -119,6 +120,21 @@ exports.aiCoachChat = onCall(SECRET_CALL_OPTIONS, async request => {
     });
   } catch (error) {
     return internalFailure(error, "chat");
+  }
+});
+
+exports.aiCoachAssessWorkout = onCall(SECRET_CALL_OPTIONS, async request => {
+  const uid = requireUid(request);
+  try {
+    return await handleAiCoachAssessWorkout({
+      db,
+      uid,
+      data: request.data || {},
+      logger,
+      encryptionSecret: aiKeyEncryptionSecret.value()
+    });
+  } catch (error) {
+    return internalFailure(error, "workout_assessment");
   }
 });
 
