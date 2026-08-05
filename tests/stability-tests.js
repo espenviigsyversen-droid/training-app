@@ -18,6 +18,7 @@ const workoutTemplateUiSource = read('workout-template-ui.js');
 const exerciseLibraryUiSource = read('exercise-library-ui.js');
 const exerciseDomainSource = read('domain-exercises.js');
 const heartRateZoneDomainSource = read('domain-heart-rate-zones.js');
+const garminCsvDomainSource = read('garmin-csv-import.js');
 const heartRateZoneUiSource = read('heart-rate-zones-ui.js');
 const workoutCompletionUiSource = read('workout-completion-ui.js');
 const workoutHistoryUiSource = read('workout-history-ui.js');
@@ -69,6 +70,7 @@ async function testAsync(name, fn) {
   const exerciseDomain = await import(pathToFileURL(path.join(root, 'domain-exercises.js')).href);
   const exerciseLibraryUiDomain = await import(pathToFileURL(path.join(root, 'exercise-library-ui.js')).href);
   const heartRateZoneDomain = await import(pathToFileURL(path.join(root, 'domain-heart-rate-zones.js')).href);
+  const garminCsvDomain = await import(pathToFileURL(path.join(root, 'garmin-csv-import.js')).href);
   const workoutCompletionUiDomain = await import(pathToFileURL(path.join(root, 'workout-completion-ui.js')).href);
   const workoutHistoryUiDomain = await import(pathToFileURL(path.join(root, 'workout-history-ui.js')).href);
   const {
@@ -161,6 +163,16 @@ async function testAsync(name, fn) {
   } = heartRateZoneDomain;
   const { durationSecondsFromParts } = workoutCompletionUiDomain;
   const { filterWorkoutHistory, workoutHistoryPeriodRange } = workoutHistoryUiDomain;
+  const {
+    classifyGarminMatch,
+    garminActivityType,
+    garminDuplicateFor,
+    garminImportFingerprint,
+    mergeGarminIntoCompleted,
+    parseCsvDocument,
+    parseGarminActivitiesCsv,
+    parseGarminDuration
+  } = garminCsvDomain;
   const {
     combinedRaceResults,
     formatRaceTime,
@@ -2205,6 +2217,126 @@ async function testAsync(name, fn) {
     assert.ok(workoutHistoryUiSource.includes("detailLine('Gylne sone'"), 'history should label the separate golden-zone source');
     assert.ok(app.includes('heartRateZoneProfile: ctx.heartRateZoneProfile'), 'AI coach context should include the active test-zone profile');
     assert.ok(app.includes('distribution?.zoneSetSnapshot || null'), 'historical zone snapshots should outrank the current profile');
+  });
+
+  test('v176a Garmin CSV parser handles quoted commas, missing values and decimal durations', () => {
+    const csv = [
+      '\uFEFFActivity Type,Date,Title,Time,Distance,Steps,Body Battery Drain,Avg Pace,Total Ascent,Aerobic TE',
+      'Running,2026-08-04 16:21:02,"Rolig, kontrollert","00:49:02","6.44","8,006","\'-9","7:37","96","3.2"',
+      'Pool Swim,2026-08-02 10:51:07,"Pool Swim","00:24:39.4","550","--","--","3:04","--","1.4"'
+    ].join('\r\n');
+    const parsedDocument = parseCsvDocument(csv);
+    assert.strictEqual(parsedDocument.headers.length, 10);
+    assert.strictEqual(parsedDocument.rows[0].values.Title, 'Rolig, kontrollert');
+    assert.strictEqual(parsedDocument.rows[0].values.Steps, '8,006');
+    assert.strictEqual(parseGarminDuration('00:08:43.4'), 523);
+    assert.strictEqual(parseGarminDuration('--'), '');
+
+    const result = parseGarminActivitiesCsv(csv);
+    assert.strictEqual(result.activities.length, 2);
+    assert.strictEqual(result.rejectedRows.length, 0);
+    assert.strictEqual(result.activities[0].completedDraft.distanceKm, 6.44);
+    assert.strictEqual(result.activities[0].completedDraft.externalData.garmin.steps, 8006);
+    assert.strictEqual(result.activities[0].completedDraft.externalData.garmin.bodyBatteryDrain, -9);
+    assert.strictEqual(result.activities[1].completedDraft.distanceKm, 0.55, 'pool distance should convert from meters to km');
+    assert.strictEqual(result.activities[1].completedDraft.externalData.garmin.pace.averagePaceSecondsPer100m, 184);
+    assert.ok(!('heartRateZoneDistribution' in result.activities[0].completedDraft), 'CSV without zone data must not invent a distribution');
+    assert.ok(!('rawRow' in result.activities[0]), 'raw CSV rows must not survive mapping');
+  });
+
+  test('v176a Garmin activity mapping and fingerprint are deterministic', () => {
+    assert.strictEqual(garminActivityType('Running').appType, 'Løping');
+    assert.strictEqual(garminActivityType('Treadmill Running').code, 'treadmill_running');
+    assert.strictEqual(garminActivityType('Strength Training').appType, 'Styrke');
+    assert.strictEqual(garminActivityType('Unknown Sport').appType, 'Annet');
+    const input = {
+      activityCode: 'running',
+      startedAtLocal: '2026-08-04T16:21:02',
+      durationSeconds: 2942,
+      distanceKm: 6.44
+    };
+    const fingerprint = garminImportFingerprint(input);
+    assert.strictEqual(fingerprint, garminImportFingerprint({ ...input }));
+    assert.notStrictEqual(fingerprint, garminImportFingerprint({ ...input, durationSeconds: 2943 }));
+    assert.match(fingerprint, /^garmin_csv_v1_[a-f0-9]{16}$/);
+  });
+
+  test('v176a Garmin CSV rejects malformed rows without losing valid activities', () => {
+    const csv = [
+      'Activity Type,Date,Title,Time,Distance',
+      'Running,2026-08-04 16:21:02,"Mangelfull rad"',
+      'Running,2026-08-04 16:21:02,"Gyldig rad",00:30:00,5.00'
+    ].join('\n');
+    const result = parseGarminActivitiesCsv(csv);
+    assert.strictEqual(result.activities.length, 1);
+    assert.deepStrictEqual(result.rejectedRows, [{ rowNumber: 2, reason: 'Forventet 5 felt, fant 3.' }]);
+  });
+
+  test('v176a Garmin matching separates secure, possible and missing matches', () => {
+    const candidate = {
+      activityCode: 'running',
+      completedDraft: {
+        date: '2026-08-04', manualName: 'Oppegård rolig løp', activityType: 'Løping',
+        durationSeconds: 2942, distanceKm: 6.44
+      }
+    };
+    const secure = classifyGarminMatch(candidate, {
+      date: '2026-08-04', manualName: 'Rolig løp', templateSnapshot: { type: 'Løping' },
+      durationSeconds: 2900, distanceKm: 6.5
+    });
+    const possible = classifyGarminMatch(candidate, {
+      date: '2026-08-04', templateSnapshot: { type: 'Løping', name: 'Planlagt økt' }
+    });
+    const none = classifyGarminMatch(candidate, {
+      date: '2026-08-03', templateSnapshot: { type: 'Løping' }, durationSeconds: 2942, distanceKm: 6.44
+    });
+    assert.strictEqual(secure.level, 'secure');
+    assert.strictEqual(possible.level, 'possible');
+    assert.strictEqual(none.level, 'none');
+  });
+
+  test('v176a Garmin duplicate and merge policy preserve manual data', () => {
+    const candidate = {
+      fingerprint: 'garmin_csv_v1_1234567890abcdef',
+      completedDraft: {
+        durationSeconds: 2942,
+        distanceKm: 6.44,
+        avgHeartRate: 149,
+        notes: 'should never merge',
+        externalData: { garmin: { version: 1, fingerprint: 'garmin_csv_v1_1234567890abcdef' } }
+      }
+    };
+    const existing = {
+      id: 'manual-1', durationSeconds: 3000, distanceKm: '', avgHeartRate: '', notes: 'Manuelt notat',
+      rpe: 4, bodyStatus: { painAfter: 1 }, externalData: { otherProvider: { id: 'keep' } }
+    };
+    const merged = mergeGarminIntoCompleted(existing, candidate, { importedAt: '2026-08-05T12:00:00Z' });
+    assert.strictEqual(merged.durationSeconds, 3000, 'manual objective value should win by default');
+    assert.strictEqual(merged.distanceKm, 6.44);
+    assert.strictEqual(merged.avgHeartRate, 149);
+    assert.strictEqual(merged.notes, 'Manuelt notat');
+    assert.strictEqual(merged.rpe, 4);
+    assert.deepStrictEqual(merged.bodyStatus, { painAfter: 1 });
+    assert.strictEqual(merged.externalData.otherProvider.id, 'keep');
+    assert.strictEqual(merged.externalData.garmin.importedAt, '2026-08-05T12:00:00Z');
+    assert.strictEqual(garminDuplicateFor(candidate, [merged]), merged);
+    const overwritten = mergeGarminIntoCompleted(existing, candidate, { overwriteFields: ['durationSeconds'] });
+    assert.strictEqual(overwritten.durationSeconds, 2942, 'explicit objective overwrite should be honored');
+    const withoutProvenance = mergeGarminIntoCompleted(existing, { completedDraft: { avgHeartRate: 150 } }, { importedAt: '2026-08-05T12:00:00Z' });
+    assert.ok(!withoutProvenance.externalData.garmin, 'import timestamp alone must not create Garmin provenance');
+    assert.ok(!garminCsvDomainSource.includes('heartRateZoneDistribution:'), 'adapter must not synthesize pulse-zone data');
+  });
+
+  test('v176a local Garmin fixture matches the verified 44-column contract when available', () => {
+    const fixturePath = path.join(root, 'Activities_5_8_2026.csv');
+    if (!fs.existsSync(fixturePath)) return;
+    const result = parseGarminActivitiesCsv(fs.readFileSync(fixturePath, 'utf8'));
+    assert.strictEqual(result.headers.length, 44);
+    assert.strictEqual(result.activities.length, 106);
+    assert.strictEqual(result.rejectedRows.length, 0);
+    assert.strictEqual(result.activities[0].completedDraft.date, '2026-08-04');
+    assert.strictEqual(result.activities[0].completedDraft.distanceKm, 6.44);
+    assert.strictEqual(result.activities[0].completedDraft.externalData.garmin.aerobicTrainingEffect, 3.2);
   });
 
   test('structured interval UI fields and summaries are wired into production files', () => {
