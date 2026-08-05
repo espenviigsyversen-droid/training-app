@@ -2771,7 +2771,7 @@
       line-height: 1.35;
     }
 
-    .detail-modal { padding: 0; overflow: hidden; }
+    .modal.detail-modal { padding: 0; overflow: hidden; }
 
     #workoutDetailContent {
       max-height: 88vh;
