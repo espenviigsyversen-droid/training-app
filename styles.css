@@ -1714,6 +1714,126 @@
       margin-bottom: 8px;
     }
 
+    .library-workspace-nav {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 4px;
+      padding: 4px;
+      margin-bottom: 14px;
+      border: 1px solid var(--warm-gray-2);
+      border-radius: 8px;
+      background: var(--warm-gray-1);
+    }
+
+    .library-workspace-tab {
+      min-height: 44px;
+      border: 0;
+      border-radius: 6px;
+      background: transparent;
+      color: var(--warm-gray-3);
+      font-weight: 900;
+      box-shadow: none;
+    }
+
+    .library-workspace-tab.active {
+      background: var(--black);
+      color: #fff;
+    }
+
+    .library-workspace-hidden { display: none !important; }
+
+    .library-section-heading {
+      align-items: flex-start;
+      margin-bottom: 14px;
+    }
+
+    .library-section-heading .section-title { margin-bottom: 4px; }
+
+    .section-kicker {
+      display: block;
+      margin-bottom: 3px;
+      color: var(--warm-gray-3);
+      font-size: 0.68rem;
+      font-weight: 900;
+      text-transform: uppercase;
+    }
+
+    .template-editor-section {
+      border: 1px solid var(--warm-gray-2);
+      border-radius: 8px;
+      background: rgba(255,255,255,0.7);
+      overflow: hidden;
+    }
+
+    .template-editor-section > summary {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      min-height: 48px;
+      padding: 10px 12px;
+      cursor: pointer;
+      list-style: none;
+      font-weight: 900;
+    }
+
+    .template-editor-section > summary::-webkit-details-marker { display: none; }
+
+    .template-editor-section > summary::after {
+      content: '+';
+      margin-left: auto;
+      color: var(--warm-gray-3);
+    }
+
+    .template-editor-section[open] > summary::after { content: '−'; }
+
+    .template-editor-section > summary span {
+      display: grid;
+      place-items: center;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: var(--warm-gray-1);
+      font-size: 0.72rem;
+    }
+
+    .template-editor-section-body {
+      display: grid;
+      gap: 10px;
+      padding: 0 12px 12px;
+      border-top: 1px solid var(--line);
+    }
+
+    .template-editor-section-body > :first-child { margin-top: 12px; }
+
+    .template-card-summary {
+      margin: 7px 0 0;
+      color: var(--warm-gray-3);
+      font-size: 0.82rem;
+      line-height: 1.35;
+      overflow-wrap: anywhere;
+    }
+
+    .template-card-details {
+      margin-top: 8px;
+      border-top: 1px solid var(--line);
+    }
+
+    .template-card-details > summary {
+      padding: 9px 0 4px;
+      cursor: pointer;
+      color: var(--warm-gray-3);
+      font-size: 0.76rem;
+      font-weight: 850;
+    }
+
+    .template-card-details-body { padding-bottom: 4px; }
+
+    .template-card-actions {
+      margin-top: 8px;
+      padding-top: 8px;
+      border-top: 1px solid var(--line);
+    }
+
     .template-group { margin-top: 14px; }
 
     .template-group-header {
@@ -1894,8 +2014,8 @@
 
     .exercise-library-layout {
       display: grid;
-      grid-template-columns: minmax(0, 1fr) minmax(320px, .85fr);
-      gap: 18px;
+      grid-template-columns: minmax(0, 1fr);
+      gap: 14px;
       align-items: start;
     }
     .exercise-library-form,
@@ -1906,6 +2026,23 @@
     .exercise-library-browser > * + * {
       margin-top: 10px;
     }
+
+    .exercise-library-form {
+      padding: 14px;
+      border: 1px solid var(--warm-gray-2);
+      border-radius: 8px;
+      background: rgba(244, 240, 235, 0.45);
+    }
+
+    .exercise-editor-heading {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 2px;
+    }
+
+    .exercise-editor-heading h3 { margin: 0; }
     .exercise-library-card {
       display: flex;
       align-items: flex-start;
@@ -2110,6 +2247,22 @@
     }
 
     @media (max-width: 760px) {
+      .library-section-heading {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 10px;
+      }
+      .library-section-heading .small-note { margin-bottom: 0; }
+      .library-workspace-nav {
+        position: sticky;
+        top: 0;
+        z-index: 5;
+      }
+      .template-editor-section-body .grid-2,
+      .library-tools {
+        grid-template-columns: minmax(0, 1fr);
+      }
+      .template-card-actions button { min-height: 42px; }
       .exercise-library-layout {
         grid-template-columns: minmax(0, 1fr);
       }
