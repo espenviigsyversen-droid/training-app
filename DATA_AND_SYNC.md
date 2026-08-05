@@ -67,6 +67,8 @@ Import skal erstatte data, ikke bare skrive oppå.
 
 Dette avsnittet beskriver full JSON-backupimport. Garmin CSV-import fra v176 er en separat, inkrementell aktivitetsimport: forhåndsvisning skriver ingenting, brukeren velger handling per aktivitet, og bare godkjente nye eller berikede `completed`-dokumenter skrives. Garmin-import skal aldri kalle repositoryets fullstendige `replace()`-flyt.
 
+I v176b opprettes recovery snapshot før første Garmin-write. Godkjente `completed`-dokumenter og eventuelle `planned`-oppdateringer sendes gjennom `trainingRepository.importActivities()` i batcher på maks 400 operasjoner. Ved feil før første commit rulles lokal state tilbake. Ved feil etter en fullført batch lastes Firestore på nytt, og brukeren får oppgitt hvor mange operasjoner som ble lagret. Import blokkeres uten innlogging, nettforbindelse eller i offline snapshot-visning.
+
 Korrekt importflyt:
 
 ```text
