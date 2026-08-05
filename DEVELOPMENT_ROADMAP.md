@@ -1534,6 +1534,15 @@ Mål og levert:
 - Vurderingen bruker tilgjengelig sonefordeling, RPE, aerob treningseffekt, høyde, belastning, tilpasning og kroppssignaler. Kroppssignaler har fortsatt høyest sikkerhetsprioritet.
 - Ingen nye lagrede felt eller backend-kall er innført. PWA-versjonen er `v176d`.
 
+### v176e - Eksplisitt AI-vurdering av gjennomført økt - Bygget
+
+- Beholder den lokale, regelbaserte coach-vurderingen og legger til `Få AI-vurdering` som et eksplisitt valg i øktdetaljene.
+- Ny, ren `domain-ai-workout-assessment.js` bygger et minimert øktgrunnlag, fingerprint og bakoverkompatibel normalisering av lagret resultat.
+- Ny dedikert callable backend gjenbruker autentisering, kryptert OpenAI-nøkkel, rate limit, dagsbudsjett, modellprofil, `store: false` og stabil safety identifier uten nettsøk eller chat-historikk.
+- AI-en returnerer en kort struktur med konklusjon, 2–3 observasjoner, plansamsvar, neste steg og bare relevant usikkerhet. Aggregert Garmin CSV behandles uttrykkelig som data uten tidsserie.
+- Resultatet lagres versjonert på den fullførte økten etter et vellykket kall. Endrede øktdata gir et nytt fingerprint og synlig beskjed om at vurderingen bør oppdateres.
+- Datakontrakt, sikkerhet og akseptansekriterier er dokumentert i `AI_WORKOUT_ASSESSMENT_DESIGN.md`. PWA-versjonen er `v176e`.
+
 ### v177 - Nedoverbelastning og todimensjonal høydevurdering
 
 Mål:
@@ -1570,7 +1579,7 @@ Foreslått modulgrense:
 
 `v172a-v172b` er bygget samlet. `STRUCTURED_EXERCISES_DESIGN.md` dokumenterer den versjonerte modellen, og produksjonen bruker `domain-exercises.js` og `exercise-library-ui.js`. Øvelser kan gjenbrukes i styrkemaler med sett, repetisjoner, pause, belastning, notat og sikre lenker. Malen lagrer snapshots slik at senere bibliotekendringer ikke endrer planlagte eller historiske økter.
 
-`v173a` er dokumentert i `LAB_TESTS_AND_ZONES_DESIGN.md`, og `v173b` er bygget som testbasert sonehistorikk med et eksplisitt aktivt, manuelt redigerbart femsonesett. `v174a` registrerer Garmins prosent per sone og bevarer brukt soneprofil som snapshot. `v174b` legger til forklarbar og forsiktig etterlevelsesvurdering i Logg, Innsikt og coach-context. `v174c` samler kildehierarkiet og skiller labsoner fra Bakken-beregnet gylne sone på alle relevante flater. `v175` gjenbruker øvelsesmodellen for oppvarming, hoveddel og nedtrapping og bevarer innholdet i planlagte og fullførte snapshots. `v175b` rydder Setup-biblioteket i separate arbeidsflater for øktmaler og enkeltøvelser uten å endre dataflyten. `v176a` låste Garmin CSV-kontrakten i en ren adapter, `v176b` koblet den til en lokal forhåndsvisningsveiviser med recovery og kontrollert repository-skriving, `v176c` viser de bevarte aktivitetsfeltene i naturlige kategorier, og `v176d` rydder pulsvisningen og flytter den regelbaserte øktvurderingen til en ren domenemodul. Eksempeløktene i laboratorierapporten er bevisst utelatt. Neste implementeringsrunde er v177: nedoverbelastning.
+`v173a` er dokumentert i `LAB_TESTS_AND_ZONES_DESIGN.md`, og `v173b` er bygget som testbasert sonehistorikk med et eksplisitt aktivt, manuelt redigerbart femsonesett. `v174a` registrerer Garmins prosent per sone og bevarer brukt soneprofil som snapshot. `v174b` legger til forklarbar og forsiktig etterlevelsesvurdering i Logg, Innsikt og coach-context. `v174c` samler kildehierarkiet og skiller labsoner fra Bakken-beregnet gylne sone på alle relevante flater. `v175` gjenbruker øvelsesmodellen for oppvarming, hoveddel og nedtrapping og bevarer innholdet i planlagte og fullførte snapshots. `v175b` rydder Setup-biblioteket i separate arbeidsflater for øktmaler og enkeltøvelser uten å endre dataflyten. `v176a` låste Garmin CSV-kontrakten i en ren adapter, `v176b` koblet den til en lokal forhåndsvisningsveiviser med recovery og kontrollert repository-skriving, `v176c` viser de bevarte aktivitetsfeltene i naturlige kategorier, `v176d` rydder pulsvisningen og flytter den regelbaserte øktvurderingen til en ren domenemodul, og `v176e` gir en eksplisitt, lagret AI-vurdering via en egen sikker backendflyt. Eksempeløktene i laboratorierapporten er bevisst utelatt. Neste implementeringsrunde er v177: nedoverbelastning.
 
 ## Hva vi bør vente med
 
