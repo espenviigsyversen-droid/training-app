@@ -1895,6 +1895,7 @@
       display: grid;
       gap: 9px;
       margin: 10px 0;
+      padding-bottom: 150px;
     }
 
     .garmin-import-row {
