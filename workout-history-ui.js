@@ -9,6 +9,114 @@ function normalizedText(value) {
   return String(value || '').trim().toLowerCase();
 }
 
+function finiteNumber(value) {
+  if (value === '' || value === null || value === undefined) return null;
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+}
+
+function decimalLabel(value, maximumFractionDigits = 1) {
+  const number = finiteNumber(value);
+  if (number === null) return '';
+  return number.toLocaleString('nb-NO', { maximumFractionDigits });
+}
+
+function durationLabel(value) {
+  const seconds = finiteNumber(value);
+  return seconds === null ? '' : formatHeartRateZoneDuration(seconds);
+}
+
+function paceLabel(value) {
+  const seconds = finiteNumber(value);
+  if (seconds === null || seconds <= 0) return '';
+  const rounded = Math.round(seconds);
+  const minutes = Math.floor(rounded / 60);
+  return `${minutes}:${String(rounded % 60).padStart(2, '0')} min/km`;
+}
+
+function localStartTimeLabel(value) {
+  const match = String(value || '').match(/T(\d{2}):(\d{2})/);
+  return match ? `${match[1]}:${match[2]}` : '';
+}
+
+function detailValue(label, value) {
+  return value ? { label, value } : null;
+}
+
+function compactDetailValues(values) {
+  return values.filter(Boolean);
+}
+
+export function workoutActivityDetails(completed = {}) {
+  const activity = completed?.externalData?.garmin || {};
+  const pace = activity.pace || {};
+  const cadence = activity.cadence || {};
+  const respiration = activity.respiration || {};
+  const temperature = activity.temperatureC || {};
+  const elevation = activity.elevationM || {};
+
+  return {
+    timing: compactDetailValues([
+      detailValue('Starttid', localStartTimeLabel(activity.startedAtLocal)),
+      detailValue('Tid i bevegelse', durationLabel(activity.movingTimeSeconds)),
+      detailValue('Total tid', durationLabel(activity.elapsedTimeSeconds)),
+      detailValue('Runder', decimalLabel(activity.numberOfLaps, 0))
+    ]),
+    load: compactDetailValues([
+      detailValue('Aerob treningseffekt', decimalLabel(activity.aerobicTrainingEffect)),
+      detailValue('Treningsbelastning (TSS)', decimalLabel(activity.trainingStressScore))
+    ]),
+    breathing: compactDetailValues([
+      detailValue('Gjennomsnittlig pustefrekvens', respiration.average === undefined ? '' : `${decimalLabel(respiration.average)} pust/min`),
+      detailValue('Laveste pustefrekvens', respiration.min === undefined ? '' : `${decimalLabel(respiration.min)} pust/min`),
+      detailValue('Høyeste pustefrekvens', respiration.max === undefined ? '' : `${decimalLabel(respiration.max)} pust/min`)
+    ]),
+    speed: compactDetailValues([
+      detailValue('Beste tempo', paceLabel(pace.bestPaceSecondsPerKm)),
+      detailValue('Snitt GAP', paceLabel(pace.averageGapSecondsPerKm)),
+      detailValue('Maksfart', pace.maxSpeedKmh === undefined ? '' : `${decimalLabel(pace.maxSpeedKmh)} km/t`),
+      detailValue('Snittempo per 100 m', pace.averagePaceSecondsPer100m === undefined ? '' : `${durationLabel(pace.averagePaceSecondsPer100m)} min/100 m`),
+      detailValue('Beste tempo per 100 m', pace.bestPaceSecondsPer100m === undefined ? '' : `${durationLabel(pace.bestPaceSecondsPer100m)} min/100 m`)
+    ]),
+    runningDynamics: compactDetailValues([
+      detailValue('Gjennomsnittlig kadens', cadence.averageSpm === undefined ? '' : `${decimalLabel(cadence.averageSpm, 0)} steg/min`),
+      detailValue('Maksimal kadens', cadence.maxSpm === undefined ? '' : `${decimalLabel(cadence.maxSpm, 0)} steg/min`),
+      detailValue('Steg', decimalLabel(activity.steps, 0)),
+      detailValue('Steglengde', activity.strideLengthM === undefined ? '' : `${decimalLabel(activity.strideLengthM, 2)} m`),
+      detailValue('Vertikalt forhold', activity.verticalRatioPercent === undefined ? '' : `${decimalLabel(activity.verticalRatioPercent)} %`),
+      detailValue('Vertikal bevegelse', activity.verticalOscillationCm === undefined ? '' : `${decimalLabel(activity.verticalOscillationCm)} cm`),
+      detailValue('Bakkekontakttid', activity.groundContactTimeMs === undefined ? '' : `${decimalLabel(activity.groundContactTimeMs, 0)} ms`)
+    ]),
+    terrain: compactDetailValues([
+      detailValue('Stigning', completed.elevationGainM ? `${decimalLabel(completed.elevationGainM)} hm` : ''),
+      detailValue('Nedstigning', activity.totalDescentM === undefined ? '' : `${decimalLabel(activity.totalDescentM)} hm`),
+      detailValue('Laveste høyde', elevation.min === undefined ? '' : `${decimalLabel(elevation.min)} moh.`),
+      detailValue('Høyeste høyde', elevation.max === undefined ? '' : `${decimalLabel(elevation.max)} moh.`),
+      detailValue('Møllestigning', completed.treadmillInclinePercent ? `${decimalLabel(completed.treadmillInclinePercent)} %` : '')
+    ]),
+    power: compactDetailValues([
+      detailValue('Gjennomsnittseffekt', activity.averagePowerW === undefined ? '' : `${decimalLabel(activity.averagePowerW, 0)} W`),
+      detailValue('Maksimal effekt', activity.maxPowerW === undefined ? '' : `${decimalLabel(activity.maxPowerW, 0)} W`),
+      detailValue('Normalisert effekt', activity.normalizedPowerW === undefined ? '' : `${decimalLabel(activity.normalizedPowerW, 0)} W`)
+    ]),
+    energyAndEnvironment: compactDetailValues([
+      detailValue('Energi', activity.calories === undefined ? '' : `${decimalLabel(activity.calories, 0)} kcal`),
+      detailValue('Body Battery-endring', decimalLabel(activity.bodyBatteryDrain)),
+      detailValue('Laveste temperatur', temperature.min === undefined ? '' : `${decimalLabel(temperature.min)} °C`),
+      detailValue('Høyeste temperatur', temperature.max === undefined ? '' : `${decimalLabel(temperature.max)} °C`)
+    ]),
+    swimming: compactDetailValues([
+      detailValue('Svømmetak', decimalLabel(activity.totalStrokes, 0)),
+      detailValue('Gjennomsnittlig SWOLF', decimalLabel(activity.averageSwolf)),
+      detailValue('Gjennomsnittlig takfrekvens', activity.averageStrokeRate === undefined ? '' : `${decimalLabel(activity.averageStrokeRate)} tak/min`)
+    ]),
+    strength: compactDetailValues([
+      detailValue('Sett', decimalLabel(activity.totalSets, 0)),
+      detailValue('Repetisjoner', decimalLabel(activity.totalReps, 0))
+    ])
+  };
+}
+
 export function workoutHistoryPeriodRange(period, today, customFrom = '', customTo = '') {
   const addDays = (iso, offset) => {
     const date = new Date(`${iso}T12:00:00`);
@@ -102,6 +210,13 @@ export function createWorkoutHistoryUi({
     return value ? `<p><strong>${escapeHtml(label)}:</strong> ${escapeHtml(value)}</p>` : '';
   }
 
+  function detailDataGrid(values = []) {
+    if (!values.length) return '';
+    return `<div class="detail-data-grid">${values.map(item => `
+      <div class="detail-data-item"><span>${escapeHtml(item.label)}</span><strong>${escapeHtml(item.value)}</strong></div>
+    `).join('')}</div>`;
+  }
+
   function raceResultDetailHtml(completed) {
     const race = normalizeRaceResult(completed.raceResult);
     if (!race) return '';
@@ -152,6 +267,7 @@ export function createWorkoutHistoryUi({
     const pace = completedPaceMetrics(completed);
     const assessment = completedLoadAssessment(completed);
     const trainingEffect = trainingEffectInfo(completed.trainingEffectType);
+    const activityDetails = workoutActivityDetails(completed);
     const coachNote = lastWorkoutCoachNote(completed, profile).replace(/^Siste økt/, 'Denne økten');
     const heartRateReference = heartRateReferenceForCompleted(completed);
     const zoneSource = heartRateReference.zoneSource;
@@ -180,22 +296,27 @@ export function createWorkoutHistoryUi({
         ${detailMetric('Pace', pace.paceDisplay ? `${pace.paceDisplay} min/km` : '')}
         ${detailMetric('Fart', pace.averageSpeedKmh ? `${pace.averageSpeedKmh} km/t` : '')}
       </div>
+      ${detailSection('Tid og bevegelse', detailDataGrid(activityDetails.timing))}
       ${detailSection('Belastning', `
         <div class="load-assessment ${assessment.level}"><span class="tag load-${assessment.level}">${escapeHtml(assessment.label)}</span><p>${escapeHtml(assessment.reason)}</p></div>
-        ${trainingEffect ? `<p class="detail-text"><strong>Garmin:</strong> ${escapeHtml(trainingEffect.label)} · ${escapeHtml(trainingEffect.categoryLabel)}</p>` : ''}
-        ${completed.rpe ? `<p class="detail-text"><strong>Opplevd intensitet:</strong> ${escapeHtml(completed.rpe)}/10</p>` : ''}`)}
-      ${detailSection('Puls', heartRateLines)}
+        ${trainingEffect ? `<p class="detail-text"><strong>Treningseffekt:</strong> ${escapeHtml(trainingEffect.label)} · ${escapeHtml(trainingEffect.categoryLabel)}</p>` : ''}
+        ${completed.rpe ? `<p class="detail-text"><strong>Opplevd intensitet:</strong> ${escapeHtml(completed.rpe)}/10</p>` : ''}
+        ${detailDataGrid(activityDetails.load)}`)}
+      ${detailSection(activityDetails.breathing.length ? 'Puls og pust' : 'Puls', `${heartRateLines}${detailDataGrid(activityDetails.breathing)}`)}
       ${detailSection('Tid i pulssoner', heartRateZoneDistributionHtml(completed))}
+      ${detailSection('Fart og tempo', detailDataGrid(activityDetails.speed))}
+      ${detailSection('Løpsdynamikk', detailDataGrid(activityDetails.runningDynamics))}
+      ${detailSection('Terreng og høyde', detailDataGrid(activityDetails.terrain))}
+      ${detailSection('Effekt', detailDataGrid(activityDetails.power))}
+      ${detailSection('Energi og omgivelser', detailDataGrid(activityDetails.energyAndEnvironment))}
+      ${detailSection('Svømming', detailDataGrid(activityDetails.swimming))}
+      ${detailSection('Styrke', detailDataGrid(activityDetails.strength))}
       ${detailSection('Etterlevelse av plan', heartRateZoneComplianceHtml(completed))}
       ${detailSection('Strukturert intervall', structuredWorkoutSummaryHtml(template.structuredWorkout))}
       ${detailSection('Øvelsesplan', exercisePlanSummaryHtml(template.exercisePlan))}
       ${detailSection('Øktlenke', template.sourceUrl
         ? `<a href="${escapeHtml(template.sourceUrl)}" target="_blank" rel="noopener noreferrer">Åpne demonstrasjon</a>`
         : '')}
-      ${detailSection('Terreng og stigning', [
-        detailLine('Høydemeter', completed.elevationGainM ? `${completed.elevationGainM} hm` : ''),
-        detailLine('Møllestigning', completed.treadmillInclinePercent ? `${completed.treadmillInclinePercent}%` : '')
-      ].join(''))}
       ${detailSection('Konkurranse / testløp', raceResultDetailHtml(completed))}
       ${detailSection('Gjennomføring', [
         detailLine('Gjennomføring', executionLabel(completed.execution)),
