@@ -23,6 +23,152 @@
       --radius: 18px;
 }
 
+/* v176l: Form ved samme innsats */
+.same-effort-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 360px), 1fr));
+  gap: 14px;
+}
+
+.same-effort-result,
+.same-effort-empty {
+  border: 1px solid var(--warm-gray-1);
+  border-radius: 16px;
+  padding: 16px;
+  background: var(--white);
+}
+
+.same-effort-result.improving {
+  border-color: #9dd8b5;
+  background: #f3fbf6;
+}
+
+.same-effort-result.declining {
+  border-color: #efc88f;
+  background: #fff8ee;
+}
+
+.same-effort-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.same-effort-heading h3 {
+  margin: 3px 0 0;
+  font-size: 1rem;
+}
+
+.same-effort-confidence {
+  flex: 0 0 auto;
+  border-radius: 999px;
+  padding: 5px 8px;
+  background: var(--warm-gray-1);
+  color: var(--warm-gray-3);
+  font-size: 0.68rem;
+  font-weight: 800;
+}
+
+.same-effort-confidence.high {
+  background: #dff4e7;
+  color: #087634;
+}
+
+.same-effort-change {
+  display: block;
+  margin-top: 14px;
+  color: var(--black);
+  font-size: 1.35rem;
+}
+
+.same-effort-result > p,
+.same-effort-empty p {
+  margin: 5px 0 14px;
+  color: var(--warm-gray-3);
+  line-height: 1.45;
+}
+
+.same-effort-periods {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.same-effort-periods > div {
+  min-width: 0;
+  border-radius: 12px;
+  padding: 11px;
+  background: rgba(255, 255, 255, 0.78);
+  border: 1px solid rgba(183, 167, 154, 0.38);
+}
+
+.same-effort-periods span,
+.same-effort-periods small {
+  display: block;
+  color: var(--warm-gray-3);
+  font-size: 0.72rem;
+}
+
+.same-effort-periods strong {
+  display: block;
+  margin: 3px 0;
+  font-size: 0.95rem;
+}
+
+.same-effort-basis {
+  margin-top: 12px;
+  border-top: 1px solid rgba(183, 167, 154, 0.45);
+  padding-top: 10px;
+}
+
+.same-effort-basis summary {
+  cursor: pointer;
+  color: var(--warm-gray-3);
+  font-size: 0.74rem;
+  font-weight: 800;
+}
+
+.same-effort-basis p,
+.same-effort-basis small {
+  display: block;
+  margin: 8px 0 0;
+  color: var(--warm-gray-3);
+  font-size: 0.75rem;
+  line-height: 1.4;
+}
+
+.same-effort-disclaimer {
+  margin: 12px 0 0;
+  color: var(--warm-gray-3);
+  font-size: 0.74rem;
+}
+
+.same-effort-empty strong,
+.same-effort-empty small {
+  display: block;
+}
+
+.same-effort-empty small {
+  color: var(--warm-gray-3);
+}
+
+@media (max-width: 600px) {
+  .same-effort-result,
+  .same-effort-empty {
+    padding: 14px;
+  }
+
+  .same-effort-heading {
+    display: block;
+  }
+
+  .same-effort-confidence {
+    display: inline-block;
+    margin-top: 8px;
+  }
+}
+
 /* AI coach v152-v154 */
 .home-ask-coach {
   margin-top: 12px;
