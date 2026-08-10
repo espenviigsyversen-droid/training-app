@@ -1,4 +1,4 @@
-import { completedDurationSeconds } from './domain-core.js';
+import { classifyWorkoutIntensityContext, completedDurationSeconds } from './domain-core.js';
 import { activitySettingForCompleted } from './domain-activity.js';
 
 const DISTANCE_MILESTONES = [100, 250, 500, 750, 1000, 1500, 2000, 2500, 3000];
@@ -33,7 +33,11 @@ function completedTemplate(item, templatesById) {
     name: item.manualName || snapshot.name || live.name || 'Historisk økt',
     type: snapshot.type || live.type || item.activityType || item.type || 'Annet',
     intensity: snapshot.intensity || live.intensity || item.intensity || '',
-    role: snapshot.role || live.role || item.role || ''
+    role: snapshot.role || live.role || item.role || '',
+    purpose: snapshot.purpose || live.purpose || item.purpose || '',
+    load: snapshot.load || live.load || item.load || '',
+    structure: snapshot.structure || live.structure || item.structure || '',
+    structuredWorkout: snapshot.structuredWorkout || live.structuredWorkout || item.structuredWorkout || null
   };
 }
 
@@ -44,20 +48,13 @@ function median(values = []) {
   return sorted.length % 2 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2;
 }
 
-function hasBodySignal(item = {}) {
+function hasMaterialBodySignal(item = {}) {
   const body = item.bodyStatus || {};
   return Boolean(
     Number(body.painBefore) > 0 ||
     Number(body.painAfter) > 0 ||
-    String(body.area || '').trim() ||
-    String(body.notes || '').trim() ||
     (body.adaptation && body.adaptation !== 'none')
   );
-}
-
-function hasEasyIntent(template = {}) {
-  const intent = `${template.name || ''} ${template.intensity || ''} ${template.role || ''}`.toLowerCase();
-  return /rolig|restitusjon|easy|recovery|base|aerob/.test(intent) && !/terskel|threshold|intervall|tempo|race|konkurranse|test/.test(intent);
 }
 
 function canonicalPace(item = {}) {
@@ -83,11 +80,20 @@ function sameEffortCandidate(item, templatesById, primaryActivityType) {
   const gapSecondsPerKm = Number(item.externalData?.garmin?.pace?.averageGapSecondsPerKm);
   const elevationGainM = Number(item.elevationGainM) || 0;
   const rpe = Number(item.rpe);
-  if (template.type !== primaryActivityType || !hasEasyIntent(template)) return null;
-  if (!SAME_EFFORT_SETTINGS.includes(setting) || hasBodySignal(item) || rpe > 5) return null;
-  if (!(durationSeconds >= 1200 && durationSeconds <= 9000) || !(distanceKm >= 3 && distanceKm <= 30)) return null;
-  if (!(avgHeartRate >= 80 && avgHeartRate <= 220) || !(paceSecondsPerKm >= 150 && paceSecondsPerKm <= 900)) return null;
-  return {
+  if (template.type !== primaryActivityType) return { running: false, accepted: false, reason: 'not_running' };
+  if (hasMaterialBodySignal(item)) return { running: true, accepted: false, reason: 'body_signal' };
+  if (rpe > 5) return { running: true, accepted: false, reason: 'high_rpe' };
+  const intensity = classifyWorkoutIntensityContext({ completed: item, template });
+  if (!intensity.countsAsEasySupport || intensity.countsAsHardQuality || intensity.countsAsHardLoad) {
+    return { running: true, accepted: false, reason: 'not_easy' };
+  }
+  if (!SAME_EFFORT_SETTINGS.includes(setting)) return { running: true, accepted: false, reason: 'missing_setting' };
+  if (!(durationSeconds >= 1200 && durationSeconds <= 9000) || !(distanceKm >= 3 && distanceKm <= 30)) {
+    return { running: true, accepted: false, reason: 'duration_distance' };
+  }
+  if (!(avgHeartRate >= 80 && avgHeartRate <= 220)) return { running: true, accepted: false, reason: 'heart_rate' };
+  if (!(paceSecondsPerKm >= 150 && paceSecondsPerKm <= 900)) return { running: true, accepted: false, reason: 'pace' };
+  return { running: true, accepted: true, candidate: {
     date: validIsoDate(item.date),
     setting,
     durationSeconds,
@@ -96,7 +102,7 @@ function sameEffortCandidate(item, templatesById, primaryActivityType) {
     paceSecondsPerKm,
     gapSecondsPerKm: gapSecondsPerKm >= 150 && gapSecondsPerKm <= 900 ? gapSecondsPerKm : 0,
     lowElevation: elevationGainM / distanceKm <= 12
-  };
+  } };
 }
 
 function sameEffortPeriod(items = []) {
@@ -119,7 +125,14 @@ function sameEffortComparison(setting, sourceItems = []) {
     .sort((left, right) => left.date.localeCompare(right.date));
   const groupSize = Math.min(SAME_EFFORT_MAX_GROUP, Math.floor(comparable.length / 2));
   if (groupSize < SAME_EFFORT_MIN_GROUP) {
-    return { setting, status: 'insufficient', reason: 'too_few', eligibleCount: comparable.length };
+    return {
+      setting,
+      status: 'insufficient',
+      reason: 'too_few',
+      candidateCount: sourceItems.length,
+      eligibleCount: comparable.length,
+      paceSource
+    };
   }
 
   const recentItems = comparable.slice(-groupSize);
@@ -129,10 +142,10 @@ function sameEffortComparison(setting, sourceItems = []) {
   const heartRateDifference = recent.medianHeartRate - baseline.medianHeartRate;
   const durationRatio = recent.medianDurationSeconds / Math.max(1, baseline.medianDurationSeconds);
   if (Math.abs(heartRateDifference) > 5) {
-    return { setting, status: 'insufficient', reason: 'heart_rate_gap', eligibleCount: comparable.length, baseline, recent };
+    return { setting, status: 'insufficient', reason: 'heart_rate_gap', candidateCount: sourceItems.length, eligibleCount: comparable.length, paceSource, baseline, recent };
   }
   if (durationRatio < 0.67 || durationRatio > 1.5) {
-    return { setting, status: 'insufficient', reason: 'duration_gap', eligibleCount: comparable.length, baseline, recent };
+    return { setting, status: 'insufficient', reason: 'duration_gap', candidateCount: sourceItems.length, eligibleCount: comparable.length, paceSource, baseline, recent };
   }
 
   const paceChangePercent = ((baseline.medianPaceSecondsPerKm - recent.medianPaceSecondsPerKm) / baseline.medianPaceSecondsPerKm) * 100;
@@ -146,6 +159,7 @@ function sameEffortComparison(setting, sourceItems = []) {
     paceChangePercent: Math.round(paceChangePercent * 10) / 10,
     heartRateDifference,
     confidence,
+    candidateCount: sourceItems.length,
     eligibleCount: comparable.length,
     baseline,
     recent
@@ -162,18 +176,38 @@ export function comparableEasyRunFormInsight({
   const templatesById = new Map((Array.isArray(templates) ? templates : [])
     .filter(template => template?.id)
     .map(template => [template.id, template]));
-  const candidates = (Array.isArray(completedItems) ? completedItems : [])
+  const evaluations = (Array.isArray(completedItems) ? completedItems : [])
     .filter(item => item && validIsoDate(item.date) && item.date <= endDate)
-    .map(item => sameEffortCandidate(item, templatesById, primaryActivityType))
-    .filter(item => item?.date);
+    .map(item => sameEffortCandidate(item, templatesById, primaryActivityType));
+  const runningEvaluations = evaluations.filter(item => item.running);
+  const candidates = runningEvaluations
+    .filter(item => item.accepted && item.candidate?.date)
+    .map(item => item.candidate);
   const comparisons = SAME_EFFORT_SETTINGS.map(setting => sameEffortComparison(
     setting,
     candidates.filter(item => item.setting === setting)
   ));
+  const rejectedReasons = runningEvaluations
+    .filter(item => !item.accepted)
+    .reduce((summary, item) => {
+      summary[item.reason] = (summary[item.reason] || 0) + 1;
+      return summary;
+    }, {});
   return {
     hasData: comparisons.some(item => item.status === 'ready'),
     comparisons,
     candidateCount: candidates.length,
+    diagnostics: {
+      runningCount: runningEvaluations.length,
+      candidateCount: candidates.length,
+      rejectedReasons,
+      settings: Object.fromEntries(comparisons.map(item => [item.setting, {
+        candidateCount: item.candidateCount || 0,
+        eligibleCount: item.eligibleCount || 0,
+        paceSource: item.paceSource || 'pace',
+        reason: item.reason || ''
+      }]))
+    },
     primaryActivityType
   };
 }
