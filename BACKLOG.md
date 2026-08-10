@@ -325,9 +325,10 @@ Prioritert backlog for videre utvikling av Treningsapp.
     - Behold planlagt rolig intensjon selv om Garmin-effekten er `Tempo`/`High Aerobic`, og la RPE 6 inngå uten å svekke sikkerhetsporten ved RPE 7+.
     - Vis både kandidat- og sammenlignbart antall per miljø, med uendret krav om fire pluss fire.
 
-52i. **v176m - Felles datagrunnlag og vurderingssikkerhet** - Planlagt
+52i. **v176m - Felles datagrunnlag og vurderingssikkerhet** - Bygget
     - Standardiser synlig datadekning, tidsperiode og vurderingssikkerhet på tvers av Innsikt.
-    - Gjenbruk v176l-mønsteret uten å skjule kroppssignal eller viktige forbehold.
+    - Gjenbruk én evidenskontrakt og én progressiv UI-visning for Form ved samme innsats, Treningsnivå, Intensitetsbalanse, Soneetterlevelse og Formutvikling.
+    - Skill datadekning fra vurderingssikkerhet uten å skjule kroppssignal eller viktige forbehold.
 
 53. **v177 - Nedoverbelastning**
     - Registrer stigning og nedstigning separat.
@@ -361,7 +362,7 @@ Disse punktene var del av den tidlige v142-idéen, men er bevisst flyttet ut av 
 
 ## Anbefalt neste steg
 
-`v173a` er dokumentert, og `v173b`, `v174a`, `v174b`, `v174c`, `v175`, `v175b`, `v176a`, `v176b`, `v176c`, `v176d`, `v176e` og `v176f` er bygget. Neste runde er v177: konservativ modell for nedoverbelastning.
+`v173a` er dokumentert, og utviklingsløpet gjennom `v176m` er bygget. Neste runde er v177: konservativ modell for nedoverbelastning.
 
 v164a-v169 har etablert modulgrensene som de nye rundene skal bygge videre på. v170a-v171 har lukket de åpne tekniske sporene for lokal snapshot-kvote og Firebase Functions SDK.
 
