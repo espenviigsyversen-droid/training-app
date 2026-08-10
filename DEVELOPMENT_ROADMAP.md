@@ -1611,6 +1611,13 @@ Mål og levert:
 - Vis vurderte løpeøkter, kvalifiserte kandidater, status per miljø og én primær utelatelsesårsak per økt når konklusjon mangler.
 - Behold alle konservative sammenligningskrav fra v176l: fire pluss fire, separat miljø, puls, varighet og pacekilde.
 
+### v176l3 - Intensjon foran observert Garmin-effekt - Bygget
+
+- Skill planlagt øktintensjon fra observert Garmin-treningseffekt i den kanoniske klassifiseringen.
+- La RPE 6 inngå når økten ellers er rolig; behold hard risikoklassifisering ved RPE 7+ uten kvalitetsintensjon.
+- Vis både kandidater og sammenlignbare økter per aktivitetsmiljø.
+- Behold fire pluss fire, miljøskille, kroppssignal, puls, varighet og GAP-/pacepolicy.
+
 ### v177 - Nedoverbelastning og todimensjonal høydevurdering
 
 Mål:
