@@ -1571,6 +1571,16 @@ Mål og levert:
 - Logg har et ordinært filter for utendørs, tredemølle, innendørs, basseng og uten angivelse.
 - Domeneberegning og rendering forblir i `domain-performance-insights.js` og `training-insights-ui.js`; `app.js` har bare navigasjonskoblingen. PWA-versjonen er `v176h`.
 
+### v176i - Kompakt informasjonsarkitektur for Innsikt og Mål - Bygget
+
+- Innsikt er organisert i Status, Kontinuitet, Utvikling og Året. Status med uke, belastning og sikkerhetssignaler er alltid synlig.
+- Mål er organisert i Oversikt, Mål-løp, PB og Challenges. Målstatus, score, neste steg og testvurdering er alltid synlig.
+- En kompakt lokal knappelinje åpner og flytter til hvert tilgjengelig område uten å opprette nye app-ruter.
+- Forklarings- og metodestrenger ligger bak native disclosure-felt. Tomme PB-distanser og tidligere challenges vises bare etter eksplisitt valg.
+- Detaljerte delmål er sammenleggbare, mens sikkerhetskritiske vurderinger og neste handling forblir synlige.
+- Ny `workspace-sections-ui.js` eier DOM-gruppering, seksjonsnavigasjon og midlertidig UI-state. Ingen Firestore-, backup- eller domenekontrakt er endret.
+- Design og akseptansekriterier ligger i `INSIGHTS_GOALS_UX_DESIGN.md`. PWA-versjonen er `v176i`.
+
 ### v177 - Nedoverbelastning og todimensjonal høydevurdering
 
 Mål:
