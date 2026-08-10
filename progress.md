@@ -1,5 +1,5 @@
 # Treningsapp — progress.md
-Oppdatert: 2026-08-10 (siste runtime-endring: v176e1)
+Oppdatert: 2026-08-10 (siste runtime-endring: v176f)
 
 ---
 
@@ -27,7 +27,7 @@ Standard Bakken-uke: Hoved-terskel → Støtte-terskel → Lang rolig → Valgfr
 **Hosting:** GitHub Pages.  
 **Backend:** Firebase (prosjekt `home-tasks-app-18de3`) — Firestore + Google Auth.  
 **Frontend:** Vanilla JS + HTML + CSS, single-page app, tab-navigasjon.  
-**Versjon:** v176e1 (konstant i `app.js`).
+**Versjon:** v176f (konstant i `app.js`).
 
 ### Filer
 
@@ -106,9 +106,7 @@ Treningsapp/
 - **Konkurranse-/målmodul** (v123): Ren race- og mål-logikk er flyttet fra `domain-core.js` til ny `domain-goals.js`: race-resultater, manuelle resultater, PB-oppsummering, PB-historikk, mål-løp-nedtelling, race readiness og konkurranseplan. `app.js` importerer mål-funksjonene direkte fra ny modul, mens `domain-core.js` re-eksporterer dem midlertidig for bakoverkompatibilitet. Service worker cacher ny runtimefil, og stabilitetstestene importerer race-/mål-funksjoner direkte fra `domain-goals.js`.
 - **Mål-fane v2** (v124): Mål-fanen har nå et handlingsorientert toppsammendrag som viser aktivt mål, fase, målpace, siste relevante test, status og neste smarte steg. Oppsummeringen tar hensyn til siste 7/28 dager og aktivt skadesignal, slik at testløp/hard kvalitet tones ned når kroppen varsler. Ren vurderingslogikk ligger i `goalMotivationSummary()` i `domain-goals.js`; UI-et er kun en kompakt visning i eksisterende Mål-fane.
 - **Mål-fane v3: Delmål og milepæler** (v125): Mål-fanen viser nå 3-5 konkrete delmål mot prioritert mål-løp, for eksempel skadefri/stabil uke, stabil 4-ukers base, kontrollert kort test, lengre relevant test og spesifikk oppkjøring/taper. Milepælene tar hensyn til siste 7/28 dager, mål-løp, race readiness og aktivt skadesignal. Ren logikk ligger i `goalMilestones()` i `domain-goals.js`.
-- **Skadeoppfølging v2: Trend og frislipp** (v126): Skadesignal-kortet viser nå tydeligere frislipp-vurdering: trend, neste trygge økt, kriterier før løping/kvalitet og om hard kvalitet bør holdes igjen. Ren logikk ligger i `injury…7877 tokens truncated… gjennomgang: (1) `avoidWhen`-straff i `templateSuggestionScore` cappet til maks −16 for å unngå urimelig negativ score. (2) `profileWeekRole`-DOM-oppslag gjort null-safe med `?.value`. (3) `saveSettings()` fått try/catch med toast ved Firestore-feil. (4) Templates normaliseres ved Firestore-lasting: `recommendedWhen` og `avoidWhen` alltid konvertert til array via `asArray()` for bakoverkompatibilitet med eldre streng-data.
-- **Unngå når — multiple choice** (v83): `avoidWhen` konvertert fra enkelt string til array. `<select>` i øktmal-skjemaet erstattet med checkboxes (samme mønster som «Passer best når»). Coach-score penaliserer nå per matching betingelse (×8 per treff). `templateAvoidWhenLabel` støtter arrays. Bakoverkompatibelt via `asArray()` — eksisterende Firestore-data med string-verdi fungerer uendret.
-- **Bakken-mønstre i Innsikt** (v81): Nytt «Bakken-mønstre»-kort øverst i Innsikt-fanen. Fire mønstre siste 30 dager med grønn/gul/rød/nøytral indikator: (1) Rolig:terskel-ratio (mål ≥ 3:1), (2) Rolige dager er faktisk rolige (avgHeartRate mot gylne sone), (3) RPE på rolige dager (bør ikke være ≥ 7), (4) Ukentlig konsistens siste 4 uker. Viser «ikke nok data»-melding ved for lite historikk. `buildBakkenPatterns()` + `renderBakkenPatterns()`.
+- **Skadeoppfølging v2: Trend og frislipp** (v126): Skadesignal-kortet viser nå tydeligere frislipp-vurdering: trend, neste trygge økt, kriterier før løping/kvalitet og om hard kvalitet bør holdes igjen. Ren logikk ligger i `i…8118 tokens truncated…siste 30 dager med grønn/gul/rød/nøytral indikator: (1) Rolig:terskel-ratio (mål ≥ 3:1), (2) Rolige dager er faktisk rolige (avgHeartRate mot gylne sone), (3) RPE på rolige dager (bør ikke være ≥ 7), (4) Ukentlig konsistens siste 4 uker. Viser «ikke nok data»-melding ved for lite historikk. `buildBakkenPatterns()` + `renderBakkenPatterns()`.
 - **Trappetest + HR-baseline** (v80): Trappetest (Bakken: «kan du gå i trapp uten å bli andpusten?») lagt til som valgfritt ja/nei-spørsmål i dagsform-skjemaet. «Nei» → rød uansett øvrige scores, med begrunnelse «trappetest sviktet» i coach-noten. Hvile-HF-feltet vises kun om brukeren har en baseline i Helse-loggen; ellers forklaringstekst. Trapp-resultat vises i «?»-grunnlaget.
 
 ---
@@ -266,6 +264,16 @@ Treningsapp/
 - Alle ikke-dupliserte aktiviteter starter som `Krever valg`; brukeren må eksplisitt velge opprett, berik, koble eller hopp over før importknappen aktiveres.
 - Bekreftede Garmin-duplikater forblir trygt låst til `Hopp over`.
 - PWA-cache og synlig versjon er `v176e1`.
+
+### v176f - Navigerbar treningsmengde - Bygget
+
+- Uke, måned og år viser nå seks perioder hver; årsvisningen er økt fra fem til seks.
+- Venstrepilen flytter hele vinduet én periode bakover, høyrepilen flytter én periode fremover og er deaktivert ved dagens vindu. `Til nå` nullstiller den valgte visningen.
+- Uke-, måneds- og årsvisningen husker hver sin midlertidige posisjon mens appen er åpen. Dette er UI-state og lagres ikke i Firestore eller backup.
+- Totalsammendraget og grafene for økter, tid og kilometer bruker samme seks datoperioder og aktivitetsfilter.
+- Historiske grafer bruker faktiske periodenavn i sammenligningen, ikke `Nå` for en historisk måned eller uke.
+- Ny `domain-volume-trends.js` eier ren periodeberegning, normalisering, etiketter og trygg navigasjon. `app.js` eier bare state, aktivitetsfiltrering og rendering.
+- Modulen er lagt til i PWA app shell. PWA-cache og synlig versjon er `v176f`.
 
 ### v167 - Øktmaler som egen UI-feature - Bygget
 
