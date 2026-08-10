@@ -1,6 +1,6 @@
 # Aktivitetsmiljø og prestasjonsinnsikt
 
-Design- og datakontrakt for v176g og senere prestasjonsinnsikt.
+Design- og datakontrakt for v176g-v176h og senere prestasjonsinnsikt.
 
 ## Bakgrunn
 
@@ -105,6 +105,17 @@ Følgende tas i egne runder:
 2. Synlig datagrunnlag, datadekning og vurderingssikkerhet.
 
 Disse skal gjenbruke `activitySetting`, men skal ikke bygges inn i v176g.
+
+## v176h - Milepælsoversikt og datarydding
+
+v176h utvider samme domenemodell uten nye lagrede felt:
+
+- `domain-performance-insights.js` leverer komplette, deterministiske spor for løpekilometer, treningsøkter og aktive uker.
+- Hvert spor skiller `achieved`, `next` og `future`; oppnådde markører beholder datoen de først ble nådd.
+- Hovedkortet viser fortsatt bare høyeste oppnådde markør per spor og én nærmeste milepæl. Alle markører åpnes i et kompakt overlegg for å begrense scrolling.
+- Ingen milepæl viser forventet dato, påkrevd ukesmengde eller oppfordring til å øke belastningen.
+- Alle aktivitetsmiljøer med verdi vises dynamisk. `Uten angivelse` åpner Logg filtrert til løpeøktene som kan ryddes manuelt.
+- Historikkfilteret får et kildeuavhengig filter for aktivitetsmiljø. Ingen verdi fylles automatisk ved denne oppryddingen.
 
 ## Tester og akseptansekriterier
 
