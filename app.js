@@ -157,7 +157,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     import { createTrainingInsightsUi } from './training-insights-ui.js';
     import { createWorkspaceSectionsUi } from './workspace-sections-ui.js';
 
-const APP_VERSION = 'v176i';
+const APP_VERSION = 'v176j';
     const APP_CACHE_NAME = `treningsapp-${APP_VERSION}`;
 
     const firebaseConfig = {
@@ -2907,8 +2907,15 @@ const APP_VERSION = 'v176i';
       });
     };
 
+    let workoutDetailTrigger = null;
+
     window.closeWorkoutDetailModal = function() {
-      document.getElementById('workoutDetailModal').classList.remove('active');
+      const modal = document.getElementById('workoutDetailModal');
+      if (!modal?.classList.contains('active')) return;
+      modal.classList.remove('active');
+      modal.setAttribute('aria-hidden', 'true');
+      if (workoutDetailTrigger?.isConnected) workoutDetailTrigger.focus?.();
+      workoutDetailTrigger = null;
     };
 
     // ── Render helpers ────────────────────────────────────────────────────────
@@ -3057,9 +3064,25 @@ const APP_VERSION = 'v176i';
     window.openWorkoutDetail = function(completedId) {
       const completed = state.completed.find(c => c.id === completedId);
       if (!completed) return;
+      const modal = document.getElementById('workoutDetailModal');
+      const wasOpen = modal.classList.contains('active');
+      if (!wasOpen) workoutDetailTrigger = document.activeElement;
       document.getElementById('workoutDetailContent').innerHTML = getWorkoutHistoryUi().detailHtml(completed);
-      document.getElementById('workoutDetailModal').classList.add('active');
+      modal.classList.add('active');
+      modal.setAttribute('aria-hidden', 'false');
+      if (!wasOpen) modal.querySelector('.detail-modal').scrollTop = 0;
+      modal.querySelector('[data-workout-detail-close]')?.focus();
     };
+
+    document.getElementById('workoutDetailModal')?.addEventListener('click', event => {
+      if (event.target === event.currentTarget) window.closeWorkoutDetailModal();
+    });
+
+    document.addEventListener('keydown', event => {
+      if (event.key === 'Escape' && document.getElementById('workoutDetailModal')?.classList.contains('active')) {
+        window.closeWorkoutDetailModal();
+      }
+    });
 
     const pendingAiWorkoutAssessments = new Set();
 
