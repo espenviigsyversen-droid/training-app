@@ -13,19 +13,20 @@ const CANONICAL_ENRICHMENT_FIELDS = [
   'paceDisplay',
   'avgHeartRate',
   'maxHeartRate',
-  'elevationGainM'
+  'elevationGainM',
+  'activitySetting'
 ];
 
 const ACTIVITY_TYPES = Object.freeze({
-  'running': { code: 'running', appType: 'Løping', distanceUnit: 'km', paceKind: 'per_km' },
-  'treadmill running': { code: 'treadmill_running', appType: 'Løping', distanceUnit: 'km', paceKind: 'per_km' },
-  'walking': { code: 'walking', appType: 'Gange', distanceUnit: 'km', paceKind: 'per_km' },
-  'hiking': { code: 'hiking', appType: 'Gange', distanceUnit: 'km', paceKind: 'per_km' },
-  'pool swim': { code: 'pool_swim', appType: 'Svømming', distanceUnit: 'm', paceKind: 'per_100m' },
-  'cycling': { code: 'cycling', appType: 'Sykling', distanceUnit: 'km', paceKind: 'speed_kmh' },
-  'indoor cycling': { code: 'indoor_cycling', appType: 'Sykling', distanceUnit: 'km', paceKind: 'speed_kmh' },
-  'cross country classic skiing': { code: 'cross_country_skiing', appType: 'Ski', distanceUnit: 'km', paceKind: 'speed_kmh' },
-  'resort skiing': { code: 'resort_skiing', appType: 'Alpint', distanceUnit: 'km', paceKind: 'speed_kmh' },
+  'running': { code: 'running', appType: 'Løping', activitySetting: 'outdoor', distanceUnit: 'km', paceKind: 'per_km' },
+  'treadmill running': { code: 'treadmill_running', appType: 'Løping', activitySetting: 'treadmill', distanceUnit: 'km', paceKind: 'per_km' },
+  'walking': { code: 'walking', appType: 'Gange', activitySetting: 'outdoor', distanceUnit: 'km', paceKind: 'per_km' },
+  'hiking': { code: 'hiking', appType: 'Gange', activitySetting: 'outdoor', distanceUnit: 'km', paceKind: 'per_km' },
+  'pool swim': { code: 'pool_swim', appType: 'Svømming', activitySetting: 'pool', distanceUnit: 'm', paceKind: 'per_100m' },
+  'cycling': { code: 'cycling', appType: 'Sykling', activitySetting: 'outdoor', distanceUnit: 'km', paceKind: 'speed_kmh' },
+  'indoor cycling': { code: 'indoor_cycling', appType: 'Sykling', activitySetting: 'indoor', distanceUnit: 'km', paceKind: 'speed_kmh' },
+  'cross country classic skiing': { code: 'cross_country_skiing', appType: 'Ski', activitySetting: 'outdoor', distanceUnit: 'km', paceKind: 'speed_kmh' },
+  'resort skiing': { code: 'resort_skiing', appType: 'Alpint', activitySetting: 'outdoor', distanceUnit: 'km', paceKind: 'speed_kmh' },
   'strength training': { code: 'strength_training', appType: 'Styrke', distanceUnit: 'km', paceKind: 'none' }
 });
 
@@ -294,6 +295,7 @@ export function mapGarminActivityRow(row, { rowNumber = 0 } = {}) {
       avgHeartRate: optionalInteger(row?.['Avg HR']),
       maxHeartRate: optionalInteger(row?.['Max HR']),
       elevationGainM: optionalNumber(row?.['Total Ascent']),
+      activitySetting: type.activitySetting || '',
       source: 'garmin_csv',
       externalData: { garmin }
     }
