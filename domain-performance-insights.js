@@ -4,6 +4,9 @@ import { activitySettingForCompleted } from './domain-activity.js';
 const DISTANCE_MILESTONES = [100, 250, 500, 750, 1000, 1500, 2000, 2500, 3000];
 const SESSION_MILESTONES = [10, 25, 50, 75, 100, 150, 200, 250, 300];
 const WEEK_MILESTONES = [4, 8, 12, 20, 26, 40, 52];
+const SAME_EFFORT_SETTINGS = ['outdoor', 'treadmill'];
+const SAME_EFFORT_MIN_GROUP = 4;
+const SAME_EFFORT_MAX_GROUP = 6;
 
 function validIsoDate(value) {
   const text = String(value || '');
@@ -28,7 +31,150 @@ function completedTemplate(item, templatesById) {
   const snapshot = item.templateSnapshot || {};
   return {
     name: item.manualName || snapshot.name || live.name || 'Historisk økt',
-    type: snapshot.type || live.type || item.type || 'Annet'
+    type: snapshot.type || live.type || item.activityType || item.type || 'Annet',
+    intensity: snapshot.intensity || live.intensity || item.intensity || '',
+    role: snapshot.role || live.role || item.role || ''
+  };
+}
+
+function median(values = []) {
+  const sorted = values.map(Number).filter(Number.isFinite).sort((left, right) => left - right);
+  if (!sorted.length) return 0;
+  const middle = Math.floor(sorted.length / 2);
+  return sorted.length % 2 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2;
+}
+
+function hasBodySignal(item = {}) {
+  const body = item.bodyStatus || {};
+  return Boolean(
+    Number(body.painBefore) > 0 ||
+    Number(body.painAfter) > 0 ||
+    String(body.area || '').trim() ||
+    String(body.notes || '').trim() ||
+    (body.adaptation && body.adaptation !== 'none')
+  );
+}
+
+function hasEasyIntent(template = {}) {
+  const intent = `${template.name || ''} ${template.intensity || ''} ${template.role || ''}`.toLowerCase();
+  return /rolig|restitusjon|easy|recovery|base|aerob/.test(intent) && !/terskel|threshold|intervall|tempo|race|konkurranse|test/.test(intent);
+}
+
+function canonicalPace(item = {}) {
+  const imported = item.externalData?.garmin || {};
+  const importedPace = Number(imported.pace?.averagePaceSecondsPerKm);
+  const directPace = Number(item.paceSecondsPerKm);
+  if (importedPace > 0) return importedPace;
+  if (directPace > 0) return directPace;
+  const movingSeconds = Number(imported.movingTimeSeconds);
+  const durationSeconds = completedDurationSeconds(item);
+  const distanceKm = Number(item.distanceKm);
+  const seconds = movingSeconds > 0 ? movingSeconds : durationSeconds;
+  return seconds > 0 && distanceKm > 0 ? seconds / distanceKm : 0;
+}
+
+function sameEffortCandidate(item, templatesById, primaryActivityType) {
+  const template = completedTemplate(item, templatesById);
+  const setting = activitySettingForCompleted(item);
+  const durationSeconds = completedDurationSeconds(item);
+  const distanceKm = Number(item.distanceKm);
+  const avgHeartRate = Number(item.avgHeartRate || item.averageHeartRate);
+  const paceSecondsPerKm = canonicalPace(item);
+  const gapSecondsPerKm = Number(item.externalData?.garmin?.pace?.averageGapSecondsPerKm);
+  const elevationGainM = Number(item.elevationGainM) || 0;
+  const rpe = Number(item.rpe);
+  if (template.type !== primaryActivityType || !hasEasyIntent(template)) return null;
+  if (!SAME_EFFORT_SETTINGS.includes(setting) || hasBodySignal(item) || rpe > 5) return null;
+  if (!(durationSeconds >= 1200 && durationSeconds <= 9000) || !(distanceKm >= 3 && distanceKm <= 30)) return null;
+  if (!(avgHeartRate >= 80 && avgHeartRate <= 220) || !(paceSecondsPerKm >= 150 && paceSecondsPerKm <= 900)) return null;
+  return {
+    date: validIsoDate(item.date),
+    setting,
+    durationSeconds,
+    distanceKm,
+    avgHeartRate,
+    paceSecondsPerKm,
+    gapSecondsPerKm: gapSecondsPerKm >= 150 && gapSecondsPerKm <= 900 ? gapSecondsPerKm : 0,
+    lowElevation: elevationGainM / distanceKm <= 12
+  };
+}
+
+function sameEffortPeriod(items = []) {
+  return {
+    count: items.length,
+    from: items[0]?.date || '',
+    to: items.at(-1)?.date || '',
+    medianHeartRate: Math.round(median(items.map(item => item.avgHeartRate))),
+    medianPaceSecondsPerKm: Math.round(median(items.map(item => item.metricPace))),
+    medianDurationSeconds: Math.round(median(items.map(item => item.durationSeconds)))
+  };
+}
+
+function sameEffortComparison(setting, sourceItems = []) {
+  const gapItems = sourceItems.filter(item => item.gapSecondsPerKm > 0);
+  const rawItems = sourceItems.filter(item => setting === 'treadmill' || item.lowElevation);
+  const paceSource = setting === 'outdoor' && gapItems.length >= SAME_EFFORT_MIN_GROUP * 2 ? 'gap' : 'pace';
+  const comparable = (paceSource === 'gap' ? gapItems : rawItems)
+    .map(item => ({ ...item, metricPace: paceSource === 'gap' ? item.gapSecondsPerKm : item.paceSecondsPerKm }))
+    .sort((left, right) => left.date.localeCompare(right.date));
+  const groupSize = Math.min(SAME_EFFORT_MAX_GROUP, Math.floor(comparable.length / 2));
+  if (groupSize < SAME_EFFORT_MIN_GROUP) {
+    return { setting, status: 'insufficient', reason: 'too_few', eligibleCount: comparable.length };
+  }
+
+  const recentItems = comparable.slice(-groupSize);
+  const baselineItems = comparable.slice(-(groupSize * 2), -groupSize);
+  const baseline = sameEffortPeriod(baselineItems);
+  const recent = sameEffortPeriod(recentItems);
+  const heartRateDifference = recent.medianHeartRate - baseline.medianHeartRate;
+  const durationRatio = recent.medianDurationSeconds / Math.max(1, baseline.medianDurationSeconds);
+  if (Math.abs(heartRateDifference) > 5) {
+    return { setting, status: 'insufficient', reason: 'heart_rate_gap', eligibleCount: comparable.length, baseline, recent };
+  }
+  if (durationRatio < 0.67 || durationRatio > 1.5) {
+    return { setting, status: 'insufficient', reason: 'duration_gap', eligibleCount: comparable.length, baseline, recent };
+  }
+
+  const paceChangePercent = ((baseline.medianPaceSecondsPerKm - recent.medianPaceSecondsPerKm) / baseline.medianPaceSecondsPerKm) * 100;
+  const trend = paceChangePercent >= 2 ? 'improving' : paceChangePercent <= -2 ? 'declining' : 'stable';
+  const confidence = groupSize >= 6 && Math.abs(heartRateDifference) <= 3 ? 'high' : 'medium';
+  return {
+    setting,
+    status: 'ready',
+    trend,
+    paceSource,
+    paceChangePercent: Math.round(paceChangePercent * 10) / 10,
+    heartRateDifference,
+    confidence,
+    eligibleCount: comparable.length,
+    baseline,
+    recent
+  };
+}
+
+export function comparableEasyRunFormInsight({
+  completedItems = [],
+  templates = [],
+  today,
+  primaryActivityType = 'Løping'
+} = {}) {
+  const endDate = validIsoDate(today) || '9999-12-31';
+  const templatesById = new Map((Array.isArray(templates) ? templates : [])
+    .filter(template => template?.id)
+    .map(template => [template.id, template]));
+  const candidates = (Array.isArray(completedItems) ? completedItems : [])
+    .filter(item => item && validIsoDate(item.date) && item.date <= endDate)
+    .map(item => sameEffortCandidate(item, templatesById, primaryActivityType))
+    .filter(item => item?.date);
+  const comparisons = SAME_EFFORT_SETTINGS.map(setting => sameEffortComparison(
+    setting,
+    candidates.filter(item => item.setting === setting)
+  ));
+  return {
+    hasData: comparisons.some(item => item.status === 'ready'),
+    comparisons,
+    candidateCount: candidates.length,
+    primaryActivityType
   };
 }
 
