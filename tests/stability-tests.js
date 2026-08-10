@@ -291,6 +291,35 @@ async function testAsync(name, fn) {
     assert.ok(!appStateSource.includes('sameEffortForm'));
   });
 
+  test('v176l2 reuses canonical easy intent and explains every exclusion', () => {
+    const accepted = Array.from({ length: 8 }, (_, index) => ({
+      id: `canonical-easy-${index}`,
+      date: `2026-06-${String(index + 1).padStart(2, '0')}`,
+      durationSeconds: 2400,
+      distanceKm: 6,
+      paceSecondsPerKm: index < 4 ? 400 : 396,
+      avgHeartRate: index < 4 ? 145 : 146,
+      activitySetting: 'treadmill',
+      templateSnapshot: { name: 'Økt', type: 'Løping', role: 'long_easy' },
+      bodyStatus: { painBefore: 0, painAfter: 0, area: 'Kne', notes: 'Rutinenotat', adaptation: 'none' }
+    }));
+    const rejected = [
+      { ...accepted[0], id: 'missing-setting', date: '2026-06-20', activitySetting: '' },
+      { ...accepted[0], id: 'pain-signal', date: '2026-06-21', bodyStatus: { painAfter: 2, area: 'Kne' } },
+      { ...accepted[0], id: 'quality', date: '2026-06-22', templateSnapshot: { name: 'Terskel', type: 'Løping', intensity: 'Terskel' } }
+    ];
+    const insight = performanceInsightsDomain.comparableEasyRunFormInsight({ completedItems: [...accepted, ...rejected], today: '2026-08-10' });
+    const treadmill = insight.comparisons.find(item => item.setting === 'treadmill');
+    assert.strictEqual(treadmill.status, 'ready');
+    assert.strictEqual(insight.diagnostics.runningCount, 11);
+    assert.strictEqual(insight.diagnostics.candidateCount, 8);
+    assert.strictEqual(insight.diagnostics.rejectedReasons.missing_setting, 1);
+    assert.strictEqual(insight.diagnostics.rejectedReasons.body_signal, 1);
+    assert.strictEqual(insight.diagnostics.rejectedReasons.not_easy, 1);
+    assert.ok(trainingInsightsUiSource.includes('Hvorfor disse øktene teller'));
+    assert.ok(trainingInsightsUiSource.includes('mangler gyldig snittpuls'));
+  });
+
   test('v176h exposes complete milestone tracks and missing activity settings', () => {
     assert.ok(trainingInsightsUiSource.includes('Se alle milepæler'));
     assert.ok(trainingInsightsUiSource.includes('milestoneOverviewHtml'));
@@ -2329,8 +2358,8 @@ async function testAsync(name, fn) {
     assert.ok(workoutHistoryUiSource.includes('heartRateZoneDistributionRows'), 'history does not use production zone rows');
     assert.ok(workoutHistoryUiSource.includes('Tid i pulssoner'), 'completed detail is missing the heart-rate zone section');
     assert.ok(!workoutHistoryUiSource.includes("row.estimated ? 'ca. '"), 'zone duration should not be prefixed with ca.');
-    assert.ok(app.includes("const APP_VERSION = 'v176l'"), 'visible app version must be v176l');
-    assert.ok(serviceWorker.includes('treningsapp-v176l'), 'cache version must match v176l');
+    assert.ok(app.includes("const APP_VERSION = 'v176l2'"), 'visible app version must be v176l2');
+    assert.ok(serviceWorker.includes('treningsapp-v176l2'), 'cache version must match v176l2');
   });
 
   test('v174b evaluates easy and quality sessions without treating zone percentages as a hard truth', () => {
@@ -2425,8 +2454,8 @@ async function testAsync(name, fn) {
     assert.ok(index.includes('id="insightHeartRateComplianceCard"'), 'Insights is missing the compliance card');
     assert.ok(app.includes('heartRateZoneComplianceForItems(last28Days)'), 'coach context does not use the canonical compliance summary');
     assert.ok(app.includes('renderHeartRateZoneComplianceInsight(today)'), 'Insights does not render canonical compliance');
-    assert.ok(app.includes("const APP_VERSION = 'v176l'"), 'visible app version must be v176l');
-    assert.ok(serviceWorker.includes('treningsapp-v176l'), 'cache version must match v176l');
+    assert.ok(app.includes("const APP_VERSION = 'v176l2'"), 'visible app version must be v176l2');
+    assert.ok(serviceWorker.includes('treningsapp-v176l2'), 'cache version must match v176l2');
   });
 
   test('v174c uses the test profile for zones and keeps the golden zone as a separate coach reference', () => {
@@ -2893,8 +2922,8 @@ async function testAsync(name, fn) {
     assert.ok(trainingImportControllerSource.includes("action: duplicate ? 'skip'"), 'duplicates should be skipped by default');
     assert.ok(!trainingImportControllerSource.includes('heartRateZoneDistribution'), 'controller must not synthesize pulse zones');
     assert.ok(styles.includes('.garmin-import-row'), 'Garmin preview styling is missing');
-    assert.ok(app.includes("const APP_VERSION = 'v176l'"));
-    assert.ok(serviceWorker.includes('treningsapp-v176l'));
+    assert.ok(app.includes("const APP_VERSION = 'v176l2'"));
+    assert.ok(serviceWorker.includes('treningsapp-v176l2'));
   });
 
   test('structured interval UI fields and summaries are wired into production files', () => {
