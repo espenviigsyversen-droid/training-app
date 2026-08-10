@@ -1589,6 +1589,13 @@ Mål og levert:
 - Dialogen har eksplisitt `role`, `aria-modal`, `aria-hidden` og kobling til dynamisk tittel. Historikkradene kan åpnes med tastatur.
 - Ingen øktdata, domenevurderinger, Firestore-kontrakter eller backupfelt er endret. PWA-versjonen er `v176j`.
 
+### v176k - Desktopbalanse og enklere seksjonskrom - Bygget
+
+- Intensitetsbalanse bruker full bredde i Innsikt på desktop, slik at statusflaten ikke får en stor tom høyrekolonne når kroppssignal- og skadekort er skjult.
+- Prioritetsområdet bruker én tydelig overskrift i stedet for både `Viktigst nå` og `Status og belastning`.
+- Sammenleggbare hovedområder bruker en rolig chevron som roteres ved åpning, mens native `details`/`summary` beholder tilgjengelig tilstand.
+- Mobilrekkefølge, innhold, domene-, Firestore- og backupdata er uendret. PWA-versjonen er `v176k`.
+
 ### v177 - Nedoverbelastning og todimensjonal høydevurdering
 
 Mål:
