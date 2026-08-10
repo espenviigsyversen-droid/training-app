@@ -6,6 +6,7 @@ import {
   normalizeHeartRateZoneDistribution,
   validateHeartRateZoneDistribution
 } from './domain-heart-rate-zones.js';
+import { normalizeActivitySetting } from './domain-activity.js';
 
 export function durationSecondsFromParts(hours, minutes, seconds) {
   const safe = value => Math.max(0, Math.trunc(Number(value) || 0));
@@ -104,7 +105,7 @@ export function createWorkoutCompletionUi({
     [
       'completeDate', 'completeTemplate', 'completeManualName',
       'completeDurationHours', 'completeDurationMinutes', 'completeDurationSeconds',
-      'completeDistance', 'completeAvgHr', 'completeMaxHr', 'completeElevationGain',
+      'completeDistance', 'completeActivitySetting', 'completeAvgHr', 'completeMaxHr', 'completeElevationGain',
       'completeTreadmillIncline', 'completeTrainingEffect', 'completeExecution',
       'completeFeeling', 'completeRpe', 'completeEnergy', 'completeLegs', 'completeSleep',
       'completeStress', 'completePainBefore', 'completePainAfter', 'completePainAreaRegion',
@@ -172,6 +173,7 @@ export function createWorkoutCompletionUi({
       durationDisplay: durationSeconds ? formatDuration(durationSeconds) : '',
       durationMinutes: durationSeconds ? Math.round(durationSeconds / 60) : '',
       distanceKm,
+      activitySetting: normalizeActivitySetting(value('completeActivitySetting')),
       averageSpeedKmh: pace.averageSpeedKmh || '',
       paceSecondsPerKm: pace.paceSecondsPerKm || '',
       paceDisplay: pace.paceDisplay || '',
@@ -211,6 +213,7 @@ export function createWorkoutCompletionUi({
     setValue('completeManualName', completed.manualName);
     setDuration(completed.durationSeconds || (completed.durationMinutes ? Number(completed.durationMinutes) * 60 : 0));
     setValue('completeDistance', completed.distanceKm);
+    setValue('completeActivitySetting', completed.activitySetting);
     setValue('completeAvgHr', completed.avgHeartRate);
     setValue('completeMaxHr', completed.maxHeartRate);
     setValue('completeElevationGain', completed.elevationGainM);
