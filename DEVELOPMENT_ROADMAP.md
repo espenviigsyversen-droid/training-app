@@ -1552,6 +1552,17 @@ Mål og levert:
 - Ren dato-, vindu- og navigasjonslogikk ligger i ny `domain-volume-trends.js`. `app.js` beholder bare state-, filtrerings- og render-wrappere. Ingen lagret datamodell er endret.
 - PWA-versjonen er `v176f`.
 
+### v176g - Aktivitetsmiljø og Året så langt - Bygget
+
+- Fullførte økter har et valgfritt, kildeuavhengig `activitySetting` for `outdoor`, `treadmill`, `indoor` og `pool`.
+- Eldre importerte økter avledes bakoverkompatibelt fra lagret aktivitetskode uten migrering eller ny import. Eksplisitt manuell verdi vinner.
+- Garmin-import, kontrollert merge, nye økter og manuelt fullføringsskjema bruker samme kanoniske felt.
+- Logg viser aktivitetsmiljø som naturlig øktmetadata uten å vise datakilde.
+- Innsikt har en ny `Året så langt`-flate med økter, treningstid, løpekilometer, aktive uker, aktivitetsmiljø, personlige høydepunkter og forsiktige milepæler.
+- Ren aktivitetstolkning ligger i `domain-activity.js`, årsberegning i `domain-performance-insights.js` og rendering i `training-insights-ui.js`. `app.js` leverer bare state og kobler renderer.
+- `domain-volume-trends.js` beholder eneansvar for de navigerbare seksperiodersvinduene. Form ved samme innsats og synlig vurderingssikkerhet er utsatt til egne runder.
+- Datakontrakt og akseptansekriterier ligger i `PERFORMANCE_INSIGHTS_DESIGN.md`. PWA-versjonen er `v176g`.
+
 ### v177 - Nedoverbelastning og todimensjonal høydevurdering
 
 Mål:
