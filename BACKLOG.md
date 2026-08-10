@@ -287,6 +287,12 @@ Prioritert backlog for videre utvikling av Treningsapp.
     - Hold aktivitetstolkning, årsberegning og rendering i egne moduler; behold `app.js` som orchestrator.
     - Ta `Form ved samme innsats` og synlig vurderingssikkerhet i senere, avgrensede runder.
 
+52d. **v176h - Komplett milepælsoversikt og aktivitetsmiljøfilter** - Bygget
+    - Vis alle årets kilometer-, økt- og ukemilepæler i et kompakt overlegg med nådd, neste og senere.
+    - Presiser at øktmilepæler gjelder treningsøkter, og behold milepælene som motivasjon uten tidsfrist eller belastningskrav.
+    - Vis alle registrerte aktivitetsmiljøer dynamisk og gjør `uten angivelse` til en trygg inngang til ferdig filtrert Logg.
+    - Legg aktivitetsmiljø til det ordinære historikkfilteret uten automatisk klassifisering.
+
 53. **v177 - Nedoverbelastning**
     - Registrer stigning og nedstigning separat.
     - Skill kondisjonsbelastning fra muskel-/støtbelastning.
