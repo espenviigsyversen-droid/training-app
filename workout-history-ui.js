@@ -5,6 +5,7 @@ import {
   normalizeHeartRateZoneDistribution
 } from './domain-heart-rate-zones.js';
 import { buildWorkoutCoachAssessment } from './domain-workout-assessment.js';
+import { activitySettingForCompleted, activitySettingLabel } from './domain-activity.js';
 
 function normalizedText(value) {
   return String(value || '').trim().toLowerCase();
@@ -330,11 +331,12 @@ export function createWorkoutHistoryUi({
       trainingProfile: profile
     });
     const heartRateSummary = heartRateSummaryHtml(completed, heartRateReference);
+    const settingLabel = activitySettingLabel(activitySettingForCompleted(completed));
     return `
       <div class="detail-hero">
         <span class="tag done">Utført</span>
         <h2>${escapeHtml(template.name)}</h2>
-        <p>${formatDate(completed.date)} · ${escapeHtml(template.type)}${template.intensity ? ` · ${escapeHtml(template.intensity)}` : ''}</p>
+        <p>${formatDate(completed.date)} · ${escapeHtml(template.type)}${template.intensity ? ` · ${escapeHtml(template.intensity)}` : ''}${settingLabel ? ` · ${escapeHtml(settingLabel)}` : ''}</p>
       </div>
       <div class="detail-metrics-grid">
         ${detailMetric('Varighet', completedDurationLabel(completed))}
@@ -421,7 +423,8 @@ export function createWorkoutHistoryUi({
     const pain = painText(completed.bodyStatus || {});
     const chip = priorityChip(completed, template, kind, assessment, pain);
     const stripeClass = kind.key === 'race' ? 'race' : kind.key === 'quality' ? 'medium' : intensityStripeClass(template.intensity);
-    const meta = [template.type, template.intensity].filter(Boolean).join(' · ');
+    const settingLabel = activitySettingLabel(activitySettingForCompleted(completed));
+    const meta = [template.type, template.intensity, settingLabel].filter(Boolean).join(' · ');
     return `<div class="history-row history-kind-${escapeHtml(kind.key)}" onclick="openWorkoutDetail('${completed.id}')">
       <div class="history-row-stripe stripe-${stripeClass}"></div>
       <div class="history-row-body"><div class="history-row-head"><div>
@@ -444,6 +447,7 @@ export function createWorkoutHistoryUi({
       completed.raceResult?.name, completed.raceResult?.course, completed.raceResult?.note,
       completed.raceResult?.resultSeconds ? formatRaceTime(completed.raceResult.resultSeconds) : '',
       completed.bodyStatus?.area, completed.bodyStatus?.notes, executionLabel(completed.execution),
+      activitySettingLabel(activitySettingForCompleted(completed)),
       feelingLabel(completed.feelingScore), trainingEffectInfo(completed.trainingEffectType)?.label,
       completedLoadAssessment(completed).label].filter(Boolean).join(' ');
   }
