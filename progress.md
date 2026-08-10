@@ -1,5 +1,5 @@
 # Treningsapp — progress.md
-Oppdatert: 2026-08-10 (siste runtime-endring: v176j)
+Oppdatert: 2026-08-10 (siste runtime-endring: v176k)
 
 ---
 
@@ -27,7 +27,7 @@ Standard Bakken-uke: Hoved-terskel → Støtte-terskel → Lang rolig → Valgfr
 **Hosting:** GitHub Pages.  
 **Backend:** Firebase (prosjekt `home-tasks-app-18de3`) — Firestore + Google Auth.  
 **Frontend:** Vanilla JS + HTML + CSS, single-page app, tab-navigasjon.  
-**Versjon:** v176j (konstant i `app.js`).
+**Versjon:** v176k (konstant i `app.js`).
 
 ### Filer
 
@@ -394,6 +394,13 @@ Treningsapp/
 - Kryss, Escape, bakgrunnsklikk og bunnknapp lukker modalvinduet. Fokus returneres til åpningselementet når det fortsatt finnes.
 - Dialogsemantikk og tastaturåpning fra historikk er lagt til. Øktinnhold, domene-, Firestore- og backupdata er uendret.
 - PWA-cache og synlig versjon er `v176j`.
+
+### v176k - Desktopbalanse i Innsikt - Bygget
+
+- Intensitetsbalanse bruker nå hele bredden på desktop og fjerner den store tomme høyreflaten i statusområdet.
+- `Viktigst nå` er fjernet slik at statusområdet har én tydelig overskrift.
+- Sammenleggbare områder viser en diskret chevron som roteres ved åpning i stedet for teksten `Åpne`/`Skjul`.
+- Mobilstruktur, innhold, beregninger og lagringsmodell er uendret. PWA-cache og synlig versjon er `v176k`.
 
 ### v167 - Øktmaler som egen UI-feature - Bygget
 
