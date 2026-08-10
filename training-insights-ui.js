@@ -27,6 +27,7 @@ export function createTrainingInsightsUi({
 } = {}) {
   let latestInsight = null;
   let isBound = false;
+  let milestoneTrigger = null;
 
   function milestoneLabel(milestone = {}) {
     if (milestone.metric === 'distance') return `${roundedNumber(milestone.target, 0)} km`;
@@ -109,9 +110,11 @@ export function createTrainingInsightsUi({
     const modal = documentRef?.getElementById('milestoneOverviewModal');
     const content = documentRef?.getElementById('milestoneOverviewContent');
     if (!modal || !content || !latestInsight) return;
+    milestoneTrigger = documentRef.activeElement;
     content.innerHTML = milestoneOverviewHtml(latestInsight);
     modal.classList.add('active');
     modal.setAttribute('aria-hidden', 'false');
+    content.querySelector('[data-insight-action="close-milestones"]')?.focus();
   }
 
   function closeMilestoneOverview() {
@@ -119,6 +122,7 @@ export function createTrainingInsightsUi({
     if (!modal) return;
     modal.classList.remove('active');
     modal.setAttribute('aria-hidden', 'true');
+    milestoneTrigger?.focus?.();
   }
 
   function handleAction(action) {
@@ -175,11 +179,11 @@ export function createTrainingInsightsUi({
         <div class="year-insight-heading"><strong>Høydepunkter så langt</strong><span>${escapeHtml(String(insight.year || ''))}</span></div>
         <div class="year-highlight-grid">${(insight.highlights || []).slice(0, 3).map(highlightHtml).join('')}</div>
       </div>
-      ${milestones.length ? `<div class="year-insight-block">
-        <div class="year-insight-heading"><strong>Milepæler nådd</strong><span>Ingen hast</span></div>
-        <div class="year-milestones">${milestones.map(milestone => `<span><strong>${escapeHtml(milestone.metric === 'sessions' ? `${roundedNumber(milestone.target, 0)} treningsøkter` : milestoneLabel(milestone))}</strong>${milestone.achievedAt ? `<small>${escapeHtml(formatDate(milestone.achievedAt))}</small>` : ''}</span>`).join('')}</div>
+      <div class="year-insight-block">
+        <div class="year-insight-heading"><strong>${milestones.length ? 'Milepæler nådd' : 'Milepæler'}</strong><span>Ingen hast</span></div>
+        ${milestones.length ? `<div class="year-milestones">${milestones.map(milestone => `<span><strong>${escapeHtml(milestone.metric === 'sessions' ? `${roundedNumber(milestone.target, 0)} treningsøkter` : milestoneLabel(milestone))}</strong>${milestone.achievedAt ? `<small>${escapeHtml(formatDate(milestone.achievedAt))}</small>` : ''}</span>`).join('')}</div>` : '<p class="small-note">Første naturlige markør kommer etter hvert som du logger økter.</p>'}
         <button type="button" class="btn-soft year-milestone-button" data-insight-action="all-milestones">Se alle milepæler</button>
-      </div>` : ''}
+      </div>
       ${next ? `<div class="year-next-milestone">
         <div><span>Neste naturlige milepæl</span><strong>${escapeHtml(nextMilestoneText(next))}</strong></div>
         <div class="progress-track"><div class="progress-fill partial" style="width:${nextProgress}%;"></div></div>
