@@ -1,5 +1,5 @@
 # Treningsapp — progress.md
-Oppdatert: 2026-08-10 (siste runtime-endring: v176k)
+Oppdatert: 2026-08-10 (siste runtime-endring: v176l)
 
 ---
 
@@ -27,7 +27,7 @@ Standard Bakken-uke: Hoved-terskel → Støtte-terskel → Lang rolig → Valgfr
 **Hosting:** GitHub Pages.  
 **Backend:** Firebase (prosjekt `home-tasks-app-18de3`) — Firestore + Google Auth.  
 **Frontend:** Vanilla JS + HTML + CSS, single-page app, tab-navigasjon.  
-**Versjon:** v176k (konstant i `app.js`).
+**Versjon:** v176l (konstant i `app.js`).
 
 ### Filer
 
@@ -401,6 +401,16 @@ Treningsapp/
 - `Viktigst nå` er fjernet slik at statusområdet har én tydelig overskrift.
 - Sammenleggbare områder viser en diskret chevron som roteres ved åpning i stedet for teksten `Åpne`/`Skjul`.
 - Mobilstruktur, innhold, beregninger og lagringsmodell er uendret. PWA-cache og synlig versjon er `v176k`.
+
+### v176l - Form ved samme innsats - Bygget
+
+- Utvikling har fått en forklarbar sammenligning av rolige løpeøkter ved omtrent samme medianpuls og varighet.
+- Utendørs og tredemølle behandles separat. Utendørs bruker GAP når minst åtte egnede økter har feltet; ellers brukes ordinær pace bare på relativt flate økter.
+- Resultatet klassifiseres konservativt som bedre, stabil eller svakere respons med synlig paceendring. Dette presenteres uttrykkelig som øktrespons, ikke generell formscore eller råd om å øke belastning.
+- Minst fire økter i hver periode, høyst 5 bpm pulsforskjell og sammenlignbar varighet kreves. Kroppssignal, hard øktintensjon, ukjent miljø og manglende objektive felt utelates.
+- Periode, antall økter, pacekilde og lokal vurderingssikkerhet vises i kortet. Utilstrekkelig grunnlag gir en nøytral tomtilstand.
+- Ren beregning ligger i `domain-performance-insights.js`, rendering i `training-insights-ui.js`, og `app.js` leverer bare state. Designet ligger i `SAME_EFFORT_FORM_DESIGN.md`.
+- Ingen Firestore-, backup- eller lagringsdata er endret. PWA-cache og synlig versjon er `v176l`.
 
 ### v167 - Øktmaler som egen UI-feature - Bygget
 
