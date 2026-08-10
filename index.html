@@ -558,6 +558,16 @@
           <h2 class="section-title">Innsikt</h2>
           <p class="small-note">Følg kontinuitet, volum og enkle signaler fra siste økter.</p>
         </div>
+        <div class="card desktop-wide year-to-date-card">
+          <div class="section-title-row year-to-date-heading">
+            <div>
+              <h2 class="section-title">Året så langt</h2>
+              <p class="small-note">Milepæler og høydepunkter fra øktene du har logget.</p>
+            </div>
+            <span id="insightYearToDateYear" class="year-label"></span>
+          </div>
+          <div id="insightYearToDate"></div>
+        </div>
         <div class="card desktop-wide fitness-level-card">
           <div class="section-title-row">
             <div>
@@ -1462,6 +1472,16 @@
             <strong id="completePaceTextPreview">-</strong>
             <span>min/km</span>
           </div>
+        </div>
+        <div>
+          <label>Aktivitetsmiljø</label>
+          <select id="completeActivitySetting">
+            <option value="">Ikke angitt</option>
+            <option value="outdoor">Utendørs</option>
+            <option value="treadmill">Tredemølle</option>
+            <option value="indoor">Innendørs</option>
+            <option value="pool">Basseng</option>
+          </select>
         </div>
         <details class="optional-form-section">
           <summary>Konkurranse / testløp</summary>
