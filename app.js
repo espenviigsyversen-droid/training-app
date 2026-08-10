@@ -153,8 +153,10 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       normalizeVolumeTrendOffset,
       shiftVolumeTrendOffset
     } from './domain-volume-trends.js';
+    import { yearToDatePerformanceInsights } from './domain-performance-insights.js';
+    import { createTrainingInsightsUi } from './training-insights-ui.js';
 
-const APP_VERSION = 'v176f';
+const APP_VERSION = 'v176g';
     const APP_CACHE_NAME = `treningsapp-${APP_VERSION}`;
 
     const firebaseConfig = {
@@ -195,6 +197,11 @@ const APP_VERSION = 'v176f';
       firestore: { collection, doc, getDoc, getDocs, setDoc, deleteDoc, writeBatch },
       normalizeState: normalizeAppState,
       defaultSettings: freshDefaultSettings
+    });
+    const trainingInsightsUi = createTrainingInsightsUi({
+      escapeHtml,
+      formatDate,
+      formatClockDuration
     });
     let volumeTrendPeriod = 'week';
     let volumeTrendActivity = 'all';
@@ -6530,6 +6537,12 @@ const APP_VERSION = 'v176f';
 
     function renderInsights() {
       const today = todayISO();
+      trainingInsightsUi.renderYearToDate(yearToDatePerformanceInsights({
+        completedItems: state.completed,
+        templates: state.templates,
+        today,
+        primaryActivityType: 'Løping'
+      }));
       const goals = normalizeGoals(state.settings.goals);
       const profile = normalizeTrainingProfile(state.settings.trainingProfile);
       const weekStart = startOfWeek(today);
