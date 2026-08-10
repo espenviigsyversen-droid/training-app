@@ -82,10 +82,10 @@ function sameEffortCandidate(item, templatesById, primaryActivityType) {
   const rpe = Number(item.rpe);
   if (template.type !== primaryActivityType) return { running: false, accepted: false, reason: 'not_running' };
   if (hasMaterialBodySignal(item)) return { running: true, accepted: false, reason: 'body_signal' };
-  if (rpe > 5) return { running: true, accepted: false, reason: 'high_rpe' };
   const intensity = classifyWorkoutIntensityContext({ completed: item, template });
   if (!intensity.countsAsEasySupport || intensity.countsAsHardQuality || intensity.countsAsHardLoad) {
-    return { running: true, accepted: false, reason: 'not_easy' };
+    const reason = intensity.category === 'hard_risk' && rpe >= 7 ? 'high_rpe' : 'not_easy';
+    return { running: true, accepted: false, reason };
   }
   if (!SAME_EFFORT_SETTINGS.includes(setting)) return { running: true, accepted: false, reason: 'missing_setting' };
   if (!(durationSeconds >= 1200 && durationSeconds <= 9000) || !(distanceKm >= 3 && distanceKm <= 30)) {
