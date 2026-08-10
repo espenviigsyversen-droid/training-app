@@ -293,6 +293,13 @@ Prioritert backlog for videre utvikling av Treningsapp.
     - Vis alle registrerte aktivitetsmiljøer dynamisk og gjør `uten angivelse` til en trygg inngang til ferdig filtrert Logg.
     - Legg aktivitetsmiljø til det ordinære historikkfilteret uten automatisk klassifisering.
 
+52e. **v176i - Kompakt informasjonsarkitektur for Innsikt og Mål** - Bygget
+    - Prioriter Status og Målstatus som alltid synlige beslutningsflater.
+    - Legg lokal seksjonsnavigasjon til Kontinuitet, Utvikling, Året, Mål-løp, PB og Challenges.
+    - Flytt metodeforklaringer, detaljerte delmål, tomme PB-distanser og tidligere challenges til progressiv visning.
+    - Behold kroppssignaler, skadesignal, belastningsvarsler, testvurdering og neste steg synlig.
+    - Eie DOM-gruppering og midlertidig disclosure-state i `workspace-sections-ui.js` uten ny datamodell.
+
 53. **v177 - Nedoverbelastning**
     - Registrer stigning og nedstigning separat.
     - Skill kondisjonsbelastning fra muskel-/støtbelastning.
