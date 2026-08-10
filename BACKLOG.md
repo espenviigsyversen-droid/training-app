@@ -311,6 +311,16 @@ Prioritert backlog for videre utvikling av Treningsapp.
     - Forenkle statusoverskriften til ett nivå og bruk en diskret chevron for sammenleggbare områder.
     - Behold samme mobilstruktur, innhold og domenegrunnlag.
 
+52h. **v176l - Form ved samme innsats** - Bygget
+    - Sammenlign rolige løpeøkter konservativt innen samme aktivitetsmiljø.
+    - Bruk GAP utendørs når minst åtte sammenlignbare økter har feltet; ellers bruk pace bare på egnede økter.
+    - Vis lokal datadekning og vurderingssikkerhet sammen med resultatet.
+    - Ikke lagre avledet innsikt eller gjøre resultatet til en generell formscore.
+
+52i. **v176m - Felles datagrunnlag og vurderingssikkerhet** - Planlagt
+    - Standardiser synlig datadekning, tidsperiode og vurderingssikkerhet på tvers av Innsikt.
+    - Gjenbruk v176l-mønsteret uten å skjule kroppssignal eller viktige forbehold.
+
 53. **v177 - Nedoverbelastning**
     - Registrer stigning og nedstigning separat.
     - Skill kondisjonsbelastning fra muskel-/støtbelastning.
