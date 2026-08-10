@@ -12,6 +12,7 @@ import {
   normalizeHeartRateZoneSets
 } from './domain-heart-rate-zones.js';
 import { normalizeAiWorkoutAssessment } from './domain-ai-workout-assessment.js';
+import { activitySettingForCompleted } from './domain-activity.js';
 
 export const WORKOUT_ROLE_LABELS = {
   main_threshold: 'Hovedterskel',
@@ -325,6 +326,9 @@ export function normalizeCompletedItems(items = []) {
           const externalData = normalizeExternalData(item.externalData);
           if (externalData) normalized.externalData = externalData;
           else delete normalized.externalData;
+          const activitySetting = activitySettingForCompleted({ ...item, externalData });
+          if (activitySetting) normalized.activitySetting = activitySetting;
+          else delete normalized.activitySetting;
           const aiCoachAssessment = normalizeAiWorkoutAssessment(item.aiCoachAssessment);
           if (aiCoachAssessment) normalized.aiCoachAssessment = aiCoachAssessment;
           else delete normalized.aiCoachAssessment;
