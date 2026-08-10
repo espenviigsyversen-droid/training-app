@@ -1,6 +1,6 @@
 # Form ved samme innsats
 
-Design- og akseptansekriterier for v176l.
+Design- og akseptansekriterier for v176l, presisert i v176l2.
 
 ## Bakgrunn
 
@@ -16,13 +16,14 @@ Garmin-importen har gitt historiske løpeøkter et rikere datagrunnlag med aktiv
 
 ## Scope
 
-Kun fullførte løpeøkter med rolig/base-/restitusjonsintensjon kan inngå. Økten må ha kjent aktivitetsmiljø, distanse, varighet, snittpuls og gyldig pace. Økter med registrert smerte, kroppstilpasning eller annen tydelig kroppssignalstatus utelates.
+Kun fullførte løpeøkter som appens felles intensitetsklassifisering vurderer som rolig/base/restitusjon kan inngå. Økten må ha kjent aktivitetsmiljø, distanse, varighet, snittpuls og gyldig pace. Økter med registrert smerte eller aktiv kroppstilpasning utelates. Et utfylt kroppsområde eller fritekstnotat uten smerte eller tilpasning er ikke alene et skadesignal og skal ikke utelate økten.
 
 Utendørsøkter bruker Garmin GAP når det finnes. Dersom GAP mangler, brukes ordinær pace bare for økter med begrenset stigning per kilometer. GAP og ordinær pace blandes aldri i samme sammenligning. Tredemølle bruker ordinær pace.
 
 ## Arkitektur
 
 - `domain-performance-insights.js` eier filtrering, gruppering, medianer, sammenlignbarhet, konklusjon og vurderingssikkerhet.
+- Den kanoniske intensitetsklassifiseringen gjenbrukes fra `domain-core.js`; featuret skal ikke vedlikeholde en egen navnebasert parallellklassifisering.
 - `training-insights-ui.js` renderer resultat, tomtilstand og datagrunnlag.
 - `app.js` leverer normalisert state og kobler domenefunksjonen til rendereren.
 - `workspace-sections-ui.js` plasserer kortet i området Utvikling.
@@ -55,7 +56,7 @@ Vurderingssikkerheten er høy ved minst seks økter i hver gruppe og høyst 3 bp
 
 Kortet ligger først i Utvikling og viser maksimalt én kompakt sammenligning per aktivitetsmiljø. Konklusjon, paceendring og pulsgrunnlag er synlig. Periode, antall økter og metode ligger i et progressivt `Datagrunnlag`-felt.
 
-Tomtilstanden skal fortelle hva som mangler uten å be brukeren trene mer eller hardere.
+Tomtilstanden skal fortelle hva som mangler uten å be brukeren trene mer eller hardere. Den viser antall vurderte løpeøkter, antall kandidater som oppfyller grunnkravene, status per aktivitetsmiljø og summerte utelatelsesårsaker. Hver økt teller i høyst én utelatelsesårsak, slik at tallene er lesbare og etterprøvbare.
 
 ## Tester og akseptansekriterier
 
@@ -63,8 +64,11 @@ Tomtilstanden skal fortelle hva som mangler uten å be brukeren trene mer eller 
 - utendørs og tredemølle holdes separat
 - GAP og vanlig pace blandes ikke
 - hardøkt, kroppssignal, ukjent miljø og manglende puls utelates
+- kanonisk rolig intensjon fra øktmalen godtas selv om øktnavnet ikke inneholder et bestemt nøkkelord
+- kroppsområde eller notat uten smerte/tilpasning utelater ikke økten
+- tomtilstanden forklarer kandidatgrunnlag og utelatelsesårsaker per miljø
 - stor pulsforskjell eller for få økter gir ingen konklusjon
 - state og Firestore-data muteres ikke
 - domenelogikken testes direkte fra produksjonsfilen
 - mobil og desktop viser kortet uten horisontal overflow
-- PWA-versjon og cache er `v176l`
+- PWA-versjon og cache er `v176l2`
