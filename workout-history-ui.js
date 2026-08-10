@@ -341,9 +341,14 @@ export function createWorkoutHistoryUi({
     const settingLabel = activitySettingLabel(activitySettingForCompleted(completed));
     return `
       <div class="detail-hero">
-        <span class="tag done">Utført</span>
-        <h2>${escapeHtml(template.name)}</h2>
-        <p>${formatDate(completed.date)} · ${escapeHtml(template.type)}${template.intensity ? ` · ${escapeHtml(template.intensity)}` : ''}${settingLabel ? ` · ${escapeHtml(settingLabel)}` : ''}</p>
+        <div class="detail-hero-heading">
+          <div class="detail-hero-copy">
+            <span class="tag done">Utført</span>
+            <h2 id="workoutDetailTitle">${escapeHtml(template.name)}</h2>
+            <p>${formatDate(completed.date)} · ${escapeHtml(template.type)}${template.intensity ? ` · ${escapeHtml(template.intensity)}` : ''}${settingLabel ? ` · ${escapeHtml(settingLabel)}` : ''}</p>
+          </div>
+          <button type="button" class="btn-icon detail-modal-close" data-workout-detail-close onclick="closeWorkoutDetailModal()" aria-label="Lukk øktdetaljer">×</button>
+        </div>
       </div>
       <div class="detail-metrics-grid">
         ${detailMetric('Varighet', completedDurationLabel(completed))}
@@ -432,7 +437,7 @@ export function createWorkoutHistoryUi({
     const stripeClass = kind.key === 'race' ? 'race' : kind.key === 'quality' ? 'medium' : intensityStripeClass(template.intensity);
     const settingLabel = activitySettingLabel(activitySettingForCompleted(completed));
     const meta = [template.type, template.intensity, settingLabel].filter(Boolean).join(' · ');
-    return `<div class="history-row history-kind-${escapeHtml(kind.key)}" onclick="openWorkoutDetail('${completed.id}')">
+    return `<div class="history-row history-kind-${escapeHtml(kind.key)}" role="button" tabindex="0" onclick="openWorkoutDetail('${completed.id}')" onkeydown="if(event.key === 'Enter' || event.key === ' ') { event.preventDefault(); openWorkoutDetail('${completed.id}'); }">
       <div class="history-row-stripe stripe-${stripeClass}"></div>
       <div class="history-row-body"><div class="history-row-head"><div>
         <div class="history-row-title">${escapeHtml(template.name)}</div>
