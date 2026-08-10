@@ -237,21 +237,68 @@ export function createTrainingInsightsUi({
     </article>`;
   }
 
+  function sameEffortSettingStatus(comparison = {}) {
+    const label = comparison.setting === 'treadmill' ? 'Tredemølle' : 'Utendørs';
+    const source = comparison.paceSource === 'gap' ? 'GAP' : 'pace';
+    if (comparison.status === 'ready') {
+      return `<div><strong>${escapeHtml(label)}</strong><span>${escapeHtml(String(comparison.eligibleCount || 0))} sammenlignbare · ${escapeHtml(source)}</span></div>`;
+    }
+    if (comparison.reason === 'heart_rate_gap') {
+      const difference = Math.abs(Number(comparison.recent?.medianHeartRate || 0) - Number(comparison.baseline?.medianHeartRate || 0));
+      return `<div><strong>${escapeHtml(label)}</strong><span>${escapeHtml(String(comparison.eligibleCount || 0))} aktuelle · medianpulsen skiller ${escapeHtml(String(difference))} bpm</span></div>`;
+    }
+    if (comparison.reason === 'duration_gap') {
+      return `<div><strong>${escapeHtml(label)}</strong><span>${escapeHtml(String(comparison.eligibleCount || 0))} aktuelle · periodene har for ulik varighet</span></div>`;
+    }
+    return `<div><strong>${escapeHtml(label)}</strong><span>${escapeHtml(String(comparison.eligibleCount || 0))} av minst 8 · ${escapeHtml(source)}</span></div>`;
+  }
+
+  function sameEffortRejectedHtml(rejected = {}) {
+    const labels = {
+      not_easy: 'ikke klassifisert som rolig/base',
+      missing_setting: 'mangler utendørs/tredemølle',
+      body_signal: 'har smerte eller aktiv tilpasning',
+      high_rpe: 'har RPE over 5',
+      duration_distance: 'har varighet eller distanse utenfor sammenligningsområdet',
+      heart_rate: 'mangler gyldig snittpuls',
+      pace: 'mangler gyldig pace'
+    };
+    const rows = Object.entries(rejected)
+      .filter(([reason, count]) => labels[reason] && Number(count) > 0)
+      .sort((left, right) => Number(right[1]) - Number(left[1]));
+    if (!rows.length) return '';
+    return `<ul class="same-effort-rejections">${rows.map(([reason, count]) => `<li><strong>${escapeHtml(String(count))}</strong> ${escapeHtml(labels[reason])}</li>`).join('')}</ul>`;
+  }
+
+  function sameEffortDiagnosticsHtml(insight = {}, { expanded = false } = {}) {
+    const diagnostics = insight.diagnostics || {};
+    const comparisons = insight.comparisons || [];
+    return `<details class="same-effort-diagnostics"${expanded ? ' open' : ''}>
+      <summary>Hvorfor disse øktene teller</summary>
+      <div class="same-effort-diagnostic-summary"><strong>${escapeHtml(String(diagnostics.runningCount || 0))} løpeøkter vurdert</strong><span>${escapeHtml(String(diagnostics.candidateCount || 0))} oppfyller grunnkravene</span></div>
+      <div class="same-effort-setting-status">${comparisons.map(sameEffortSettingStatus).join('')}</div>
+      ${sameEffortRejectedHtml(diagnostics.rejectedReasons)}
+      <small>En økt kan bare få én avvisningsgrunn. Utendørsøkter bruker GAP når minst åtte har GAP; ellers brukes pace på relativt flate økter.</small>
+    </details>`;
+  }
+
   function renderSameEffortForm(insight = {}) {
     const container = documentRef?.getElementById('insightSameEffortForm');
     if (!container) return;
     const ready = (insight.comparisons || []).filter(item => item.status === 'ready');
     if (!ready.length) {
-      const eligible = Number(insight.candidateCount || 0);
+      const diagnostics = insight.diagnostics || {};
       container.innerHTML = `<div class="same-effort-empty">
-        <strong>Ikke nok sammenlignbare rolige økter ennå</strong>
-        <p>${eligible ? `${escapeHtml(String(eligible))} økter har deler av grunnlaget, men periodene er ikke like nok i puls, varighet og miljø.` : 'Når rolige løpeøkter har puls, pace og aktivitetsmiljø, kan utviklingen vises her.'}</p>
+        <strong>Sammenligningen trenger et tydeligere datagrunnlag</strong>
+        <p>${diagnostics.runningCount ? `${escapeHtml(String(diagnostics.runningCount))} løpeøkter er vurdert, og ${escapeHtml(String(diagnostics.candidateCount || 0))} oppfyller alle grunnkrav før periodene sammenlignes.` : 'Når rolige løpeøkter har puls, pace og aktivitetsmiljø, kan utviklingen vises her.'}</p>
+        ${sameEffortDiagnosticsHtml(insight, { expanded: true })}
         <small>Manglende grunnlag betyr ikke svak form.</small>
       </div>`;
       return;
     }
     container.innerHTML = `<div class="same-effort-list">${ready.map(sameEffortComparisonHtml).join('')}</div>
-      <p class="same-effort-disclaimer">Viser respons i sammenlignbare rolige økter – ikke en generell formscore eller et råd om å øke belastningen.</p>`;
+      <p class="same-effort-disclaimer">Viser respons i sammenlignbare rolige økter – ikke en generell formscore eller et råd om å øke belastningen.</p>
+      ${sameEffortDiagnosticsHtml(insight)}`;
   }
 
   return { bind, closeMilestoneOverview, renderYearToDate, renderSameEffortForm };
