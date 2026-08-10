@@ -2,7 +2,7 @@
 
 Design- og datakontrakt for v176a-v176b. Dokumentet bygger på den faktiske Garmin Connect-eksporten `Activities_5_8_2026.csv`, kontrollert 5. august 2026.
 
-**Implementeringsstatus:** v176a-adapteren og v176b-importveiviseren er bygget. Runtime-versjonen er `v176b`.
+**Implementeringsstatus:** v176a-adapteren, v176b-importveiviseren og senere detalj-/innsiktsrunder gjennom v176g er bygget. Runtime-versjonen er `v176g`.
 
 ## Mål
 
@@ -80,17 +80,18 @@ Parseren:
 
 ## Aktivitetstyper og enheter
 
-| Garmin | App-type | Distanse | Pace-felt |
-|---|---|---:|---|
-| Running | Løping | km | sek/km |
-| Treadmill Running | Løping | km | sek/km |
-| Walking / Hiking | Gange | km | sek/km |
-| Pool Swim | Svømming | meter til km | sek/100 m, bare Garmin-data |
-| Cycling / Indoor Cycling | Sykling | km | Garmin-feltet tolkes som km/t |
-| Cross Country Classic Skiing | Ski | km | Garmin-feltet tolkes som km/t |
-| Resort Skiing | Alpint | km | Garmin-feltet tolkes som km/t |
-| Strength Training | Styrke | km/0 | ingen pace |
-| Ukjent | Annet | km | ingen automatisk pace-tolkning |
+| Garmin | App-type | Aktivitetsmiljø | Distanse | Pace-felt |
+|---|---|---|---:|---|
+| Running | Løping | Utendørs | km | sek/km |
+| Treadmill Running | Løping | Tredemølle | km | sek/km |
+| Walking / Hiking | Gange | Utendørs | km | sek/km |
+| Pool Swim | Svømming | Basseng | meter til km | sek/100 m, bare Garmin-data |
+| Cycling | Sykling | Utendørs | km | Garmin-feltet tolkes som km/t |
+| Indoor Cycling | Sykling | Innendørs | km | Garmin-feltet tolkes som km/t |
+| Cross Country Classic Skiing | Ski | Utendørs | km | Garmin-feltet tolkes som km/t |
+| Resort Skiing | Alpint | Utendørs | km | Garmin-feltet tolkes som km/t |
+| Strength Training | Styrke | Ikke angitt | km/0 | ingen pace |
+| Ukjent | Annet | Ikke angitt | km | ingen automatisk pace-tolkning |
 
 Aktivitetsspesifikk tolkning er nødvendig fordi kolonnen `Avg Pace` inneholder `7:37` for løping, `3:04` for bassengsvømming og desimaltall som `9.8` for sykling.
 
@@ -103,6 +104,7 @@ Disse feltene kan inngå direkte i et nytt eller beriket `completed`-dokument:
 | Date | `date` | dato beholdes; eksakt lokal starttid lagres i Garmin-proveniens |
 | Title | `manualName` | brukes bare ved ny økt, ikke til å overskrive eksisterende navn |
 | Activity Type | `activityType` i draft | omsettes til norsk app-type; templatesnapshot avgjøres i v176b |
+| Activity Type | `activitySetting` | omsettes til kildeuavhengig aktivitetsmiljø når typen er kjent |
 | Time | `durationSeconds` | primær varighet |
 | Distance | `distanceKm` | bassengsvømming konverteres fra meter |
 | Avg HR / Max HR | `avgHeartRate` / `maxHeartRate` | heltall |
