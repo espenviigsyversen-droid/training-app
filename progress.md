@@ -1,5 +1,5 @@
 # Treningsapp — progress.md
-Oppdatert: 2026-08-10 (siste runtime-endring: v176h)
+Oppdatert: 2026-08-10 (siste runtime-endring: v176i)
 
 ---
 
@@ -27,7 +27,7 @@ Standard Bakken-uke: Hoved-terskel → Støtte-terskel → Lang rolig → Valgfr
 **Hosting:** GitHub Pages.  
 **Backend:** Firebase (prosjekt `home-tasks-app-18de3`) — Firestore + Google Auth.  
 **Frontend:** Vanilla JS + HTML + CSS, single-page app, tab-navigasjon.  
-**Versjon:** v176h (konstant i `app.js`).
+**Versjon:** v176i (konstant i `app.js`).
 
 ### Filer
 
@@ -44,6 +44,7 @@ Treningsapp/
 ├── domain-activity.js  # Kildeuavhengig aktivitetsmiljø og bakoverkompatibel avledning.
 ├── domain-performance-insights.js # Ren årsoppsummering, høydepunkter og milepæler.
 ├── training-insights-ui.js # Avgrenset rendering av prestasjonsinnsikt.
+├── workspace-sections-ui.js # Lokal seksjonsnavigasjon og progressive Innsikt-/Mål-paneler.
 ├── domain-coach.js     # Rene coach-beslutninger, heltekorttilstand, volum-ramp og comeback.
 ├── domain-goals.js     # Rene testbare konkurranse-/mål-hjelpere uten DOM/Firebase/state.
 ├── domain-coach-rules.js # Validering, defaults, merge og fallback for coach-regler.
@@ -375,6 +376,16 @@ Treningsapp/
 - `Uten angivelse` er en handlingsbar inngang til Logg med filtrene `Løping` og `Uten angivelse` ferdig valgt.
 - Logg har fått et eget aktivitetsmiljøfilter. Ingen økter klassifiseres automatisk som del av oppryddingen.
 - Ren milepælsmodell er fortsatt i `domain-performance-insights.js`, og overlegg/hendelser ligger i `training-insights-ui.js`. PWA-cache og synlig versjon er `v176h`.
+
+### v176i - Kompakt informasjonsarkitektur for Innsikt og Mål - Bygget
+
+- Innsikt har fått kompakt lokal navigasjon mellom Status, Kontinuitet, Utvikling og Året. Statusområdet er alltid åpent og samler denne uken, ukestatus, kroppssignal, skadesignal og intensitetsbalanse.
+- Mål har tilsvarende navigasjon mellom Oversikt, Mål-løp, PB og Challenges. Oversikten beholder score, neste steg og testvurdering synlig.
+- Sekundære hovedområder bruker native `details`/`summary`, åpnes før navigasjon og beholder åpen tilstand bare mens siden lever.
+- Metode og forklaring er flyttet til korte disclosure-felt. Detaljerte delmål kan åpnes ved behov.
+- PB viser distanser med registrerte resultater først; tomme distanser kan åpnes med én knapp. Challenges viser aktive mål først og tidligere mål i sammenleggbar historikk.
+- Ny `workspace-sections-ui.js` eier DOM-gruppering, lokal navigasjon, synlighetsoppdatering og progressive hjelpefelt. `app.js` initialiserer og oppdaterer bare modulen.
+- Ingen domene-, Firestore- eller backupdata er endret. Designet ligger i `INSIGHTS_GOALS_UX_DESIGN.md`. PWA-cache og synlig versjon er `v176i`.
 
 ### v167 - Øktmaler som egen UI-feature - Bygget
 
