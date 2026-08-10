@@ -150,6 +150,13 @@ export function filterWorkoutHistory({
   const to = filters.to || '';
   let items = [...completed];
   if (type !== 'Alle') items = items.filter(item => resolveTemplate(item).type === type);
+  const activitySetting = filters.activitySetting || 'all';
+  if (activitySetting !== 'all') {
+    items = items.filter(item => {
+      const setting = activitySettingForCompleted(item);
+      return activitySetting === 'missing' ? !setting : setting === activitySetting;
+    });
+  }
   if (from) items = items.filter(item => String(item.date || '') >= from);
   if (to) items = items.filter(item => String(item.date || '') <= to);
   if (effect !== 'all') {
@@ -457,6 +464,7 @@ export function createWorkoutHistoryUi({
     const range = workoutHistoryPeriodRange(period, todayISO(), element('historyFromDate')?.value, element('historyToDate')?.value);
     return {
       type: element('historyFilter')?.value || 'Alle', sort: element('historySort')?.value || 'desc', period,
+      activitySetting: element('historyActivitySetting')?.value || 'all',
       effect: element('historyEffect')?.value || 'all', load: element('historyLoad')?.value || 'all',
       bodySignal: element('historyBodySignal')?.value || 'all', search: element('historySearch')?.value || '', ...range
     };
@@ -486,7 +494,7 @@ export function createWorkoutHistoryUi({
 
   function activeFilterCount() {
     const filters = currentFilters();
-    return [filters.search.trim(), filters.period !== 'all', filters.type !== 'Alle', filters.effect !== 'all', filters.load !== 'all', filters.bodySignal !== 'all']
+    return [filters.search.trim(), filters.period !== 'all', filters.type !== 'Alle', filters.activitySetting !== 'all', filters.effect !== 'all', filters.load !== 'all', filters.bodySignal !== 'all']
       .filter(Boolean).length;
   }
 
