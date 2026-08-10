@@ -1,5 +1,5 @@
 # Treningsapp — progress.md
-Oppdatert: 2026-08-10 (siste runtime-endring: v176l2)
+Oppdatert: 2026-08-10 (siste runtime-endring: v176l3)
 
 ---
 
@@ -27,7 +27,7 @@ Standard Bakken-uke: Hoved-terskel → Støtte-terskel → Lang rolig → Valgfr
 **Hosting:** GitHub Pages.  
 **Backend:** Firebase (prosjekt `home-tasks-app-18de3`) — Firestore + Google Auth.  
 **Frontend:** Vanilla JS + HTML + CSS, single-page app, tab-navigasjon.  
-**Versjon:** v176l2 (konstant i `app.js`).
+**Versjon:** v176l3 (konstant i `app.js`).
 
 ### Filer
 
@@ -419,6 +419,14 @@ Treningsapp/
 - Tomtilstanden viser antall vurderte løpeøkter, kandidater, status per aktivitetsmiljø og summerte utelatelsesårsaker. Hver økt får én primær årsak.
 - Kravet om minst fire økter i begge perioder, miljøskille, puls-/varighetssammenlignbarhet og GAP-policy er uendret.
 - Ingen Firestore-, backup- eller lagringsdata er endret. PWA-cache og synlig versjon er `v176l2`.
+
+### v176l3 - Intensjon foran observert Garmin-effekt - Bygget
+
+- Planlagt rolig/base-/restitusjonsintensjon beholdes når Garmin beskriver den observerte effekten som `Tempo` eller `High Aerobic`; treningseffekt brukes fortsatt som belastningssignal, men omskriver ikke øktens hensikt.
+- Den separate RPE > 5-porten er fjernet. RPE 6 kan inngå i en ellers rolig sammenligning, mens den kanoniske sikkerhetsregelen fortsatt utelater RPE 7+ uten kvalitetsintensjon.
+- Miljøstatus viser nå både antall kandidater og antall som passer valgt GAP-/pacegrunnlag, slik at `0 sammenlignbare` ikke kan misforstås som `0 historiske utendørsøkter`.
+- Kravet om minst fire økter i hver periode, miljøskille, puls-/varighetssammenlignbarhet, kroppssignalport og GAP-policy er uendret.
+- Ingen Firestore-, backup- eller lagringsdata er endret. PWA-cache og synlig versjon er `v176l3`.
 
 ### v167 - Øktmaler som egen UI-feature - Bygget
 
