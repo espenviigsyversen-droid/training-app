@@ -196,6 +196,10 @@ async function testAsync(name, fn) {
     assert.strictEqual(insight.settingBreakdown.treadmill, 12);
     assert.ok(insight.milestones.some(item => item.metric === 'distance' && item.target === 100));
     assert.ok(insight.milestones.some(item => item.metric === 'sessions' && item.target === 25));
+    const distanceTrack = insight.milestoneTracks.find(item => item.metric === 'distance');
+    assert.strictEqual(distanceTrack.current, 125);
+    assert.strictEqual(distanceTrack.milestones.find(item => item.target === 100).status, 'achieved');
+    assert.strictEqual(distanceTrack.milestones.find(item => item.target === 250).status, 'next');
     assert.ok(insight.highlights.some(item => item.kind === 'strongest_month'));
   });
 
@@ -210,6 +214,16 @@ async function testAsync(name, fn) {
     assert.ok(serviceWorker.includes('./domain-activity.js'));
     assert.ok(serviceWorker.includes('./domain-performance-insights.js'));
     assert.ok(serviceWorker.includes('./training-insights-ui.js'));
+  });
+
+  test('v176h exposes complete milestone tracks and missing activity settings', () => {
+    assert.ok(trainingInsightsUiSource.includes('Se alle milepæler'));
+    assert.ok(trainingInsightsUiSource.includes('milestoneOverviewHtml'));
+    assert.ok(trainingInsightsUiSource.includes("['indoor', 'innendørs']"));
+    assert.ok(index.includes('id="milestoneOverviewModal"'));
+    assert.ok(index.includes('id="historyActivitySetting"'));
+    assert.ok(workoutHistoryUiSource.includes("activitySetting === 'missing'"));
+    assert.ok(app.includes("typeFilter.value = 'Løping'"));
   });
   const {
     assessTrafficLight,
@@ -714,6 +728,15 @@ async function testAsync(name, fn) {
     });
     assert.deepStrictEqual(filtered.map(item => item.id), ['hard']);
     assert.deepStrictEqual(completed.map(item => item.id), ['easy', 'hard', 'strength']);
+    const settingFiltered = filterWorkoutHistory({
+      completed: [
+        { id: 'outside', activitySetting: 'outdoor' },
+        { id: 'mill', activitySetting: 'treadmill' },
+        { id: 'unknown' }
+      ],
+      filters: { activitySetting: 'missing' }
+    });
+    assert.deepStrictEqual(settingFiltered.map(item => item.id), ['unknown']);
     assert.deepStrictEqual(workoutHistoryPeriodRange('7', '2026-07-17'), { from: '2026-07-11', to: '2026-07-17' });
     assert.ok(app.includes('getWorkoutHistoryUi().renderList()'), 'app should delegate history rendering');
   });
@@ -2201,8 +2224,8 @@ async function testAsync(name, fn) {
     assert.ok(workoutHistoryUiSource.includes('heartRateZoneDistributionRows'), 'history does not use production zone rows');
     assert.ok(workoutHistoryUiSource.includes('Tid i pulssoner'), 'completed detail is missing the heart-rate zone section');
     assert.ok(!workoutHistoryUiSource.includes("row.estimated ? 'ca. '"), 'zone duration should not be prefixed with ca.');
-    assert.ok(app.includes("const APP_VERSION = 'v176g'"), 'visible app version must be v176g');
-    assert.ok(serviceWorker.includes('treningsapp-v176g'), 'cache version must match v176g');
+    assert.ok(app.includes("const APP_VERSION = 'v176h'"), 'visible app version must be v176h');
+    assert.ok(serviceWorker.includes('treningsapp-v176h'), 'cache version must match v176h');
   });
 
   test('v174b evaluates easy and quality sessions without treating zone percentages as a hard truth', () => {
@@ -2297,8 +2320,8 @@ async function testAsync(name, fn) {
     assert.ok(index.includes('id="insightHeartRateComplianceCard"'), 'Insights is missing the compliance card');
     assert.ok(app.includes('heartRateZoneComplianceForItems(last28Days)'), 'coach context does not use the canonical compliance summary');
     assert.ok(app.includes('renderHeartRateZoneComplianceInsight(today)'), 'Insights does not render canonical compliance');
-    assert.ok(app.includes("const APP_VERSION = 'v176g'"), 'visible app version must be v176g');
-    assert.ok(serviceWorker.includes('treningsapp-v176g'), 'cache version must match v176g');
+    assert.ok(app.includes("const APP_VERSION = 'v176h'"), 'visible app version must be v176h');
+    assert.ok(serviceWorker.includes('treningsapp-v176h'), 'cache version must match v176h');
   });
 
   test('v174c uses the test profile for zones and keeps the golden zone as a separate coach reference', () => {
@@ -2751,8 +2774,8 @@ async function testAsync(name, fn) {
     assert.ok(trainingImportControllerSource.includes("action: duplicate ? 'skip'"), 'duplicates should be skipped by default');
     assert.ok(!trainingImportControllerSource.includes('heartRateZoneDistribution'), 'controller must not synthesize pulse zones');
     assert.ok(styles.includes('.garmin-import-row'), 'Garmin preview styling is missing');
-    assert.ok(app.includes("const APP_VERSION = 'v176g'"));
-    assert.ok(serviceWorker.includes('treningsapp-v176g'));
+    assert.ok(app.includes("const APP_VERSION = 'v176h'"));
+    assert.ok(serviceWorker.includes('treningsapp-v176h'));
   });
 
   test('structured interval UI fields and summaries are wired into production files', () => {
