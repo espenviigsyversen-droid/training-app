@@ -240,17 +240,19 @@ export function createTrainingInsightsUi({
   function sameEffortSettingStatus(comparison = {}) {
     const label = comparison.setting === 'treadmill' ? 'Tredemølle' : 'Utendørs';
     const source = comparison.paceSource === 'gap' ? 'GAP' : 'pace';
+    const candidates = Number(comparison.candidateCount || 0);
+    const eligible = Number(comparison.eligibleCount || 0);
     if (comparison.status === 'ready') {
-      return `<div><strong>${escapeHtml(label)}</strong><span>${escapeHtml(String(comparison.eligibleCount || 0))} sammenlignbare · ${escapeHtml(source)}</span></div>`;
+      return `<div><strong>${escapeHtml(label)}</strong><span>${escapeHtml(String(candidates))} kandidater · ${escapeHtml(String(eligible))} sammenlignbare · ${escapeHtml(source)}</span></div>`;
     }
     if (comparison.reason === 'heart_rate_gap') {
       const difference = Math.abs(Number(comparison.recent?.medianHeartRate || 0) - Number(comparison.baseline?.medianHeartRate || 0));
-      return `<div><strong>${escapeHtml(label)}</strong><span>${escapeHtml(String(comparison.eligibleCount || 0))} aktuelle · medianpulsen skiller ${escapeHtml(String(difference))} bpm</span></div>`;
+      return `<div><strong>${escapeHtml(label)}</strong><span>${escapeHtml(String(candidates))} kandidater · ${escapeHtml(String(eligible))} sammenlignbare · medianpulsen skiller ${escapeHtml(String(difference))} bpm</span></div>`;
     }
     if (comparison.reason === 'duration_gap') {
-      return `<div><strong>${escapeHtml(label)}</strong><span>${escapeHtml(String(comparison.eligibleCount || 0))} aktuelle · periodene har for ulik varighet</span></div>`;
+      return `<div><strong>${escapeHtml(label)}</strong><span>${escapeHtml(String(candidates))} kandidater · ${escapeHtml(String(eligible))} sammenlignbare · periodene har for ulik varighet</span></div>`;
     }
-    return `<div><strong>${escapeHtml(label)}</strong><span>${escapeHtml(String(comparison.eligibleCount || 0))} av minst 8 · ${escapeHtml(source)}</span></div>`;
+    return `<div><strong>${escapeHtml(label)}</strong><span>${escapeHtml(String(candidates))} kandidater · ${escapeHtml(String(eligible))} sammenlignbare av minst 8 · ${escapeHtml(source)}</span></div>`;
   }
 
   function sameEffortRejectedHtml(rejected = {}) {
@@ -258,7 +260,7 @@ export function createTrainingInsightsUi({
       not_easy: 'ikke klassifisert som rolig/base',
       missing_setting: 'mangler utendørs/tredemølle',
       body_signal: 'har smerte eller aktiv tilpasning',
-      high_rpe: 'har RPE over 5',
+      high_rpe: 'har RPE 7+ uten kvalitetsintensjon',
       duration_distance: 'har varighet eller distanse utenfor sammenligningsområdet',
       heart_rate: 'mangler gyldig snittpuls',
       pace: 'mangler gyldig pace'
@@ -278,7 +280,7 @@ export function createTrainingInsightsUi({
       <div class="same-effort-diagnostic-summary"><strong>${escapeHtml(String(diagnostics.runningCount || 0))} løpeøkter vurdert</strong><span>${escapeHtml(String(diagnostics.candidateCount || 0))} oppfyller grunnkravene</span></div>
       <div class="same-effort-setting-status">${comparisons.map(sameEffortSettingStatus).join('')}</div>
       ${sameEffortRejectedHtml(diagnostics.rejectedReasons)}
-      <small>En økt kan bare få én avvisningsgrunn. Utendørsøkter bruker GAP når minst åtte har GAP; ellers brukes pace på relativt flate økter.</small>
+      <small>En økt kan bare få én avvisningsgrunn. RPE 6 kan inngå når øktintensjonen ellers er rolig. Utendørsøkter bruker GAP når minst åtte har GAP; ellers brukes pace på relativt flate økter.</small>
     </details>`;
   }
 
