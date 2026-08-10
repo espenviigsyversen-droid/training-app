@@ -1604,6 +1604,13 @@ Mål og levert:
 - Avstå fra konklusjon ved kroppssignal, for få økter eller svakt sammenligningsgrunnlag.
 - Behold beregning i `domain-performance-insights.js`, rendering i `training-insights-ui.js` og kun state-kobling i `app.js`.
 
+### v176l2 - Forklarbart sammenligningsgrunnlag - Bygget
+
+- Gjenbruk appens kanoniske intensitetsklassifisering for å identifisere rolige økter, fremfor en lokal navnebasert parallellregel.
+- La bare registrert smerte eller aktiv kroppstilpasning stoppe en økt av kroppssignalhensyn; kroppsområde/notat alene er ikke nok.
+- Vis vurderte løpeøkter, kvalifiserte kandidater, status per miljø og én primær utelatelsesårsak per økt når konklusjon mangler.
+- Behold alle konservative sammenligningskrav fra v176l: fire pluss fire, separat miljø, puls, varighet og pacekilde.
+
 ### v177 - Nedoverbelastning og todimensjonal høydevurdering
 
 Mål:
