@@ -2071,8 +2071,8 @@ async function testAsync(name, fn) {
     assert.ok(workoutHistoryUiSource.includes('heartRateZoneDistributionRows'), 'history does not use production zone rows');
     assert.ok(workoutHistoryUiSource.includes('Tid i pulssoner'), 'completed detail is missing the heart-rate zone section');
     assert.ok(!workoutHistoryUiSource.includes("row.estimated ? 'ca. '"), 'zone duration should not be prefixed with ca.');
-    assert.ok(app.includes("const APP_VERSION = 'v176e'"), 'visible app version must be v176e');
-    assert.ok(serviceWorker.includes('treningsapp-v176e'), 'cache version must match v176e');
+    assert.ok(app.includes("const APP_VERSION = 'v176e1'"), 'visible app version must be v176e1');
+    assert.ok(serviceWorker.includes('treningsapp-v176e1'), 'cache version must match v176e1');
   });
 
   test('v174b evaluates easy and quality sessions without treating zone percentages as a hard truth', () => {
@@ -2167,8 +2167,8 @@ async function testAsync(name, fn) {
     assert.ok(index.includes('id="insightHeartRateComplianceCard"'), 'Insights is missing the compliance card');
     assert.ok(app.includes('heartRateZoneComplianceForItems(last28Days)'), 'coach context does not use the canonical compliance summary');
     assert.ok(app.includes('renderHeartRateZoneComplianceInsight(today)'), 'Insights does not render canonical compliance');
-    assert.ok(app.includes("const APP_VERSION = 'v176e'"), 'visible app version must be v176e');
-    assert.ok(serviceWorker.includes('treningsapp-v176e'), 'cache version must match v176e');
+    assert.ok(app.includes("const APP_VERSION = 'v176e1'"), 'visible app version must be v176e1');
+    assert.ok(serviceWorker.includes('treningsapp-v176e1'), 'cache version must match v176e1');
   });
 
   test('v174c uses the test profile for zones and keeps the golden zone as a separate coach reference', () => {
@@ -2385,7 +2385,8 @@ async function testAsync(name, fn) {
       plannedItems: planned,
       resolveTemplate: item => item.templateSnapshot
     });
-    assert.deepStrictEqual(preview.rows.map(row => row.action), ['review', 'review', 'create', 'skip']);
+    assert.deepStrictEqual(preview.rows.map(row => row.action), ['review', 'review', 'review', 'skip']);
+    assert.strictEqual(preview.rows[2].matches.length, 0, 'unmatched activities should still require an explicit action');
     assert.strictEqual(preview.rows[0].matches[0].kind, 'completed');
     assert.strictEqual(preview.rows[1].matches[0].kind, 'planned');
     assert.strictEqual(preview.rows[3].duplicate.id, 'already-imported');
@@ -2416,6 +2417,7 @@ async function testAsync(name, fn) {
     preview.rows[0].action = 'enrich';
     preview.rows[0].overwriteFields = ['durationSeconds'];
     preview.rows[1].action = 'link';
+    preview.rows[2].action = 'create';
     let sequence = 0;
     const plan = buildGarminImportCommit(preview, {
       createId: prefix => `${prefix}-${++sequence}`,
@@ -2619,8 +2621,8 @@ async function testAsync(name, fn) {
     assert.ok(trainingImportControllerSource.includes("action: duplicate ? 'skip'"), 'duplicates should be skipped by default');
     assert.ok(!trainingImportControllerSource.includes('heartRateZoneDistribution'), 'controller must not synthesize pulse zones');
     assert.ok(styles.includes('.garmin-import-row'), 'Garmin preview styling is missing');
-    assert.ok(app.includes("const APP_VERSION = 'v176e'"));
-    assert.ok(serviceWorker.includes('treningsapp-v176e'));
+    assert.ok(app.includes("const APP_VERSION = 'v176e1'"));
+    assert.ok(serviceWorker.includes('treningsapp-v176e1'));
   });
 
   test('structured interval UI fields and summaries are wired into production files', () => {
