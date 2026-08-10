@@ -154,10 +154,18 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       shiftVolumeTrendOffset
     } from './domain-volume-trends.js';
     import { comparableEasyRunFormInsight, yearToDatePerformanceInsights } from './domain-performance-insights.js';
+    import {
+      intensityBalanceInsightEvidence,
+      sameEffortInsightEvidence,
+      trainingLevelInsightEvidence,
+      wellnessTrendInsightEvidence,
+      zoneComplianceInsightEvidence
+    } from './domain-insight-confidence.js';
+    import { insightEvidenceDisclosureHtml } from './insight-confidence-ui.js';
     import { createTrainingInsightsUi } from './training-insights-ui.js';
     import { createWorkspaceSectionsUi } from './workspace-sections-ui.js';
 
-const APP_VERSION = 'v176l3';
+const APP_VERSION = 'v176m';
     const APP_CACHE_NAME = `treningsapp-${APP_VERSION}`;
 
     const firebaseConfig = {
@@ -3866,17 +3874,25 @@ const APP_VERSION = 'v176l3';
         .slice(0, 8)
         .reverse()
         .map(item => ({
+          date: item.date,
           label: formatShortDate(item.date),
           value: Number(item[metric]) || 0
         }));
     }
 
     function renderWellnessInsights() {
+      const points = {
+        vo2Max: wellnessTrendPoints('vo2Max'),
+        hrv7d: wellnessTrendPoints('hrv7d'),
+        restingHeartRate7d: wellnessTrendPoints('restingHeartRate7d')
+      };
+      const dates = Object.values(points).flat().map(item => item.date).filter(Boolean).sort();
+      const evidence = wellnessTrendInsightEvidence(points, { from: dates[0] || '', to: dates.at(-1) || '' });
       document.getElementById('insightWellnessTrend').innerHTML = [
-        trendCard('VO2 Max', wellnessTrendPoints('vo2Max'), value => formatMetricValue(value, 1), 'line'),
-        trendCard('HRV 7d', wellnessTrendPoints('hrv7d'), value => `${formatMetricValue(value)} ms`, 'line'),
-        trendCard('Hvilepuls 7d', wellnessTrendPoints('restingHeartRate7d'), value => `${formatMetricValue(value)} bpm`, 'line', 'Lavere hvilepuls kan være positivt, men vurder sammen med HRV og dagsform.')
-      ].join('');
+        trendCard('VO2 Max', points.vo2Max, value => formatMetricValue(value, 1), 'line'),
+        trendCard('HRV 7d', points.hrv7d, value => `${formatMetricValue(value)} ms`, 'line'),
+        trendCard('Hvilepuls 7d', points.restingHeartRate7d, value => `${formatMetricValue(value)} bpm`, 'line', 'Lavere hvilepuls kan være positivt, men vurder sammen med HRV og dagsform.')
+      ].join('') + insightEvidenceDisclosureHtml(evidence, { escapeHtml, formatDate });
     }
 
     function homeLoadLabel(weekItems, profile) {
@@ -5793,7 +5809,9 @@ const APP_VERSION = 'v176l3';
       const last28Summary = summarizeTrainingEffects(last28Items);
       const balance = canonicalBalanceForCompleted(windowItems, today, windowDays);
       document.getElementById('insightIntensityProfile').textContent = intensityProfileText(profile);
-      document.getElementById('insightIntensityBalance').innerHTML = intensityBalanceCard(windowItems, profile, last28Summary, balance);
+      const evidence = intensityBalanceInsightEvidence(balance, { from: windowStart, to: today });
+      document.getElementById('insightIntensityBalance').innerHTML = intensityBalanceCard(windowItems, profile, last28Summary, balance)
+        + insightEvidenceDisclosureHtml(evidence, { escapeHtml, formatDate });
       document.getElementById('insightIntensityNote').textContent = '';
     }
 
@@ -6497,6 +6515,7 @@ const APP_VERSION = 'v176l3';
       const confidence = document.getElementById('fitnessLevelConfidence');
       if (!container || !confidence) return;
       const assessment = buildTrainingLevelAssessment(coachCtx);
+      const evidence = trainingLevelInsightEvidence(assessment, { today: coachCtx.today });
       const confidenceLabels = { high: 'Høy datadekning', medium: 'Middels datadekning', low: 'Lav datadekning' };
       confidence.textContent = confidenceLabels[assessment.confidence] || confidenceLabels.low;
       confidence.className = `fitness-confidence ${assessment.confidence}`;
@@ -6547,8 +6566,9 @@ const APP_VERSION = 'v176l3';
         ${action}
         ${nextRequirements}
         ${recommendedNextStep}
+        ${insightEvidenceDisclosureHtml(evidence, { escapeHtml, formatDate })}
         <details class="fitness-level-details">
-          <summary>Se vurderingsgrunnlag</summary>
+          <summary>Se nivådetaljer</summary>
           <div class="fitness-level-details-content">
             ${vo2}
             <p><strong>PB/test:</strong> ${escapeHtml(assessment.performance.note)}</p>
@@ -6583,12 +6603,16 @@ const APP_VERSION = 'v176l3';
 
     function renderInsights() {
       const today = todayISO();
-      trainingInsightsUi.renderSameEffortForm(comparableEasyRunFormInsight({
+      const sameEffortInsight = comparableEasyRunFormInsight({
         completedItems: state.completed,
         templates: state.templates,
         today,
         primaryActivityType: 'Løping'
-      }));
+      });
+      trainingInsightsUi.renderSameEffortForm({
+        ...sameEffortInsight,
+        evidence: sameEffortInsightEvidence(sameEffortInsight, { today })
+      });
       trainingInsightsUi.renderYearToDate(yearToDatePerformanceInsights({
         completedItems: state.completed,
         templates: state.templates,
@@ -6714,6 +6738,12 @@ const APP_VERSION = 'v176l3';
       const goldenZoneText = heartRateReference.goldenZone
         ? `Gylne sone (${heartRateReference.goldenZone.sourceLabel}) er et separat coach-begrep.`
         : '';
+      const evidence = zoneComplianceInsightEvidence(summary, {
+        totalSessions: items.length,
+        from: start,
+        to: today,
+        sourceLabel: heartRateReference.zoneSource?.name || ''
+      });
       card.style.display = '';
       container.innerHTML = `
         <div class="zone-compliance-insight">
@@ -6728,7 +6758,7 @@ const APP_VERSION = 'v176l3';
             <p>${escapeHtml(latest.summary)}</p>
           </div>` : ''}
           <p class="small-note">${escapeHtml(zoneSourceText + goldenZoneText)}</p>
-          <p class="small-note">RPE, smerte og kroppssignaler veier tyngre enn pulssoneprosentene. Intervaller vurderes med ekstra varsomhet.</p>
+          ${insightEvidenceDisclosureHtml(evidence, { escapeHtml, formatDate })}
         </div>`;
     }
 
@@ -7299,7 +7329,7 @@ const APP_VERSION = 'v176l3';
           const keys = await caches.keys();
           await Promise.all(keys.filter(key => key.startsWith('treningsapp-')).map(key => caches.delete(key)));
         }
-        await Promise.all(['./index.html', './styles.css', './app.js', './ai-coach-client.js', './ai-coach-ui.js', './domain-core.js', './domain-coach.js', './domain-goals.js', './domain-coach-rules.js', './domain-fitness.js', './domain-exercises.js', './domain-heart-rate-zones.js', './domain-volume-trends.js', './domain-workout-assessment.js', './garmin-csv-import.js', './training-import-controller.js', './training-import-ui.js', './app-state.js', './local-state-store.js', './training-repository.js', './domain-training-plan.js', './calendar-ui.js', './workout-template-ui.js', './workout-completion-ui.js', './workout-history-ui.js', './exercise-library-ui.js', './heart-rate-zones-ui.js', './data/coach-rules.json', './service-worker.js'].map(path =>
+        await Promise.all(['./index.html', './styles.css', './app.js', './ai-coach-client.js', './ai-coach-ui.js', './domain-core.js', './domain-coach.js', './domain-goals.js', './domain-coach-rules.js', './domain-fitness.js', './domain-exercises.js', './domain-heart-rate-zones.js', './domain-volume-trends.js', './domain-workout-assessment.js', './domain-insight-confidence.js', './insight-confidence-ui.js', './garmin-csv-import.js', './training-import-controller.js', './training-import-ui.js', './app-state.js', './local-state-store.js', './training-repository.js', './domain-training-plan.js', './calendar-ui.js', './workout-template-ui.js', './workout-completion-ui.js', './workout-history-ui.js', './exercise-library-ui.js', './heart-rate-zones-ui.js', './data/coach-rules.json', './service-worker.js'].map(path =>
           fetch(path, { cache: 'reload' }).catch(() => null)
         ));
       } finally {
