@@ -10,7 +10,7 @@ const WORKSPACES = Object.freeze({
       { id: 'insights-continuity', label: 'Kontinuitet', title: 'Kontinuitet og kvalitet', note: 'Uker på rad, fireukersrytme og treningsmønstre.',
         cards: ['#insightStreakWeeks', '#insightFourWeeks', '#insightPatterns', '#insightStructuredIntervalsCard', '#insightHeartRateComplianceCard'] },
       { id: 'insights-development', label: 'Utvikling', title: 'Utvikling', note: 'Treningsnivå, mengde og formmålinger.',
-        cards: ['#fitnessLevelAssessment', '#insightVolumeTrends', '#insightWellnessTrend'] },
+        cards: ['#insightSameEffortFormCard', '#fitnessLevelAssessment', '#insightVolumeTrends', '#insightWellnessTrend'] },
       { id: 'insights-year', label: 'Året', title: 'Året så langt', note: 'Høydepunkter og milepæler.',
         cards: ['#insightYearToDate'] }
     ]
