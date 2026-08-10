@@ -321,6 +321,10 @@ Prioritert backlog for videre utvikling av Treningsapp.
     - Gjenbruk kanonisk intensitetsklassifisering og skill reelle kroppssignal fra ufarlig fritekst.
     - Vis vurderte økter, kandidater, miljøstatus og utelatelsesårsaker uten å lempe på kravet om fire pluss fire sammenlignbare økter.
 
+52h.2. **v176l3 - Intensjon foran observert Garmin-effekt** - Bygget
+    - Behold planlagt rolig intensjon selv om Garmin-effekten er `Tempo`/`High Aerobic`, og la RPE 6 inngå uten å svekke sikkerhetsporten ved RPE 7+.
+    - Vis både kandidat- og sammenlignbart antall per miljø, med uendret krav om fire pluss fire.
+
 52i. **v176m - Felles datagrunnlag og vurderingssikkerhet** - Planlagt
     - Standardiser synlig datadekning, tidsperiode og vurderingssikkerhet på tvers av Innsikt.
     - Gjenbruk v176l-mønsteret uten å skjule kroppssignal eller viktige forbehold.
