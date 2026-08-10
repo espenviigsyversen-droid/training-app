@@ -217,6 +217,80 @@ async function testAsync(name, fn) {
     assert.ok(serviceWorker.includes('./training-insights-ui.js'));
   });
 
+  test('v176l compares easy running pace at similar effort without mixing environments', () => {
+    const easyRuns = ({ setting, startDay, count, baselinePace, recentPace, baselineHr = 145, recentHr = 146 }) =>
+      Array.from({ length: count }, (_, index) => {
+        const date = new Date(Date.UTC(2026, 4, startDay + (index * 3))).toISOString().slice(0, 10);
+        const recent = index >= count / 2;
+        const pace = recent ? recentPace : baselinePace;
+        return {
+          id: `${setting}-${index}`,
+          date,
+          durationSeconds: pace * 6,
+          distanceKm: 6,
+          avgHeartRate: recent ? recentHr : baselineHr,
+          activitySetting: setting,
+          rpe: 3,
+          templateSnapshot: { name: 'Easy Run', type: 'Løping', intensity: 'Rolig', role: 'long_easy' },
+          externalData: { garmin: { pace: {
+            averagePaceSecondsPerKm: pace,
+            ...(setting === 'outdoor' ? { averageGapSecondsPerKm: pace } : {})
+          } } }
+        };
+      });
+    const insight = performanceInsightsDomain.comparableEasyRunFormInsight({
+      completedItems: [
+        ...easyRuns({ setting: 'outdoor', startDay: 1, count: 12, baselinePace: 420, recentPace: 399 }),
+        ...easyRuns({ setting: 'treadmill', startDay: 2, count: 12, baselinePace: 400, recentPace: 405 })
+      ],
+      today: '2026-08-10'
+    });
+    const outdoor = insight.comparisons.find(item => item.setting === 'outdoor');
+    const treadmill = insight.comparisons.find(item => item.setting === 'treadmill');
+    assert.strictEqual(outdoor.status, 'ready');
+    assert.strictEqual(outdoor.trend, 'improving');
+    assert.strictEqual(outdoor.paceSource, 'gap');
+    assert.strictEqual(outdoor.confidence, 'high');
+    assert.strictEqual(treadmill.status, 'ready');
+    assert.strictEqual(treadmill.trend, 'stable');
+    assert.strictEqual(treadmill.paceSource, 'pace');
+    assert.strictEqual(outdoor.baseline.count, 6);
+    assert.strictEqual(outdoor.recent.count, 6);
+  });
+
+  test('v176l withholds conclusions for body signals, hard intent and dissimilar pulse', () => {
+    const items = Array.from({ length: 8 }, (_, index) => ({
+      id: `pulse-gap-${index}`,
+      date: `2026-07-${String(index + 1).padStart(2, '0')}`,
+      durationSeconds: 2400,
+      distanceKm: 6,
+      paceSecondsPerKm: 400,
+      avgHeartRate: index < 4 ? 140 : 150,
+      activitySetting: 'outdoor',
+      templateSnapshot: { name: 'Rolig base', type: 'Løping', intensity: 'Rolig' },
+      externalData: { garmin: { pace: { averageGapSecondsPerKm: 400 } } }
+    }));
+    items.push({ ...items[0], id: 'pain', date: '2026-07-20', bodyStatus: { painAfter: 2 } });
+    items.push({ ...items[0], id: 'hard', date: '2026-07-21', templateSnapshot: { name: 'Terskel', type: 'Løping', intensity: 'Terskel' } });
+    const insight = performanceInsightsDomain.comparableEasyRunFormInsight({ completedItems: items, today: '2026-08-10' });
+    const outdoor = insight.comparisons.find(item => item.setting === 'outdoor');
+    assert.strictEqual(insight.hasData, false);
+    assert.strictEqual(insight.candidateCount, 8);
+    assert.strictEqual(outdoor.status, 'insufficient');
+    assert.strictEqual(outdoor.reason, 'heart_rate_gap');
+  });
+
+  test('v176l same-effort insight remains modular, explainable and uncached as state', () => {
+    assert.ok(performanceInsightsDomainSource.includes('comparableEasyRunFormInsight'));
+    assert.ok(trainingInsightsUiSource.includes('renderSameEffortForm'));
+    assert.ok(trainingInsightsUiSource.includes('ikke en generell formscore'));
+    assert.ok(app.includes('trainingInsightsUi.renderSameEffortForm'));
+    assert.ok(index.includes('id="insightSameEffortForm"'));
+    assert.ok(workspaceSectionsUiSource.includes("'#insightSameEffortFormCard'"));
+    assert.ok(styles.includes('.same-effort-result'));
+    assert.ok(!appStateSource.includes('sameEffortForm'));
+  });
+
   test('v176h exposes complete milestone tracks and missing activity settings', () => {
     assert.ok(trainingInsightsUiSource.includes('Se alle milepæler'));
     assert.ok(trainingInsightsUiSource.includes('milestoneOverviewHtml'));
@@ -2255,8 +2329,8 @@ async function testAsync(name, fn) {
     assert.ok(workoutHistoryUiSource.includes('heartRateZoneDistributionRows'), 'history does not use production zone rows');
     assert.ok(workoutHistoryUiSource.includes('Tid i pulssoner'), 'completed detail is missing the heart-rate zone section');
     assert.ok(!workoutHistoryUiSource.includes("row.estimated ? 'ca. '"), 'zone duration should not be prefixed with ca.');
-    assert.ok(app.includes("const APP_VERSION = 'v176k'"), 'visible app version must be v176k');
-    assert.ok(serviceWorker.includes('treningsapp-v176k'), 'cache version must match v176k');
+    assert.ok(app.includes("const APP_VERSION = 'v176l'"), 'visible app version must be v176l');
+    assert.ok(serviceWorker.includes('treningsapp-v176l'), 'cache version must match v176l');
   });
 
   test('v174b evaluates easy and quality sessions without treating zone percentages as a hard truth', () => {
@@ -2351,8 +2425,8 @@ async function testAsync(name, fn) {
     assert.ok(index.includes('id="insightHeartRateComplianceCard"'), 'Insights is missing the compliance card');
     assert.ok(app.includes('heartRateZoneComplianceForItems(last28Days)'), 'coach context does not use the canonical compliance summary');
     assert.ok(app.includes('renderHeartRateZoneComplianceInsight(today)'), 'Insights does not render canonical compliance');
-    assert.ok(app.includes("const APP_VERSION = 'v176k'"), 'visible app version must be v176k');
-    assert.ok(serviceWorker.includes('treningsapp-v176k'), 'cache version must match v176k');
+    assert.ok(app.includes("const APP_VERSION = 'v176l'"), 'visible app version must be v176l');
+    assert.ok(serviceWorker.includes('treningsapp-v176l'), 'cache version must match v176l');
   });
 
   test('v174c uses the test profile for zones and keeps the golden zone as a separate coach reference', () => {
@@ -2819,8 +2893,8 @@ async function testAsync(name, fn) {
     assert.ok(trainingImportControllerSource.includes("action: duplicate ? 'skip'"), 'duplicates should be skipped by default');
     assert.ok(!trainingImportControllerSource.includes('heartRateZoneDistribution'), 'controller must not synthesize pulse zones');
     assert.ok(styles.includes('.garmin-import-row'), 'Garmin preview styling is missing');
-    assert.ok(app.includes("const APP_VERSION = 'v176k'"));
-    assert.ok(serviceWorker.includes('treningsapp-v176k'));
+    assert.ok(app.includes("const APP_VERSION = 'v176l'"));
+    assert.ok(serviceWorker.includes('treningsapp-v176l'));
   });
 
   test('structured interval UI fields and summaries are wired into production files', () => {
