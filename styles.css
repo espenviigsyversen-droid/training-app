@@ -5193,8 +5193,15 @@
 
     .workspace-section-action {
       color: var(--burgundy);
-      font-size: 0.72rem;
+      font-size: 1.25rem;
       font-weight: 900;
+      line-height: 1;
+      transform: rotate(0deg);
+      transition: transform 0.18s ease;
+    }
+
+    details.workspace-section[open] > summary .workspace-section-action {
+      transform: rotate(90deg);
     }
 
     details.workspace-section[open] > summary {
