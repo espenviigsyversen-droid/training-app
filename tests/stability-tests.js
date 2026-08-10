@@ -21,6 +21,8 @@ const heartRateZoneDomainSource = read('domain-heart-rate-zones.js');
 const volumeTrendDomainSource = read('domain-volume-trends.js');
 const activityDomainSource = read('domain-activity.js');
 const performanceInsightsDomainSource = read('domain-performance-insights.js');
+const insightConfidenceDomainSource = read('domain-insight-confidence.js');
+const insightConfidenceUiSource = read('insight-confidence-ui.js');
 const trainingInsightsUiSource = read('training-insights-ui.js');
 const workspaceSectionsUiSource = read('workspace-sections-ui.js');
 const garminCsvDomainSource = read('garmin-csv-import.js');
@@ -82,6 +84,8 @@ async function testAsync(name, fn) {
   const volumeTrendDomain = await import(pathToFileURL(path.join(root, 'domain-volume-trends.js')).href);
   const activityDomain = await import(pathToFileURL(path.join(root, 'domain-activity.js')).href);
   const performanceInsightsDomain = await import(pathToFileURL(path.join(root, 'domain-performance-insights.js')).href);
+  const insightConfidenceDomain = await import(pathToFileURL(path.join(root, 'domain-insight-confidence.js')).href);
+  const insightConfidenceUi = await import(pathToFileURL(path.join(root, 'insight-confidence-ui.js')).href);
   const garminCsvDomain = await import(pathToFileURL(path.join(root, 'garmin-csv-import.js')).href);
   const trainingImportControllerDomain = await import(pathToFileURL(path.join(root, 'training-import-controller.js')).href);
   const trainingRepositoryDomain = await import(pathToFileURL(path.join(root, 'training-repository.js')).href);
@@ -316,8 +320,8 @@ async function testAsync(name, fn) {
     assert.strictEqual(insight.diagnostics.rejectedReasons.missing_setting, 1);
     assert.strictEqual(insight.diagnostics.rejectedReasons.body_signal, 1);
     assert.strictEqual(insight.diagnostics.rejectedReasons.not_easy, 1);
-    assert.ok(trainingInsightsUiSource.includes('Hvorfor disse øktene teller'));
-    assert.ok(trainingInsightsUiSource.includes('mangler gyldig snittpuls'));
+    assert.ok(trainingInsightsUiSource.includes('insightEvidenceDisclosureHtml'));
+    assert.ok(insightConfidenceDomainSource.includes('mangler gyldig snittpuls'));
   });
 
   test('v176l3 keeps planned easy intent with observed Garmin effect and accepts RPE 6', () => {
@@ -342,9 +346,83 @@ async function testAsync(name, fn) {
     assert.strictEqual(outdoor.eligibleCount, 8);
     assert.strictEqual(outdoor.paceSource, 'gap');
     assert.strictEqual(insight.diagnostics.rejectedReasons.high_rpe, 1);
-    assert.ok(trainingInsightsUiSource.includes('kandidater ·'));
-    assert.ok(trainingInsightsUiSource.includes('RPE 6 kan inngå'));
-    assert.ok(trainingInsightsUiSource.includes('RPE 7+ uten kvalitetsintensjon'));
+    assert.ok(insightConfidenceDomainSource.includes('kandidater'));
+    assert.ok(insightConfidenceDomainSource.includes('RPE 6 kan inngå'));
+    assert.ok(insightConfidenceDomainSource.includes('RPE 7+ uten kvalitetsintensjon'));
+  });
+
+  test('v176m separates data coverage from assessment confidence', () => {
+    const evidence = insightConfidenceDomain.createInsightEvidence({
+      id: 'test',
+      sample: { total: 10, relevant: 4, required: 6, unit: 'økter', relevantLabel: 'relevante' }
+    });
+    assert.strictEqual(evidence.coverage.percent, 40);
+    assert.strictEqual(evidence.coverage.level, 'low');
+    assert.strictEqual(evidence.confidence.level, 'insufficient');
+
+    const smallButStrong = insightConfidenceDomain.createInsightEvidence({
+      id: 'test-explicit',
+      sample: { total: 95, relevant: 11, required: 8 },
+      confidence: 'high'
+    });
+    assert.strictEqual(smallButStrong.coverage.level, 'low');
+    assert.strictEqual(smallButStrong.confidence.level, 'high');
+  });
+
+  test('v176m explains comparable-effort exclusions and comparison gaps', () => {
+    const evidence = insightConfidenceDomain.sameEffortInsightEvidence({
+      diagnostics: {
+        runningCount: 95,
+        candidateCount: 11,
+        rejectedReasons: { not_easy: 70, high_rpe: 3 }
+      },
+      comparisons: [{
+        setting: 'outdoor',
+        status: 'insufficient',
+        reason: 'heart_rate_gap',
+        heartRateGap: 9,
+        candidateCount: 6,
+        eligibleCount: 6,
+        paceSource: 'gap'
+      }]
+    }, { today: '2026-08-10' });
+    assert.strictEqual(evidence.sample.total, 95);
+    assert.strictEqual(evidence.sample.relevant, 11);
+    assert.strictEqual(evidence.confidence.level, 'insufficient');
+    assert.ok(evidence.missing.some(item => item.includes('70 ikke rolig/base-intensjon')));
+    assert.ok(evidence.missing.some(item => item.includes('ulik medianpuls')));
+    assert.ok(evidence.caveat.includes('RPE 6 kan inngå'));
+  });
+
+  test('v176m uses one progressively disclosed evidence UI across key insights', () => {
+    const evidence = insightConfidenceDomain.intensityBalanceInsightEvidence({
+      windowDays: 14,
+      totalCount: 8,
+      classifiedCount: 7,
+      easyCount: 4,
+      hardCount: 3,
+      easyShare: 57,
+      hardShare: 43,
+      unknownCount: 1,
+      verdict: 'balanced'
+    }, { from: '2026-07-28', to: '2026-08-10' });
+    const html = insightConfidenceUi.insightEvidenceDisclosureHtml(evidence, {
+      formatDate: value => value,
+      open: true
+    });
+    assert.ok(html.includes('<details class="insight-evidence" open>'));
+    assert.ok(html.includes('Datagrunnlag'));
+    assert.ok(html.includes('Middels sikkerhet'));
+    assert.ok(html.includes('1 økter kunne ikke klassifiseres'));
+    assert.ok(app.includes('sameEffortInsightEvidence'));
+    assert.ok(app.includes('trainingLevelInsightEvidence'));
+    assert.ok(app.includes('intensityBalanceInsightEvidence'));
+    assert.ok(app.includes('zoneComplianceInsightEvidence'));
+    assert.ok(app.includes('wellnessTrendInsightEvidence'));
+    assert.ok(serviceWorker.includes('./domain-insight-confidence.js'));
+    assert.ok(serviceWorker.includes('./insight-confidence-ui.js'));
+    assert.ok(styles.includes('.insight-evidence'));
+    assert.ok(!appStateSource.includes('insightEvidence'));
   });
 
   test('v176h exposes complete milestone tracks and missing activity settings', () => {
@@ -2385,8 +2463,8 @@ async function testAsync(name, fn) {
     assert.ok(workoutHistoryUiSource.includes('heartRateZoneDistributionRows'), 'history does not use production zone rows');
     assert.ok(workoutHistoryUiSource.includes('Tid i pulssoner'), 'completed detail is missing the heart-rate zone section');
     assert.ok(!workoutHistoryUiSource.includes("row.estimated ? 'ca. '"), 'zone duration should not be prefixed with ca.');
-    assert.ok(app.includes("const APP_VERSION = 'v176l3'"), 'visible app version must be v176l3');
-    assert.ok(serviceWorker.includes('treningsapp-v176l3'), 'cache version must match v176l3');
+    assert.ok(app.includes("const APP_VERSION = 'v176m'"), 'visible app version must be v176m');
+    assert.ok(serviceWorker.includes('treningsapp-v176m'), 'cache version must match v176m');
   });
 
   test('v174b evaluates easy and quality sessions without treating zone percentages as a hard truth', () => {
@@ -2481,8 +2559,8 @@ async function testAsync(name, fn) {
     assert.ok(index.includes('id="insightHeartRateComplianceCard"'), 'Insights is missing the compliance card');
     assert.ok(app.includes('heartRateZoneComplianceForItems(last28Days)'), 'coach context does not use the canonical compliance summary');
     assert.ok(app.includes('renderHeartRateZoneComplianceInsight(today)'), 'Insights does not render canonical compliance');
-    assert.ok(app.includes("const APP_VERSION = 'v176l3'"), 'visible app version must be v176l3');
-    assert.ok(serviceWorker.includes('treningsapp-v176l3'), 'cache version must match v176l3');
+    assert.ok(app.includes("const APP_VERSION = 'v176m'"), 'visible app version must be v176m');
+    assert.ok(serviceWorker.includes('treningsapp-v176m'), 'cache version must match v176m');
   });
 
   test('v174c uses the test profile for zones and keeps the golden zone as a separate coach reference', () => {
@@ -2949,8 +3027,8 @@ async function testAsync(name, fn) {
     assert.ok(trainingImportControllerSource.includes("action: duplicate ? 'skip'"), 'duplicates should be skipped by default');
     assert.ok(!trainingImportControllerSource.includes('heartRateZoneDistribution'), 'controller must not synthesize pulse zones');
     assert.ok(styles.includes('.garmin-import-row'), 'Garmin preview styling is missing');
-    assert.ok(app.includes("const APP_VERSION = 'v176l3'"));
-    assert.ok(serviceWorker.includes('treningsapp-v176l3'));
+    assert.ok(app.includes("const APP_VERSION = 'v176m'"));
+    assert.ok(serviceWorker.includes('treningsapp-v176m'));
   });
 
   test('structured interval UI fields and summaries are wired into production files', () => {
