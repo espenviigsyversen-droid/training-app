@@ -19,6 +19,9 @@ const exerciseLibraryUiSource = read('exercise-library-ui.js');
 const exerciseDomainSource = read('domain-exercises.js');
 const heartRateZoneDomainSource = read('domain-heart-rate-zones.js');
 const volumeTrendDomainSource = read('domain-volume-trends.js');
+const activityDomainSource = read('domain-activity.js');
+const performanceInsightsDomainSource = read('domain-performance-insights.js');
+const trainingInsightsUiSource = read('training-insights-ui.js');
 const garminCsvDomainSource = read('garmin-csv-import.js');
 const trainingImportControllerSource = read('training-import-controller.js');
 const trainingImportUiSource = read('training-import-ui.js');
@@ -76,6 +79,8 @@ async function testAsync(name, fn) {
   const exerciseLibraryUiDomain = await import(pathToFileURL(path.join(root, 'exercise-library-ui.js')).href);
   const heartRateZoneDomain = await import(pathToFileURL(path.join(root, 'domain-heart-rate-zones.js')).href);
   const volumeTrendDomain = await import(pathToFileURL(path.join(root, 'domain-volume-trends.js')).href);
+  const activityDomain = await import(pathToFileURL(path.join(root, 'domain-activity.js')).href);
+  const performanceInsightsDomain = await import(pathToFileURL(path.join(root, 'domain-performance-insights.js')).href);
   const garminCsvDomain = await import(pathToFileURL(path.join(root, 'garmin-csv-import.js')).href);
   const trainingImportControllerDomain = await import(pathToFileURL(path.join(root, 'training-import-controller.js')).href);
   const trainingRepositoryDomain = await import(pathToFileURL(path.join(root, 'training-repository.js')).href);
@@ -121,6 +126,90 @@ async function testAsync(name, fn) {
     assert.ok(index.includes('id="volumeWindowNext"'));
     assert.ok(styles.includes('.volume-window-control'));
     assert.ok(serviceWorker.includes('./domain-volume-trends.js'));
+  });
+
+  test('v176g normalizes activity setting independently of data source', () => {
+    assert.strictEqual(activityDomain.normalizeActivitySetting('Utendørs'), 'outdoor');
+    assert.strictEqual(activityDomain.activitySettingFromActivityCode('Treadmill Running'), 'treadmill');
+    assert.strictEqual(activityDomain.activitySettingForCompleted({
+      activitySetting: 'indoor',
+      externalData: { garmin: { activityCode: 'running' } }
+    }), 'indoor');
+    assert.strictEqual(activityDomain.activitySettingForCompleted({ treadmillInclinePercent: 3 }), 'treadmill');
+    assert.strictEqual(activityDomain.activitySettingLabel('pool'), 'Basseng');
+  });
+
+  test('v176g app state derives old imported activity settings without migration', () => {
+    const normalized = appStateDomain.normalizeAppState({
+      completed: [{
+        id: 'legacy-treadmill',
+        date: '2026-08-06',
+        externalData: { garmin: {
+          fingerprint: 'garmin_csv_v1_806bf1dc8b1b1aa0',
+          activityCode: 'treadmill_running'
+        } }
+      }]
+    });
+    assert.strictEqual(normalized.completed[0].activitySetting, 'treadmill');
+  });
+
+  test('v176g Garmin mapping keeps running category and adds activity setting', () => {
+    const outdoor = garminCsvDomain.garminActivityType('Running');
+    const treadmill = garminCsvDomain.garminActivityType('Treadmill Running');
+    assert.strictEqual(outdoor.appType, 'Løping');
+    assert.strictEqual(treadmill.appType, 'Løping');
+    assert.strictEqual(outdoor.activitySetting, 'outdoor');
+    assert.strictEqual(treadmill.activitySetting, 'treadmill');
+    const candidate = { completedDraft: { activitySetting: 'treadmill' } };
+    assert.strictEqual(garminCsvDomain.mergeGarminIntoCompleted({ activitySetting: 'indoor' }, candidate).activitySetting, 'indoor');
+    assert.strictEqual(garminCsvDomain.mergeGarminIntoCompleted(
+      { activitySetting: 'indoor' },
+      candidate,
+      { overwriteFields: ['activitySetting'] }
+    ).activitySetting, 'treadmill');
+  });
+
+  test('v176g year-to-date insight excludes other years and future workouts', () => {
+    const runningItems = Array.from({ length: 25 }, (_, index) => {
+      const date = new Date(Date.UTC(2026, 0, 1 + (index * 7)));
+      return {
+        id: `run-${index}`,
+        date: date.toISOString().slice(0, 10),
+        distanceKm: 5,
+        durationSeconds: 2400,
+        activitySetting: index % 2 ? 'treadmill' : 'outdoor',
+        templateSnapshot: { name: `Rolig ${index + 1}`, type: 'Løping' }
+      };
+    });
+    const insight = performanceInsightsDomain.yearToDatePerformanceInsights({
+      completedItems: [
+        ...runningItems,
+        { id: 'old', date: '2025-12-31', distanceKm: 100, templateSnapshot: { type: 'Løping' } },
+        { id: 'future', date: '2026-08-11', distanceKm: 100, templateSnapshot: { type: 'Løping' } }
+      ],
+      today: '2026-08-10'
+    });
+    assert.strictEqual(insight.summary.sessions, 25);
+    assert.strictEqual(insight.summary.primaryDistanceKm, 125);
+    assert.strictEqual(insight.summary.activeWeeks, 25);
+    assert.strictEqual(insight.settingBreakdown.outdoor, 13);
+    assert.strictEqual(insight.settingBreakdown.treadmill, 12);
+    assert.ok(insight.milestones.some(item => item.metric === 'distance' && item.target === 100));
+    assert.ok(insight.milestones.some(item => item.metric === 'sessions' && item.target === 25));
+    assert.ok(insight.highlights.some(item => item.kind === 'strongest_month'));
+  });
+
+  test('v176g performance insight stays modular and cached', () => {
+    assert.ok(activityDomainSource.includes('activitySettingForCompleted'));
+    assert.ok(performanceInsightsDomainSource.includes('yearToDatePerformanceInsights'));
+    assert.ok(trainingInsightsUiSource.includes('renderYearToDate'));
+    assert.ok(app.includes("from './domain-performance-insights.js'"));
+    assert.ok(app.includes("from './training-insights-ui.js'"));
+    assert.ok(index.includes('id="insightYearToDate"'));
+    assert.ok(index.includes('id="completeActivitySetting"'));
+    assert.ok(serviceWorker.includes('./domain-activity.js'));
+    assert.ok(serviceWorker.includes('./domain-performance-insights.js'));
+    assert.ok(serviceWorker.includes('./training-insights-ui.js'));
   });
   const {
     assessTrafficLight,
@@ -2112,8 +2201,8 @@ async function testAsync(name, fn) {
     assert.ok(workoutHistoryUiSource.includes('heartRateZoneDistributionRows'), 'history does not use production zone rows');
     assert.ok(workoutHistoryUiSource.includes('Tid i pulssoner'), 'completed detail is missing the heart-rate zone section');
     assert.ok(!workoutHistoryUiSource.includes("row.estimated ? 'ca. '"), 'zone duration should not be prefixed with ca.');
-    assert.ok(app.includes("const APP_VERSION = 'v176f'"), 'visible app version must be v176f');
-    assert.ok(serviceWorker.includes('treningsapp-v176f'), 'cache version must match v176f');
+    assert.ok(app.includes("const APP_VERSION = 'v176g'"), 'visible app version must be v176g');
+    assert.ok(serviceWorker.includes('treningsapp-v176g'), 'cache version must match v176g');
   });
 
   test('v174b evaluates easy and quality sessions without treating zone percentages as a hard truth', () => {
@@ -2208,8 +2297,8 @@ async function testAsync(name, fn) {
     assert.ok(index.includes('id="insightHeartRateComplianceCard"'), 'Insights is missing the compliance card');
     assert.ok(app.includes('heartRateZoneComplianceForItems(last28Days)'), 'coach context does not use the canonical compliance summary');
     assert.ok(app.includes('renderHeartRateZoneComplianceInsight(today)'), 'Insights does not render canonical compliance');
-    assert.ok(app.includes("const APP_VERSION = 'v176f'"), 'visible app version must be v176f');
-    assert.ok(serviceWorker.includes('treningsapp-v176f'), 'cache version must match v176f');
+    assert.ok(app.includes("const APP_VERSION = 'v176g'"), 'visible app version must be v176g');
+    assert.ok(serviceWorker.includes('treningsapp-v176g'), 'cache version must match v176g');
   });
 
   test('v174c uses the test profile for zones and keeps the golden zone as a separate coach reference', () => {
@@ -2662,8 +2751,8 @@ async function testAsync(name, fn) {
     assert.ok(trainingImportControllerSource.includes("action: duplicate ? 'skip'"), 'duplicates should be skipped by default');
     assert.ok(!trainingImportControllerSource.includes('heartRateZoneDistribution'), 'controller must not synthesize pulse zones');
     assert.ok(styles.includes('.garmin-import-row'), 'Garmin preview styling is missing');
-    assert.ok(app.includes("const APP_VERSION = 'v176f'"));
-    assert.ok(serviceWorker.includes('treningsapp-v176f'));
+    assert.ok(app.includes("const APP_VERSION = 'v176g'"));
+    assert.ok(serviceWorker.includes('treningsapp-v176g'));
   });
 
   test('structured interval UI fields and summaries are wired into production files', () => {
