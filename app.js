@@ -155,8 +155,9 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     } from './domain-volume-trends.js';
     import { yearToDatePerformanceInsights } from './domain-performance-insights.js';
     import { createTrainingInsightsUi } from './training-insights-ui.js';
+    import { createWorkspaceSectionsUi } from './workspace-sections-ui.js';
 
-const APP_VERSION = 'v176h';
+const APP_VERSION = 'v176i';
     const APP_CACHE_NAME = `treningsapp-${APP_VERSION}`;
 
     const firebaseConfig = {
@@ -212,11 +213,14 @@ const APP_VERSION = 'v176h';
       }
     });
     trainingInsightsUi.bind();
+    const workspaceSectionsUi = createWorkspaceSectionsUi({ documentRef: document });
+    workspaceSectionsUi.bind();
     let volumeTrendPeriod = 'week';
     let volumeTrendActivity = 'all';
     const volumeTrendOffsets = { week: 0, month: 0, year: 0 };
     let tlSelections = { sleep: null, energy: null, stairsOk: null };
     let injuryCheckinExpanded = false;
+    let showAllPersonalBests = false;
 
     let COACH_FRAMEWORK = coachFrameworkFromRules(getCoachRules());
     loadCoachRules('./data/coach-rules.json').then(result => {
@@ -5263,9 +5267,19 @@ const APP_VERSION = 'v176h';
         }
       }
 
-      list.innerHTML = challenges.length
-        ? challenges.map(challenge => challengeCard(challenge)).join('')
-        : `<div class="empty">Ingen challenges enda. Lag et kortsiktig mål for ekstra motivasjon.</div>`;
+      if (!challenges.length) {
+        list.innerHTML = `<div class="empty">Ingen challenges enda. Lag et kortsiktig mål for ekstra motivasjon.</div>`;
+        return;
+      }
+      const activeIds = new Set(active.map(challenge => challenge.id));
+      const previous = challenges.filter(challenge => !activeIds.has(challenge.id));
+      const activeHtml = active.length
+        ? active.map(challenge => challengeCard(challenge)).join('')
+        : '<div class="empty compact-empty">Ingen aktive challenges.</div>';
+      const previousHtml = previous.length
+        ? `<details class="challenge-history"><summary><span>Tidligere challenges</span><small>${previous.length}</small></summary><div>${previous.map(challenge => challengeCard(challenge)).join('')}</div></details>`
+        : '';
+      list.innerHTML = `${activeHtml}${previousHtml}`;
     }
 
     function defaultChallengeDates() {
@@ -6846,23 +6860,22 @@ const APP_VERSION = 'v176h';
           </div>`
         : '';
       const milestoneItems = milestones?.length
-        ? `<div class="goal-milestones">
-            <div class="goal-milestones-head">
-              <strong>Delmål mot løpet</strong>
-              <span>${milestones.length} steg</span>
-            </div>
-            ${milestones.map(item => `
-              <div class="goal-milestone-item ${escapeHtml(item.status)}">
-                <span class="goal-milestone-dot"></span>
-                <div>
-                  <div class="goal-milestone-title">
-                    <strong>${escapeHtml(item.title)}</strong>
-                    ${item.tag ? `<small>${escapeHtml(item.tag)}</small>` : ''}
+        ? `<details class="goal-milestones-disclosure">
+            <summary><span>Delmål mot løpet</span><small>${milestones.length} steg</small></summary>
+            <div class="goal-milestones">
+              ${milestones.map(item => `
+                <div class="goal-milestone-item ${escapeHtml(item.status)}">
+                  <span class="goal-milestone-dot"></span>
+                  <div>
+                    <div class="goal-milestone-title">
+                      <strong>${escapeHtml(item.title)}</strong>
+                      ${item.tag ? `<small>${escapeHtml(item.tag)}</small>` : ''}
+                    </div>
+                    <p>${escapeHtml(item.detail)}</p>
                   </div>
-                  <p>${escapeHtml(item.detail)}</p>
-                </div>
-              </div>`).join('')}
-          </div>`
+                </div>`).join('')}
+            </div>
+          </details>`
         : '';
       const testRecommendationHtml = testRecommendation
         ? `<div class="race-test-recommendation ${escapeHtml(testRecommendation.status || 'neutral')}">
@@ -6963,6 +6976,7 @@ const APP_VERSION = 'v176h';
       const card = document.getElementById('insightPersonalBestsCard');
       const grid = document.getElementById('insightPersonalBests');
       const latest = document.getElementById('insightRaceLatest');
+      const toggle = document.getElementById('personalBestToggle');
       if (!card || !grid || !latest) return;
       const items = completedRaceItems();
       const summary = personalBestSummary(items, state.raceResults);
@@ -6970,10 +6984,14 @@ const APP_VERSION = 'v176h';
         card.style.display = 'none';
         grid.innerHTML = '';
         latest.textContent = '';
+        toggle?.classList.add('hidden');
         return;
       }
       card.style.display = '';
-      grid.innerHTML = summary.entries.map(entry => {
+      const entriesWithResults = summary.entries.filter(entry => entry.best);
+      const hiddenCount = Math.max(0, summary.entries.length - entriesWithResults.length);
+      const visibleEntries = showAllPersonalBests ? summary.entries : entriesWithResults;
+      grid.innerHTML = visibleEntries.map(entry => {
         const best = entry.best;
         const history = entry.history || {};
         const trend = history.trend || entry.trend || {};
@@ -7003,7 +7021,16 @@ const APP_VERSION = 'v176h';
       latest.textContent = summary.latest
         ? `Siste race/testløp: ${formatDate(summary.latest.date)} · ${summary.latest.name || summary.latest.workoutName || 'Race'} · ${raceDistanceLabel(summary.latest.distanceKm)} · ${formatRaceTime(summary.latest.resultSeconds)}`
         : '';
+      if (toggle) {
+        toggle.classList.toggle('hidden', hiddenCount === 0);
+        toggle.textContent = showAllPersonalBests ? 'Skjul distanser uten resultat' : `Se alle distanser · ${hiddenCount} uten resultat`;
+      }
     }
+
+    window.toggleAllPersonalBests = function() {
+      showAllPersonalBests = !showAllPersonalBests;
+      renderPersonalBestInsights();
+    };
 
     function personalBestHistoryChart(results) {
       if (!results.length) return '';
@@ -7173,6 +7200,7 @@ const APP_VERSION = 'v176h';
       renderInsights();
       renderGoals(today);
       renderChallenges();
+      workspaceSectionsUi.refresh();
 
       const plannedActive = state.planned.filter(p => p.status !== 'done');
       // BUGFIX punkt 3: trygg sortering selv om createdAt mangler
