@@ -306,6 +306,11 @@ Prioritert backlog for videre utvikling av Treningsapp.
     - Støtt lukking med kryss, Escape og bakgrunnsklikk, og returner fokus til åpningselementet.
     - Behold øktinnhold, domenevurderinger og lagringsmodell uendret.
 
+52g. **v176k - Desktopbalanse i Innsikt** - Bygget
+    - La Intensitetsbalanse bruke full bredde når andre statuskort er skjult eller ligger over.
+    - Forenkle statusoverskriften til ett nivå og bruk en diskret chevron for sammenleggbare områder.
+    - Behold samme mobilstruktur, innhold og domenegrunnlag.
+
 53. **v177 - Nedoverbelastning**
     - Registrer stigning og nedstigning separat.
     - Skill kondisjonsbelastning fra muskel-/støtbelastning.
