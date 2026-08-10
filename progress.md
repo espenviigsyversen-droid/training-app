@@ -1,5 +1,5 @@
 # Treningsapp — progress.md
-Oppdatert: 2026-08-10 (siste runtime-endring: v176g)
+Oppdatert: 2026-08-10 (siste runtime-endring: v176h)
 
 ---
 
@@ -27,7 +27,7 @@ Standard Bakken-uke: Hoved-terskel → Støtte-terskel → Lang rolig → Valgfr
 **Hosting:** GitHub Pages.  
 **Backend:** Firebase (prosjekt `home-tasks-app-18de3`) — Firestore + Google Auth.  
 **Frontend:** Vanilla JS + HTML + CSS, single-page app, tab-navigasjon.  
-**Versjon:** v176g (konstant i `app.js`).
+**Versjon:** v176h (konstant i `app.js`).
 
 ### Filer
 
@@ -366,6 +366,15 @@ Treningsapp/
 - Innsikt viser `Året så langt` med totaløkter, tid, løpekilometer, aktive uker, løpemiljø, tre objektive høydepunkter, oppnådde milepæler og neste naturlige markør.
 - `domain-activity.js`, `domain-performance-insights.js` og `training-insights-ui.js` holder ny logikk og rendering utenfor `app.js`. Eksisterende `domain-volume-trends.js` er uendret.
 - Designet er dokumentert i `PERFORMANCE_INSIGHTS_DESIGN.md`. PWA-cache og synlig versjon er `v176g`.
+
+### v176h - Komplett milepælsoversikt og aktivitetsmiljøfilter - Bygget
+
+- `Året så langt` har nå knappen `Se alle milepæler`, som åpner et avgrenset overlegg med alle definerte kilometer-, treningsøkt- og ukeverdier.
+- Hvert milepælsspor viser dagens verdi, oppnådde datoer, neste naturlige markør og senere markører uten prognose eller belastningskrav.
+- Øktmarkører er presisert som `treningsøkter`, og alle registrerte aktivitetsmiljøer vises dynamisk.
+- `Uten angivelse` er en handlingsbar inngang til Logg med filtrene `Løping` og `Uten angivelse` ferdig valgt.
+- Logg har fått et eget aktivitetsmiljøfilter. Ingen økter klassifiseres automatisk som del av oppryddingen.
+- Ren milepælsmodell er fortsatt i `domain-performance-insights.js`, og overlegg/hendelser ligger i `training-insights-ui.js`. PWA-cache og synlig versjon er `v176h`.
 
 ### v167 - Øktmaler som egen UI-feature - Bygget
 
