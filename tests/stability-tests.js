@@ -320,6 +320,33 @@ async function testAsync(name, fn) {
     assert.ok(trainingInsightsUiSource.includes('mangler gyldig snittpuls'));
   });
 
+  test('v176l3 keeps planned easy intent with observed Garmin effect and accepts RPE 6', () => {
+    const accepted = Array.from({ length: 8 }, (_, index) => ({
+      id: `observed-effect-${index}`,
+      date: `2026-07-${String(index + 1).padStart(2, '0')}`,
+      durationSeconds: 3000,
+      distanceKm: 6.5,
+      avgHeartRate: index < 4 ? 149 : 150,
+      rpe: index % 2 ? 6 : 4,
+      activitySetting: 'outdoor',
+      trainingEffectType: 'Tempo · High Aerobic',
+      trainingEffectCategory: 'high_aerobic',
+      templateSnapshot: { name: 'Easy Run', type: 'Løping', intensity: 'Rolig', role: 'long_easy', purpose: 'base' },
+      externalData: { garmin: { pace: { averagePaceSecondsPerKm: 450, averageGapSecondsPerKm: 445 } } }
+    }));
+    const highRpe = { ...accepted[0], id: 'high-rpe', date: '2026-07-20', rpe: 7 };
+    const insight = performanceInsightsDomain.comparableEasyRunFormInsight({ completedItems: [...accepted, highRpe], today: '2026-08-10' });
+    const outdoor = insight.comparisons.find(item => item.setting === 'outdoor');
+    assert.strictEqual(outdoor.status, 'ready');
+    assert.strictEqual(outdoor.candidateCount, 8);
+    assert.strictEqual(outdoor.eligibleCount, 8);
+    assert.strictEqual(outdoor.paceSource, 'gap');
+    assert.strictEqual(insight.diagnostics.rejectedReasons.high_rpe, 1);
+    assert.ok(trainingInsightsUiSource.includes('kandidater ·'));
+    assert.ok(trainingInsightsUiSource.includes('RPE 6 kan inngå'));
+    assert.ok(trainingInsightsUiSource.includes('RPE 7+ uten kvalitetsintensjon'));
+  });
+
   test('v176h exposes complete milestone tracks and missing activity settings', () => {
     assert.ok(trainingInsightsUiSource.includes('Se alle milepæler'));
     assert.ok(trainingInsightsUiSource.includes('milestoneOverviewHtml'));
@@ -2358,8 +2385,8 @@ async function testAsync(name, fn) {
     assert.ok(workoutHistoryUiSource.includes('heartRateZoneDistributionRows'), 'history does not use production zone rows');
     assert.ok(workoutHistoryUiSource.includes('Tid i pulssoner'), 'completed detail is missing the heart-rate zone section');
     assert.ok(!workoutHistoryUiSource.includes("row.estimated ? 'ca. '"), 'zone duration should not be prefixed with ca.');
-    assert.ok(app.includes("const APP_VERSION = 'v176l2'"), 'visible app version must be v176l2');
-    assert.ok(serviceWorker.includes('treningsapp-v176l2'), 'cache version must match v176l2');
+    assert.ok(app.includes("const APP_VERSION = 'v176l3'"), 'visible app version must be v176l3');
+    assert.ok(serviceWorker.includes('treningsapp-v176l3'), 'cache version must match v176l3');
   });
 
   test('v174b evaluates easy and quality sessions without treating zone percentages as a hard truth', () => {
@@ -2454,8 +2481,8 @@ async function testAsync(name, fn) {
     assert.ok(index.includes('id="insightHeartRateComplianceCard"'), 'Insights is missing the compliance card');
     assert.ok(app.includes('heartRateZoneComplianceForItems(last28Days)'), 'coach context does not use the canonical compliance summary');
     assert.ok(app.includes('renderHeartRateZoneComplianceInsight(today)'), 'Insights does not render canonical compliance');
-    assert.ok(app.includes("const APP_VERSION = 'v176l2'"), 'visible app version must be v176l2');
-    assert.ok(serviceWorker.includes('treningsapp-v176l2'), 'cache version must match v176l2');
+    assert.ok(app.includes("const APP_VERSION = 'v176l3'"), 'visible app version must be v176l3');
+    assert.ok(serviceWorker.includes('treningsapp-v176l3'), 'cache version must match v176l3');
   });
 
   test('v174c uses the test profile for zones and keeps the golden zone as a separate coach reference', () => {
@@ -2922,8 +2949,8 @@ async function testAsync(name, fn) {
     assert.ok(trainingImportControllerSource.includes("action: duplicate ? 'skip'"), 'duplicates should be skipped by default');
     assert.ok(!trainingImportControllerSource.includes('heartRateZoneDistribution'), 'controller must not synthesize pulse zones');
     assert.ok(styles.includes('.garmin-import-row'), 'Garmin preview styling is missing');
-    assert.ok(app.includes("const APP_VERSION = 'v176l2'"));
-    assert.ok(serviceWorker.includes('treningsapp-v176l2'));
+    assert.ok(app.includes("const APP_VERSION = 'v176l3'"));
+    assert.ok(serviceWorker.includes('treningsapp-v176l3'));
   });
 
   test('structured interval UI fields and summaries are wired into production files', () => {
@@ -3054,6 +3081,7 @@ async function testAsync(name, fn) {
         purpose: 'base'
       },
       completed: {
+        trainingEffectType: 'Tempo · High Aerobic',
         trainingEffectCategory: 'high_aerobic',
         avgHeartRate: 166,
         rpe: 5,
