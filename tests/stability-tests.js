@@ -246,6 +246,16 @@ async function testAsync(name, fn) {
     ['insightWeekTime', 'insightWeeklyStatus', 'insightIntensityBalance', 'insightStreakWeeks', 'insightVolumeTrends', 'insightYearToDate', 'goalsOverview', 'insightRaceGoalCard', 'insightPersonalBestsCard', 'challengeList']
       .forEach(id => assert.strictEqual((index.match(new RegExp(`id="${id}"`, 'g')) || []).length, 1, `${id} should remain unique`));
   });
+
+  test('v176k balances the desktop status area and simplifies disclosure chrome', () => {
+    assert.ok(index.includes('id="insightIntensityBalanceCard" class="card desktop-wide"'));
+    assert.ok(workspaceSectionsUiSource.includes("'#insightIntensityBalanceCard'"));
+    assert.ok(!workspaceSectionsUiSource.includes("eyebrow.textContent = 'Viktigst nå'"));
+    assert.ok(workspaceSectionsUiSource.includes("action.textContent = '›'"));
+    assert.ok(workspaceSectionsUiSource.includes("action.setAttribute('aria-hidden', 'true')"));
+    assert.ok(styles.includes('details.workspace-section[open] > summary .workspace-section-action'));
+    assert.ok(styles.includes('transform: rotate(90deg);'));
+  });
   const {
     assessTrafficLight,
     buildStructuredWorkout,
@@ -2245,8 +2255,8 @@ async function testAsync(name, fn) {
     assert.ok(workoutHistoryUiSource.includes('heartRateZoneDistributionRows'), 'history does not use production zone rows');
     assert.ok(workoutHistoryUiSource.includes('Tid i pulssoner'), 'completed detail is missing the heart-rate zone section');
     assert.ok(!workoutHistoryUiSource.includes("row.estimated ? 'ca. '"), 'zone duration should not be prefixed with ca.');
-    assert.ok(app.includes("const APP_VERSION = 'v176j'"), 'visible app version must be v176j');
-    assert.ok(serviceWorker.includes('treningsapp-v176j'), 'cache version must match v176j');
+    assert.ok(app.includes("const APP_VERSION = 'v176k'"), 'visible app version must be v176k');
+    assert.ok(serviceWorker.includes('treningsapp-v176k'), 'cache version must match v176k');
   });
 
   test('v174b evaluates easy and quality sessions without treating zone percentages as a hard truth', () => {
@@ -2341,8 +2351,8 @@ async function testAsync(name, fn) {
     assert.ok(index.includes('id="insightHeartRateComplianceCard"'), 'Insights is missing the compliance card');
     assert.ok(app.includes('heartRateZoneComplianceForItems(last28Days)'), 'coach context does not use the canonical compliance summary');
     assert.ok(app.includes('renderHeartRateZoneComplianceInsight(today)'), 'Insights does not render canonical compliance');
-    assert.ok(app.includes("const APP_VERSION = 'v176j'"), 'visible app version must be v176j');
-    assert.ok(serviceWorker.includes('treningsapp-v176j'), 'cache version must match v176j');
+    assert.ok(app.includes("const APP_VERSION = 'v176k'"), 'visible app version must be v176k');
+    assert.ok(serviceWorker.includes('treningsapp-v176k'), 'cache version must match v176k');
   });
 
   test('v174c uses the test profile for zones and keeps the golden zone as a separate coach reference', () => {
@@ -2809,8 +2819,8 @@ async function testAsync(name, fn) {
     assert.ok(trainingImportControllerSource.includes("action: duplicate ? 'skip'"), 'duplicates should be skipped by default');
     assert.ok(!trainingImportControllerSource.includes('heartRateZoneDistribution'), 'controller must not synthesize pulse zones');
     assert.ok(styles.includes('.garmin-import-row'), 'Garmin preview styling is missing');
-    assert.ok(app.includes("const APP_VERSION = 'v176j'"));
-    assert.ok(serviceWorker.includes('treningsapp-v176j'));
+    assert.ok(app.includes("const APP_VERSION = 'v176k'"));
+    assert.ok(serviceWorker.includes('treningsapp-v176k'));
   });
 
   test('structured interval UI fields and summaries are wired into production files', () => {
