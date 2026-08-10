@@ -156,7 +156,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     import { yearToDatePerformanceInsights } from './domain-performance-insights.js';
     import { createTrainingInsightsUi } from './training-insights-ui.js';
 
-const APP_VERSION = 'v176g';
+const APP_VERSION = 'v176h';
     const APP_CACHE_NAME = `treningsapp-${APP_VERSION}`;
 
     const firebaseConfig = {
@@ -201,8 +201,17 @@ const APP_VERSION = 'v176g';
     const trainingInsightsUi = createTrainingInsightsUi({
       escapeHtml,
       formatDate,
-      formatClockDuration
+      formatClockDuration,
+      onShowMissingActivitySetting: () => {
+        const typeFilter = document.getElementById('historyFilter');
+        const filter = document.getElementById('historyActivitySetting');
+        if (typeFilter) typeFilter.value = 'Løping';
+        if (filter) filter.value = 'missing';
+        document.getElementById('historyFilterPanel')?.classList.remove('hidden');
+        window.showTab('history');
+      }
     });
+    trainingInsightsUi.bind();
     let volumeTrendPeriod = 'week';
     let volumeTrendActivity = 'all';
     const volumeTrendOffsets = { week: 0, month: 0, year: 0 };
