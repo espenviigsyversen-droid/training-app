@@ -1,5 +1,5 @@
 # Treningsapp — progress.md
-Oppdatert: 2026-08-10 (siste runtime-endring: v176i)
+Oppdatert: 2026-08-10 (siste runtime-endring: v176j)
 
 ---
 
@@ -27,7 +27,7 @@ Standard Bakken-uke: Hoved-terskel → Støtte-terskel → Lang rolig → Valgfr
 **Hosting:** GitHub Pages.  
 **Backend:** Firebase (prosjekt `home-tasks-app-18de3`) — Firestore + Google Auth.  
 **Frontend:** Vanilla JS + HTML + CSS, single-page app, tab-navigasjon.  
-**Versjon:** v176i (konstant i `app.js`).
+**Versjon:** v176j (konstant i `app.js`).
 
 ### Filer
 
@@ -386,6 +386,14 @@ Treningsapp/
 - PB viser distanser med registrerte resultater først; tomme distanser kan åpnes med én knapp. Challenges viser aktive mål først og tidligere mål i sammenleggbar historikk.
 - Ny `workspace-sections-ui.js` eier DOM-gruppering, lokal navigasjon, synlighetsoppdatering og progressive hjelpefelt. `app.js` initialiserer og oppdaterer bare modulen.
 - Ingen domene-, Firestore- eller backupdata er endret. Designet ligger i `INSIGHTS_GOALS_UX_DESIGN.md`. PWA-cache og synlig versjon er `v176i`.
+
+### v176j - Profesjonell og tilgjengelig øktmodal - Bygget
+
+- Fullført økt har fått samme avrundede modalramme og innvendige rytme som milepælsoversikten, med én naturlig scrollflate.
+- Den mørke økttoppen er nå et innfelt, klebrig kort med et tydelig lukkekryss som forblir tilgjengelig under scrolling.
+- Kryss, Escape, bakgrunnsklikk og bunnknapp lukker modalvinduet. Fokus returneres til åpningselementet når det fortsatt finnes.
+- Dialogsemantikk og tastaturåpning fra historikk er lagt til. Øktinnhold, domene-, Firestore- og backupdata er uendret.
+- PWA-cache og synlig versjon er `v176j`.
 
 ### v167 - Øktmaler som egen UI-feature - Bygget
 
