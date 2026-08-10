@@ -280,6 +280,13 @@ Prioritert backlog for videre utvikling av Treningsapp.
     - La totalsammendrag, økter, tid og kilometer dele samme datogrenser og aktivitetsfilter.
     - Legg ren datologikk og vindusmodell i `domain-volume-trends.js`; behold bare state og rendering i `app.js`.
 
+52c. **v176g - Aktivitetsmiljø og Året så langt** - Bygget
+    - Innfør valgfritt, kildeuavhengig aktivitetsmiljø og avled eldre importerte økter uten migrering.
+    - Vis utendørs/tredemølle/innendørs/basseng naturlig i Logg og la manuelt registrerte økter bruke samme felt.
+    - Gi Innsikt en motiverende årsoppsummering med objektive nøkkeltall, høydepunkter og milepæler.
+    - Hold aktivitetstolkning, årsberegning og rendering i egne moduler; behold `app.js` som orchestrator.
+    - Ta `Form ved samme innsats` og synlig vurderingssikkerhet i senere, avgrensede runder.
+
 53. **v177 - Nedoverbelastning**
     - Registrer stigning og nedstigning separat.
     - Skill kondisjonsbelastning fra muskel-/støtbelastning.
