@@ -1,0 +1,70 @@
+# Form ved samme innsats
+
+Design- og akseptansekriterier for v176l.
+
+## Bakgrunn
+
+Garmin-importen har gitt historiske løpeøkter et rikere datagrunnlag med aktivitetsmiljø, puls, fart, GAP, varighet, distanse og høyde. En enkelt økt sier likevel lite om form. v176l sammenligner derfor grupper av rolige løpeøkter som er tilstrekkelig like, uten å gjøre resultatet til en generell formscore.
+
+## Mål
+
+- vise om farten ved omtrent samme pulsrespons er bedre, stabil eller svakere
+- skille utendørs og tredemølle, slik at ulike miljøer aldri blandes
+- prioritere GAP utendørs og ordinær pace på tredemølle
+- vise periode, antall økter og lokal vurderingssikkerhet sammen med konklusjonen
+- avstå fra konklusjon når datagrunnlaget ikke er sammenlignbart
+
+## Scope
+
+Kun fullførte løpeøkter med rolig/base-/restitusjonsintensjon kan inngå. Økten må ha kjent aktivitetsmiljø, distanse, varighet, snittpuls og gyldig pace. Økter med registrert smerte, kroppstilpasning eller annen tydelig kroppssignalstatus utelates.
+
+Utendørsøkter bruker Garmin GAP når det finnes. Dersom GAP mangler, brukes ordinær pace bare for økter med begrenset stigning per kilometer. GAP og ordinær pace blandes aldri i samme sammenligning. Tredemølle bruker ordinær pace.
+
+## Arkitektur
+
+- `domain-performance-insights.js` eier filtrering, gruppering, medianer, sammenlignbarhet, konklusjon og vurderingssikkerhet.
+- `training-insights-ui.js` renderer resultat, tomtilstand og datagrunnlag.
+- `app.js` leverer normalisert state og kobler domenefunksjonen til rendereren.
+- `workspace-sections-ui.js` plasserer kortet i området Utvikling.
+- Ingen beregnet innsikt lagres i Firestore eller backup.
+
+## Beregningsmodell
+
+For hvert aktivitetsmiljø sorteres kvalifiserte økter kronologisk. De nyeste og foregående øktene deles i to like grupper på minst fire og høyst seks økter.
+
+En konklusjon krever:
+
+- minst fire økter i hver periode
+- forskjell i median snittpuls på høyst 5 bpm
+- sammenlignbar median varighet
+- samme pacekilde i begge perioder
+
+Median pace sammenlignes. Minst 2 prosent raskere gir `bedre respons`, minst 2 prosent saktere gir `svakere respons`, ellers `stabil respons`. Dette beskriver bare disse sammenlignbare rolige øktene.
+
+Vurderingssikkerheten er høy ved minst seks økter i hver gruppe og høyst 3 bpm pulsforskjell. Ellers er den middels. Lav sikkerhet gir ingen formkonklusjon.
+
+## Sikkerhet og produktgrenser
+
+- kroppssignal og skadesignal trumfer ønsket om å vise fremgang
+- resultatet gir ingen anbefaling om å øke belastning
+- svakere respons forklares som et signal som kan påvirkes av blant annet varme, bakker, underlag og dagsform
+- manglende data vises som manglende grunnlag, ikke som null eller dårlig form
+- tredemølle og utendørs sammenlignes aldri mot hverandre
+
+## UI/UX
+
+Kortet ligger først i Utvikling og viser maksimalt én kompakt sammenligning per aktivitetsmiljø. Konklusjon, paceendring og pulsgrunnlag er synlig. Periode, antall økter og metode ligger i et progressivt `Datagrunnlag`-felt.
+
+Tomtilstanden skal fortelle hva som mangler uten å be brukeren trene mer eller hardere.
+
+## Tester og akseptansekriterier
+
+- bedre, stabil og svakere respons klassifiseres ved tersklene
+- utendørs og tredemølle holdes separat
+- GAP og vanlig pace blandes ikke
+- hardøkt, kroppssignal, ukjent miljø og manglende puls utelates
+- stor pulsforskjell eller for få økter gir ingen konklusjon
+- state og Firestore-data muteres ikke
+- domenelogikken testes direkte fra produksjonsfilen
+- mobil og desktop viser kortet uten horisontal overflow
+- PWA-versjon og cache er `v176l`
