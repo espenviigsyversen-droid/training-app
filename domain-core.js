@@ -659,8 +659,7 @@ export function classifyWorkoutIntensityContext(input = {}) {
     template.purpose,
     template.load,
     template.structure,
-    completed.manualName,
-    completed.trainingEffectType
+    completed.manualName
   ]);
   const effectCategory = String(input.effectCategory || completed.trainingEffectCategory || '').toLowerCase();
   const rpe = numberValue(input.rpe ?? completed.rpe);
