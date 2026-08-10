@@ -210,6 +210,8 @@ Hvis en senere eksport har sonetider, kreves en ny adapterkontrakt og eksplisitt
 
 ## Sikkerhet og datatrygghet
 
+- Alle ikke-dupliserte aktiviteter starter som `Krever valg`, også når ingen eksisterende økt matcher. `Opprett ny økt` er tilgjengelig, men velges aldri automatisk.
+- Import kan ikke bekreftes før brukeren eksplisitt har valgt handling for hver ikke-dupliserte aktivitet. Bekreftede duplikater kan fortsatt låses automatisk til `Hopp over`.
 - CSV parses lokalt og sendes ikke til backend eller AI.
 - Eksterne tekstfelt er ubetrodd input og skal escapes ved HTML-rendering.
 - Filstørrelse, radantall og tekstlengder skal begrenses i v176b.
