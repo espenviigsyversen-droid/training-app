@@ -2245,8 +2245,8 @@ async function testAsync(name, fn) {
     assert.ok(workoutHistoryUiSource.includes('heartRateZoneDistributionRows'), 'history does not use production zone rows');
     assert.ok(workoutHistoryUiSource.includes('Tid i pulssoner'), 'completed detail is missing the heart-rate zone section');
     assert.ok(!workoutHistoryUiSource.includes("row.estimated ? 'ca. '"), 'zone duration should not be prefixed with ca.');
-    assert.ok(app.includes("const APP_VERSION = 'v176i'"), 'visible app version must be v176i');
-    assert.ok(serviceWorker.includes('treningsapp-v176i'), 'cache version must match v176i');
+    assert.ok(app.includes("const APP_VERSION = 'v176j'"), 'visible app version must be v176j');
+    assert.ok(serviceWorker.includes('treningsapp-v176j'), 'cache version must match v176j');
   });
 
   test('v174b evaluates easy and quality sessions without treating zone percentages as a hard truth', () => {
@@ -2341,8 +2341,8 @@ async function testAsync(name, fn) {
     assert.ok(index.includes('id="insightHeartRateComplianceCard"'), 'Insights is missing the compliance card');
     assert.ok(app.includes('heartRateZoneComplianceForItems(last28Days)'), 'coach context does not use the canonical compliance summary');
     assert.ok(app.includes('renderHeartRateZoneComplianceInsight(today)'), 'Insights does not render canonical compliance');
-    assert.ok(app.includes("const APP_VERSION = 'v176i'"), 'visible app version must be v176i');
-    assert.ok(serviceWorker.includes('treningsapp-v176i'), 'cache version must match v176i');
+    assert.ok(app.includes("const APP_VERSION = 'v176j'"), 'visible app version must be v176j');
+    assert.ok(serviceWorker.includes('treningsapp-v176j'), 'cache version must match v176j');
   });
 
   test('v174c uses the test profile for zones and keeps the golden zone as a separate coach reference', () => {
@@ -2712,7 +2712,21 @@ async function testAsync(name, fn) {
     assert.ok(app.includes("from './domain-workout-assessment.js'"));
     assert.ok(styles.includes('.workout-coach-assessment'));
     assert.ok(workoutAssessmentSource.includes('buildWorkoutCoachAssessment'));
-    assert.ok(styles.includes('.modal.detail-modal { padding: 0; overflow: hidden; }'), 'workout detail should have only the inner content scrollbar');
+    assert.ok(styles.includes('.modal.detail-modal {'), 'workout detail should use the shared modal surface');
+  });
+
+  test('v176j gives workout details professional modal chrome and accessible closing', () => {
+    assert.ok(index.includes('aria-labelledby="workoutDetailTitle"'));
+    assert.ok(index.includes('id="workoutDetailModal" class="modal-backdrop" aria-hidden="true"'));
+    assert.ok(workoutHistoryUiSource.includes('id="workoutDetailTitle"'));
+    assert.ok(workoutHistoryUiSource.includes('data-workout-detail-close'));
+    assert.ok(workoutHistoryUiSource.includes('role="button" tabindex="0"'));
+    assert.ok(styles.includes('.detail-modal-close'));
+    assert.ok(styles.includes('scrollbar-gutter: stable;'));
+    assert.ok(app.includes('let workoutDetailTrigger = null;'));
+    assert.ok(app.includes("event.target === event.currentTarget"));
+    assert.ok(app.includes("event.key === 'Escape'"));
+    assert.ok(app.includes("modal.setAttribute('aria-hidden', 'false')"));
   });
 
   test('v176e builds a privacy-bounded workout input and stores versioned AI assessments', () => {
@@ -2795,8 +2809,8 @@ async function testAsync(name, fn) {
     assert.ok(trainingImportControllerSource.includes("action: duplicate ? 'skip'"), 'duplicates should be skipped by default');
     assert.ok(!trainingImportControllerSource.includes('heartRateZoneDistribution'), 'controller must not synthesize pulse zones');
     assert.ok(styles.includes('.garmin-import-row'), 'Garmin preview styling is missing');
-    assert.ok(app.includes("const APP_VERSION = 'v176i'"));
-    assert.ok(serviceWorker.includes('treningsapp-v176i'));
+    assert.ok(app.includes("const APP_VERSION = 'v176j'"));
+    assert.ok(serviceWorker.includes('treningsapp-v176j'));
   });
 
   test('structured interval UI fields and summaries are wired into production files', () => {
