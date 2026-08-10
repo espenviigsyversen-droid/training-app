@@ -1596,6 +1596,14 @@ Mål og levert:
 - Sammenleggbare hovedområder bruker en rolig chevron som roteres ved åpning, mens native `details`/`summary` beholder tilgjengelig tilstand.
 - Mobilrekkefølge, innhold, domene-, Firestore- og backupdata er uendret. PWA-versjonen er `v176k`.
 
+### v176l - Form ved samme innsats - Bygget
+
+- Sammenlign grupper av rolige løpeøkter ved omtrent samme medianpuls og varighet.
+- Skill utendørs og tredemølle; bruk GAP utendørs når datadekningen er tilstrekkelig.
+- Vis bedre, stabil eller svakere respons med periode, antall økter og lokal vurderingssikkerhet.
+- Avstå fra konklusjon ved kroppssignal, for få økter eller svakt sammenligningsgrunnlag.
+- Behold beregning i `domain-performance-insights.js`, rendering i `training-insights-ui.js` og kun state-kobling i `app.js`.
+
 ### v177 - Nedoverbelastning og todimensjonal høydevurdering
 
 Mål:
