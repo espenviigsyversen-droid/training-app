@@ -57,6 +57,20 @@ function highestReached(value, thresholds) {
   return [...thresholds].reverse().find(threshold => value >= threshold) || 0;
 }
 
+function milestoneTrack(items, metric, current, thresholds, primaryActivityType) {
+  const nextTarget = thresholds.find(target => target > current) || 0;
+  return {
+    metric,
+    current,
+    milestones: thresholds.map(target => ({
+      metric,
+      target,
+      status: current >= target ? 'achieved' : target === nextTarget ? 'next' : 'future',
+      achievedAt: current >= target ? achievedDate(items, metric, target, primaryActivityType) : ''
+    }))
+  };
+}
+
 export function yearToDatePerformanceInsights({
   completedItems = [],
   templates = [],
@@ -139,6 +153,11 @@ export function yearToDatePerformanceInsights({
   ].filter(Boolean)
     .map(item => ({ ...item, progress: item.target ? Math.min(1, item.current / item.target) : 0 }));
   const nextMilestone = nextOptions.sort((left, right) => right.progress - left.progress)[0] || null;
+  const milestoneTracks = [
+    milestoneTrack(items, 'distance', primaryDistanceKm, DISTANCE_MILESTONES, primaryActivityType),
+    milestoneTrack(items, 'sessions', items.length, SESSION_MILESTONES, primaryActivityType),
+    milestoneTrack(items, 'weeks', activeWeeks, WEEK_MILESTONES, primaryActivityType)
+  ];
 
   return {
     year,
@@ -163,6 +182,7 @@ export function yearToDatePerformanceInsights({
       highestAscent ? { kind: 'highest_ascent', ...highestAscent } : (longestDuration ? { kind: 'longest_duration', ...longestDuration } : null)
     ].filter(Boolean),
     milestones: milestoneCandidates,
+    milestoneTracks,
     nextMilestone
   };
 }
