@@ -144,6 +144,70 @@
   font-size: 0.74rem;
 }
 
+.same-effort-diagnostics {
+  margin-top: 12px;
+  border-top: 1px solid rgba(183, 167, 154, 0.45);
+  padding-top: 10px;
+}
+
+.same-effort-diagnostics summary {
+  cursor: pointer;
+  color: var(--warm-gray-3);
+  font-size: 0.76rem;
+  font-weight: 800;
+}
+
+.same-effort-diagnostic-summary {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 10px;
+  font-size: 0.78rem;
+}
+
+.same-effort-diagnostic-summary span,
+.same-effort-setting-status span,
+.same-effort-diagnostics > small {
+  color: var(--warm-gray-3);
+}
+
+.same-effort-setting-status {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.same-effort-setting-status > div {
+  border: 1px solid var(--warm-gray-1);
+  border-radius: 10px;
+  padding: 9px;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.same-effort-setting-status strong,
+.same-effort-setting-status span,
+.same-effort-diagnostics > small {
+  display: block;
+}
+
+.same-effort-setting-status span,
+.same-effort-diagnostics > small,
+.same-effort-rejections {
+  font-size: 0.72rem;
+  line-height: 1.4;
+}
+
+.same-effort-rejections {
+  margin: 10px 0;
+  padding-left: 18px;
+  color: var(--warm-gray-3);
+}
+
+.same-effort-rejections li + li {
+  margin-top: 4px;
+}
+
 .same-effort-empty strong,
 .same-effort-empty small {
   display: block;
@@ -166,6 +230,15 @@
   .same-effort-confidence {
     display: inline-block;
     margin-top: 8px;
+  }
+
+  .same-effort-diagnostic-summary {
+    display: block;
+  }
+
+  .same-effort-diagnostic-summary span {
+    display: block;
+    margin-top: 3px;
   }
 }
 
