@@ -1,5 +1,5 @@
 # Treningsapp — progress.md
-Oppdatert: 2026-08-10 (siste runtime-endring: v176l3)
+Oppdatert: 2026-08-10 (siste runtime-endring: v176m)
 
 ---
 
@@ -27,7 +27,7 @@ Standard Bakken-uke: Hoved-terskel → Støtte-terskel → Lang rolig → Valgfr
 **Hosting:** GitHub Pages.  
 **Backend:** Firebase (prosjekt `home-tasks-app-18de3`) — Firestore + Google Auth.  
 **Frontend:** Vanilla JS + HTML + CSS, single-page app, tab-navigasjon.  
-**Versjon:** v176l3 (konstant i `app.js`).
+**Versjon:** v176m (konstant i `app.js`).
 
 ### Filer
 
@@ -43,6 +43,8 @@ Treningsapp/
 ├── domain-core.js      # Rene testbare domenehjelpere uten DOM/Firebase/state.
 ├── domain-activity.js  # Kildeuavhengig aktivitetsmiljø og bakoverkompatibel avledning.
 ├── domain-performance-insights.js # Ren årsoppsummering, høydepunkter og milepæler.
+├── domain-insight-confidence.js # Felles evidenskontrakt for dekning og vurderingssikkerhet.
+├── insight-confidence-ui.js # Progressiv og tilgjengelig visning av innsiktsgrunnlag.
 ├── training-insights-ui.js # Avgrenset rendering av prestasjonsinnsikt.
 ├── workspace-sections-ui.js # Lokal seksjonsnavigasjon og progressive Innsikt-/Mål-paneler.
 ├── domain-coach.js     # Rene coach-beslutninger, heltekorttilstand, volum-ramp og comeback.
@@ -427,6 +429,14 @@ Treningsapp/
 - Miljøstatus viser nå både antall kandidater og antall som passer valgt GAP-/pacegrunnlag, slik at `0 sammenlignbare` ikke kan misforstås som `0 historiske utendørsøkter`.
 - Kravet om minst fire økter i hver periode, miljøskille, puls-/varighetssammenlignbarhet, kroppssignalport og GAP-policy er uendret.
 - Ingen Firestore-, backup- eller lagringsdata er endret. PWA-cache og synlig versjon er `v176l3`.
+
+### v176m - Felles datagrunnlag og vurderingssikkerhet - Bygget
+
+- Form ved samme innsats, Treningsnivå, Intensitetsbalanse, Soneetterlevelse og Formutvikling bruker nå samme evidenskontrakt for periode, relevant utvalg, datadekning, vurderingssikkerhet og manglende grunnlag.
+- `domain-insight-confidence.js` eier ren normalisering og fem innsiktsspesifikke builders. `insight-confidence-ui.js` eier én gjenbrukbar, progressivt sammenleggbar visning. `app.js` leverer bare eksisterende state og kobler rendering.
+- Datadekning og vurderingssikkerhet vises separat: et lite, men godt sammenlignbart utvalg kan derfor ha lav totaldekning og samtidig høy vurderingssikkerhet.
+- Form ved samme innsats forklarer også når periodene stopper på puls, varighet eller manglende fire pluss fire økter, uten å lempe på kroppssignal- eller RPE-portene.
+- Ingen Firestore-, backup- eller lagringsdata er endret. PWA-cache og synlig versjon er `v176m`.
 
 ### v167 - Øktmaler som egen UI-feature - Bygget
 
