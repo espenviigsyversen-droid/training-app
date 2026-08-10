@@ -300,6 +300,12 @@ Prioritert backlog for videre utvikling av Treningsapp.
     - Behold kroppssignaler, skadesignal, belastningsvarsler, testvurdering og neste steg synlig.
     - Eie DOM-gruppering og midlertidig disclosure-state i `workspace-sections-ui.js` uten ny datamodell.
 
+52f. **v176j - Profesjonell øktmodal** - Bygget
+    - Bruk samme avrundede modalflate og visuelle rytme som milepælsoversikten.
+    - Behold øktens mørke identitet som et innfelt, klebrig toppkort med synlig lukkekryss.
+    - Støtt lukking med kryss, Escape og bakgrunnsklikk, og returner fokus til åpningselementet.
+    - Behold øktinnhold, domenevurderinger og lagringsmodell uendret.
+
 53. **v177 - Nedoverbelastning**
     - Registrer stigning og nedstigning separat.
     - Skill kondisjonsbelastning fra muskel-/støtbelastning.
