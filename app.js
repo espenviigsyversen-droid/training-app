@@ -157,7 +157,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     import { createTrainingInsightsUi } from './training-insights-ui.js';
     import { createWorkspaceSectionsUi } from './workspace-sections-ui.js';
 
-const APP_VERSION = 'v176l';
+const APP_VERSION = 'v176l2';
     const APP_CACHE_NAME = `treningsapp-${APP_VERSION}`;
 
     const firebaseConfig = {
