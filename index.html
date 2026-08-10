@@ -510,6 +510,17 @@
               </select>
             </div>
             <div>
+              <label>Aktivitetsmiljø</label>
+              <select id="historyActivitySetting" onchange="render()">
+                <option value="all">Alle</option>
+                <option value="outdoor">Utendørs</option>
+                <option value="treadmill">Tredemølle</option>
+                <option value="indoor">Innendørs</option>
+                <option value="pool">Basseng</option>
+                <option value="missing">Uten angivelse</option>
+              </select>
+            </div>
+            <div>
               <label>Garmin-effekt</label>
               <select id="historyEffect" onchange="render()">
                 <option value="all">Alle</option>
@@ -1712,6 +1723,12 @@
   <div id="personalBestHistoryModal" class="modal-backdrop">
     <div class="modal pb-history-modal">
       <div id="personalBestHistoryContent"></div>
+    </div>
+  </div>
+
+  <div id="milestoneOverviewModal" class="modal-backdrop" aria-hidden="true">
+    <div class="modal milestone-overview-modal" role="dialog" aria-modal="true" aria-label="Årets milepæler">
+      <div id="milestoneOverviewContent"></div>
     </div>
   </div>
 
