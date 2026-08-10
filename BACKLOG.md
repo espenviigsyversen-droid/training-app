@@ -317,6 +317,10 @@ Prioritert backlog for videre utvikling av Treningsapp.
     - Vis lokal datadekning og vurderingssikkerhet sammen med resultatet.
     - Ikke lagre avledet innsikt eller gjøre resultatet til en generell formscore.
 
+52h.1. **v176l2 - Forklarbart sammenligningsgrunnlag** - Bygget
+    - Gjenbruk kanonisk intensitetsklassifisering og skill reelle kroppssignal fra ufarlig fritekst.
+    - Vis vurderte økter, kandidater, miljøstatus og utelatelsesårsaker uten å lempe på kravet om fire pluss fire sammenlignbare økter.
+
 52i. **v176m - Felles datagrunnlag og vurderingssikkerhet** - Planlagt
     - Standardiser synlig datadekning, tidsperiode og vurderingssikkerhet på tvers av Innsikt.
     - Gjenbruk v176l-mønsteret uten å skjule kroppssignal eller viktige forbehold.
