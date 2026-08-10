@@ -1618,6 +1618,14 @@ Mål og levert:
 - Vis både kandidater og sammenlignbare økter per aktivitetsmiljø.
 - Behold fire pluss fire, miljøskille, kroppssignal, puls, varighet og GAP-/pacepolicy.
 
+### v176m - Felles datagrunnlag og vurderingssikkerhet - Bygget
+
+- Innfør én ren evidenskontrakt for periode, utvalg, dekning, vurderingssikkerhet, fakta, mangler og faglig forbehold.
+- Bruk kontrakten i Form ved samme innsats, Treningsnivå, Intensitetsbalanse, Soneetterlevelse og Formutvikling.
+- Skill hvor mye data som finnes fra hvor trygg den konkrete vurderingen er.
+- Vis grunnlaget progressivt slik at hovedinnsikten forblir kompakt, mens sikkerhetskritiske mangler er tilgjengelige.
+- Ingen nye Firestore-felter eller lagrede avledede scorer.
+
 ### v177 - Nedoverbelastning og todimensjonal høydevurdering
 
 Mål:
@@ -1654,7 +1662,7 @@ Foreslått modulgrense:
 
 `v172a-v172b` er bygget samlet. `STRUCTURED_EXERCISES_DESIGN.md` dokumenterer den versjonerte modellen, og produksjonen bruker `domain-exercises.js` og `exercise-library-ui.js`. Øvelser kan gjenbrukes i styrkemaler med sett, repetisjoner, pause, belastning, notat og sikre lenker. Malen lagrer snapshots slik at senere bibliotekendringer ikke endrer planlagte eller historiske økter.
 
-`v173a` er dokumentert i `LAB_TESTS_AND_ZONES_DESIGN.md`, og `v173b` er bygget som testbasert sonehistorikk med et eksplisitt aktivt, manuelt redigerbart femsonesett. `v174a` registrerer Garmins prosent per sone og bevarer brukt soneprofil som snapshot. `v174b` legger til forklarbar og forsiktig etterlevelsesvurdering i Logg, Innsikt og coach-context. `v174c` samler kildehierarkiet og skiller labsoner fra Bakken-beregnet gylne sone på alle relevante flater. `v175` gjenbruker øvelsesmodellen for oppvarming, hoveddel og nedtrapping og bevarer innholdet i planlagte og fullførte snapshots. `v175b` rydder Setup-biblioteket i separate arbeidsflater for øktmaler og enkeltøvelser uten å endre dataflyten. `v176a` låste Garmin CSV-kontrakten i en ren adapter, `v176b` koblet den til en lokal forhåndsvisningsveiviser med recovery og kontrollert repository-skriving, `v176c` viser de bevarte aktivitetsfeltene i naturlige kategorier, `v176d` rydder pulsvisningen og flytter den regelbaserte øktvurderingen til en ren domenemodul, `v176e` gir en eksplisitt, lagret AI-vurdering via en egen sikker backendflyt, og `v176f` gjør treningsmengde historisk navigerbar med seks perioder i alle visninger. Eksempeløktene i laboratorierapporten er bevisst utelatt. Neste implementeringsrunde er v177: nedoverbelastning.
+Utviklingsløpet gjennom `v176m` er bygget. Garmin-importen er kontrollert og kildeuavhengig, Innsikt er organisert i progressive arbeidsflater, «Form ved samme innsats» har et konservativt og forklarbart sammenligningsgrunnlag, og fem sentrale innsikter bruker nå samme synlige evidenskontrakt. Eksempeløktene i laboratorierapporten er bevisst utelatt. Neste implementeringsrunde er v177: nedoverbelastning.
 
 ## Hva vi bør vente med
 
