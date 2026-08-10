@@ -16,7 +16,8 @@ export const GARMIN_ENRICHMENT_FIELDS = [
   'paceSecondsPerKm',
   'avgHeartRate',
   'maxHeartRate',
-  'elevationGainM'
+  'elevationGainM',
+  'activitySetting'
 ];
 
 export const GARMIN_ENRICHMENT_LABELS = {
@@ -27,7 +28,8 @@ export const GARMIN_ENRICHMENT_LABELS = {
   paceSecondsPerKm: 'tempo',
   avgHeartRate: 'snittpuls',
   maxHeartRate: 'makspuls',
-  elevationGainM: 'høydemeter'
+  elevationGainM: 'høydemeter',
+  activitySetting: 'aktivitetsmiljø'
 };
 
 function plainObject(value) {
@@ -197,6 +199,7 @@ function materializeCompleted(candidate, { id, now, planned = null, resolveTempl
     durationSeconds: Number(draft.durationSeconds) || 0,
     durationMinutes: Number(draft.durationMinutes) || 0,
     distanceKm: Number(draft.distanceKm) || 0,
+    activitySetting: String(draft.activitySetting || ''),
     source: 'garmin_csv',
     externalData: withProvenance.externalData,
     completedAt: now
