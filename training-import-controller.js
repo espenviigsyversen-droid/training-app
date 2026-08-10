@@ -142,7 +142,7 @@ export function createGarminImportPreview(csvText, {
       duplicate,
       matches,
       selectedTargetKey,
-      action: duplicate ? 'skip' : matches.length ? 'review' : 'create',
+      action: duplicate ? 'skip' : 'review',
       overwriteFields: []
     };
   });
