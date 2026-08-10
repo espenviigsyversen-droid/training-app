@@ -1563,6 +1563,14 @@ Mål og levert:
 - `domain-volume-trends.js` beholder eneansvar for de navigerbare seksperiodersvinduene. Form ved samme innsats og synlig vurderingssikkerhet er utsatt til egne runder.
 - Datakontrakt og akseptansekriterier ligger i `PERFORMANCE_INSIGHTS_DESIGN.md`. PWA-versjonen er `v176g`.
 
+### v176h - Komplett milepælsoversikt og aktivitetsmiljøfilter - Bygget
+
+- `Året så langt` har en kompakt inngang til alle definerte milepæler for løpekilometer, treningsøkter og aktive uker.
+- Milepælsoverlegget viser oppnådd dato, neste naturlige markør og senere muligheter uten prognosedato eller anbefalt belastningsøkning.
+- Løpemiljø viser alle registrerte miljøtyper dynamisk. `Uten angivelse` åpner Logg filtrert til løping og manglende aktivitetsmiljø.
+- Logg har et ordinært filter for utendørs, tredemølle, innendørs, basseng og uten angivelse.
+- Domeneberegning og rendering forblir i `domain-performance-insights.js` og `training-insights-ui.js`; `app.js` har bare navigasjonskoblingen. PWA-versjonen er `v176h`.
+
 ### v177 - Nedoverbelastning og todimensjonal høydevurdering
 
 Mål:
