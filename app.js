@@ -153,11 +153,11 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       normalizeVolumeTrendOffset,
       shiftVolumeTrendOffset
     } from './domain-volume-trends.js';
-    import { yearToDatePerformanceInsights } from './domain-performance-insights.js';
+    import { comparableEasyRunFormInsight, yearToDatePerformanceInsights } from './domain-performance-insights.js';
     import { createTrainingInsightsUi } from './training-insights-ui.js';
     import { createWorkspaceSectionsUi } from './workspace-sections-ui.js';
 
-const APP_VERSION = 'v176k';
+const APP_VERSION = 'v176l';
     const APP_CACHE_NAME = `treningsapp-${APP_VERSION}`;
 
     const firebaseConfig = {
@@ -6583,6 +6583,12 @@ const APP_VERSION = 'v176k';
 
     function renderInsights() {
       const today = todayISO();
+      trainingInsightsUi.renderSameEffortForm(comparableEasyRunFormInsight({
+        completedItems: state.completed,
+        templates: state.templates,
+        today,
+        primaryActivityType: 'Løping'
+      }));
       trainingInsightsUi.renderYearToDate(yearToDatePerformanceInsights({
         completedItems: state.completed,
         templates: state.templates,
