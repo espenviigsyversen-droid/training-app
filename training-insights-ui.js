@@ -18,6 +18,11 @@ function defaultEscapeHtml(value) {
     .replace(/'/g, '&#039;');
 }
 
+function paceLabel(totalSeconds) {
+  const seconds = Math.max(0, Math.round(Number(totalSeconds) || 0));
+  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')} min/km`;
+}
+
 export function createTrainingInsightsUi({
   documentRef = globalThis.document,
   escapeHtml = defaultEscapeHtml,
@@ -191,5 +196,63 @@ export function createTrainingInsightsUi({
       </div>` : ''}`;
   }
 
-  return { bind, closeMilestoneOverview, renderYearToDate };
+  function sameEffortComparisonHtml(comparison = {}) {
+    const settingLabel = comparison.setting === 'treadmill' ? 'Tredemølle' : 'Utendørs';
+    const trendContent = {
+      improving: {
+        title: 'Bedre respons ved samme innsats',
+        change: `${roundedNumber(Math.abs(comparison.paceChangePercent))} % raskere`,
+        note: 'Du løp raskere ved omtrent samme puls i de nyeste sammenlignbare øktene.'
+      },
+      declining: {
+        title: 'Svakere respons i denne perioden',
+        change: `${roundedNumber(Math.abs(comparison.paceChangePercent))} % roligere`,
+        note: 'Farten var lavere ved omtrent samme puls. Varme, underlag, bakker og dagsform kan påvirke.'
+      },
+      stable: {
+        title: 'Stabil respons ved samme innsats',
+        change: 'Omtrent uendret',
+        note: 'Fart og pulsrespons er stabile mellom de to sammenlignbare periodene.'
+      }
+    }[comparison.trend] || {};
+    const confidenceLabel = comparison.confidence === 'high' ? 'Høy sikkerhet' : 'Middels sikkerhet';
+    const metricLabel = comparison.paceSource === 'gap' ? 'GAP' : 'Pace';
+    const baseline = comparison.baseline || {};
+    const recent = comparison.recent || {};
+    return `<article class="same-effort-result ${escapeHtml(comparison.trend)}">
+      <div class="same-effort-heading">
+        <div><span class="eyebrow">${escapeHtml(settingLabel)} · ${escapeHtml(metricLabel)}</span><h3>${escapeHtml(trendContent.title)}</h3></div>
+        <span class="same-effort-confidence ${escapeHtml(comparison.confidence)}">${escapeHtml(confidenceLabel)}</span>
+      </div>
+      <strong class="same-effort-change">${escapeHtml(trendContent.change)}</strong>
+      <p>${escapeHtml(trendContent.note)}</p>
+      <div class="same-effort-periods">
+        <div><span>Før</span><strong>${escapeHtml(paceLabel(baseline.medianPaceSecondsPerKm))}</strong><small>${escapeHtml(String(baseline.medianHeartRate || 0))} bpm · ${escapeHtml(String(baseline.count || 0))} økter</small></div>
+        <div><span>Nå</span><strong>${escapeHtml(paceLabel(recent.medianPaceSecondsPerKm))}</strong><small>${escapeHtml(String(recent.medianHeartRate || 0))} bpm · ${escapeHtml(String(recent.count || 0))} økter</small></div>
+      </div>
+      <details class="same-effort-basis"><summary>Datagrunnlag</summary>
+        <p>${escapeHtml(formatDate(baseline.from))}–${escapeHtml(formatDate(baseline.to))} mot ${escapeHtml(formatDate(recent.from))}–${escapeHtml(formatDate(recent.to))}. Medianpuls skilte ${escapeHtml(String(Math.abs(comparison.heartRateDifference || 0)))} bpm.</p>
+        <small>Kun rolige løpeøkter uten registrerte kroppssignaler. ${comparison.paceSource === 'gap' ? 'Utendørs sammenlignes med GAP.' : 'Sammenligningen bruker ordinær pace.'}</small>
+      </details>
+    </article>`;
+  }
+
+  function renderSameEffortForm(insight = {}) {
+    const container = documentRef?.getElementById('insightSameEffortForm');
+    if (!container) return;
+    const ready = (insight.comparisons || []).filter(item => item.status === 'ready');
+    if (!ready.length) {
+      const eligible = Number(insight.candidateCount || 0);
+      container.innerHTML = `<div class="same-effort-empty">
+        <strong>Ikke nok sammenlignbare rolige økter ennå</strong>
+        <p>${eligible ? `${escapeHtml(String(eligible))} økter har deler av grunnlaget, men periodene er ikke like nok i puls, varighet og miljø.` : 'Når rolige løpeøkter har puls, pace og aktivitetsmiljø, kan utviklingen vises her.'}</p>
+        <small>Manglende grunnlag betyr ikke svak form.</small>
+      </div>`;
+      return;
+    }
+    container.innerHTML = `<div class="same-effort-list">${ready.map(sameEffortComparisonHtml).join('')}</div>
+      <p class="same-effort-disclaimer">Viser respons i sammenlignbare rolige økter – ikke en generell formscore eller et råd om å øke belastningen.</p>`;
+  }
+
+  return { bind, closeMilestoneOverview, renderYearToDate, renderSameEffortForm };
 }
