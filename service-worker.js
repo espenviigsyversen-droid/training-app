@@ -1,4 +1,4 @@
-const CACHE_NAME = "treningsapp-v176f";
+const CACHE_NAME = "treningsapp-v176g";
 const FIREBASE_MODULES = [
   "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js",
   "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js",
@@ -20,6 +20,9 @@ const APP_SHELL = [
   "./domain-exercises.js",
   "./domain-heart-rate-zones.js",
   "./domain-volume-trends.js",
+  "./domain-activity.js",
+  "./domain-performance-insights.js",
+  "./training-insights-ui.js",
   "./garmin-csv-import.js",
   "./training-import-controller.js",
   "./training-import-ui.js",
@@ -82,6 +85,9 @@ self.addEventListener("fetch", (event) => {
     url.pathname.endsWith("/domain-exercises.js") ||
     url.pathname.endsWith("/domain-heart-rate-zones.js") ||
     url.pathname.endsWith("/domain-volume-trends.js") ||
+    url.pathname.endsWith("/domain-activity.js") ||
+    url.pathname.endsWith("/domain-performance-insights.js") ||
+    url.pathname.endsWith("/training-insights-ui.js") ||
     url.pathname.endsWith("/garmin-csv-import.js") ||
     url.pathname.endsWith("/training-import-controller.js") ||
     url.pathname.endsWith("/training-import-ui.js") ||
