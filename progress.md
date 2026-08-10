@@ -1,5 +1,5 @@
 # Treningsapp — progress.md
-Oppdatert: 2026-08-10 (siste runtime-endring: v176l)
+Oppdatert: 2026-08-10 (siste runtime-endring: v176l2)
 
 ---
 
@@ -27,7 +27,7 @@ Standard Bakken-uke: Hoved-terskel → Støtte-terskel → Lang rolig → Valgfr
 **Hosting:** GitHub Pages.  
 **Backend:** Firebase (prosjekt `home-tasks-app-18de3`) — Firestore + Google Auth.  
 **Frontend:** Vanilla JS + HTML + CSS, single-page app, tab-navigasjon.  
-**Versjon:** v176l (konstant i `app.js`).
+**Versjon:** v176l2 (konstant i `app.js`).
 
 ### Filer
 
@@ -411,6 +411,14 @@ Treningsapp/
 - Periode, antall økter, pacekilde og lokal vurderingssikkerhet vises i kortet. Utilstrekkelig grunnlag gir en nøytral tomtilstand.
 - Ren beregning ligger i `domain-performance-insights.js`, rendering i `training-insights-ui.js`, og `app.js` leverer bare state. Designet ligger i `SAME_EFFORT_FORM_DESIGN.md`.
 - Ingen Firestore-, backup- eller lagringsdata er endret. PWA-cache og synlig versjon er `v176l`.
+
+### v176l2 - Forklarbart sammenligningsgrunnlag - Bygget
+
+- Kvalifisering av rolige økter gjenbruker nå appens kanoniske intensitetsklassifisering fra `domain-core.js`, slik at øktmalens rolle, belastning og struktur teller sammen med navn og type.
+- Kroppsområde og fritekstnotat uten registrert smerte eller aktiv tilpasning utelukker ikke lenger en ellers egnet økt. Reell smerte og kroppstilpasning beholdes som sikkerhetsport.
+- Tomtilstanden viser antall vurderte løpeøkter, kandidater, status per aktivitetsmiljø og summerte utelatelsesårsaker. Hver økt får én primær årsak.
+- Kravet om minst fire økter i begge perioder, miljøskille, puls-/varighetssammenlignbarhet og GAP-policy er uendret.
+- Ingen Firestore-, backup- eller lagringsdata er endret. PWA-cache og synlig versjon er `v176l2`.
 
 ### v167 - Øktmaler som egen UI-feature - Bygget
 
