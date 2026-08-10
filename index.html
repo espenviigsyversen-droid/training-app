@@ -565,9 +565,9 @@
       </section>
 
       <section id="insights" class="tab">
-        <div class="card desktop-wide">
+        <div class="card desktop-wide workspace-intro-card">
           <h2 class="section-title">Innsikt</h2>
-          <p class="small-note">Følg kontinuitet, volum og enkle signaler fra siste økter.</p>
+          <p class="small-note">Status først, detaljer når du trenger dem.</p>
         </div>
         <div class="card desktop-wide year-to-date-card">
           <div class="section-title-row year-to-date-heading">
@@ -583,7 +583,7 @@
           <div class="section-title-row">
             <div>
               <h2 class="section-title">Treningsnivå</h2>
-              <p class="small-note">En transparent vurdering av treningsmodenhet, kapasitet og egen fremgang.</p>
+              <p class="small-note" data-progressive-help="Om treningsnivå">En transparent vurdering av treningsmodenhet, kapasitet og egen fremgang.</p>
             </div>
             <span id="fitnessLevelConfidence" class="fitness-confidence"></span>
           </div>
@@ -601,14 +601,14 @@
         </div>
         <div class="card">
           <h2 class="section-title">Bakken-mønstre</h2>
-          <p class="small-note">Siste 30 dager — sjekker om treningen følger Bakken-filosofien.</p>
+          <p class="small-note" data-progressive-help="Hva vurderes?">Siste 30 dager vurderes mot prinsipper for rolig grunnlag, kontrollert kvalitet og konsistens.</p>
           <div id="insightPatterns" class="pattern-list"></div>
         </div>
         <div id="insightStructuredIntervalsCard" class="card" style="display:none;">
           <h2 class="section-title">Intervallinnsikt</h2>
           <div id="insightStructuredIntervals" class="insight-grid interval-insight-grid"></div>
           <p id="insightStructuredIntervalLatest" class="small-note interval-latest"></p>
-          <p id="insightStructuredIntervalNote" class="small-note"></p>
+          <p id="insightStructuredIntervalNote" class="small-note" data-progressive-help="Hva teller?"></p>
         </div>
         <div id="insightHeartRateComplianceCard" class="card" style="display:none;">
           <h2 class="section-title">Soneetterlevelse</h2>
@@ -631,7 +631,7 @@
           <h2 class="section-title">Intensitetsbalanse</h2>
           <div id="insightIntensityBalance" class="intensity-balance"></div>
           <p id="insightIntensityNote" class="small-note"></p>
-          <p id="insightIntensityProfile" class="small-note intensity-source-note"></p>
+          <p id="insightIntensityProfile" class="small-note intensity-source-note" data-progressive-help="Datagrunnlag"></p>
         </div>
         <div class="card">
           <h2 class="section-title">Kontinuitet</h2>
@@ -648,7 +648,7 @@
         </div>
         <div class="card desktop-wide">
           <h2 class="section-title">Treningsmengde</h2>
-          <p id="insightVolumeIntro" class="small-note">Volum over tid. Brukes for å se progresjon uten å stirre på enkeltøkter.</p>
+          <p id="insightVolumeIntro" class="small-note" data-progressive-help="Hva viser grafene?">Volum over tid. Brukes for å se progresjon uten å stirre på enkeltøkter.</p>
           <div class="volume-controls">
             <div class="volume-period-control" aria-label="Velg periode">
               <button type="button" id="volumePeriodWeek" class="active" onclick="setVolumePeriod('week')">Uke</button>
@@ -675,15 +675,17 @@
         </div>
         <div class="card desktop-wide">
           <h2 class="section-title">Formutvikling</h2>
-          <p class="small-note">Manuelle målinger fra Garmin. Brukes som signaler, ikke som fasit alene.</p>
+          <p class="small-note" data-progressive-help="Om målingene">Manuelle målinger brukes som signaler, ikke som fasit alene.</p>
           <div id="insightWellnessTrend" class="trend-grid"></div>
         </div>
       </section>
 
       <section id="goals" class="tab">
-        <div class="card desktop-wide">
+        <div class="card desktop-wide workspace-intro-card">
           <h2 class="section-title">Mål</h2>
-          <p class="small-note">Følg konkurranser, personlige bestenoteringer og kortsiktige mål på ett sted.</p>
+          <p class="small-note">Retning og neste steg først, detaljer når du trenger dem.</p>
+        </div>
+        <div id="goalsStatusCard" class="card desktop-wide">
           <div id="goalsOverview" class="goals-overview"></div>
         </div>
         <div id="insightRaceGoalCard" class="card" style="display:none;">
@@ -696,12 +698,13 @@
             <button class="btn-soft btn-icon" onclick="openManualRaceResultForm()" aria-label="Legg til manuell bestenotering">✎</button>
           </div>
           <div id="insightPersonalBests" class="personal-best-grid"></div>
+          <button id="personalBestToggle" type="button" class="btn-soft btn-full hidden" onclick="toggleAllPersonalBests()"></button>
           <p id="insightRaceLatest" class="small-note"></p>
-          <p class="small-note">Basert på økter der konkurranse/testløp er registrert og markert som tellende for PB.</p>
+          <p class="small-note" data-progressive-help="Datagrunnlag">Basert på økter der konkurranse/testløp er registrert og markert som tellende for PB.</p>
         </div>
-        <div class="card">
+        <div id="goalsChallengesCard" class="card">
           <h2 class="section-title">Challenges</h2>
-          <p class="small-note">Kortsiktige mål for ekstra motivasjon, for eksempel kilometer, timer eller antall økter i en periode.</p>
+          <p class="small-note" data-progressive-help="Hva er en challenge?">Et kortsiktig motivasjonsmål for kilometer, timer eller økter i en avgrenset periode.</p>
           <div id="challengeList" class="challenge-list"></div>
         </div>
       </section>
