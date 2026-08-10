@@ -1,3 +1,5 @@
+import { insightEvidenceDisclosureHtml } from './insight-confidence-ui.js';
+
 function roundedNumber(value, maximumFractionDigits = 1) {
   return Number(value || 0).toLocaleString('nb-NO', { maximumFractionDigits });
 }
@@ -237,51 +239,8 @@ export function createTrainingInsightsUi({
     </article>`;
   }
 
-  function sameEffortSettingStatus(comparison = {}) {
-    const label = comparison.setting === 'treadmill' ? 'Tredemølle' : 'Utendørs';
-    const source = comparison.paceSource === 'gap' ? 'GAP' : 'pace';
-    const candidates = Number(comparison.candidateCount || 0);
-    const eligible = Number(comparison.eligibleCount || 0);
-    if (comparison.status === 'ready') {
-      return `<div><strong>${escapeHtml(label)}</strong><span>${escapeHtml(String(candidates))} kandidater · ${escapeHtml(String(eligible))} sammenlignbare · ${escapeHtml(source)}</span></div>`;
-    }
-    if (comparison.reason === 'heart_rate_gap') {
-      const difference = Math.abs(Number(comparison.recent?.medianHeartRate || 0) - Number(comparison.baseline?.medianHeartRate || 0));
-      return `<div><strong>${escapeHtml(label)}</strong><span>${escapeHtml(String(candidates))} kandidater · ${escapeHtml(String(eligible))} sammenlignbare · medianpulsen skiller ${escapeHtml(String(difference))} bpm</span></div>`;
-    }
-    if (comparison.reason === 'duration_gap') {
-      return `<div><strong>${escapeHtml(label)}</strong><span>${escapeHtml(String(candidates))} kandidater · ${escapeHtml(String(eligible))} sammenlignbare · periodene har for ulik varighet</span></div>`;
-    }
-    return `<div><strong>${escapeHtml(label)}</strong><span>${escapeHtml(String(candidates))} kandidater · ${escapeHtml(String(eligible))} sammenlignbare av minst 8 · ${escapeHtml(source)}</span></div>`;
-  }
-
-  function sameEffortRejectedHtml(rejected = {}) {
-    const labels = {
-      not_easy: 'ikke klassifisert som rolig/base',
-      missing_setting: 'mangler utendørs/tredemølle',
-      body_signal: 'har smerte eller aktiv tilpasning',
-      high_rpe: 'har RPE 7+ uten kvalitetsintensjon',
-      duration_distance: 'har varighet eller distanse utenfor sammenligningsområdet',
-      heart_rate: 'mangler gyldig snittpuls',
-      pace: 'mangler gyldig pace'
-    };
-    const rows = Object.entries(rejected)
-      .filter(([reason, count]) => labels[reason] && Number(count) > 0)
-      .sort((left, right) => Number(right[1]) - Number(left[1]));
-    if (!rows.length) return '';
-    return `<ul class="same-effort-rejections">${rows.map(([reason, count]) => `<li><strong>${escapeHtml(String(count))}</strong> ${escapeHtml(labels[reason])}</li>`).join('')}</ul>`;
-  }
-
   function sameEffortDiagnosticsHtml(insight = {}, { expanded = false } = {}) {
-    const diagnostics = insight.diagnostics || {};
-    const comparisons = insight.comparisons || [];
-    return `<details class="same-effort-diagnostics"${expanded ? ' open' : ''}>
-      <summary>Hvorfor disse øktene teller</summary>
-      <div class="same-effort-diagnostic-summary"><strong>${escapeHtml(String(diagnostics.runningCount || 0))} løpeøkter vurdert</strong><span>${escapeHtml(String(diagnostics.candidateCount || 0))} oppfyller grunnkravene</span></div>
-      <div class="same-effort-setting-status">${comparisons.map(sameEffortSettingStatus).join('')}</div>
-      ${sameEffortRejectedHtml(diagnostics.rejectedReasons)}
-      <small>En økt kan bare få én avvisningsgrunn. RPE 6 kan inngå når øktintensjonen ellers er rolig. Utendørsøkter bruker GAP når minst åtte har GAP; ellers brukes pace på relativt flate økter.</small>
-    </details>`;
+    return insightEvidenceDisclosureHtml(insight.evidence, { escapeHtml, formatDate, open: expanded });
   }
 
   function renderSameEffortForm(insight = {}) {
