@@ -1,5 +1,5 @@
 # Treningsapp — progress.md
-Oppdatert: 2026-08-10 (siste runtime-endring: v176f)
+Oppdatert: 2026-08-10 (siste runtime-endring: v176g)
 
 ---
 
@@ -27,7 +27,7 @@ Standard Bakken-uke: Hoved-terskel → Støtte-terskel → Lang rolig → Valgfr
 **Hosting:** GitHub Pages.  
 **Backend:** Firebase (prosjekt `home-tasks-app-18de3`) — Firestore + Google Auth.  
 **Frontend:** Vanilla JS + HTML + CSS, single-page app, tab-navigasjon.  
-**Versjon:** v176f (konstant i `app.js`).
+**Versjon:** v176g (konstant i `app.js`).
 
 ### Filer
 
@@ -41,6 +41,9 @@ Treningsapp/
 ├── domain-training-plan.js # Ren ukeplan-, rolle- og øktforslagslogikk.
 ├── calendar-ui.js      # Kalendergrid, månedsnavigasjon og dagsmodal.
 ├── domain-core.js      # Rene testbare domenehjelpere uten DOM/Firebase/state.
+├── domain-activity.js  # Kildeuavhengig aktivitetsmiljø og bakoverkompatibel avledning.
+├── domain-performance-insights.js # Ren årsoppsummering, høydepunkter og milepæler.
+├── training-insights-ui.js # Avgrenset rendering av prestasjonsinnsikt.
 ├── domain-coach.js     # Rene coach-beslutninger, heltekorttilstand, volum-ramp og comeback.
 ├── domain-goals.js     # Rene testbare konkurranse-/mål-hjelpere uten DOM/Firebase/state.
 ├── domain-coach-rules.js # Validering, defaults, merge og fallback for coach-regler.
@@ -353,6 +356,16 @@ Treningsapp/
 - Historiske grafer bruker faktiske periodenavn i sammenligningen, ikke `Nå` for en historisk måned eller uke.
 - Ny `domain-volume-trends.js` eier ren periodeberegning, normalisering, etiketter og trygg navigasjon. `app.js` eier bare state, aktivitetsfiltrering og rendering.
 - Modulen er lagt til i PWA app shell. PWA-cache og synlig versjon er `v176f`.
+
+### v176g - Aktivitetsmiljø og Året så langt - Bygget
+
+- Nytt valgfritt `activitySetting` skiller utendørs, tredemølle, innendørs og basseng uten å gjøre feltet Garmin-spesifikt.
+- Eldre Garmin-importer avledes ved normalisering fra eksisterende `activityCode`; eksplisitt verdi og manuell redigering støttes uten Firestore-migrering.
+- Importadapter og merge-policy fyller feltet kontrollert og bevarer manuelle valg som standard.
+- Logg viser aktivitetsmiljø i øktraden og detaljhodet. Fullføringsskjemaet kan angi eller endre miljøet.
+- Innsikt viser `Året så langt` med totaløkter, tid, løpekilometer, aktive uker, løpemiljø, tre objektive høydepunkter, oppnådde milepæler og neste naturlige markør.
+- `domain-activity.js`, `domain-performance-insights.js` og `training-insights-ui.js` holder ny logikk og rendering utenfor `app.js`. Eksisterende `domain-volume-trends.js` er uendret.
+- Designet er dokumentert i `PERFORMANCE_INSIGHTS_DESIGN.md`. PWA-cache og synlig versjon er `v176g`.
 
 ### v167 - Øktmaler som egen UI-feature - Bygget
 
