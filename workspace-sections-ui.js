@@ -6,7 +6,7 @@ const WORKSPACES = Object.freeze({
   insights: {
     labels: [
       { id: 'insights-status', label: 'Status', title: 'Status og belastning', note: 'Uken, intensitetsbalansen og eventuelle kroppssignaler.', priority: true,
-        cards: ['#insightWeekTime', '#insightWeeklyStatus', '#insightBodySignalsCard', '#insightInjurySignalCard', '#insightIntensityBalance'] },
+        cards: ['#insightWeekTime', '#insightWeeklyStatus', '#insightBodySignalsCard', '#insightInjurySignalCard', '#insightIntensityBalanceCard'] },
       { id: 'insights-continuity', label: 'Kontinuitet', title: 'Kontinuitet og kvalitet', note: 'Uker på rad, fireukersrytme og treningsmønstre.',
         cards: ['#insightStreakWeeks', '#insightFourWeeks', '#insightPatterns', '#insightStructuredIntervalsCard', '#insightHeartRateComplianceCard'] },
       { id: 'insights-development', label: 'Utvikling', title: 'Utvikling', note: 'Treningsnivå, mengde og formmålinger.',
@@ -55,11 +55,6 @@ export function createWorkspaceSectionsUi({
   function sectionHeading(config) {
     const heading = element(documentRef, 'div', 'workspace-section-heading');
     const titleWrap = element(documentRef, 'div');
-    if (config.priority) {
-      const eyebrow = element(documentRef, 'span', 'eyebrow');
-      eyebrow.textContent = 'Viktigst nå';
-      titleWrap.append(eyebrow);
-    }
     const title = element(documentRef, 'h2');
     title.textContent = config.title;
     titleWrap.append(title);
@@ -78,7 +73,8 @@ export function createWorkspaceSectionsUi({
     note.textContent = config.note;
     text.append(title, note);
     const action = element(documentRef, 'span', 'workspace-section-action');
-    action.textContent = 'Åpne';
+    action.textContent = '›';
+    action.setAttribute('aria-hidden', 'true');
     summary.append(text, action);
     return summary;
   }
@@ -123,7 +119,7 @@ export function createWorkspaceSectionsUi({
 
   function updateDisclosure(details) {
     const action = details.querySelector(':scope > summary .workspace-section-action');
-    if (action) action.textContent = details.open ? 'Skjul' : 'Åpne';
+    if (action) action.textContent = '›';
   }
 
   function activate(root, target) {
