@@ -1581,6 +1581,14 @@ Mål og levert:
 - Ny `workspace-sections-ui.js` eier DOM-gruppering, seksjonsnavigasjon og midlertidig UI-state. Ingen Firestore-, backup- eller domenekontrakt er endret.
 - Design og akseptansekriterier ligger i `INSIGHTS_GOALS_UX_DESIGN.md`. PWA-versjonen er `v176i`.
 
+### v176j - Profesjonell og tilgjengelig øktmodal - Bygget
+
+- Fullført økt bruker den ordinære avrundede modalflaten med én scrollflate og stabil scrollbar.
+- Den mørke øktidentiteten er beholdt som et innfelt, klebrig toppkort med lukkekryss som alltid er tilgjengelig.
+- Modalvinduet kan lukkes med kryss, Escape, bakgrunnsklikk eller bunnknapp, og fokus returneres til åpningselementet når det finnes.
+- Dialogen har eksplisitt `role`, `aria-modal`, `aria-hidden` og kobling til dynamisk tittel. Historikkradene kan åpnes med tastatur.
+- Ingen øktdata, domenevurderinger, Firestore-kontrakter eller backupfelt er endret. PWA-versjonen er `v176j`.
+
 ### v177 - Nedoverbelastning og todimensjonal høydevurdering
 
 Mål:
