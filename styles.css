@@ -2772,27 +2772,63 @@
       line-height: 1.35;
     }
 
-    .modal.detail-modal { padding: 0; overflow: hidden; }
+    .modal.detail-modal {
+      padding: 18px;
+      overflow: auto;
+      overscroll-behavior: contain;
+      scrollbar-gutter: stable;
+    }
 
     #workoutDetailContent {
-      max-height: 88vh;
-      overflow: auto;
-      overflow-x: hidden;
-      padding: 18px;
       max-width: 100%;
     }
 
     .detail-hero {
-      margin: -18px -18px 16px;
-      padding: 22px 18px 20px;
+      position: sticky;
+      top: 0;
+      z-index: 4;
+      margin: 0 0 16px;
+      padding: 16px;
+      border-radius: 18px;
       background: linear-gradient(135deg, var(--black) 0%, #2f1a16 100%);
       color: #fff;
-      max-width: calc(100% + 36px);
+      box-shadow: 0 10px 24px rgba(17,17,17,0.16);
       overflow: hidden;
     }
 
+    .detail-hero-heading {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 14px;
+    }
+
+    .detail-hero-copy {
+      min-width: 0;
+    }
+
+    .detail-modal-close {
+      width: 36px;
+      height: 36px;
+      border: 1px solid rgba(255,255,255,0.18);
+      border-radius: 12px;
+      background: rgba(255,255,255,0.12);
+      color: #fff;
+      box-shadow: none;
+      font-size: 1.18rem;
+      line-height: 1;
+      backdrop-filter: blur(8px);
+    }
+
+    .detail-modal-close:hover,
+    .detail-modal-close:focus-visible {
+      background: rgba(255,255,255,0.22);
+      outline: 2px solid rgba(255,255,255,0.9);
+      outline-offset: 2px;
+    }
+
     .detail-hero h2 {
-      margin: 10px 0 4px;
+      margin: 8px 0 4px;
       font-size: 1.45rem;
       line-height: 1.12;
       overflow-wrap: anywhere;
