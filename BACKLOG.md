@@ -274,6 +274,12 @@ Prioritert backlog for videre utvikling av Treningsapp.
     - Manuelle felt overskrives aldri uten eksplisitt bekreftelse.
     - Parsing og matching ligger i `garmin-csv-import.js`, handlingsplan i `training-import-controller.js` og UI i `training-import-ui.js`; `app.js` eier ikke CSV-logikken.
 
+52b. **v176f - Navigerbar treningsmengde** - Bygget
+    - Bruk seks perioder konsekvent for uke, måned og år.
+    - Flytt hele volumvinduet én periode frem eller tilbake, med sperre mot fremtid og snarvei tilbake til dagens vindu.
+    - La totalsammendrag, økter, tid og kilometer dele samme datogrenser og aktivitetsfilter.
+    - Legg ren datologikk og vindusmodell i `domain-volume-trends.js`; behold bare state og rendering i `app.js`.
+
 53. **v177 - Nedoverbelastning**
     - Registrer stigning og nedstigning separat.
     - Skill kondisjonsbelastning fra muskel-/støtbelastning.
@@ -306,7 +312,7 @@ Disse punktene var del av den tidlige v142-idéen, men er bevisst flyttet ut av 
 
 ## Anbefalt neste steg
 
-`v173a` er dokumentert, og `v173b`, `v174a`, `v174b`, `v174c`, `v175`, `v175b`, `v176a`, `v176b`, `v176c`, `v176d` og `v176e` er bygget. Neste runde er v177: konservativ modell for nedoverbelastning.
+`v173a` er dokumentert, og `v173b`, `v174a`, `v174b`, `v174c`, `v175`, `v175b`, `v176a`, `v176b`, `v176c`, `v176d`, `v176e` og `v176f` er bygget. Neste runde er v177: konservativ modell for nedoverbelastning.
 
 v164a-v169 har etablert modulgrensene som de nye rundene skal bygge videre på. v170a-v171 har lukket de åpne tekniske sporene for lokal snapshot-kvote og Firebase Functions SDK.
 
