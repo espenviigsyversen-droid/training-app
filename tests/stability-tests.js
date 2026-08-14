@@ -33,6 +33,7 @@ const workoutCompletionUiSource = read('workout-completion-ui.js');
 const workoutHistoryUiSource = read('workout-history-ui.js');
 const workoutAssessmentSource = read('domain-workout-assessment.js');
 const aiWorkoutAssessmentSource = read('domain-ai-workout-assessment.js');
+const aiWorkoutContextSource = read('domain-ai-workout-context.js');
 const aiCoachClient = read('ai-coach-client.js');
 const aiCoachUi = read('ai-coach-ui.js');
 const aiCoachBackend = read('functions/ai/ai-chat.js');
@@ -93,6 +94,7 @@ async function testAsync(name, fn) {
   const workoutHistoryUiDomain = await import(pathToFileURL(path.join(root, 'workout-history-ui.js')).href);
   const workoutAssessmentDomain = await import(pathToFileURL(path.join(root, 'domain-workout-assessment.js')).href);
   const aiWorkoutAssessmentDomain = await import(pathToFileURL(path.join(root, 'domain-ai-workout-assessment.js')).href);
+  const aiWorkoutContextDomain = await import(pathToFileURL(path.join(root, 'domain-ai-workout-context.js')).href);
   test('volume trend windows use six synchronized periods and safe navigation', () => {
     const expectedStarts = {
       week: ['2026-07-06', '2026-07-13', '2026-07-20', '2026-07-27', '2026-08-03', '2026-08-10'],
@@ -2463,8 +2465,8 @@ async function testAsync(name, fn) {
     assert.ok(workoutHistoryUiSource.includes('heartRateZoneDistributionRows'), 'history does not use production zone rows');
     assert.ok(workoutHistoryUiSource.includes('Tid i pulssoner'), 'completed detail is missing the heart-rate zone section');
     assert.ok(!workoutHistoryUiSource.includes("row.estimated ? 'ca. '"), 'zone duration should not be prefixed with ca.');
-    assert.ok(app.includes("const APP_VERSION = 'v176m'"), 'visible app version must be v176m');
-    assert.ok(serviceWorker.includes('treningsapp-v176m'), 'cache version must match v176m');
+    assert.ok(app.includes("const APP_VERSION = 'v176n'"), 'visible app version must be v176n');
+    assert.ok(serviceWorker.includes('treningsapp-v176n'), 'cache version must match v176n');
   });
 
   test('v174b evaluates easy and quality sessions without treating zone percentages as a hard truth', () => {
@@ -2559,8 +2561,8 @@ async function testAsync(name, fn) {
     assert.ok(index.includes('id="insightHeartRateComplianceCard"'), 'Insights is missing the compliance card');
     assert.ok(app.includes('heartRateZoneComplianceForItems(last28Days)'), 'coach context does not use the canonical compliance summary');
     assert.ok(app.includes('renderHeartRateZoneComplianceInsight(today)'), 'Insights does not render canonical compliance');
-    assert.ok(app.includes("const APP_VERSION = 'v176m'"), 'visible app version must be v176m');
-    assert.ok(serviceWorker.includes('treningsapp-v176m'), 'cache version must match v176m');
+    assert.ok(app.includes("const APP_VERSION = 'v176n'"), 'visible app version must be v176n');
+    assert.ok(serviceWorker.includes('treningsapp-v176n'), 'cache version must match v176n');
   });
 
   test('v174c uses the test profile for zones and keeps the golden zone as a separate coach reference', () => {
@@ -2947,7 +2949,36 @@ async function testAsync(name, fn) {
     assert.ok(app.includes("modal.setAttribute('aria-hidden', 'false')"));
   });
 
-  test('v176e builds a privacy-bounded workout input and stores versioned AI assessments', () => {
+  test('v176n builds aggregate historical context without raw workout history', () => {
+    const easyRun = (id, date, heartRate, gap, durationSeconds = 3000) => ({
+      id, date, activitySetting: 'outdoor', durationSeconds, distanceKm: 6.5, avgHeartRate: heartRate,
+      elevationGainM: 95, rpe: 3, templateSnapshot: { name: 'Easy Run', type: 'Løping', intensity: 'Rolig' },
+      externalData: { garmin: { pace: { averageGapSecondsPerKm: gap } } }
+    });
+    const target = easyRun('target', '2026-08-14', 150, 440, 3000);
+    const context = aiWorkoutContextDomain.buildAiWorkoutComparisonContext({
+      completed: target,
+      completedItems: [
+        target,
+        easyRun('one', '2026-08-01', 148, 455),
+        easyRun('two', '2026-07-18', 151, 450),
+        easyRun('three', '2026-07-04', 149, 460),
+        easyRun('four', '2026-06-20', 152, 448)
+      ]
+    });
+    assert.strictEqual(context.status, 'available');
+    assert.strictEqual(context.sampleSize, 4);
+    assert.strictEqual(context.paceSource, 'gap');
+    assert.ok(context.paceDeltaPercent > 0);
+    assert.ok(!JSON.stringify(context).includes('Easy Run'));
+    assert.ok(!Object.hasOwn(context, 'workouts'));
+    const insufficient = aiWorkoutContextDomain.buildAiWorkoutComparisonContext({ completed: target, completedItems: [target, easyRun('one', '2026-08-01', 148, 455)] });
+    assert.strictEqual(insufficient.status, 'insufficient');
+    assert.strictEqual(insufficient.sampleSize, 1);
+    assert.ok(aiWorkoutContextSource.includes('MAX_SAMPLES = 6'));
+  });
+
+  test('v176n builds privacy-bounded v2 input while preserving stored v1 assessments', () => {
     const input = aiWorkoutAssessmentDomain.buildAiWorkoutAssessmentInput({
       completed: {
         date: '2026-08-04', durationSeconds: 2942, distanceKm: 6.44, avgHeartRate: 149, maxHeartRate: 163,
@@ -2955,27 +2986,41 @@ async function testAsync(name, fn) {
         heartRateZoneDistribution: { zones: { z1: { percent: 3 }, z2: { percent: 92 }, z3: { percent: 5 } } }
       },
       template: { name: 'Easy Run', type: 'Løping', intensity: 'Rolig' },
-      loadAssessment: { level: 'low', label: 'Lav belastning' }
+      loadAssessment: { level: 'low', label: 'Lav belastning' },
+      comparisonContext: { status: 'available', sampleSize: 4, paceDeltaPercent: 2.3, privateWorkoutNames: ['skal ikke med'] }
     });
     const serialized = JSON.stringify(input);
     assert.ok(!serialized.includes('privat øktnotat'));
     assert.ok(!serialized.includes('privat kroppsnotat'));
     assert.deepStrictEqual(input.heartRateZonePercent, { z1: 3, z2: 92, z3: 5 });
+    assert.strictEqual(input.schemaVersion, 2);
+    assert.strictEqual(input.comparisonContext.sampleSize, 4);
+    assert.ok(!serialized.includes('privateWorkoutNames'));
     const fingerprint = aiWorkoutAssessmentDomain.aiWorkoutAssessmentFingerprint(input);
-    const stored = aiWorkoutAssessmentDomain.storedAiWorkoutAssessment({
+    const legacy = aiWorkoutAssessmentDomain.storedAiWorkoutAssessment({
       headline: 'Kontrollert rolig økt', evidence: ['92 % i sone 2.', 'RPE var lav.'],
       planFit: 'I tråd med planen.', nextStep: 'Fortsett normal plan.', modelProfileId: 'auto', modelLabel: 'Automatisk'
     }, fingerprint, '2026-08-05T12:00:00.000Z');
-    assert.strictEqual(stored.version, 1);
+    assert.strictEqual(legacy.version, 1);
+    const stored = aiWorkoutAssessmentDomain.storedAiWorkoutAssessment({
+      version: 2, headline: 'Bedre flyt på samme innsats', summary: 'En kontrollert økt med et lite positivt fartsutslag.',
+      standouts: ['GAP var 2,3 % raskere.', 'Snittpulsen var stabil.'], trainingMeaning: 'Dette støtter aerob fremgang.',
+      goalConnection: 'God base mot hovedmålet.', nextStep: 'Fortsett normal plan.'
+    }, fingerprint, '2026-08-14T12:00:00.000Z');
+    assert.strictEqual(stored.version, 2);
     assert.strictEqual(aiWorkoutAssessmentDomain.isAiWorkoutAssessmentStale(stored, fingerprint), false);
-    assert.strictEqual(aiWorkoutAssessmentDomain.isAiWorkoutAssessmentStale(stored, 'v1-changed'), true);
+    assert.strictEqual(aiWorkoutAssessmentDomain.isAiWorkoutAssessmentStale(stored, 'v2-changed'), true);
     assert.ok(aiWorkoutAssessmentSource.includes('normalizeAiWorkoutAssessment'));
     assert.ok(workoutHistoryUiSource.includes("detailSection('AI-vurdering'"));
     assert.ok(workoutHistoryUiSource.includes('Få AI-vurdering'));
+    assert.ok(workoutHistoryUiSource.includes('ai-spark-icon'));
+    assert.ok(workoutHistoryUiSource.includes("aria-label=\"${escapeHtml(label)}\""));
     assert.ok(app.includes('requestAiWorkoutAssessment'));
+    assert.ok(app.includes('buildAiWorkoutComparisonContext'));
     assert.ok(aiCoachClient.includes("callable('aiCoachAssessWorkout')"));
     assert.ok(functionsIndex.includes('exports.aiCoachAssessWorkout'));
     assert.ok(serviceWorker.includes('./domain-ai-workout-assessment.js'));
+    assert.ok(serviceWorker.includes('./domain-ai-workout-context.js'));
   });
 
   await testAsync('v176b repository batches approved completed and planned writes with partial progress metadata', async () => {
@@ -3027,8 +3072,8 @@ async function testAsync(name, fn) {
     assert.ok(trainingImportControllerSource.includes("action: duplicate ? 'skip'"), 'duplicates should be skipped by default');
     assert.ok(!trainingImportControllerSource.includes('heartRateZoneDistribution'), 'controller must not synthesize pulse zones');
     assert.ok(styles.includes('.garmin-import-row'), 'Garmin preview styling is missing');
-    assert.ok(app.includes("const APP_VERSION = 'v176m'"));
-    assert.ok(serviceWorker.includes('treningsapp-v176m'));
+    assert.ok(app.includes("const APP_VERSION = 'v176n'"));
+    assert.ok(serviceWorker.includes('treningsapp-v176n'));
   });
 
   test('structured interval UI fields and summaries are wired into production files', () => {
