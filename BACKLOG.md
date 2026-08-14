@@ -330,6 +330,11 @@ Prioritert backlog for videre utvikling av Treningsapp.
     - Gjenbruk én evidenskontrakt og én progressiv UI-visning for Form ved samme innsats, Treningsnivå, Intensitetsbalanse, Soneetterlevelse og Formutvikling.
     - Skill datadekning fra vurderingssikkerhet uten å skjule kroppssignal eller viktige forbehold.
 
+52j. **v176n - Selvstendig AI-vurdering av økt** - Bygget
+    - Bruk den lokale coach-vurderingen som sikkerhetsrekkverk, men la AI-en levere en selvstendig syntese fremfor en parafrase.
+    - Del bare aggregert historisk sammenligningsgrunnlag fra inntil seks relevante økter.
+    - Komprimer tomtilstanden til en tilgjengelig ikonhandling og behold bakoverkompatibilitet med v1-resultater.
+
 53. **v177 - Nedoverbelastning**
     - Registrer stigning og nedstigning separat.
     - Skill kondisjonsbelastning fra muskel-/støtbelastning.
@@ -362,7 +367,7 @@ Disse punktene var del av den tidlige v142-idéen, men er bevisst flyttet ut av 
 
 ## Anbefalt neste steg
 
-`v173a` er dokumentert, og utviklingsløpet gjennom `v176m` er bygget. Neste runde er v177: konservativ modell for nedoverbelastning.
+`v173a` er dokumentert, og utviklingsløpet gjennom `v176n` er bygget. Neste runde er v177: konservativ modell for nedoverbelastning.
 
 v164a-v169 har etablert modulgrensene som de nye rundene skal bygge videre på. v170a-v171 har lukket de åpne tekniske sporene for lokal snapshot-kvote og Firebase Functions SDK.
 
