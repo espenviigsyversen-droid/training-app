@@ -63,6 +63,7 @@ node --check app-state.js
 node --check local-state-store.js
 node --check training-repository.js
 node --check domain-training-plan.js
+node --check domain-periodized-training-plan.js
 node --check calendar-ui.js
 node --check functions\ai\chat-store.js
 node --check functions\ai\model-profiles.js
@@ -79,6 +80,7 @@ node functions\tests\ai-backend-tests.js
 - `local-state-store.js` - normalisert lokal snapshot- og recovery-lagring
 - `training-repository.js` - avgrenset Firestore-repository for treningsdata
 - `domain-training-plan.js` - ren, testbar ukeplan- og øktforslagslogikk
+- `domain-periodized-training-plan.js` - ren normalisering, historiske ukesmåls-snapshots og felles effektivt ukesmål; utvides med blokklogikk i senere runder
 - `calendar-ui.js` - kalendergrid og dagsmodal med injiserte data-/handlingsavhengigheter
 - `domain-core.js` - rene testbare domenehjelpere
 - `domain-goals.js` - rene testbare konkurranse-/mål-hjelpere
@@ -153,6 +155,7 @@ node --check app-state.js
 node --check local-state-store.js
 node --check training-repository.js
 node --check domain-training-plan.js
+node --check domain-periodized-training-plan.js
 node --check calendar-ui.js
 node --check functions\ai\chat-store.js
 node --check functions\ai\model-profiles.js
@@ -196,3 +199,4 @@ Oppsummer alltid:
 - hvilke sjekker som er kjørt
 - hvilke filer som er synkronisert direkte til GitHub, eller hvilke filer brukeren må laste opp manuelt hvis direkte synk ikke var mulig
 - om noe ikke ble testet
+
