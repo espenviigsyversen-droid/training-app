@@ -2465,8 +2465,8 @@ async function testAsync(name, fn) {
     assert.ok(workoutHistoryUiSource.includes('heartRateZoneDistributionRows'), 'history does not use production zone rows');
     assert.ok(workoutHistoryUiSource.includes('Tid i pulssoner'), 'completed detail is missing the heart-rate zone section');
     assert.ok(!workoutHistoryUiSource.includes("row.estimated ? 'ca. '"), 'zone duration should not be prefixed with ca.');
-    assert.ok(app.includes("const APP_VERSION = 'v176n'"), 'visible app version must be v176n');
-    assert.ok(serviceWorker.includes('treningsapp-v176n'), 'cache version must match v176n');
+    assert.ok(app.includes("const APP_VERSION = 'v176n1'"), 'visible app version must be v176n1');
+    assert.ok(serviceWorker.includes('treningsapp-v176n1'), 'cache version must match v176n1');
   });
 
   test('v174b evaluates easy and quality sessions without treating zone percentages as a hard truth', () => {
@@ -2561,8 +2561,8 @@ async function testAsync(name, fn) {
     assert.ok(index.includes('id="insightHeartRateComplianceCard"'), 'Insights is missing the compliance card');
     assert.ok(app.includes('heartRateZoneComplianceForItems(last28Days)'), 'coach context does not use the canonical compliance summary');
     assert.ok(app.includes('renderHeartRateZoneComplianceInsight(today)'), 'Insights does not render canonical compliance');
-    assert.ok(app.includes("const APP_VERSION = 'v176n'"), 'visible app version must be v176n');
-    assert.ok(serviceWorker.includes('treningsapp-v176n'), 'cache version must match v176n');
+    assert.ok(app.includes("const APP_VERSION = 'v176n1'"), 'visible app version must be v176n1');
+    assert.ok(serviceWorker.includes('treningsapp-v176n1'), 'cache version must match v176n1');
   });
 
   test('v174c uses the test profile for zones and keeps the golden zone as a separate coach reference', () => {
@@ -2949,6 +2949,13 @@ async function testAsync(name, fn) {
     assert.ok(app.includes("modal.setAttribute('aria-hidden', 'false')"));
   });
 
+  test('v176n1 lets the workout hero scroll away and expands details on mobile', () => {
+    assert.ok(styles.includes('#workoutDetailModal .detail-hero {'));
+    assert.ok(styles.includes('position: relative;'));
+    assert.ok(styles.includes('max-height: calc(100dvh - 8px - env(safe-area-inset-top));'));
+    assert.ok(styles.includes('padding: calc(8px + env(safe-area-inset-top)) 8px 0;'));
+  });
+
   test('v176n builds aggregate historical context without raw workout history', () => {
     const easyRun = (id, date, heartRate, gap, durationSeconds = 3000) => ({
       id, date, activitySetting: 'outdoor', durationSeconds, distanceKm: 6.5, avgHeartRate: heartRate,
@@ -3072,8 +3079,8 @@ async function testAsync(name, fn) {
     assert.ok(trainingImportControllerSource.includes("action: duplicate ? 'skip'"), 'duplicates should be skipped by default');
     assert.ok(!trainingImportControllerSource.includes('heartRateZoneDistribution'), 'controller must not synthesize pulse zones');
     assert.ok(styles.includes('.garmin-import-row'), 'Garmin preview styling is missing');
-    assert.ok(app.includes("const APP_VERSION = 'v176n'"));
-    assert.ok(serviceWorker.includes('treningsapp-v176n'));
+    assert.ok(app.includes("const APP_VERSION = 'v176n1'"));
+    assert.ok(serviceWorker.includes('treningsapp-v176n1'));
   });
 
   test('structured interval UI fields and summaries are wired into production files', () => {
@@ -4186,3 +4193,4 @@ async function testAsync(name, fn) {
   console.error(err);
   process.exit(1);
 });
+
