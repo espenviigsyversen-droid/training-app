@@ -27,6 +27,7 @@ Treningsapp/
 ├── local-state-store.js
 ├── training-repository.js
 ├── domain-training-plan.js
+├── domain-periodized-training-plan.js
 ├── calendar-ui.js
 ├── workout-template-ui.js
 ├── garmin-csv-import.js
@@ -89,6 +90,7 @@ Er appens orchestrator og UI-kobling:
 - `local-state-store.js` eier normalisert lokal snapshot/recovery, UTF-8-størrelsesmåling og kontrollert IndexedDB-fallback gjennom injiserbare storage-grensesnitt.
 - `training-repository.js` kapsler Firestore-lesing, skriving, sletting, batch-operasjoner og utskifting av treningsdata. Auth og Firestore-avhengigheter injiseres fra `app.js`.
 - `domain-training-plan.js` inneholder ren rolledekning, template-scoring og ukeplan-/øktforslag uten DOM, Firebase eller global state.
+- `domain-periodized-training-plan.js` eier det historiske målfundamentet for periodiserte planer: normalisering av ukesmålsnapshots, felles valg av effektivt ukesmål og skillet mellom ordinær kontinuitet og fryskort. Senere runder utvider samme modul med ren blokklogikk.
 - `calendar-ui.js` renderer kalendergrid og dagsmodal med injiserte data og callbacks. Selve mutasjonene, bekreftelsene og persistence-wrappere forblir i `app.js`.
 
 ### `domain-core.js`
@@ -155,8 +157,9 @@ Ikke gjør en stor rewrite. Del heller appen gradvis i tydelige soner:
 4. `domain-coach.js` - coach-context, anbefalinger og prioritert beslutningsmodell
 5. `domain-fitness.js` - transparent nivågrunnlag, VO2-referanse og PB-progresjon
 6. `domain-training-plan.js` - øktforslag, roller og ukeplansammensetting
-7. `calendar-ui.js`, `workout-template-ui.js`, `workout-completion-ui.js` og `workout-history-ui.js` - avgrensede render-/skjemakontrollere med injiserte avhengigheter
-8. `tests` - rene tester for kritiske regler
+7. `domain-periodized-training-plan.js` - historisk effektivt ukesmål og senere ren fireukers blokklogikk
+8. `calendar-ui.js`, `workout-template-ui.js`, `workout-completion-ui.js` og `workout-history-ui.js` - avgrensede render-/skjemakontrollere med injiserte avhengigheter
+9. `tests` - rene tester for kritiske regler
 
 Målet er lavere risiko, lettere testing og mindre sjanse for regresjoner.
 
@@ -209,3 +212,4 @@ De neste produktsporene skal følge samme kontrollerte uttrekksmønster som v164
 `app.js` skal ikke eie CSV-parsing, importmatching, øvelsesnormalisering, pulssoneklassifisering eller målevalidering. Filen beholder navigasjon, samlet state, bekreftelser og små persistence-wrappers. Firestore-operasjoner går via `training-repository.js` eller en senere, tydelig avgrenset repository-modul dersom datamodellen krever det.
 
 Nye runtime-moduler må lastes eksplisitt, inngå i PWA app shell når de trengs offline, og testes fra produksjonsfilene. Gamle maler, fullførte økter, backupfiler og Firestore-data skal fungere uten migrering.
+
