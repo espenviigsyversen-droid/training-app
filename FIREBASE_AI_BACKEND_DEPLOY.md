@@ -2,7 +2,7 @@
 
 ## Status
 
-v151-v154-koden og de fem opprinnelige AI-funksjonene er deployet. `aiCoachAssessWorkout` for v176e ble deployet 5. august 2026. `AI_KEY_ENCRYPTION_SECRET` finnes i Firebase Secret Manager, funksjonene kjører som Node 22 2nd Gen i `europe-west1`, og Artifact Registry sletter automatisk containerbilder eldre enn 7 dager. Ekte OpenAI-test fra en innlogget app er bestått 12. juli 2026. Produksjonsreglene er sammenlignet med v155, chat er isolert til `aiChatUsers/{uid}`, og den sammenslåtte regelfilen er emulator-testet og deployet 12. juli 2026.
+v151-v154-koden og de fem opprinnelige AI-funksjonene er deployet. `aiCoachAssessWorkout` ble oppgradert til den bakoverkompatible v176n-kontrakten 14. august 2026; backend godtar fortsatt v1-klienter. `AI_KEY_ENCRYPTION_SECRET` finnes i Firebase Secret Manager, funksjonene kjører som Node 22 2nd Gen i `europe-west1`, og Artifact Registry sletter automatisk containerbilder eldre enn 7 dager. Ekte OpenAI-test fra en innlogget app er bestått 12. juli 2026. Produksjonsreglene er sammenlignet med v155, chat er isolert til `aiChatUsers/{uid}`, og den sammenslåtte regelfilen er emulator-testet og deployet 12. juli 2026.
 
 GitHub Pages kan beholdes. Frontend bruker Firebase Callable Functions i region `europe-west1`, slik at Firebase Auth-token og CORS håndteres av Firebase SDK.
 
