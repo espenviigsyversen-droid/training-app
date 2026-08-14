@@ -1639,6 +1639,25 @@ Mål og levert:
 - Bruk nesten hele mobilens tilgjengelige høyde med safe-area-hensyn og mindre ytterluft.
 - Behold desktopvisningen og alt modalinnhold uendret.
 
+### Periodisert treningsplan v1 - Design ferdig, seks implementeringsrunder
+
+`TRAINING_PLANS_DESIGN.md` er det samlede designgrunnlaget. V1 er én manuell fireukersblokk med tre belastningsuker og én avlastningsuke; 12-ukers løpsplan er eksplisitt utsatt.
+
+Rekkefølge og porter:
+
+1. Design og kontrakter er dokumentert uten runtime-endring.
+2. Historisk målfundament leverer `weeklyTargetSnapshots`, `effectiveWeeklyTargetForWeek()` og full state/repository/backup/recovery-kobling.
+3. Ren blokkdomene-logikk leverer kalibrering, volumramme, prospektiv validering, rollepolicy og ukesevaluering.
+4. Controller/persistence leverer planrevisjon, preview/diff, konfliktpolicy og materialisering av bare inneværende/neste uke.
+5. Mobil-først produktflate leverer firestegs opprettelse, Kalender-planoversikt, Hjem-kort og fullført-oppsummering.
+6. Coach-kontekst, ukefullføring, ende-til-ende-test og release avslutter v1.
+
+Snapshotmekanismen er planlagt i runde 2. Runde 4 er absolutt siste trygge tidspunkt, og aktiveringsporten skal være lukket til mekanismen faktisk er i produksjon. Sletting midt i en pågående avlastningsuke fryser målet som gjaldt før planen fjernes.
+
+Volumrammen valideres bare når blokk og volumvakt bruker samme metrikk. `metric_mismatch` og `insufficient_data` vises ærlig; systemet konverterer ikke mellom minutter og økter og avviser ikke en ramme bare fordi historikken er kort. Volum- og kroppssignalvarsler undertrykkes aldri fordi økten lå i planen.
+
+Produktflaten er likestilt med datagrunnlaget: brukeren skal forstå blokkretning, denne ukens viktigste rolle, hva som faktisk legges i kalenderen, konflikter og hva blokken ga etter uke 4, på mobil uten unødvendig scrolling.
+
 ### v177 - Nedoverbelastning og todimensjonal høydevurdering
 
 Mål:
@@ -1675,7 +1694,7 @@ Foreslått modulgrense:
 
 `v172a-v172b` er bygget samlet. `STRUCTURED_EXERCISES_DESIGN.md` dokumenterer den versjonerte modellen, og produksjonen bruker `domain-exercises.js` og `exercise-library-ui.js`. Øvelser kan gjenbrukes i styrkemaler med sett, repetisjoner, pause, belastning, notat og sikre lenker. Malen lagrer snapshots slik at senere bibliotekendringer ikke endrer planlagte eller historiske økter.
 
-Utviklingsløpet gjennom `v176m` er bygget. Garmin-importen er kontrollert og kildeuavhengig, Innsikt er organisert i progressive arbeidsflater, «Form ved samme innsats» har et konservativt og forklarbart sammenligningsgrunnlag, og fem sentrale innsikter bruker nå samme synlige evidenskontrakt. Eksempeløktene i laboratorierapporten er bevisst utelatt. Neste implementeringsrunde er v177: nedoverbelastning.
+Utviklingsløpet gjennom `v176n1` er bygget. Garmin-importen er kontrollert og kildeuavhengig, Innsikt er organisert i progressive arbeidsflater, «Form ved samme innsats» har et konservativt og forklarbart sammenligningsgrunnlag, og fem sentrale innsikter bruker samme synlige evidenskontrakt. `TRAINING_PLANS_DESIGN.md` er ferdig og gjør historisk målfundament til neste implementeringsrunde. v177 nedoverbelastning og v178 kroppsmål beholdes som senere planlagte spor.
 
 ## Hva vi bør vente med
 
