@@ -12,6 +12,7 @@ const styles = read('styles.css');
 const serviceWorker = read('service-worker.js');
 const appStateSource = read('app-state.js');
 const plannerSource = read('domain-training-plan.js');
+const periodizedPlanSource = read('domain-periodized-training-plan.js');
 const repositorySource = read('training-repository.js');
 const calendarUiSource = read('calendar-ui.js');
 const workoutTemplateUiSource = read('workout-template-ui.js');
@@ -77,6 +78,7 @@ async function testAsync(name, fn) {
   const coachRulesDomain = await import(pathToFileURL(path.join(root, 'domain-coach-rules.js')).href);
   const appStateDomain = await import(pathToFileURL(path.join(root, 'app-state.js')).href);
   const planner = await import(pathToFileURL(path.join(root, 'domain-training-plan.js')).href);
+  const periodizedPlan = await import(pathToFileURL(path.join(root, 'domain-periodized-training-plan.js')).href);
   const localStoreDomain = await import(pathToFileURL(path.join(root, 'local-state-store.js')).href);
   const workoutTemplateUiDomain = await import(pathToFileURL(path.join(root, 'workout-template-ui.js')).href);
   const exerciseDomain = await import(pathToFileURL(path.join(root, 'domain-exercises.js')).href);
@@ -918,7 +920,7 @@ async function testAsync(name, fn) {
   });
 
   test('all user data collections are included in replacement import', () => {
-    ['exercises', 'templates', 'planned', 'completed', 'wellness', 'challenges', 'blockedDays', 'raceResults', 'continuityFreezes', 'heartRateZoneSets'].forEach(collection => {
+    ['exercises', 'templates', 'planned', 'completed', 'wellness', 'challenges', 'blockedDays', 'raceResults', 'continuityFreezes', 'heartRateZoneSets', 'weeklyTargetSnapshots'].forEach(collection => {
       assert.ok(repositorySource.includes(`'${collection}'`), `${collection} is missing from TRAINING_DATA_COLLECTIONS`);
     });
     assert.ok(app.includes('replaceFirestoreData(nextState)'), 'import does not call replaceFirestoreData(nextState)');
@@ -1014,6 +1016,88 @@ async function testAsync(name, fn) {
     assert.strictEqual(normalized.settings.goals.weeklySessionsTarget, 4);
     assert.strictEqual(normalized.settings.features.structuredIntervals, true);
     assert.deepStrictEqual(createEmptyAppState().planned, []);
+  });
+
+  test('v176o effective weekly target preserves legacy weeks and uses the lowest active reduction', () => {
+    const legacy = periodizedPlan.effectiveWeeklyTargetForWeek({
+      weekStart: '2026-08-03',
+      normalTarget: 4,
+      snapshotEffectiveFrom: '2026-08-10',
+      comebackReduction: { active: true, target: 2 }
+    });
+    assert.strictEqual(legacy.target, 4);
+    assert.strictEqual(legacy.source, 'legacy');
+
+    const reduced = periodizedPlan.effectiveWeeklyTargetForWeek({
+      weekStart: '2026-08-10',
+      normalTarget: 4,
+      snapshotEffectiveFrom: '2026-08-10',
+      planReduction: { active: true, target: 2, type: 'deload', slotCount: 2 },
+      comebackReduction: { active: true, target: 2, phase: 'return_week' }
+    });
+    assert.strictEqual(reduced.target, 2);
+    assert.strictEqual(reduced.source, 'plan_and_comeback');
+  });
+
+  test('v176o final weekly snapshot wins over live goals and plan changes', () => {
+    const snapshot = periodizedPlan.buildWeeklyTargetSnapshot({
+      weekStart: '2026-08-10',
+      normalTarget: 4,
+      snapshotEffectiveFrom: '2026-08-10',
+      comebackReduction: { active: true, target: 2, phase: 'return_week' },
+      finalizedAt: '2026-08-17T06:00:00.000Z'
+    });
+    assert.strictEqual(snapshot.effectiveTarget, 2);
+    assert.strictEqual(snapshot.winningReason, 'comeback');
+    const frozen = periodizedPlan.effectiveWeeklyTargetForWeek({
+      weekStart: '2026-08-10',
+      normalTarget: 5,
+      snapshotEffectiveFrom: '2026-08-10',
+      snapshots: [snapshot],
+      planReduction: { active: true, target: 3, type: 'deload' }
+    });
+    assert.strictEqual(frozen.target, 2);
+    assert.strictEqual(frozen.normalTarget, 4);
+    assert.strictEqual(frozen.source, 'snapshot');
+  });
+
+  test('v176o missing snapshot weeks are deterministic and bounded by the current week', () => {
+    const missing = periodizedPlan.missingWeeklyTargetSnapshotWeeks({
+      snapshotEffectiveFrom: '2026-08-10',
+      currentWeekStart: '2026-08-31',
+      snapshots: [{ id: '2026-08-17', weekStart: '2026-08-17', normalTarget: 4, effectiveTarget: 4 }]
+    });
+    assert.deepStrictEqual(missing, ['2026-08-10', '2026-08-24']);
+  });
+
+  test('v176o reaching a reduced target counts as training without consuming freeze protection', () => {
+    const reached = periodizedPlan.weeklyContinuityOutcome({ sessions: 2, target: 2, freezeProtected: true });
+    assert.strictEqual(reached.countsAsContinuity, true);
+    assert.strictEqual(reached.source, 'training');
+    assert.strictEqual(reached.protectedByFreeze, false);
+    const protectedWeek = periodizedPlan.weeklyContinuityOutcome({ sessions: 1, target: 2, freezeProtected: true });
+    assert.strictEqual(protectedWeek.source, 'freeze');
+    assert.strictEqual(protectedWeek.protectedByFreeze, true);
+  });
+
+  test('v176o weekly target snapshots are normalized through state, backup and repository wiring', () => {
+    const normalized = normalizeAppState({
+      weeklyTargetSnapshots: [{
+        id: '2026-08-10',
+        normalTarget: '4',
+        effectiveTarget: '2',
+        winningReason: 'comeback'
+      }],
+      settings: { weeklyTargetSnapshotPolicy: { effectiveFrom: '2026-08-10' } }
+    });
+    assert.strictEqual(normalized.weeklyTargetSnapshots[0].effectiveTarget, 2);
+    assert.strictEqual(normalized.settings.weeklyTargetSnapshotPolicy.effectiveFrom, '2026-08-10');
+    assert.deepStrictEqual(createEmptyAppState().weeklyTargetSnapshots, []);
+    assert.ok(repositorySource.includes("'weeklyTargetSnapshots'"));
+    assert.ok(app.includes('ensureWeeklyTargetFoundation(todayISO())'));
+    assert.ok(app.includes('weeklyTargetForWeek(week.start)'));
+    assert.ok(serviceWorker.includes('./domain-periodized-training-plan.js'));
+    assert.ok(periodizedPlanSource.includes('effectiveWeeklyTargetForWeek'));
   });
 
   test('v164 local store normalizes snapshots before returning them', () => {
@@ -2465,8 +2549,8 @@ async function testAsync(name, fn) {
     assert.ok(workoutHistoryUiSource.includes('heartRateZoneDistributionRows'), 'history does not use production zone rows');
     assert.ok(workoutHistoryUiSource.includes('Tid i pulssoner'), 'completed detail is missing the heart-rate zone section');
     assert.ok(!workoutHistoryUiSource.includes("row.estimated ? 'ca. '"), 'zone duration should not be prefixed with ca.');
-    assert.ok(app.includes("const APP_VERSION = 'v176n1'"), 'visible app version must be v176n1');
-    assert.ok(serviceWorker.includes('treningsapp-v176n1'), 'cache version must match v176n1');
+    assert.ok(app.includes("const APP_VERSION = 'v176o'"), 'visible app version must be v176o');
+    assert.ok(serviceWorker.includes('treningsapp-v176o'), 'cache version must match v176o');
   });
 
   test('v174b evaluates easy and quality sessions without treating zone percentages as a hard truth', () => {
@@ -2561,8 +2645,8 @@ async function testAsync(name, fn) {
     assert.ok(index.includes('id="insightHeartRateComplianceCard"'), 'Insights is missing the compliance card');
     assert.ok(app.includes('heartRateZoneComplianceForItems(last28Days)'), 'coach context does not use the canonical compliance summary');
     assert.ok(app.includes('renderHeartRateZoneComplianceInsight(today)'), 'Insights does not render canonical compliance');
-    assert.ok(app.includes("const APP_VERSION = 'v176n1'"), 'visible app version must be v176n1');
-    assert.ok(serviceWorker.includes('treningsapp-v176n1'), 'cache version must match v176n1');
+    assert.ok(app.includes("const APP_VERSION = 'v176o'"), 'visible app version must be v176o');
+    assert.ok(serviceWorker.includes('treningsapp-v176o'), 'cache version must match v176o');
   });
 
   test('v174c uses the test profile for zones and keeps the golden zone as a separate coach reference', () => {
@@ -3079,8 +3163,8 @@ async function testAsync(name, fn) {
     assert.ok(trainingImportControllerSource.includes("action: duplicate ? 'skip'"), 'duplicates should be skipped by default');
     assert.ok(!trainingImportControllerSource.includes('heartRateZoneDistribution'), 'controller must not synthesize pulse zones');
     assert.ok(styles.includes('.garmin-import-row'), 'Garmin preview styling is missing');
-    assert.ok(app.includes("const APP_VERSION = 'v176n1'"));
-    assert.ok(serviceWorker.includes('treningsapp-v176n1'));
+    assert.ok(app.includes("const APP_VERSION = 'v176o'"));
+    assert.ok(serviceWorker.includes('treningsapp-v176o'));
   });
 
   test('structured interval UI fields and summaries are wired into production files', () => {
