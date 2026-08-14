@@ -150,6 +150,14 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       xWorkoutSuggestion
     } from './domain-training-plan.js';
     import {
+      buildWeeklyTargetSnapshot,
+      effectiveWeeklyTargetForWeek,
+      missingWeeklyTargetSnapshotWeeks,
+      normalizeWeeklyTargetSnapshotPolicy,
+      normalizeWeeklyTargetSnapshots,
+      weeklyContinuityOutcome
+    } from './domain-periodized-training-plan.js';
+    import {
       buildVolumeTrendWindow,
       normalizeVolumeTrendOffset,
       shiftVolumeTrendOffset
@@ -166,7 +174,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     import { createTrainingInsightsUi } from './training-insights-ui.js';
     import { createWorkspaceSectionsUi } from './workspace-sections-ui.js';
 
-const APP_VERSION = 'v176n1';
+const APP_VERSION = 'v176o';
     const APP_CACHE_NAME = `treningsapp-${APP_VERSION}`;
 
     const firebaseConfig = {
@@ -193,6 +201,9 @@ const APP_VERSION = 'v176n1';
     let offlineSnapshotMode = false;
     const LOCAL_STATE_KEY = 'treningsapp:last-state:v1';
     let state = createEmptyAppState();
+    let weeklyTargetFoundationSync = null;
+    let weeklyTargetFoundationRenderPending = false;
+    let weeklyTargetFoundationRenderFailedFor = '';
     const indexedDbSnapshotStore = createIndexedDbKeyValueStore({ indexedDB: window.indexedDB });
     const localStateStore = createLocalStateStore({
       storage: localStorage,
@@ -806,12 +817,113 @@ const APP_VERSION = 'v176n1';
     }
 
     // ── Firestore ─────────────────────────────────────────────────────────────
+    function weeklyTargetSnapshotPolicy() {
+      return normalizeWeeklyTargetSnapshotPolicy(state.settings?.weeklyTargetSnapshotPolicy);
+    }
+
+    function weeklyTargetDecisionForWeek(weekStart, {
+      normalTarget = normalizeGoals(state.settings?.goals).weeklySessionsTarget,
+      comeback = null,
+      planReduction = null
+    } = {}) {
+      const policy = weeklyTargetSnapshotPolicy();
+      return effectiveWeeklyTargetForWeek({
+        weekStart,
+        normalTarget,
+        snapshotEffectiveFrom: policy.effectiveFrom,
+        snapshots: state.weeklyTargetSnapshots,
+        planReduction,
+        comebackReduction: comeback?.active ? {
+          active: true,
+          target: comeback.effectiveWeeklyTarget,
+          phase: comeback.phase
+        } : null
+      });
+    }
+
+    function weeklyTargetForWeek(weekStart, options = {}) {
+      return weeklyTargetDecisionForWeek(weekStart, options).target;
+    }
+
+    function weeklyTargetFoundationNeedsSync(today = todayISO()) {
+      const policy = weeklyTargetSnapshotPolicy();
+      if (!policy.effectiveFrom) return true;
+      return missingWeeklyTargetSnapshotWeeks({
+        snapshotEffectiveFrom: policy.effectiveFrom,
+        currentWeekStart: startOfWeek(today),
+        snapshots: state.weeklyTargetSnapshots
+      }).length > 0;
+    }
+
+    async function ensureWeeklyTargetFoundation(today = todayISO()) {
+      if (!currentUser || !navigator.onLine || offlineSnapshotMode) return { changed: false, offline: true };
+      if (weeklyTargetFoundationSync) return weeklyTargetFoundationSync;
+      weeklyTargetFoundationSync = (async () => {
+        const currentWeekStart = startOfWeek(today);
+        let policy = weeklyTargetSnapshotPolicy();
+        let settingsChanged = false;
+        if (!policy.effectiveFrom) {
+          policy = normalizeWeeklyTargetSnapshotPolicy({}, currentWeekStart);
+          state.settings = normalizeSettings({
+            ...state.settings,
+            weeklyTargetSnapshotPolicy: policy
+          });
+          await trainingRepository.set('settings', 'preferences', state.settings);
+          settingsChanged = true;
+        }
+
+        const missingWeeks = missingWeeklyTargetSnapshotWeeks({
+          snapshotEffectiveFrom: policy.effectiveFrom,
+          currentWeekStart,
+          snapshots: state.weeklyTargetSnapshots
+        });
+        const normalTarget = normalizeGoals(state.settings.goals).weeklySessionsTarget;
+        const finalizedAt = new Date().toISOString();
+        const snapshots = missingWeeks.map(weekStart => {
+          const weekEnd = addDays(weekStart, 6);
+          const completedToWeekEnd = state.completed.filter(item => item.date && item.date <= weekEnd);
+          const comeback = comebackProtocol(completedToWeekEnd, {
+            todayIso: weekEnd,
+            weeklyTarget: normalTarget,
+            rules: getCoachRules()
+          });
+          return buildWeeklyTargetSnapshot({
+            weekStart,
+            normalTarget,
+            snapshotEffectiveFrom: policy.effectiveFrom,
+            comebackReduction: comeback.active ? {
+              active: true,
+              target: comeback.effectiveWeeklyTarget,
+              phase: comeback.phase
+            } : null,
+            finalizedAt
+          });
+        }).filter(Boolean);
+
+        if (snapshots.length) {
+          await trainingRepository.batchSet('weeklyTargetSnapshots', snapshots);
+          state.weeklyTargetSnapshots = normalizeWeeklyTargetSnapshots([
+            ...(state.weeklyTargetSnapshots || []),
+            ...snapshots
+          ]);
+        }
+        if (settingsChanged || snapshots.length) await saveLocalStateSnapshot();
+        return { changed: settingsChanged || snapshots.length > 0, policy, snapshots };
+      })();
+      try {
+        return await weeklyTargetFoundationSync;
+      } finally {
+        weeklyTargetFoundationSync = null;
+      }
+    }
+
     async function loadFromFirestore() {
       if (!navigator.onLine) setSyncStatus(hasPendingLocalWrites ? 'pending' : 'offline');
       else setSyncStatus('syncing');
       try {
         state = await trainingRepository.load();
         offlineSnapshotMode = false;
+        await ensureWeeklyTargetFoundation(todayISO());
         await saveLocalStateSnapshot();
         if (navigator.onLine) {
           hasPendingLocalWrites = false;
@@ -832,6 +944,7 @@ const APP_VERSION = 'v176n1';
 
     async function fsSet(colName, id, data) {
       if (blockOfflineSnapshotWrite()) throw new Error('Offline snapshot is read-only');
+      await ensureWeeklyTargetFoundation(todayISO());
       const wasOffline = !navigator.onLine;
       if (wasOffline) {
         hasPendingLocalWrites = true;
@@ -857,6 +970,7 @@ const APP_VERSION = 'v176n1';
 
     async function fsDelete(colName, id) {
       if (blockOfflineSnapshotWrite()) throw new Error('Offline snapshot is read-only');
+      await ensureWeeklyTargetFoundation(todayISO());
       const wasOffline = !navigator.onLine;
       if (wasOffline) {
         hasPendingLocalWrites = true;
@@ -883,6 +997,7 @@ const APP_VERSION = 'v176n1';
     async function fsBatchSet(colName, items) {
       if (!items.length) return;
       if (blockOfflineSnapshotWrite()) throw new Error('Offline snapshot is read-only');
+      await ensureWeeklyTargetFoundation(todayISO());
       const wasOffline = !navigator.onLine;
       if (wasOffline) {
         hasPendingLocalWrites = true;
@@ -929,6 +1044,7 @@ const APP_VERSION = 'v176n1';
 
     async function replaceFirestoreData(nextState) {
       if (blockOfflineSnapshotWrite()) throw new Error('Offline snapshot is read-only');
+      await ensureWeeklyTargetFoundation(todayISO());
       setSyncStatus('syncing');
       await trainingRepository.replace(nextState);
       await saveLocalStateSnapshot();
@@ -3000,6 +3116,7 @@ const APP_VERSION = 'v176n1';
         state = normalizeAppState(state);
         await saveLocalStateSnapshot();
         render();
+        await ensureWeeklyTargetFoundation(todayISO());
         const repositoryResult = await trainingRepository.importActivities(plan);
         await saveLocalStateSnapshot();
         setSyncStatus('ok');
@@ -4631,7 +4748,7 @@ const APP_VERSION = 'v176n1';
     function renderHomeContinuityCard(ctx, weekStart, weekSummary) {
       const el = document.getElementById('homeContinuityCard');
       if (!el) return;
-      const target = Math.max(1, Number(ctx.goals?.weeklySessionsTarget || 1));
+      const target = Math.max(1, Number(ctx.effectiveWeeklyTarget || ctx.goals?.weeklySessionsTarget || 1));
       const streak = calculateWeeklyStreak(weekStart, target);
       const remaining = Math.max(0, target - (weekSummary.sessions || 0));
       const weeks = buildContinuityWeeks(weekStart);
@@ -4639,12 +4756,14 @@ const APP_VERSION = 'v176n1';
       const todayFreeze = activeContinuityFreezeForDate(ctx.today || todayISO());
       const chips = weeks.map((week, index) => {
         const sessions = week.summary.sessions || 0;
+        const weekTarget = week.start === weekStart ? target : weeklyTargetForWeek(week.start);
         const protectedWeek = weekProtectedByFreeze(week.start);
-        const status = sessions >= target ? 'done' : protectedWeek ? 'protected' : sessions > 0 ? 'partial' : 'empty';
+        const outcome = weeklyContinuityOutcome({ sessions, target: weekTarget, freezeProtected: protectedWeek });
+        const status = outcome.meetsTarget ? 'done' : outcome.protectedByFreeze ? 'protected' : sessions > 0 ? 'partial' : 'empty';
         const isCurrent = index === weeks.length - 1;
-        const title = protectedWeek && sessions < target
+        const title = outcome.protectedByFreeze
           ? `${formatWeekRange(week.start, week.end)}: fryskort beskytter uka`
-          : `${formatWeekRange(week.start, week.end)}: ${sessions}/${target}`;
+          : `${formatWeekRange(week.start, week.end)}: ${sessions}/${weekTarget}`;
         return `<span class="home-continuity-dot ${status} ${isCurrent ? 'current' : ''}" title="${escapeHtml(title)}"></span>`;
       }).join('');
       const note = remaining === 0
@@ -4793,9 +4912,7 @@ const APP_VERSION = 'v176n1';
       const primaryItems = todayItems.length ? todayItems : nextDateItems;
 
       const coachCtx = buildCoachContext();
-      const effectiveGoals = coachCtx.comeback?.active
-        ? { ...goals, weeklySessionsTarget: coachCtx.effectiveWeeklyTarget }
-        : goals;
+      const effectiveGoals = { ...goals, weeklySessionsTarget: coachCtx.effectiveWeeklyTarget };
       const freezeSummary = continuityFreezeWeekSummary(weekStart, state.continuityFreezes, { rules: getCoachRules() });
       renderHomeWeekStatus(today, weekStart, weekSummary, weekItems, effectiveGoals, profile, freezeSummary);
       const todayDecisionResult = buildTodayDecision(coachCtx, primaryItems, todayItems);
@@ -5439,15 +5556,19 @@ const APP_VERSION = 'v176n1';
       return isWeekProtectedByFreeze(weekStart, state.continuityFreezes, { rules: getCoachRules() });
     }
 
-    function weekMeetsContinuityTarget(week, weeklyTarget) {
-      return (week.summary.sessions || 0) >= weeklyTarget || weekProtectedByFreeze(week.start);
+    function weekMeetsContinuityTarget(week, weeklyTarget = weeklyTargetForWeek(week.start)) {
+      return weeklyContinuityOutcome({
+        sessions: week.summary.sessions,
+        target: weeklyTarget,
+        freezeProtected: weekProtectedByFreeze(week.start)
+      }).countsAsContinuity;
     }
 
-    function calculateWeeklyStreak(currentWeekStart, weeklyTarget) {
+    function calculateWeeklyStreak(currentWeekStart, currentWeeklyTarget = weeklyTargetForWeek(currentWeekStart)) {
       let streak = 0;
       let cursor = currentWeekStart;
       const currentWeek = weekSummaryForStart(cursor);
-      if (weekMeetsContinuityTarget(currentWeek, weeklyTarget)) {
+      if (weekMeetsContinuityTarget(currentWeek, currentWeeklyTarget)) {
         streak += 1;
         cursor = addDays(cursor, -7);
       } else {
@@ -5456,7 +5577,7 @@ const APP_VERSION = 'v176n1';
 
       while (true) {
         const week = weekSummaryForStart(cursor);
-        if (!weekMeetsContinuityTarget(week, weeklyTarget)) break;
+        if (!weekMeetsContinuityTarget(week, weeklyTargetForWeek(week.start))) break;
         streak += 1;
         cursor = addDays(cursor, -7);
       }
@@ -5480,17 +5601,19 @@ const APP_VERSION = 'v176n1';
       const weeks = buildContinuityWeeks(weekStart);
       document.getElementById('insightContinuityWeeks').innerHTML = weeks.map((week, index) => {
         const sessions = week.summary.sessions;
+        const weekTarget = week.start === weekStart ? target : weeklyTargetForWeek(week.start);
         const protectedWeek = weekProtectedByFreeze(week.start);
-        const status = sessions >= target ? 'done' : protectedWeek ? 'protected' : sessions > 0 ? 'partial' : 'empty';
+        const outcome = weeklyContinuityOutcome({ sessions, target: weekTarget, freezeProtected: protectedWeek });
+        const status = outcome.meetsTarget ? 'done' : outcome.protectedByFreeze ? 'protected' : sessions > 0 ? 'partial' : 'empty';
         const isCurrent = index === weeks.length - 1;
         const distance = weeks.length - 1 - index;
         const weekLabel = isCurrent ? 'Denne uken' : distance === 1 ? 'Forrige' : `-${distance} uker`;
-        const label = sessions >= target ? 'OK' : protectedWeek ? 'Frys' : `${sessions}/${target}`;
+        const label = outcome.meetsTarget ? 'OK' : outcome.protectedByFreeze ? 'Frys' : `${sessions}/${weekTarget}`;
         return `
           <div class="continuity-chip ${status} ${isCurrent ? 'current' : ''}" title="${escapeHtml(formatDate(week.start))} - ${escapeHtml(formatDate(week.end))}">
             <span class="continuity-week-label">${escapeHtml(weekLabel)}</span>
             <strong>${escapeHtml(label)}</strong>
-            <span>${sessions >= target ? 'i mål' : protectedWeek ? 'beskyttet' : `${sessions} økt${sessions === 1 ? '' : 'er'}`}</span>
+            <span>${outcome.meetsTarget ? 'i mål' : outcome.protectedByFreeze ? 'beskyttet' : `${sessions} økt${sessions === 1 ? '' : 'er'}`}</span>
             <small>${escapeHtml(formatWeekRange(week.start, week.end))}</small>
           </div>`;
       }).join('');
@@ -5898,9 +6021,11 @@ const APP_VERSION = 'v176n1';
         weeklyTarget: goals.weeklySessionsTarget,
         rules: activeCoachRules
       });
-      const effectiveWeeklyTarget = comeback.active && comeback.effectiveWeeklyTarget
-        ? comeback.effectiveWeeklyTarget
-        : goals.weeklySessionsTarget;
+      const weeklyTargetDecision = weeklyTargetDecisionForWeek(startOfWeek(today), {
+        normalTarget: goals.weeklySessionsTarget,
+        comeback
+      });
+      const effectiveWeeklyTarget = weeklyTargetDecision.target;
 
       const latestHrv = latestMetric('hrv7d');
       const latestRestingHr = latestMetric('restingHeartRate7d');
@@ -5949,7 +6074,7 @@ const APP_VERSION = 'v176n1';
         thisWeek, last7Days, last14Days, last28Days, completedToday,
         weekSummary, load7,
         bodySignals14, consecutiveDays, daysSinceLast, lastWorkout,
-        volumeRamp, comeback, effectiveWeeklyTarget,
+        volumeRamp, comeback, weeklyTargetDecision, effectiveWeeklyTarget,
         latestHrv, latestRestingHr,
         goldenZone, heartRateZoneProfile, heartRateCompliance14, heartRateZoneCompliance28, intensityBalance14,
         weekPlanRoles, completedRoles, missingRoles,
@@ -6136,7 +6261,7 @@ const APP_VERSION = 'v176n1';
           nextStep: ctx.racePlan?.nextStep || ctx.racePlan?.focus || ctx.goalScore?.nextImprovement || ''
         },
         continuity: {
-          streakWeeks: calculateWeeklyStreak(weekStart, ctx.goals.weeklySessionsTarget),
+          streakWeeks: calculateWeeklyStreak(weekStart, ctx.effectiveWeeklyTarget),
           freezeActiveToday: Boolean(todayFreeze),
           weekProtected: freezeWeek.protected,
           freezeReason: todayFreeze ? continuityFreezeReasonLabel(todayFreeze.reason) : freezeWeek.reasonLabels?.[0] || '',
@@ -6380,7 +6505,7 @@ const APP_VERSION = 'v176n1';
 
     // ── Bakken-mønstre ────────────────────────────────────────────────────────
 
-    function buildBakkenPatterns(today, profile, goals) {
+    function buildBakkenPatterns(today, profile, goals, currentWeeklyTarget = goals.weeklySessionsTarget) {
       const start30 = addDays(today, -29);
       const items30 = state.completed.filter(c => c.date >= start30 && c.date <= today);
       const weekStart = startOfWeek(today);
@@ -6434,23 +6559,28 @@ const APP_VERSION = 'v176n1';
 
       // 4. Ukentlig konsistens siste 4 uker
       const recentWeeks = recentWeekSummaries(weekStart, 4);
-      const metGoal = recentWeeks.filter(w => w.summary.sessions >= goals.weeklySessionsTarget).length;
+      const currentTarget = Math.max(1, Number(currentWeeklyTarget) || goals.weeklySessionsTarget);
+      const metGoal = recentWeeks.filter(w => w.summary.sessions >= (
+        w.start === weekStart
+          ? currentTarget
+          : weeklyTargetForWeek(w.start, { normalTarget: goals.weeklySessionsTarget })
+      )).length;
       const total = recentWeeks.length;
       if (total >= 2) {
         const status = metGoal >= 3 ? 'green' : metGoal >= 2 ? 'yellow' : 'red';
-        patterns.push({ status, label: 'Ukentlig konsistens', detail: `${metGoal} av ${total} uker nådde ukesmålet (${goals.weeklySessionsTarget} økter)` });
+        patterns.push({ status, label: 'Ukentlig konsistens', detail: `${metGoal} av ${total} uker nådde ukesmålet som gjaldt den uken` });
       }
 
       return patterns;
     }
 
-    function renderBakkenPatterns() {
+    function renderBakkenPatterns(coachCtx = null) {
       const container = document.getElementById('insightPatterns');
       if (!container) return;
       const today = todayISO();
       const profile = normalizeTrainingProfile(state.settings.trainingProfile);
       const goals = normalizeGoals(state.settings.goals);
-      const patterns = buildBakkenPatterns(today, profile, goals);
+      const patterns = buildBakkenPatterns(today, profile, goals, coachCtx?.effectiveWeeklyTarget);
       container.innerHTML = patterns.map(p => `
         <div class="pattern-item">
           <span class="pattern-dot ${p.status}"></span>
@@ -6634,8 +6764,10 @@ const APP_VERSION = 'v176n1';
       const weekSummary = summarizeCompleted(weekItems);
       const last14Start = addDays(today, -13);
       const last14Days = state.completed.filter(c => c.date >= last14Start && c.date <= today);
+      const coachCtx = buildCoachContext();
+      const effectiveGoals = { ...goals, weeklySessionsTarget: coachCtx.effectiveWeeklyTarget };
 
-      const status = weeklyTrainingStatus(weekItems, weekSummary, goals, profile);
+      const status = weeklyTrainingStatus(weekItems, weekSummary, effectiveGoals, profile);
       document.getElementById('insightWeekTime').textContent = formatClockDuration(weekSummary.seconds);
       document.getElementById('insightWeekKm').textContent = formatKm(weekSummary.km);
       document.getElementById('insightWeekLoad').textContent = status.label;
@@ -6643,21 +6775,23 @@ const APP_VERSION = 'v176n1';
 
       const hours = weekSummary.seconds / 3600;
       document.getElementById('insightWeekProgress').innerHTML = [
-        progressRow('Ukesmål økter', weekSummary.sessions, goals.weeklySessionsTarget),
+        progressRow('Ukesmål økter', weekSummary.sessions, effectiveGoals.weeklySessionsTarget),
         progressRow('Timer', hours, goals.weeklyHoursTarget, 't'),
         progressRow('Kilometer', weekSummary.km, goals.weeklyKmTarget, 'km')
       ].join('');
-      renderWeeklyTrainingStatus(weekItems, weekSummary, goals, profile);
+      renderWeeklyTrainingStatus(weekItems, weekSummary, effectiveGoals, profile);
       renderWeeklyBodySignals(weekItems);
       renderIntensityBalance(today, profile);
-      renderContinuity(weekSummary, goals, weekStart);
+      renderContinuity(weekSummary, effectiveGoals, weekStart);
 
       const trendWeeks = recentWeekSummaries(weekStart, 6);
       renderVolumeTrends();
 
       const weeks = trendWeeks.slice(-4);
       document.getElementById('insightFourWeeks').innerHTML = weeks.map((week, index) => {
-        const target = goals.weeklySessionsTarget;
+        const target = week.start === weekStart
+          ? effectiveGoals.weeklySessionsTarget
+          : weeklyTargetForWeek(week.start, { normalTarget: goals.weeklySessionsTarget });
         const percent = Math.max(0, Math.min(100, (week.summary.sessions / Math.max(1, target)) * 100));
         const isCurrent = index === weeks.length - 1;
         const isPrevious = index === weeks.length - 2;
@@ -6682,9 +6816,8 @@ const APP_VERSION = 'v176n1';
           </div>`;
       }).join('');
 
-      const coachCtx = buildCoachContext();
       renderTrainingLevelAssessment(coachCtx);
-      renderBakkenPatterns();
+      renderBakkenPatterns(coachCtx);
       renderStructuredIntervalInsights(today);
       renderHeartRateZoneComplianceInsight(today);
       renderInjurySignalInsight(today);
@@ -7233,8 +7366,33 @@ const APP_VERSION = 'v176n1';
 
     // ── Render ────────────────────────────────────────────────────────────────
     function render() {
-      renderCalendar();
       const today = todayISO();
+      const currentWeekStart = startOfWeek(today);
+      const shouldFinalizeWeeklyTargets = currentUser
+        && navigator.onLine
+        && !offlineSnapshotMode
+        && weeklyTargetFoundationRenderFailedFor !== currentWeekStart
+        && weeklyTargetFoundationNeedsSync(today);
+      if (shouldFinalizeWeeklyTargets) {
+        if (!weeklyTargetFoundationRenderPending) {
+          weeklyTargetFoundationRenderPending = true;
+          ensureWeeklyTargetFoundation(today)
+            .then(() => {
+              weeklyTargetFoundationRenderFailedFor = '';
+            })
+            .catch(err => {
+              weeklyTargetFoundationRenderFailedFor = currentWeekStart;
+              console.warn('Kunne ikke ferdigstille historiske ukesmål før rendering:', err);
+            })
+            .finally(() => {
+              weeklyTargetFoundationRenderPending = false;
+              render();
+            });
+        }
+        return;
+      }
+
+      renderCalendar();
       renderAppVersionInfo();
       renderLocalSnapshotStatus();
       document.getElementById('todayPill').textContent = formatDate(today);
@@ -7246,6 +7404,7 @@ const APP_VERSION = 'v176n1';
       state.raceResults = normalizeRaceResultEntries(state.raceResults);
       state.continuityFreezes = normalizeContinuityFreezes(state.continuityFreezes);
       state.heartRateZoneSets = normalizeHeartRateZoneSets(state.heartRateZoneSets);
+      state.weeklyTargetSnapshots = normalizeWeeklyTargetSnapshots(state.weeklyTargetSnapshots);
 
       getWorkoutTemplateUi().refreshFormOptions();
       renderSettingsList('activityTypes', 'activityTypeList');
@@ -7336,7 +7495,7 @@ const APP_VERSION = 'v176n1';
           const keys = await caches.keys();
           await Promise.all(keys.filter(key => key.startsWith('treningsapp-')).map(key => caches.delete(key)));
         }
-        await Promise.all(['./index.html', './styles.css', './app.js', './ai-coach-client.js', './ai-coach-ui.js', './domain-core.js', './domain-coach.js', './domain-goals.js', './domain-coach-rules.js', './domain-fitness.js', './domain-exercises.js', './domain-heart-rate-zones.js', './domain-volume-trends.js', './domain-workout-assessment.js', './domain-insight-confidence.js', './insight-confidence-ui.js', './garmin-csv-import.js', './training-import-controller.js', './training-import-ui.js', './app-state.js', './local-state-store.js', './training-repository.js', './domain-training-plan.js', './calendar-ui.js', './workout-template-ui.js', './workout-completion-ui.js', './workout-history-ui.js', './exercise-library-ui.js', './heart-rate-zones-ui.js', './data/coach-rules.json', './service-worker.js'].map(path =>
+        await Promise.all(['./index.html', './styles.css', './app.js', './ai-coach-client.js', './ai-coach-ui.js', './domain-core.js', './domain-coach.js', './domain-goals.js', './domain-coach-rules.js', './domain-fitness.js', './domain-exercises.js', './domain-heart-rate-zones.js', './domain-volume-trends.js', './domain-workout-assessment.js', './domain-insight-confidence.js', './insight-confidence-ui.js', './garmin-csv-import.js', './training-import-controller.js', './training-import-ui.js', './app-state.js', './local-state-store.js', './training-repository.js', './domain-training-plan.js', './domain-periodized-training-plan.js', './calendar-ui.js', './workout-template-ui.js', './workout-completion-ui.js', './workout-history-ui.js', './exercise-library-ui.js', './heart-rate-zones-ui.js', './data/coach-rules.json', './service-worker.js'].map(path =>
           fetch(path, { cache: 'reload' }).catch(() => null)
         ));
       } finally {
