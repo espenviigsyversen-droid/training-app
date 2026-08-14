@@ -1646,13 +1646,13 @@ Mål og levert:
 Rekkefølge og porter:
 
 1. Design og kontrakter er dokumentert uten runtime-endring.
-2. Historisk målfundament leverer `weeklyTargetSnapshots`, `effectiveWeeklyTargetForWeek()` og full state/repository/backup/recovery-kobling.
+2. Historisk målfundament leverer `weeklyTargetSnapshots`, `effectiveWeeklyTargetForWeek()` og full state/repository/backup/recovery-kobling. Bygget i v176o.
 3. Ren blokkdomene-logikk leverer kalibrering, volumramme, prospektiv validering, rollepolicy og ukesevaluering.
 4. Controller/persistence leverer planrevisjon, preview/diff, konfliktpolicy og materialisering av bare inneværende/neste uke.
 5. Mobil-først produktflate leverer firestegs opprettelse, Kalender-planoversikt, Hjem-kort og fullført-oppsummering.
 6. Coach-kontekst, ukefullføring, ende-til-ende-test og release avslutter v1.
 
-Snapshotmekanismen er planlagt i runde 2. Runde 4 er absolutt siste trygge tidspunkt, og aktiveringsporten skal være lukket til mekanismen faktisk er i produksjon. Sletting midt i en pågående avlastningsuke fryser målet som gjaldt før planen fjernes.
+Snapshotmekanismen er levert i runde 2, før første blokk kan aktiveres. Runde 4 var definert som absolutt siste trygge tidspunkt, men er ikke lenger en utestående risiko. Sletting midt i en pågående avlastningsuke skal fortsatt fryse målet som gjaldt før planen fjernes når plan-controlleren bygges.
 
 Volumrammen valideres bare når blokk og volumvakt bruker samme metrikk. `metric_mismatch` og `insufficient_data` vises ærlig; systemet konverterer ikke mellom minutter og økter og avviser ikke en ramme bare fordi historikken er kort. Volum- og kroppssignalvarsler undertrykkes aldri fordi økten lå i planen.
 
@@ -1694,7 +1694,7 @@ Foreslått modulgrense:
 
 `v172a-v172b` er bygget samlet. `STRUCTURED_EXERCISES_DESIGN.md` dokumenterer den versjonerte modellen, og produksjonen bruker `domain-exercises.js` og `exercise-library-ui.js`. Øvelser kan gjenbrukes i styrkemaler med sett, repetisjoner, pause, belastning, notat og sikre lenker. Malen lagrer snapshots slik at senere bibliotekendringer ikke endrer planlagte eller historiske økter.
 
-Utviklingsløpet gjennom `v176n1` er bygget. Garmin-importen er kontrollert og kildeuavhengig, Innsikt er organisert i progressive arbeidsflater, «Form ved samme innsats» har et konservativt og forklarbart sammenligningsgrunnlag, og fem sentrale innsikter bruker samme synlige evidenskontrakt. `TRAINING_PLANS_DESIGN.md` er ferdig og gjør historisk målfundament til neste implementeringsrunde. v177 nedoverbelastning og v178 kroppsmål beholdes som senere planlagte spor.
+Utviklingsløpet gjennom `v176o` er bygget. Garmin-importen er kontrollert og kildeuavhengig, Innsikt er organisert i progressive arbeidsflater, og `TRAINING_PLANS_DESIGN.md` er bindende for videre arbeid. Runde 2 har levert historisk stabile ukesmål, felles effektivt mål i Hjem/ukestatus/kontinuitet/coach og komplett state/repository/backup/recovery-kobling. Runde 3 med ren blokkdomene-logikk er neste planlagte steg. v177 nedoverbelastning og v178 kroppsmål beholdes som senere spor.
 
 ## Hva vi bør vente med
 
