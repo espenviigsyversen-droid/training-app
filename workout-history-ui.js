@@ -299,24 +299,38 @@ export function createWorkoutHistoryUi({
     </div>`;
   }
 
+  function aiSparkIcon() {
+    return `<svg class="ai-spark-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path d="M12 2.8c.5 3.7 2.4 5.6 6.1 6.1-3.7.5-5.6 2.4-6.1 6.1-.5-3.7-2.4-5.6-6.1-6.1C9.6 8.4 11.5 6.5 12 2.8Z"></path>
+      <path d="M18.5 14.6c.2 1.8 1.1 2.7 2.9 2.9-1.8.2-2.7 1.1-2.9 2.9-.2-1.8-1.1-2.7-2.9-2.9 1.8-.2 2.7-1.1 2.9-2.9ZM5 2.8c.2 1.3.8 2 2.1 2.1C5.8 5.1 5.2 5.7 5 7c-.2-1.3-.8-2-2.1-2.1C4.2 4.8 4.8 4.1 5 2.8Z"></path>
+    </svg>`;
+  }
+
+  function aiAssessmentButton(completedId, label) {
+    return `<button type="button" class="ai-workout-assessment-btn ai-spark-button" data-workout-id="${escapeHtml(completedId)}" onclick="requestAiWorkoutAssessment(this.dataset.workoutId)" aria-label="${escapeHtml(label)}" title="${escapeHtml(label)}">${aiSparkIcon()}</button>`;
+  }
+
   function aiCoachAssessmentHtml(completed) {
     const state = aiAssessmentState?.(completed) || {};
     const result = state.assessment;
     if (!result) {
-      return `<div class="ai-workout-assessment empty">
-        <p>Be AI-coachen vurdere økten opp mot målet, planen og treningsbelastningen din.</p>
-        <button class="btn-primary ai-workout-assessment-btn" data-workout-id="${escapeHtml(completed.id)}" onclick="requestAiWorkoutAssessment('${completed.id}')">Få AI-vurdering</button>
+      return `<div class="ai-workout-assessment-trigger">
+        <div><strong>Ekstra analyse</strong><span>Ved behov kan AI-coachen se etter mønstre og treningsbetydning.</span></div>
+        ${aiAssessmentButton(completed.id, 'Få AI-vurdering')}
       </div>`;
     }
+    const isV2 = Number(result.version) >= 2;
     return `<div class="ai-workout-assessment${state.stale ? ' stale' : ''}">
       ${state.stale ? '<div class="ai-assessment-stale">Øktgrunnlaget er endret siden denne vurderingen ble laget.</div>' : ''}
-      <strong class="workout-coach-headline">${escapeHtml(result.headline)}</strong>
-      <div><span>Observasjoner</span><ul>${result.evidence.map(item => `<li>${escapeHtml(item)}</li>`).join('')}</ul></div>
-      <div><span>Samsvar med planen</span><p>${escapeHtml(result.planFit)}</p></div>
+      <div class="ai-assessment-heading"><strong class="workout-coach-headline">${escapeHtml(result.headline)}</strong>${aiAssessmentButton(completed.id, 'Vurder økten på nytt')}</div>
+      ${isV2 ? `<p class="ai-assessment-summary">${escapeHtml(result.summary)}</p>
+      <div><span>Dette skiller seg ut</span><ul>${result.standouts.map(item => `<li>${escapeHtml(item)}</li>`).join('')}</ul></div>
+      <div><span>Hva det kan bety</span><p>${escapeHtml(result.trainingMeaning)}</p></div>
+      ${result.goalConnection ? `<div><span>Kobling til målet</span><p>${escapeHtml(result.goalConnection)}</p></div>` : ''}` : `<div><span>Observasjoner</span><ul>${result.evidence.map(item => `<li>${escapeHtml(item)}</li>`).join('')}</ul></div>
+      <div><span>Samsvar med planen</span><p>${escapeHtml(result.planFit)}</p></div>`}
       <div><span>Neste steg</span><p>${escapeHtml(result.nextStep)}</p></div>
       ${result.uncertainty ? `<div><span>Usikkerhet</span><p>${escapeHtml(result.uncertainty)}</p></div>` : ''}
       <div class="ai-assessment-meta">${escapeHtml([result.modelLabel, result.generatedAt ? new Date(result.generatedAt).toLocaleString('nb-NO') : ''].filter(Boolean).join(' · '))}</div>
-      <button class="btn-soft ai-workout-assessment-btn" data-workout-id="${escapeHtml(completed.id)}" onclick="requestAiWorkoutAssessment('${completed.id}')">Vurder på nytt</button>
     </div>`;
   }
 
