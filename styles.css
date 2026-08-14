@@ -3273,7 +3273,19 @@
       display: grid;
       gap: 12px;
     }
-    .ai-workout-assessment.empty p,
+    .ai-workout-assessment-trigger {
+      min-height: 58px;
+      padding: 7px 7px 7px 12px;
+      border: 1px solid rgba(61, 111, 190, 0.24);
+      background: rgba(61, 111, 190, 0.045);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .ai-workout-assessment-trigger > div { display: grid; gap: 2px; min-width: 0; }
+    .ai-workout-assessment-trigger strong { color: var(--black); }
+    .ai-workout-assessment-trigger span { color: var(--warm-gray-3); font-size: 0.8rem; line-height: 1.35; }
     .ai-workout-assessment p { margin: 3px 0 0; }
     .ai-workout-assessment > div > span {
       color: var(--warm-gray-3);
@@ -3288,7 +3300,43 @@
     .ai-workout-assessment.stale { border-color: rgba(190, 128, 0, 0.42); background: rgba(255, 194, 61, 0.09); }
     .ai-assessment-stale { color: #7c5200; font-weight: 800; }
     .ai-assessment-meta { color: var(--warm-gray-3); font-size: 0.75rem; }
-    .ai-workout-assessment-btn { width: 100%; }
+    .ai-assessment-heading { display: flex !important; grid-template-columns: minmax(0, 1fr) auto; flex-direction: row; align-items: center; justify-content: space-between; gap: 12px; }
+    .ai-assessment-summary { color: var(--black); font-size: 0.94rem; line-height: 1.45; }
+    .ai-spark-button {
+      position: relative;
+      flex: 0 0 44px;
+      width: 44px;
+      height: 44px;
+      padding: 0;
+      border: 0;
+      border-radius: 14px;
+      color: white;
+      background: linear-gradient(145deg, #7658ec, #9b56dc);
+      display: inline-grid;
+      place-items: center;
+      box-shadow: 0 7px 18px rgba(100, 73, 190, 0.2);
+      cursor: pointer;
+    }
+    .ai-spark-button:hover { filter: brightness(1.06); transform: translateY(-1px); }
+    .ai-spark-button:focus-visible { outline: 3px solid rgba(118, 88, 236, 0.28); outline-offset: 2px; }
+    .ai-spark-button:disabled { cursor: wait; opacity: 0.78; transform: none; }
+    .ai-spark-icon { width: 23px; height: 23px; fill: currentColor; }
+    .ai-spark-button.is-loading .ai-spark-icon { opacity: 0; }
+    .ai-spark-button.is-loading::after {
+      content: '';
+      width: 17px;
+      height: 17px;
+      border: 2px solid rgba(255,255,255,0.42);
+      border-top-color: white;
+      border-radius: 50%;
+      animation: ai-spin 0.8s linear infinite;
+    }
+    @keyframes ai-spin { to { transform: rotate(360deg); } }
+    @media (prefers-reduced-motion: reduce) {
+      .ai-spark-button { transition: none; }
+      .ai-spark-button:hover { transform: none; }
+      .ai-spark-button.is-loading::after { animation-duration: 1.8s; }
+    }
     .heart-rate-zone-row {
       display: grid;
       grid-template-columns: minmax(0, 1fr) auto;
