@@ -335,6 +335,10 @@ Prioritert backlog for videre utvikling av Treningsapp.
     - Del bare aggregert historisk sammenligningsgrunnlag fra inntil seks relevante økter.
     - Komprimer tomtilstanden til en tilgjengelig ikonhandling og behold bakoverkompatibilitet med v1-resultater.
 
+52j.1. **v176n1 - Mobil øktmodal** - Bygget
+    - La det store økthodet rulle bort på mobil og gi detaljene nesten full skjermhøyde med safe-area-hensyn.
+    - Behold desktopvisningen, toppkrysset og den nederste Lukk-handlingen uendret.
+
 53. **v177 - Nedoverbelastning**
     - Registrer stigning og nedstigning separat.
     - Skill kondisjonsbelastning fra muskel-/støtbelastning.
@@ -383,3 +387,4 @@ Begrunnelse:
 - v155-reglene er testet i Firestore-emulator: eierens appdata fungerer, andre brukere avvises, chat-writes er backend-only og `apiKeys/{uid}` / `aiUsage/{uid}` er sperret
 - v154 har fungerende dynamisk tilkoblingsstatus, egen Chat-fane og bestått ende-til-ende-test med ekte OpenAI-svar
 - Produksjonsreglene er sammenlignet og deployet. Chat ligger i isolert `aiChatUsers/{uid}`-rot, og den sammenslåtte regelfilen bevarer eksisterende regler for `users`, `households`, `families`, `familyCodes` og `adminFamilyHealth`.
+
