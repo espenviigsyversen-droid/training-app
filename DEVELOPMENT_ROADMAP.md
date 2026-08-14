@@ -1633,6 +1633,12 @@ Mål og levert:
 - Behold gamle v1-vurderinger lesbare og la backend godta både v1- og v2-klienter i overgangsperioden.
 - Vis tom AI-vurdering som en kompakt rad med et tilgjengelig stjerneikon; behold full analyse først etter eksplisitt trykk.
 
+### v176n1 - Mobil øktmodal - Bygget
+
+- La det store økthodet rulle bort på mobil, samtidig som lukking fortsatt er tilgjengelig øverst og nederst.
+- Bruk nesten hele mobilens tilgjengelige høyde med safe-area-hensyn og mindre ytterluft.
+- Behold desktopvisningen og alt modalinnhold uendret.
+
 ### v177 - Nedoverbelastning og todimensjonal høydevurdering
 
 Mål:
@@ -1776,3 +1782,4 @@ v154-v156 er deployet og manuelt verifisert, inkludert kryssenhetssynk, arkiv og
 - assistant-svar vises roligere og mindre kortpreget; brukermeldinger beholdes som diskrete bobler
 - grunnlag og personvern ligger under den eksisterende samtale-/prosjektadministrasjonen
 - backend, Firestore-modell, synkronisering, coach-context og sikkerhetsregler er uendret
+
