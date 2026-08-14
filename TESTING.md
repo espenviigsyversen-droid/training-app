@@ -10,6 +10,7 @@ Kjør alltid:
 node --check app.js
 node --check service-worker.js
 node --check domain-core.js
+node --check domain-periodized-training-plan.js
 node tests\stability-tests.js
 ```
 
@@ -34,6 +35,11 @@ node tests\stability-tests.js
 - at gylne sone-prosentene matcher treningsnivå
 - at ukeplan-datoer hopper over planlagte og blokkerte dager
 - at neste uke-planlegging prioriterer ikke-sammenhengende dager når mulig
+- at historiske uker før snapshotdatoen beholder ordinært legacy-mål
+- at laveste aktive reduksjon vinner når plan og comeback gjelder samtidig
+- at et ferdigstilt ukesmålsnapshot ikke endres av senere levende mål
+- at nådd redusert ukesmål teller som trening uten å bruke kontinuitetsfrys
+- at `weeklyTargetSnapshots` inngår i state, repository, full backup/import, lokal snapshot og PWA-cache
 
 ## Hva testene ikke dekker ennå
 
@@ -69,3 +75,4 @@ Etter større endringer:
 7. Lag eller oppdater en challenge
 8. Eksporter backup
 9. Kjør `Oppdater app`
+
