@@ -16,8 +16,12 @@ users/{uid}/
 ├── blockedDays/
 ├── raceResults/
 ├── continuityFreezes/
+├── heartRateZoneSets/
+├── weeklyTargetSnapshots/
 └── settings/preferences
 ```
+
+`weeklyTargetSnapshots/{weekStart}` fryser det effektive øktmålet for hver avsluttet uke fra og med `settings.preferences.weeklyTargetSnapshotPolicy.effectiveFrom`. Uker før denne datoen bruker den gamle logikken og det ordinære `goals.weeklySessionsTarget`, slik at eksisterende streak ikke endres. Snapshotet skrives ved første autentiserte synkronisering etter at uken er avsluttet, før historisk kontinuitet renderes eller nye treningsdata skrives. Et nådd redusert mål teller som ordinær trening; et kontinuitetsfryskort vurderes bare når målet ikke er nådd.
 
 AI-chat lagres separat under `aiChatUsers/{uid}/projects/...` og inngår ikke i vanlig treningsbackup/import. Den separate roten er nødvendig fordi Firebase-prosjektet deles med andre apper og har en eksisterende rekursiv eierregel under `users/{uid}`. Frontend kan lese egne chatdokumenter, mens oppretting, endring, arkivering og rekursiv sletting skal gå via autentisert backend.
 
@@ -33,6 +37,10 @@ Hovedfelter:
 - `wellness`
 - `challenges`
 - `blockedDays`
+- `raceResults`
+- `continuityFreezes`
+- `heartRateZoneSets`
+- `weeklyTargetSnapshots`
 - `settings`
 
 ## Offline og snapshot
@@ -82,6 +90,8 @@ Korrekt importflyt:
 
 Dette hindrer at gamle Firestore-dokumenter gjenoppstår etter import.
 
+`weeklyTargetSnapshots` følger samme fullstendige eksport-, replace-, lokal snapshot- og recovery-flyt som øvrige treningssamlinger. Gamle backuper uten samlingen normaliseres til en tom liste. Ved første påfølgende autentiserte synkronisering settes `snapshotEffectiveFrom` til inneværende ukes mandag; tidligere uker forblir legacy og rekonstrueres ikke.
+
 ## Recovery
 
 Før import og reset lagres en lokal recovery snapshot. Denne kan gjenopprettes fra Setup med:
@@ -99,3 +109,4 @@ Dette er ikke en erstatning for manuell eksport, men et ekstra sikkerhetsnett.
 - Endringer i dataformat uten bakoverkompatibel normalisering
 - Offline-visning som forveksles med redigerbar sync-modus
 - `localStorage` kan nå kvoten når komplett state-snapshot vokser. Firestore/IndexedDB fortsetter, men den egne fallback-snapshoten kan bli utdatert; dette er registrert som eget backlogpunkt.
+
