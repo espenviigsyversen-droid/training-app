@@ -1,4 +1,4 @@
-const CACHE_NAME = "treningsapp-v176m";
+const CACHE_NAME = "treningsapp-v176n";
 const FIREBASE_MODULES = [
   "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js",
   "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js",
@@ -41,6 +41,7 @@ const APP_SHELL = [
   "./workout-history-ui.js",
   "./domain-workout-assessment.js",
   "./domain-ai-workout-assessment.js",
+  "./domain-ai-workout-context.js",
   "./manifest.json",
   "./Treningsfilosofi/coach-rammeverk.md",
   "./data/coach-rules.json",
@@ -109,6 +110,7 @@ self.addEventListener("fetch", (event) => {
     url.pathname.endsWith("/workout-history-ui.js") ||
     url.pathname.endsWith("/domain-workout-assessment.js") ||
     url.pathname.endsWith("/domain-ai-workout-assessment.js") ||
+    url.pathname.endsWith("/domain-ai-workout-context.js") ||
     url.pathname.endsWith("/styles.css") ||
     url.pathname.endsWith("/manifest.json") ||
     url.pathname.endsWith("/service-worker.js")
