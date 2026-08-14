@@ -165,13 +165,15 @@ Ny, uavhengig samling:
   normalTarget: 4,
   effectiveTarget: 3,
   reductions: {
-    plan: { active: true, planId, type: "deload", target: 3 },
+    plan: { active: true, planId, type: "deload", slotCount: 3, target: 3 },
     comeback: { active: false, target: null }
   },
   winningReason: "deload",
   finalizedAt
 }
 ```
+
+Avlastningsukens reduserte **øktmål** kommer fra antall aktive slots i uke 4, ikke fra `volumeFrame`. En varighetsbasert ramme kan dermed fortsatt ha tre planlagte øktroller og gi `effectiveWeeklyTarget: 3` uten konvertering mellom minutter og økter. Volumrammen styrer samlet tid/antall etter sin egen metrikk; slotantallet styrer kontinuitetsmålet.
 
 Samlingen er valgt fremfor et nøklet kart i `settings/preferences` fordi postene har eget livsløp, versjonering, målrettede skriv, konfliktbehandling og historisk uforanderlighet. Den unngår også et stadig voksende/hyppig skrevet settings-dokument og Firestores dokumentgrense. Snapshotet må overleve endring og sletting av planen som skapte reduksjonen.
 
@@ -240,11 +242,21 @@ Med en tidligere fireukersverdi rundt 180 minutter og uke 1 faktisk 176:
 - Uke 3: `(180 + 180 + 176 + 189) / 4 = 181,25`; `207 / 181,25 = 1,142`, under eksempelgrensen 1,25.
 - Uke 4: `(180 + 176 + 189 + 207) / 4 = 188`; `144 / 188 = 0,766`.
 
-Validering får én av tre statuser:
+Valideringen skiller mellom om kontrollen kunne kjøres og hva den konkluderte med:
 
-- `validated`: vakt og blokk bruker samme metrikk og øvre ramme er vurdert.
-- `metric_mismatch`: vaktens valgte metrikk avviker fra blokkrammen. Ingen konvertering utføres.
-- `insufficient_data`: volumvakten mangler nok nyere eller tidligere økter.
+- `validationStatus: validated`: vakt og blokk bruker samme metrikk og det finnes nok data.
+- `validationStatus: metric_mismatch`: vaktens valgte metrikk avviker fra blokkrammen. Ingen konvertering utføres.
+- `validationStatus: insufficient_data`: volumvakten mangler nok nyere eller tidligere økter.
+
+Når `validationStatus` er `validated`, settes et eget utfall:
+
+- `outcome: within_guardrail`: øvre ramme er innenfor volumvaktens grense.
+- `outcome: reduced_by_guardrail`: opprinnelig øvre ramme ville utløst volumvakten. Forhåndsvisningen reduserer automatisk det foreslåtte maksimumet til høyeste verdi som består kontrollen, viser både opprinnelig og justert verdi og lar brukeren overstyre etter eksplisitt bekreftelse. En overstyring demper ikke senere volumvarsler.
+
+`reduced_by_guardrail` viser:
+
+> **Forslaget er justert fra 207 til 200 minutter.**  
+> Den opprinnelige øvre rammen ville gitt raskere økning enn volumvakten anbefaler ut fra de siste ukene. Du kan beholde den tryggere rammen eller overstyre etter å ha sett begrunnelsen.
 
 `metric_mismatch` viser:
 
@@ -254,7 +266,7 @@ Validering får én av tre statuser:
 
 > Vi har ikke nok sammenlignbar historikk til å validere volumrammen ennå. Du kan opprette blokken, men vurderingssikkerheten er lav.
 
-Ingen av statusene avviser rammen automatisk. Sikkerhetsadvarsler kan fortsatt stoppe en konkret materialisering. Valideringen kjøres på nytt etter nye fullførte eller importerte økter, ved planredigering, ved ukesevaluering og før hver materialisering. Allerede materialiserte økter endres ikke automatisk.
+`metric_mismatch` og `insufficient_data` avviser ikke rammen automatisk. Et validert overskridende forslag justeres som beskrevet over. Sikkerhetsadvarsler kan fortsatt stoppe en konkret materialisering. Valideringen kjøres på nytt etter nye fullførte eller importerte økter, ved planredigering, ved ukesevaluering og før hver materialisering. Allerede materialiserte økter endres ikke automatisk.
 
 ### 3.3 Rolle-, race- og challenge-policy
 
@@ -327,6 +339,15 @@ UX-en skal gi verdi uten at brukeren må forstå datamodellen. Primærinformasjo
 ### 6.1 Opprett en fireukersblokk
 
 Flyten har fire steg. Alle steg beholdes fordi hvert av dem representerer en beslutning som ikke bør gjemmes eller gjettes.
+
+Ved gjentatt bruk får brukeren en rask vei gjennom de samme fire stegene. Navn/fokus, ukerytme og roller forhåndsutfylles fra siste fullførte blokk, mens baseline alltid beregnes på nytt. Stegoversikten merker uendrede forslag med `Som forrige blokk` og reelle avvik med `Endret siden sist`. Et uendret steg kan bekreftes med ett trykk, men alle feltene er fortsatt tilgjengelige.
+
+Hvis ny baseline avviker vesentlig, åpnes volumsteget automatisk og viser:
+
+> **Treningsgrunnlaget har endret seg siden forrige blokk**  
+> Nytt forslag er 165 minutter per uke, mot 180 sist. Se hva som har endret seg før du fortsetter.
+
+«Vesentlig» skal eies av validert regel/default og testes; første designforslag er mer enn 10 prosent eller skifte av metrikk. Hurtigflyten kan aldri skjule metrikkendring, lav dekning, kroppssignal eller volumvaktjustering. Dette bevarer fire eksplisitte beslutninger uten å gjøre blokk to og tre unødvendig tunge.
 
 #### Steg 1 – Retning og tidsrom
 
@@ -472,6 +493,8 @@ Før sletting vises plan, berørte fremtidige økter, eventuelle brukerendringer
 - Nøyaktig fire ISO-uker og korrekt uke 1–4.
 - Baseline og ramme i `duration` og `sessions`.
 - `validated`, `metric_mismatch` og `insufficient_data` uten konvertering/gjetting.
+- `validated + reduced_by_guardrail` reduserer automatisk forhåndsvisningens øvre forslag, viser begrunnelse og krever eksplisitt valg for overstyring.
+- Varighetsbasert volumramme utleder avlastningsukens reduserte øktmål fra antall slots, ikke fra minutter.
 - Prospektiv øvre grense mot volumvaktens faktiske nevner.
 - Laveste effektive mål ved samtidig normal, avlastning og comeback; minimum 1.
 - Snapshot vinner over levende plan for avsluttet uke.
@@ -542,15 +565,15 @@ Dette dokumentet, roadmap, backlog og progress. Ingen runtime-kode.
 
 ### Runde 2 – Historisk målfundament
 
-Bygg `effectiveWeeklyTargetForWeek()`, `weeklyTargetSnapshots`, repository/state/backup/recovery og samkjør kontinuitet, Hjem, ukestatus og coach. Dette er planlagt produksjonstidspunkt og skal skje før noen blokk aktiveres.
+Bygg `effectiveWeeklyTargetForWeek()`, `weeklyTargetSnapshots`, repository/state/backup/recovery og samkjør kontinuitet, Hjem, ukestatus og coach. Dette er planlagt produksjonstidspunkt og skal skje før noen blokk aktiveres. **Levert i v176o:** legacy-uker forblir uendret, avsluttede nye uker ferdigstilles før historikken renderes, og nådd redusert mål bruker ikke fryskort.
 
 ### Runde 3 – Ren blokkdomene-logikk
 
-Normalisering, baseline, rammer, regelkilde, prospektiv validering, rollepolicy, race-kjede og `evaluatePlanWeek()` med direkte stabilitetstester.
+Normalisering, baseline, rammer, regelkilde, prospektiv validering, rollepolicy, race-kjede og `evaluatePlanWeek()` med direkte stabilitetstester. Når `domain-periodized-training-plan.js` utvides, skal filen stå i `AGENTS.md` og `RELEASE_CHECKLIST.md` sine `node --check`-lister og i service-workerens `APP_SHELL`.
 
 ### Runde 4 – Controller og persistence
 
-Planlagring, `planRevision`, planreferanser, preview/diff, konfliktpolicy, current+next-materialisering og atomisk snapshot ved redigering/sletting. **Dette er absolutt siste trygge tidspunkt for snapshotmekanismen før aktivering, selv om den etter planen allerede er levert i runde 2. Aktiveringsporten forblir lukket til mekanismen er i produksjon.**
+Planlagring, `planRevision`, planreferanser, preview/diff, konfliktpolicy, current+next-materialisering og atomisk snapshot ved redigering/sletting. `training-plan-controller.js` skal samtidig legges til i `AGENTS.md` og `RELEASE_CHECKLIST.md` sine `node --check`-lister og i service-workerens `APP_SHELL`; samme krav gjelder `training-plan-ui.js` når den opprettes i UI-runden. **Dette er absolutt siste trygge tidspunkt for snapshotmekanismen før aktivering, selv om den etter planen allerede er levert i runde 2. Aktiveringsporten forblir lukket til mekanismen er i produksjon.**
 
 ### Runde 5 – Mobil-først produktflate
 
