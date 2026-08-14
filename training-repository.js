@@ -8,7 +8,8 @@ export const TRAINING_DATA_COLLECTIONS = [
   'blockedDays',
   'raceResults',
   'continuityFreezes',
-  'heartRateZoneSets'
+  'heartRateZoneSets',
+  'weeklyTargetSnapshots'
 ];
 
 export function createTrainingRepository({
@@ -151,3 +152,4 @@ export function createTrainingRepository({
 
   return { load, set, remove, batchSet, importActivities, replace, clearData };
 }
+
