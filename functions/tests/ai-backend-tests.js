@@ -433,15 +433,36 @@ function fakeChatDb() {
   await test("workout assessment validates bounded input and strict structured output", () => {
     const workout = { schemaVersion: 1, date: "2026-08-04", label: "Easy Run", averageHeartRate: 149 };
     assert.strictEqual(validateWorkout(workout).valid, true);
+    const workoutV2 = {
+      ...workout,
+      schemaVersion: 2,
+      comparisonContext: { status: "available", activitySetting: "outdoor", paceSource: "gap", sampleSize: 4, paceDeltaPercent: 2.3 }
+    };
+    assert.strictEqual(validateWorkout(workoutV2).valid, true);
+    assert.strictEqual(validateWorkout({ ...workoutV2, comparisonContext: { status: "available", rawWorkouts: [] } }).valid, false);
     assert.strictEqual(validateWorkout({ ...workout, notes: "must not pass" }).valid, false);
     assert.strictEqual(validateWorkout({ ...workout, bodyResponse: { painBefore: 1, privateNote: "must not pass" } }).valid, false);
     const parsed = extractJsonObject('```json\n{"headline":"Rolig økt","evidence":["92 % i sone 2.","RPE 3/10."],"planFit":"I tråd med planen.","nextStep":"Fortsett normalt.","uncertainty":""}\n```');
     assert.strictEqual(normalizeAssessment(parsed).headline, "Rolig økt");
     assert.strictEqual(normalizeAssessment({ headline: "Ufullstendig" }), null);
-    const prompt = buildWorkoutAssessmentPrompt();
+    const parsedV2 = {
+      headline: "Bedre flyt på samme innsats",
+      summary: "Kontrollert og litt raskere enn referansen.",
+      standouts: ["GAP var 2,3 % raskere.", "Pulsen var stabil."],
+      trainingMeaning: "Dette kan støtte aerob fremgang.",
+      goalConnection: "Relevant basearbeid.",
+      nextStep: "Fortsett normal plan.",
+      uncertainty: ""
+    };
+    assert.strictEqual(normalizeAssessment(parsedV2, 2).version, 2);
+    assert.strictEqual(normalizeAssessment({ headline: "Ufullstendig" }, 2), null);
+    const prompt = buildWorkoutAssessmentPrompt(2);
     assert.match(prompt, /uten tidsserie/);
     assert.match(prompt, /Ikke gi medisinsk diagnose/);
     assert.match(prompt, /kun ett gyldig JSON-objekt/);
+    assert.match(prompt, /ikke et utkast/i);
+    assert.match(prompt, /comparisonContext/);
+    assert.match(buildWorkoutAssessmentPrompt(1), /"evidence"/);
   });
 
   await test("workout assessment is explicit, stateless, without web search and does not persist training data", async () => {
@@ -452,7 +473,10 @@ function fakeChatDb() {
       uid: "user-1",
       data: {
         context: validContext(),
-        workout: { schemaVersion: 1, date: "2026-08-04", label: "Easy Run", averageHeartRate: 149, rpe: 3 }
+        workout: {
+          schemaVersion: 2, date: "2026-08-04", label: "Easy Run", averageHeartRate: 149, rpe: 3,
+          comparisonContext: { status: "available", activitySetting: "outdoor", paceSource: "gap", sampleSize: 4, paceDeltaPercent: 2.3 }
+        }
       },
       logger: { info: () => {}, warn: () => {} },
       encryptionSecret: TEST_ENCRYPTION_SECRET,
@@ -462,8 +486,10 @@ function fakeChatDb() {
           id: "resp_workout",
           output_text: JSON.stringify({
             headline: "Kontrollert rolig økt",
-            evidence: ["Snittpulsen var 149 bpm.", "RPE var 3/10."],
-            planFit: "Økten støttet en rolig dag.",
+            summary: "En kontrollert økt med god aerob flyt.",
+            standouts: ["Snittpulsen var 149 bpm.", "GAP var 2,3 % raskere enn referansen."],
+            trainingMeaning: "Dette støtter aerob base uten høy kostnad.",
+            goalConnection: "Relevant grunnlag for hovedmålet.",
             nextStep: "Fortsett normal plan dersom kroppen kjennes bra.",
             uncertainty: ""
           }),
@@ -472,7 +498,8 @@ function fakeChatDb() {
       }
     });
     assert.strictEqual(result.ok, true);
-    assert.strictEqual(result.assessment.evidence.length, 2);
+    assert.strictEqual(result.assessment.version, 2);
+    assert.strictEqual(result.assessment.standouts.length, 2);
     assert.strictEqual(requestBody.store, false);
     assert.ok(!requestBody.tools);
     assert.ok(requestBody.safety_identifier);
