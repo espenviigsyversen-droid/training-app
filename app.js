@@ -119,6 +119,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       normalizeAiWorkoutAssessment,
       storedAiWorkoutAssessment
     } from './domain-ai-workout-assessment.js';
+    import { buildAiWorkoutComparisonContext } from './domain-ai-workout-context.js';
     import { createHeartRateZonesUi } from './heart-rate-zones-ui.js';
     import { createTrainingImportUi } from './training-import-ui.js';
     import { normalizeExercise } from './domain-exercises.js';
@@ -165,7 +166,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     import { createTrainingInsightsUi } from './training-insights-ui.js';
     import { createWorkspaceSectionsUi } from './workspace-sections-ui.js';
 
-const APP_VERSION = 'v176m';
+const APP_VERSION = 'v176n';
     const APP_CACHE_NAME = `treningsapp-${APP_VERSION}`;
 
     const firebaseConfig = {
@@ -3100,7 +3101,12 @@ const APP_VERSION = 'v176m';
         completed,
         template,
         loadAssessment: completedLoadAssessment(completed),
-        zoneCompliance: heartRateZoneComplianceForCompleted(completed)
+        zoneCompliance: heartRateZoneComplianceForCompleted(completed),
+        comparisonContext: buildAiWorkoutComparisonContext({
+          completed,
+          completedItems: state.completed,
+          templates: state.templates
+        })
       });
     }
 
@@ -3109,10 +3115,10 @@ const APP_VERSION = 'v176m';
       if (!completed || pendingAiWorkoutAssessments.has(completedId)) return;
       pendingAiWorkoutAssessments.add(completedId);
       const button = document.querySelector(`.ai-workout-assessment-btn[data-workout-id="${CSS.escape(completedId)}"]`);
-      const originalLabel = button?.textContent || '';
       if (button) {
         button.disabled = true;
-        button.textContent = 'Vurderer økten …';
+        button.classList.add('is-loading');
+        button.setAttribute('aria-busy', 'true');
       }
       try {
         const workout = workoutAiAssessmentInput(completed);
@@ -3144,7 +3150,8 @@ const APP_VERSION = 'v176m';
         pendingAiWorkoutAssessments.delete(completedId);
         if (button?.isConnected) {
           button.disabled = false;
-          button.textContent = originalLabel;
+          button.classList.remove('is-loading');
+          button.removeAttribute('aria-busy');
         }
       }
     };
