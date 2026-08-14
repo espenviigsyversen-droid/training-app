@@ -213,9 +213,9 @@ Treningsapp/
 
 ## Neste steg (prioritert)
 
-1. **Periodisert treningsplan v1 - Runde 2: historisk målfundament**
-   - Innfør `weeklyTargetSnapshots` og én felles `effectiveWeeklyTargetForWeek()` før noen fireukersblokk aktiveres.
-2. **Periodisert treningsplan v1 - Runde 3-6**
+1. **Periodisert treningsplan v1 - Runde 3: ren blokkdomene-logikk**
+   - Bygg baseline, fire ukers rammer, prospektiv volumvalidering, rollepolicy og ukesevaluering fra produksjonsmodulen.
+2. **Periodisert treningsplan v1 - Runde 4-6**
    - Ren blokklogikk, trygg preview/materialisering, mobil produktflate, coach-kontekst og fullført-oppsummering etter `TRAINING_PLANS_DESIGN.md`.
 3. **v177 - Nedoverbelastning**
    - Skill stigning/nedstigning og kondisjons-/muskelbelastning.
@@ -466,6 +466,16 @@ Treningsapp/
 - Deployede Firestore Rules er kontrollert og dekker de nye brukerundersamlingene gjennom eksisterende rekursiv eierregel; v1 trenger ingen Rules-endring.
 - Opprettelsesflyt, Kalender-planoversikt, kompakt Hjem-kort, fullført-oppsummering og norske tom-/konflikt-/feiltekster er spesifisert mobil først.
 - Dette er en ren dokumentasjonsrunde: ingen JS-, runtime-, versjons- eller cacheendring.
+
+### v176o - Periodisert treningsplan runde 2: historisk målfundament - Bygget
+
+- Ny `domain-periodized-training-plan.js` eier normalisering av ukesmålsnapshots, felles `effectiveWeeklyTargetForWeek()` og ren kontinuitetsavgjørelse.
+- `weeklyTargetSnapshots` er koblet til samlet state, Firestore-repository, full backup/import, lokal snapshot og recovery. Gamle backuper får trygg tom liste.
+- Første produksjonsuke lagres i `weeklyTargetSnapshotPolicy.effectiveFrom`. Tidligere uker bruker uendret legacy-mål, slik at eksisterende streak ikke endres.
+- Avsluttede nye uker ferdigstilles ved første autentiserte synkronisering og før historisk rendering eller nye treningsskriver. Et endelig snapshot vinner alltid over senere plan- og målendringer.
+- Hjem, ukestatus, kontinuitet, Bakken-mønster og coach bruker samme effektive ukesmål. Laveste aktive reduksjon vinner; et nådd redusert mål teller som trening og forbruker ikke fryskort.
+- Dokumentet er presisert med eget volumvalideringsutfall, automatisk tryggere forslag med overstyring, slot-basert øktmål i avlastningsuke og rask gjenbruksflyt for blokk to og senere.
+- PWA-cache og synlig versjon er `v176o`.
 
 ### v167 - Øktmaler som egen UI-feature - Bygget
 
