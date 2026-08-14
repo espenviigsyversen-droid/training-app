@@ -13,6 +13,7 @@ node --check domain-core.js
 node --check domain-goals.js
 node --check domain-coach-rules.js
 node --check domain-coach.js
+node --check domain-periodized-training-plan.js
 node --check ai-coach-client.js
 node --check ai-coach-ui.js
 node tests\stability-tests.js
@@ -47,6 +48,7 @@ Ved vanlig appendring:
 - `app.js`
 - `domain-core.js`
 - `domain-coach.js`
+- `domain-periodized-training-plan.js`
 - `ai-coach-client.js`
 - `ai-coach-ui.js`
 - `index.html`
@@ -104,3 +106,4 @@ Ved oppgradering av Firebase Functions SDK:
 3. Last opp alle endrede filer på nytt
 4. Hvis data ser feil ut: ikke importer backup før årsaken er forstått
 5. Bruk eventuelt `Gjenopprett sikkerhetskopi` hvis feilen kom etter import/reset
+
