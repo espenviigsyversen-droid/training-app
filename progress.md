@@ -213,9 +213,13 @@ Treningsapp/
 
 ## Neste steg (prioritert)
 
-1. **v177 - Nedoverbelastning**
+1. **Periodisert treningsplan v1 - Runde 2: historisk målfundament**
+   - Innfør `weeklyTargetSnapshots` og én felles `effectiveWeeklyTargetForWeek()` før noen fireukersblokk aktiveres.
+2. **Periodisert treningsplan v1 - Runde 3-6**
+   - Ren blokklogikk, trygg preview/materialisering, mobil produktflate, coach-kontekst og fullført-oppsummering etter `TRAINING_PLANS_DESIGN.md`.
+3. **v177 - Nedoverbelastning**
    - Skill stigning/nedstigning og kondisjons-/muskelbelastning.
-2. **v178 - Kroppsmål for klær og utstyr**
+4. **v178 - Kroppsmål for klær og utstyr**
    - Praktisk målehistorikk under Setup, uten kobling til coach- eller nivåscore.
 
 ### Planlagt arkitektur for v172-v178
@@ -451,6 +455,17 @@ Treningsapp/
 - På mobil ruller det mørke økthodet nå bort sammen med resten av innholdet i stedet for å dekke skjermen permanent.
 - Øktmodalen bruker nesten hele den tilgjengelige skjermhøyden, tar hensyn til safe area og har mindre luft mot topp og sider.
 - Desktopvisningen, modalinnholdet, øktdataene og AI-vurderingen er uendret. PWA-cache og synlig versjon er `v176n1`.
+
+### Periodisert treningsplan v1 - Design dokumentert
+
+- Ny `TRAINING_PLANS_DESIGN.md` kartlegger syv eksisterende logikkområder før den fastsetter datamodell, policy, materialisering, coach-kontrakt, mobil UX og testplan.
+- V1 er avgrenset til én manuell fireukersblokk med tre belastningsuker og én avlastningsuke. 12-ukers løpsplan, flere aktive planer og automatisk neste blokk er utsatt.
+- `weeklyTargetSnapshots` og felles `effectiveWeeklyTargetForWeek()` skal produseres i runde 2 og må finnes før blokkaktivering; runde 4 er absolutt siste trygge tidspunkt.
+- Pågående uke fryses med gjeldende reduksjon før plansletting. Legacy-uker endres ikke retroaktivt.
+- Prospektiv volumkontroll sammenligner bare samme metrikk og viser eksplisitt `metric_mismatch` eller `insufficient_data` uten konvertering eller gjetting.
+- Deployede Firestore Rules er kontrollert og dekker de nye brukerundersamlingene gjennom eksisterende rekursiv eierregel; v1 trenger ingen Rules-endring.
+- Opprettelsesflyt, Kalender-planoversikt, kompakt Hjem-kort, fullført-oppsummering og norske tom-/konflikt-/feiltekster er spesifisert mobil først.
+- Dette er en ren dokumentasjonsrunde: ingen JS-, runtime-, versjons- eller cacheendring.
 
 ### v167 - Øktmaler som egen UI-feature - Bygget
 
