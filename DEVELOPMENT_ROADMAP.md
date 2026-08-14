@@ -1626,6 +1626,13 @@ Mål og levert:
 - Vis grunnlaget progressivt slik at hovedinnsikten forblir kompakt, mens sikkerhetskritiske mangler er tilgjengelige.
 - Ingen nye Firestore-felter eller lagrede avledede scorer.
 
+### v176n - Selvstendig AI-vurdering av økt - Bygget
+
+- Skill den lokale, regelbaserte sikkerhetsvurderingen fra AI-ens analyse av hva som skiller seg ut og hva økten kan bety.
+- Gi AI-en bare aggregert sammenligningskontekst fra inntil seks relevante rolige økter, uten rå historikk eller notater.
+- Behold gamle v1-vurderinger lesbare og la backend godta både v1- og v2-klienter i overgangsperioden.
+- Vis tom AI-vurdering som en kompakt rad med et tilgjengelig stjerneikon; behold full analyse først etter eksplisitt trykk.
+
 ### v177 - Nedoverbelastning og todimensjonal høydevurdering
 
 Mål:
