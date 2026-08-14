@@ -13,6 +13,10 @@ import {
 } from './domain-heart-rate-zones.js';
 import { normalizeAiWorkoutAssessment } from './domain-ai-workout-assessment.js';
 import { activitySettingForCompleted } from './domain-activity.js';
+import {
+  normalizeWeeklyTargetSnapshotPolicy,
+  normalizeWeeklyTargetSnapshots
+} from './domain-periodized-training-plan.js';
 
 export const WORKOUT_ROLE_LABELS = {
   main_threshold: 'Hovedterskel',
@@ -68,6 +72,10 @@ export const DEFAULT_SETTINGS = {
   },
   features: {
     structuredIntervals: true
+  },
+  weeklyTargetSnapshotPolicy: {
+    version: 1,
+    effectiveFrom: ''
   }
 };
 
@@ -103,6 +111,7 @@ export function createEmptyAppState(settings = freshDefaultSettings()) {
     raceResults: [],
     continuityFreezes: [],
     heartRateZoneSets: [],
+    weeklyTargetSnapshots: [],
     settings: normalizeSettings(settings)
   };
 }
@@ -353,7 +362,8 @@ export function normalizeSettings(settings = {}) {
     personProfile: normalizePersonProfile(source.personProfile),
     trainingLevelProgress: normalizeTrainingLevelProgress(source.trainingLevelProgress, trainingProfile.level),
     features: normalizeFeatures(source.features),
-    dailyReadiness: normalizeDailyReadinessMap(source.dailyReadiness)
+    dailyReadiness: normalizeDailyReadinessMap(source.dailyReadiness),
+    weeklyTargetSnapshotPolicy: normalizeWeeklyTargetSnapshotPolicy(source.weeklyTargetSnapshotPolicy)
   };
 }
 
@@ -369,6 +379,8 @@ export function normalizeAppState(input = {}) {
     raceResults: normalizeRaceResultEntries(input.raceResults),
     continuityFreezes: normalizeContinuityFreezes(input.continuityFreezes),
     heartRateZoneSets: normalizeHeartRateZoneSets(input.heartRateZoneSets),
+    weeklyTargetSnapshots: normalizeWeeklyTargetSnapshots(input.weeklyTargetSnapshots),
     settings: normalizeSettings(input.settings)
   };
 }
+
