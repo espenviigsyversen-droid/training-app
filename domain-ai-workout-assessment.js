@@ -1,4 +1,4 @@
-const ASSESSMENT_VERSION = 1;
+const ASSESSMENT_VERSION = 2;
 
 function finite(value) {
   if (value === '' || value === null || value === undefined) return null;
@@ -25,10 +25,30 @@ function zonePercentages(distribution) {
   return Object.keys(result).length ? result : null;
 }
 
-export function buildAiWorkoutAssessmentInput({ completed = {}, template = {}, loadAssessment = {}, zoneCompliance = null } = {}) {
+function normalizedComparisonContext(value = {}) {
+  if (!value || typeof value !== 'object' || !['available', 'insufficient', 'not_applicable'].includes(value.status)) return null;
+  const allowedText = ['status', 'basis', 'activitySetting', 'paceSource', 'confidence'];
+  const allowedNumbers = [
+    'sampleSize', 'windowDays', 'currentPaceSecondsPerKm', 'referencePaceSecondsPerKm', 'paceDeltaPercent',
+    'currentAverageHeartRate', 'referenceAverageHeartRate', 'heartRateDeltaBpm', 'currentDurationSeconds',
+    'referenceDurationSeconds', 'durationDeltaPercent', 'currentElevationGainPerKm', 'referenceElevationGainPerKm'
+  ];
+  const result = {};
+  allowedText.forEach(key => {
+    const normalized = text(value[key], 80);
+    if (normalized) result[key] = normalized;
+  });
+  allowedNumbers.forEach(key => {
+    const normalized = finite(value[key]);
+    if (normalized !== null) result[key] = normalized;
+  });
+  return Object.keys(result).length ? result : null;
+}
+
+export function buildAiWorkoutAssessmentInput({ completed = {}, template = {}, loadAssessment = {}, zoneCompliance = null, comparisonContext = null } = {}) {
   const garmin = completed?.externalData?.garmin || {};
   return compactObject({
-    schemaVersion: 1,
+    schemaVersion: ASSESSMENT_VERSION,
     date: text(completed.date, 10),
     label: text(template.name || completed.manualName || 'Gjennomført økt'),
     type: text(template.type),
@@ -80,7 +100,8 @@ export function buildAiWorkoutAssessmentInput({ completed = {}, template = {}, l
       planLabel: text(zoneCompliance?.label),
       planSummary: text(zoneCompliance?.summary, 300),
       planReasons: Array.isArray(zoneCompliance?.reasons) ? zoneCompliance.reasons.slice(0, 3).map(value => text(value, 220)).filter(Boolean) : []
-    })
+    }),
+    comparisonContext: normalizedComparisonContext(comparisonContext)
   });
 }
 
@@ -97,18 +118,41 @@ export function aiWorkoutAssessmentFingerprint(input) {
     hash ^= source.charCodeAt(index);
     hash = Math.imul(hash, 16777619);
   }
-  return `v1-${(hash >>> 0).toString(16).padStart(8, '0')}`;
+  return `v${ASSESSMENT_VERSION}-${(hash >>> 0).toString(16).padStart(8, '0')}`;
 }
 
 export function normalizeAiWorkoutAssessment(value) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const version = Number(value.version) || (value.summary || value.trainingMeaning || value.standouts ? 2 : 1);
+  if (version >= 2) {
+    const headline = text(value.headline, 180);
+    const summary = text(value.summary, 500);
+    const standouts = (Array.isArray(value.standouts) ? value.standouts : []).slice(0, 3).map(item => text(item, 320)).filter(Boolean);
+    const trainingMeaning = text(value.trainingMeaning, 500);
+    const nextStep = text(value.nextStep, 500);
+    if (!headline || !summary || standouts.length < 2 || !trainingMeaning || !nextStep) return null;
+    return {
+      version: ASSESSMENT_VERSION,
+      headline,
+      summary,
+      standouts,
+      trainingMeaning,
+      goalConnection: text(value.goalConnection, 400),
+      nextStep,
+      uncertainty: text(value.uncertainty, 320),
+      generatedAt: text(value.generatedAt, 40),
+      inputFingerprint: text(value.inputFingerprint, 80),
+      modelProfileId: text(value.modelProfileId, 80),
+      modelLabel: text(value.modelLabel, 120)
+    };
+  }
   const headline = text(value.headline, 180);
   const evidence = (Array.isArray(value.evidence) ? value.evidence : []).slice(0, 3).map(item => text(item, 320)).filter(Boolean);
   const planFit = text(value.planFit, 500);
   const nextStep = text(value.nextStep, 500);
   if (!headline || !evidence.length || !planFit || !nextStep) return null;
   return {
-    version: ASSESSMENT_VERSION,
+    version: 1,
     headline,
     evidence,
     planFit,
