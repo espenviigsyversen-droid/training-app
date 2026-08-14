@@ -1,4 +1,4 @@
-const CACHE_NAME = "treningsapp-v176n1";
+const CACHE_NAME = "treningsapp-v176o";
 const FIREBASE_MODULES = [
   "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js",
   "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js",
@@ -33,6 +33,7 @@ const APP_SHELL = [
   "./local-state-store.js",
   "./training-repository.js",
   "./domain-training-plan.js",
+  "./domain-periodized-training-plan.js",
   "./calendar-ui.js",
   "./workout-template-ui.js",
   "./exercise-library-ui.js",
