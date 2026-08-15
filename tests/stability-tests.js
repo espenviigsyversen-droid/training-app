@@ -1094,10 +1094,112 @@ async function testAsync(name, fn) {
     assert.strictEqual(normalized.settings.weeklyTargetSnapshotPolicy.effectiveFrom, '2026-08-10');
     assert.deepStrictEqual(createEmptyAppState().weeklyTargetSnapshots, []);
     assert.ok(repositorySource.includes("'weeklyTargetSnapshots'"));
-    assert.ok(app.includes('ensureWeeklyTargetFoundation(todayISO())'));
+    assert.ok(app.includes('scheduleWeeklyTargetFoundation(today)'));
+    assert.ok(app.includes('trainingRepository.prepareWeeklyTargetFinalization'));
+    assert.ok(app.includes('trainingRepository.finalizeWeeklyTargetSnapshot'));
     assert.ok(app.includes('weeklyTargetForWeek(week.start)'));
     assert.ok(serviceWorker.includes('./domain-periodized-training-plan.js'));
     assert.ok(periodizedPlanSource.includes('effectiveWeeklyTargetForWeek'));
+  });
+
+  test('v176o1 derives the server read window from validated comeback rules', () => {
+    assert.deepStrictEqual(periodizedPlan.weeklyTargetComebackReadWindow({
+      thresholds: { comeback: { protocolDays: 7, longBreakDays: 10 } }
+    }), { protocolDays: 7, longBreakDays: 10, lookbackDays: 17 });
+    assert.strictEqual(periodizedPlan.weeklyTargetComebackReadWindow({
+      thresholds: { comeback: { protocolDays: 9, longBreakDays: 12 } }
+    }).lookbackDays, 21);
+    assert.strictEqual(DEFAULT_COACH_RULES.thresholds.comeback.protocolDays, 7);
+    assert.strictEqual(DEFAULT_COACH_RULES.thresholds.comeback.longBreakDays, 10);
+    assert.strictEqual(coachRulesJson.thresholds.comeback.protocolDays, 7);
+    assert.strictEqual(coachRulesJson.thresholds.comeback.longBreakDays, 10);
+  });
+
+  test('v176o1 updates only the open-week target candidate and freezes closed weeks', () => {
+    const first = periodizedPlan.upsertOpenWeeklyTargetCandidate([], {
+      weekStart: '2026-08-10', currentWeekStart: '2026-08-10', normalTarget: 3,
+      capturedAt: '2026-08-15T10:00:00.000Z'
+    });
+    const updated = periodizedPlan.upsertOpenWeeklyTargetCandidate(first, {
+      weekStart: '2026-08-10', currentWeekStart: '2026-08-10', normalTarget: 4,
+      capturedAt: '2026-08-16T10:00:00.000Z'
+    });
+    assert.strictEqual(updated[0].normalTarget, 4);
+    const closed = periodizedPlan.upsertOpenWeeklyTargetCandidate(updated, {
+      weekStart: '2026-08-10', currentWeekStart: '2026-08-17', normalTarget: 5,
+      capturedAt: '2026-08-17T10:00:00.000Z'
+    });
+    assert.strictEqual(closed[0].normalTarget, 4);
+  });
+
+  await testAsync('v176o1 preserves an existing final snapshot and concurrent finalization creates one document', async () => {
+    const stored = new Map();
+    let writes = 0;
+    let transactionQueue = Promise.resolve();
+    const firestore = {
+      collection: (...parts) => ({ parts }),
+      doc: (...parts) => ({ parts, key: parts.slice(1).join('/') }),
+      getDoc: async () => ({ exists: () => false }),
+      getDocs: async () => ({ docs: [] }),
+      setDoc: async () => {},
+      deleteDoc: async () => {},
+      writeBatch: () => ({ set: () => {}, delete: () => {}, commit: async () => {} }),
+      runTransaction: (_db, callback) => {
+        const run = transactionQueue.then(() => callback({
+          get: async ref => {
+            const data = stored.get(ref.key);
+            return { id: ref.parts.at(-1), exists: () => Boolean(data), data: () => data };
+          },
+          set: (ref, data) => { stored.set(ref.key, data); writes += 1; }
+        }));
+        transactionQueue = run.catch(() => {});
+        return run;
+      }
+    };
+    const repository = createTrainingRepository({
+      db: { id: 'db' }, getCurrentUser: () => ({ uid: 'user-1' }), firestore,
+      normalizeState: value => value, defaultSettings: () => ({})
+    });
+    const existingKey = 'users/user-1/weeklyTargetSnapshots/2026-08-03';
+    stored.set(existingKey, { status: 'final', normalTarget: 3, effectiveTarget: 3 });
+    const preserved = await repository.finalizeWeeklyTargetSnapshot({
+      id: '2026-08-03', status: 'final', normalTarget: 4, effectiveTarget: 2
+    });
+    assert.strictEqual(preserved.created, false);
+    assert.strictEqual(stored.get(existingKey).normalTarget, 3);
+
+    const concurrent = await Promise.all([
+      repository.finalizeWeeklyTargetSnapshot({ id: '2026-08-10', status: 'final', normalTarget: 3, effectiveTarget: 3 }),
+      repository.finalizeWeeklyTargetSnapshot({ id: '2026-08-10', status: 'final', normalTarget: 4, effectiveTarget: 2 })
+    ]);
+    assert.strictEqual(concurrent.filter(result => result.created).length, 1);
+    assert.strictEqual(writes, 1);
+  });
+
+  await testAsync('v176o1 server failure prevents final snapshot writes', async () => {
+    let finalWrites = 0;
+    const order = [];
+    const firestore = {
+      collection: (...parts) => ({ parts }), doc: (...parts) => ({ parts }),
+      getDoc: async () => ({ exists: () => false }), getDocs: async () => ({ docs: [] }),
+      getDocFromServer: async () => { order.push('server'); throw new Error('offline'); },
+      getDocsFromServer: async () => ({ docs: [] }),
+      setDoc: async () => {}, deleteDoc: async () => {},
+      writeBatch: () => ({ set: () => {}, delete: () => {}, commit: async () => {} }),
+      waitForPendingWrites: async () => { order.push('pending'); },
+      runTransaction: async () => { finalWrites += 1; },
+      query: (...parts) => ({ parts }), where: (...parts) => ({ where: parts }),
+      orderBy: (...parts) => ({ orderBy: parts }), limit: value => ({ limit: value })
+    };
+    const repository = createTrainingRepository({
+      db: { id: 'db' }, getCurrentUser: () => ({ uid: 'user-1' }), firestore,
+      normalizeState: value => value, defaultSettings: () => ({})
+    });
+    await assert.rejects(repository.prepareWeeklyTargetFinalization({
+      completedStart: '2026-07-31', completedEnd: '2026-08-16'
+    }), /offline/);
+    assert.deepStrictEqual(order.slice(0, 2), ['pending', 'server']);
+    assert.strictEqual(finalWrites, 0);
   });
 
   test('v164 local store normalizes snapshots before returning them', () => {
@@ -2549,8 +2651,8 @@ async function testAsync(name, fn) {
     assert.ok(workoutHistoryUiSource.includes('heartRateZoneDistributionRows'), 'history does not use production zone rows');
     assert.ok(workoutHistoryUiSource.includes('Tid i pulssoner'), 'completed detail is missing the heart-rate zone section');
     assert.ok(!workoutHistoryUiSource.includes("row.estimated ? 'ca. '"), 'zone duration should not be prefixed with ca.');
-    assert.ok(app.includes("const APP_VERSION = 'v176o'"), 'visible app version must be v176o');
-    assert.ok(serviceWorker.includes('treningsapp-v176o'), 'cache version must match v176o');
+    assert.ok(app.includes("const APP_VERSION = 'v176o1'"), 'visible app version must be v176o1');
+    assert.ok(serviceWorker.includes('treningsapp-v176o1'), 'cache version must match v176o1');
   });
 
   test('v174b evaluates easy and quality sessions without treating zone percentages as a hard truth', () => {
@@ -2645,8 +2747,8 @@ async function testAsync(name, fn) {
     assert.ok(index.includes('id="insightHeartRateComplianceCard"'), 'Insights is missing the compliance card');
     assert.ok(app.includes('heartRateZoneComplianceForItems(last28Days)'), 'coach context does not use the canonical compliance summary');
     assert.ok(app.includes('renderHeartRateZoneComplianceInsight(today)'), 'Insights does not render canonical compliance');
-    assert.ok(app.includes("const APP_VERSION = 'v176o'"), 'visible app version must be v176o');
-    assert.ok(serviceWorker.includes('treningsapp-v176o'), 'cache version must match v176o');
+    assert.ok(app.includes("const APP_VERSION = 'v176o1'"), 'visible app version must be v176o1');
+    assert.ok(serviceWorker.includes('treningsapp-v176o1'), 'cache version must match v176o1');
   });
 
   test('v174c uses the test profile for zones and keeps the golden zone as a separate coach reference', () => {
@@ -3163,8 +3265,8 @@ async function testAsync(name, fn) {
     assert.ok(trainingImportControllerSource.includes("action: duplicate ? 'skip'"), 'duplicates should be skipped by default');
     assert.ok(!trainingImportControllerSource.includes('heartRateZoneDistribution'), 'controller must not synthesize pulse zones');
     assert.ok(styles.includes('.garmin-import-row'), 'Garmin preview styling is missing');
-    assert.ok(app.includes("const APP_VERSION = 'v176o'"));
-    assert.ok(serviceWorker.includes('treningsapp-v176o'));
+    assert.ok(app.includes("const APP_VERSION = 'v176o1'"));
+    assert.ok(serviceWorker.includes('treningsapp-v176o1'));
   });
 
   test('structured interval UI fields and summaries are wired into production files', () => {
@@ -4277,4 +4379,3 @@ async function testAsync(name, fn) {
   console.error(err);
   process.exit(1);
 });
-
