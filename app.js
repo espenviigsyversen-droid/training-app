@@ -1,7 +1,11 @@
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
     import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut as fbSignOut }
       from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
-    import { getFirestore, doc, collection, getDoc, getDocs, setDoc, deleteDoc, writeBatch, enableIndexedDbPersistence }
+    import {
+      getFirestore, doc, collection, getDoc, getDocs, getDocFromServer, getDocsFromServer,
+      setDoc, deleteDoc, writeBatch, waitForPendingWrites, runTransaction, query, where,
+      orderBy, limit, enableIndexedDbPersistence
+    }
       from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
     import {
       addDays,
@@ -153,8 +157,11 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       buildWeeklyTargetSnapshot,
       effectiveWeeklyTargetForWeek,
       missingWeeklyTargetSnapshotWeeks,
+      normalizeWeeklyTargetCandidates,
       normalizeWeeklyTargetSnapshotPolicy,
       normalizeWeeklyTargetSnapshots,
+      upsertOpenWeeklyTargetCandidate,
+      weeklyTargetComebackReadWindow,
       weeklyContinuityOutcome
     } from './domain-periodized-training-plan.js';
     import {
@@ -174,7 +181,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     import { createTrainingInsightsUi } from './training-insights-ui.js';
     import { createWorkspaceSectionsUi } from './workspace-sections-ui.js';
 
-const APP_VERSION = 'v176o';
+const APP_VERSION = 'v176o1';
     const APP_CACHE_NAME = `treningsapp-${APP_VERSION}`;
 
     const firebaseConfig = {
@@ -202,8 +209,9 @@ const APP_VERSION = 'v176o';
     const LOCAL_STATE_KEY = 'treningsapp:last-state:v1';
     let state = createEmptyAppState();
     let weeklyTargetFoundationSync = null;
-    let weeklyTargetFoundationRenderPending = false;
     let weeklyTargetFoundationRenderFailedFor = '';
+    let weeklyTargetFoundationStatus = { state: 'idle', pendingWeeks: 0 };
+    const WEEKLY_TARGET_CANDIDATES_KEY = 'treningsapp:weekly-target-candidates:v1';
     const indexedDbSnapshotStore = createIndexedDbKeyValueStore({ indexedDB: window.indexedDB });
     const localStateStore = createLocalStateStore({
       storage: localStorage,
@@ -215,7 +223,11 @@ const APP_VERSION = 'v176o';
     const trainingRepository = createTrainingRepository({
       db,
       getCurrentUser: () => currentUser,
-      firestore: { collection, doc, getDoc, getDocs, setDoc, deleteDoc, writeBatch },
+      firestore: {
+        collection, doc, getDoc, getDocs, getDocFromServer, getDocsFromServer,
+        setDoc, deleteDoc, writeBatch, waitForPendingWrites, runTransaction,
+        query, where, orderBy, limit
+      },
       normalizeState: normalizeAppState,
       defaultSettings: freshDefaultSettings
     });
@@ -855,8 +867,50 @@ const APP_VERSION = 'v176o';
       }).length > 0;
     }
 
+    function readWeeklyTargetCandidates() {
+      if (!currentUser?.uid) return [];
+      try {
+        const storageKey = `${WEEKLY_TARGET_CANDIDATES_KEY}:${currentUser.uid}`;
+        return normalizeWeeklyTargetCandidates(JSON.parse(localStorage.getItem(storageKey) || '[]'));
+      } catch (err) {
+        console.warn('Kunne ikke lese lokale ukesmålkandidater:', err);
+        return [];
+      }
+    }
+
+    function writeWeeklyTargetCandidates(candidates) {
+      if (!currentUser?.uid) return;
+      try {
+        const storageKey = `${WEEKLY_TARGET_CANDIDATES_KEY}:${currentUser.uid}`;
+        localStorage.setItem(storageKey, JSON.stringify(normalizeWeeklyTargetCandidates(candidates)));
+      } catch (err) {
+        console.warn('Kunne ikke lagre lokal ukesmålkandidat:', err);
+      }
+    }
+
+    function captureOpenWeeklyTargetCandidate(today = todayISO()) {
+      if (!currentUser?.uid || offlineSnapshotMode) return;
+      const weekStart = startOfWeek(today);
+      writeWeeklyTargetCandidates(upsertOpenWeeklyTargetCandidate(readWeeklyTargetCandidates(), {
+        weekStart,
+        currentWeekStart: weekStart,
+        normalTarget: normalizeGoals(state.settings?.goals).weeklySessionsTarget,
+        capturedAt: new Date().toISOString()
+      }));
+    }
+
+    function weeklyTargetFoundationMessage() {
+      if (!weeklyTargetFoundationNeedsSync(todayISO())) return '';
+      if (weeklyTargetFoundationStatus.state === 'syncing') return 'Forrige ukesmål: venter på synkronisering.';
+      if (weeklyTargetFoundationStatus.state === 'waiting') return 'Forrige ukesmål venter på serverbekreftelse.';
+      return '';
+    }
+
     async function ensureWeeklyTargetFoundation(today = todayISO()) {
-      if (!currentUser || !navigator.onLine || offlineSnapshotMode) return { changed: false, offline: true };
+      if (!currentUser || !navigator.onLine || offlineSnapshotMode) {
+        weeklyTargetFoundationStatus = { state: 'waiting', pendingWeeks: 0 };
+        return { changed: false, offline: true };
+      }
       if (weeklyTargetFoundationSync) return weeklyTargetFoundationSync;
       weeklyTargetFoundationSync = (async () => {
         const currentWeekStart = startOfWeek(today);
@@ -877,17 +931,38 @@ const APP_VERSION = 'v176o';
           currentWeekStart,
           snapshots: state.weeklyTargetSnapshots
         });
-        const normalTarget = normalizeGoals(state.settings.goals).weeklySessionsTarget;
+        if (!missingWeeks.length) {
+          weeklyTargetFoundationStatus = { state: 'idle', pendingWeeks: 0 };
+          return { changed: settingsChanged, policy, snapshots: [] };
+        }
+        weeklyTargetFoundationStatus = { state: 'syncing', pendingWeeks: missingWeeks.length };
+        const readWindow = weeklyTargetComebackReadWindow(getCoachRules());
+        const firstWeekEnd = addDays(missingWeeks[0], 6);
+        const lastWeekEnd = addDays(missingWeeks[missingWeeks.length - 1], 6);
+        const completedStart = addDays(firstWeekEnd, -(readWindow.lookbackDays - 1));
+        const basis = await trainingRepository.prepareWeeklyTargetFinalization({
+          completedStart,
+          completedEnd: lastWeekEnd
+        });
+        const serverPolicy = normalizeWeeklyTargetSnapshotPolicy(basis.settings?.weeklyTargetSnapshotPolicy);
+        if (!serverPolicy.effectiveFrom || serverPolicy.effectiveFrom !== policy.effectiveFrom) {
+          throw new Error('Server-confirmed weekly target policy differs from local state');
+        }
+        const candidates = readWeeklyTargetCandidates();
+        const serverNormalTarget = normalizeGoals(basis.settings?.goals).weeklySessionsTarget;
         const finalizedAt = new Date().toISOString();
-        const snapshots = missingWeeks.map(weekStart => {
+        const finalizedSnapshots = [];
+        for (const weekStart of missingWeeks) {
           const weekEnd = addDays(weekStart, 6);
-          const completedToWeekEnd = state.completed.filter(item => item.date && item.date <= weekEnd);
+          const candidate = candidates.find(item => item.weekStart === weekStart);
+          const normalTarget = candidate?.normalTarget || serverNormalTarget;
+          const completedToWeekEnd = basis.completed.filter(item => item.date && item.date <= weekEnd);
           const comeback = comebackProtocol(completedToWeekEnd, {
             todayIso: weekEnd,
             weeklyTarget: normalTarget,
             rules: getCoachRules()
           });
-          return buildWeeklyTargetSnapshot({
+          const snapshot = buildWeeklyTargetSnapshot({
             weekStart,
             normalTarget,
             snapshotEffectiveFrom: policy.effectiveFrom,
@@ -898,23 +973,54 @@ const APP_VERSION = 'v176o';
             } : null,
             finalizedAt
           });
-        }).filter(Boolean);
+          if (!snapshot) continue;
+          const result = await trainingRepository.finalizeWeeklyTargetSnapshot(snapshot);
+          if (result?.snapshot) finalizedSnapshots.push(result.snapshot);
+        }
 
-        if (snapshots.length) {
-          await trainingRepository.batchSet('weeklyTargetSnapshots', snapshots);
+        if (finalizedSnapshots.length) {
           state.weeklyTargetSnapshots = normalizeWeeklyTargetSnapshots([
             ...(state.weeklyTargetSnapshots || []),
-            ...snapshots
+            ...finalizedSnapshots
           ]);
+          const finalizedWeeks = new Set(finalizedSnapshots.map(item => item.weekStart || item.id));
+          writeWeeklyTargetCandidates(candidates.filter(item => !finalizedWeeks.has(item.weekStart)));
         }
-        if (settingsChanged || snapshots.length) await saveLocalStateSnapshot();
-        return { changed: settingsChanged || snapshots.length > 0, policy, snapshots };
+        if (settingsChanged || finalizedSnapshots.length) await saveLocalStateSnapshot();
+        weeklyTargetFoundationStatus = { state: 'idle', pendingWeeks: 0 };
+        return { changed: settingsChanged || finalizedSnapshots.length > 0, policy, snapshots: finalizedSnapshots };
       })();
       try {
         return await weeklyTargetFoundationSync;
+      } catch (err) {
+        weeklyTargetFoundationStatus = { state: 'waiting', pendingWeeks: weeklyTargetFoundationStatus.pendingWeeks || 0 };
+        throw err;
       } finally {
         weeklyTargetFoundationSync = null;
       }
+    }
+
+    function scheduleWeeklyTargetFoundation(today = todayISO()) {
+      const currentWeekStart = startOfWeek(today);
+      if (!weeklyTargetFoundationNeedsSync(today)) {
+        weeklyTargetFoundationStatus = { state: 'idle', pendingWeeks: 0 };
+        return;
+      }
+      if (!currentUser || !navigator.onLine || offlineSnapshotMode) {
+        weeklyTargetFoundationStatus = { state: 'waiting', pendingWeeks: 0 };
+        return;
+      }
+      if (weeklyTargetFoundationSync || weeklyTargetFoundationRenderFailedFor === currentWeekStart) return;
+      weeklyTargetFoundationStatus = { state: 'syncing', pendingWeeks: 0 };
+      window.setTimeout(() => {
+        ensureWeeklyTargetFoundation(today)
+          .then(() => { weeklyTargetFoundationRenderFailedFor = ''; })
+          .catch(err => {
+            weeklyTargetFoundationRenderFailedFor = currentWeekStart;
+            console.warn('Ukesmålet venter på serverbekreftet ferdigstilling:', err);
+          })
+          .finally(() => render());
+      }, 0);
     }
 
     async function loadFromFirestore() {
@@ -923,7 +1029,6 @@ const APP_VERSION = 'v176o';
       try {
         state = await trainingRepository.load();
         offlineSnapshotMode = false;
-        await ensureWeeklyTargetFoundation(todayISO());
         await saveLocalStateSnapshot();
         if (navigator.onLine) {
           hasPendingLocalWrites = false;
@@ -944,7 +1049,6 @@ const APP_VERSION = 'v176o';
 
     async function fsSet(colName, id, data) {
       if (blockOfflineSnapshotWrite()) throw new Error('Offline snapshot is read-only');
-      await ensureWeeklyTargetFoundation(todayISO());
       const wasOffline = !navigator.onLine;
       if (wasOffline) {
         hasPendingLocalWrites = true;
@@ -970,7 +1074,6 @@ const APP_VERSION = 'v176o';
 
     async function fsDelete(colName, id) {
       if (blockOfflineSnapshotWrite()) throw new Error('Offline snapshot is read-only');
-      await ensureWeeklyTargetFoundation(todayISO());
       const wasOffline = !navigator.onLine;
       if (wasOffline) {
         hasPendingLocalWrites = true;
@@ -997,7 +1100,6 @@ const APP_VERSION = 'v176o';
     async function fsBatchSet(colName, items) {
       if (!items.length) return;
       if (blockOfflineSnapshotWrite()) throw new Error('Offline snapshot is read-only');
-      await ensureWeeklyTargetFoundation(todayISO());
       const wasOffline = !navigator.onLine;
       if (wasOffline) {
         hasPendingLocalWrites = true;
@@ -1044,7 +1146,6 @@ const APP_VERSION = 'v176o';
 
     async function replaceFirestoreData(nextState) {
       if (blockOfflineSnapshotWrite()) throw new Error('Offline snapshot is read-only');
-      await ensureWeeklyTargetFoundation(todayISO());
       setSyncStatus('syncing');
       await trainingRepository.replace(nextState);
       await saveLocalStateSnapshot();
@@ -1253,6 +1354,7 @@ const APP_VERSION = 'v176o';
         setSyncStatus('ok');
         return;
       }
+      weeklyTargetFoundationRenderFailedFor = '';
       setSyncStatus('syncing');
       try {
         await loadFromFirestore();
@@ -3116,7 +3218,6 @@ const APP_VERSION = 'v176o';
         state = normalizeAppState(state);
         await saveLocalStateSnapshot();
         render();
-        await ensureWeeklyTargetFoundation(todayISO());
         const repositoryResult = await trainingRepository.importActivities(plan);
         await saveLocalStateSnapshot();
         setSyncStatus('ok');
@@ -4773,6 +4874,7 @@ const APP_VERSION = 'v176o';
         : todayFreeze
         ? 'Fryskortet gjelder i dag. Uken teller fortsatt etter vanlig mål.'
         : `${remaining} økt${remaining === 1 ? '' : 'er'} igjen for at denne uken skal telle.`;
+      const foundationMessage = weeklyTargetFoundationMessage();
       const freezeStatusHtml = currentFreeze.protected
         ? `<div class="home-freeze-status protected"><strong>Kontinuitet beskyttet denne uken</strong><span>${escapeHtml(currentFreeze.reasonLabels.join(', ') || 'Fryskort')} · Teller ikke som trening.</span></div>`
         : todayFreeze
@@ -4786,7 +4888,7 @@ const APP_VERSION = 'v176o';
         <div class="home-continuity-main"><strong>${streak}</strong><span>uker på rad</span></div>
         <div class="home-continuity-strip">${chips}</div>
         ${freezeStatusHtml}
-        <p class="dashboard-mini-note">${escapeHtml(note)}</p>`;
+        <p class="dashboard-mini-note">${escapeHtml([note, foundationMessage].filter(Boolean).join(' '))}</p>`;
     }
 
     function homeRaceHighlight() {
@@ -5618,11 +5720,14 @@ const APP_VERSION = 'v176o';
           </div>`;
       }).join('');
 
-      document.getElementById('insightContinuityNote').textContent = weekSummary.sessions >= target
+      const continuityNote = weekSummary.sessions >= target
         ? 'Denne uken teller som en kontinuitetsuke. Videre trening er bonus og bør styres av overskudd.'
         : freezeSummary.protected
         ? 'Denne uken er beskyttet av fryskort. Det teller ikke som trening, men kontinuiteten brytes ikke.'
         : `${remaining} økt${remaining === 1 ? '' : 'er'} igjen for at denne uken skal telle i kontinuiteten.`;
+      document.getElementById('insightContinuityNote').textContent = [continuityNote, weeklyTargetFoundationMessage()]
+        .filter(Boolean)
+        .join(' ');
     }
 
     function recentWeekSummaries(weekStart, count = 8) {
@@ -7367,31 +7472,12 @@ const APP_VERSION = 'v176o';
     // ── Render ────────────────────────────────────────────────────────────────
     function render() {
       const today = todayISO();
-      const currentWeekStart = startOfWeek(today);
-      const shouldFinalizeWeeklyTargets = currentUser
-        && navigator.onLine
-        && !offlineSnapshotMode
-        && weeklyTargetFoundationRenderFailedFor !== currentWeekStart
-        && weeklyTargetFoundationNeedsSync(today);
-      if (shouldFinalizeWeeklyTargets) {
-        if (!weeklyTargetFoundationRenderPending) {
-          weeklyTargetFoundationRenderPending = true;
-          ensureWeeklyTargetFoundation(today)
-            .then(() => {
-              weeklyTargetFoundationRenderFailedFor = '';
-            })
-            .catch(err => {
-              weeklyTargetFoundationRenderFailedFor = currentWeekStart;
-              console.warn('Kunne ikke ferdigstille historiske ukesmål før rendering:', err);
-            })
-            .finally(() => {
-              weeklyTargetFoundationRenderPending = false;
-              render();
-            });
-        }
-        return;
+      if (weeklyTargetFoundationNeedsSync(today) && weeklyTargetFoundationStatus.state === 'idle') {
+        weeklyTargetFoundationStatus = {
+          state: currentUser && navigator.onLine && !offlineSnapshotMode ? 'syncing' : 'waiting',
+          pendingWeeks: 0
+        };
       }
-
       renderCalendar();
       renderAppVersionInfo();
       renderLocalSnapshotStatus();
@@ -7405,6 +7491,7 @@ const APP_VERSION = 'v176o';
       state.continuityFreezes = normalizeContinuityFreezes(state.continuityFreezes);
       state.heartRateZoneSets = normalizeHeartRateZoneSets(state.heartRateZoneSets);
       state.weeklyTargetSnapshots = normalizeWeeklyTargetSnapshots(state.weeklyTargetSnapshots);
+      captureOpenWeeklyTargetCandidate(today);
 
       getWorkoutTemplateUi().refreshFormOptions();
       renderSettingsList('activityTypes', 'activityTypeList');
@@ -7446,6 +7533,7 @@ const APP_VERSION = 'v176o';
       renderExerciseLibrary();
 
       getWorkoutHistoryUi().renderList();
+      scheduleWeeklyTargetFoundation(today);
     }
 
     window.render = render;
@@ -7597,4 +7685,3 @@ const APP_VERSION = 'v176o';
         navigator.serviceWorker.register(`./service-worker.js?v=${APP_VERSION}`).catch(() => {});
       });
     };
-
