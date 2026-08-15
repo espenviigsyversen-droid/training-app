@@ -25,9 +25,17 @@ export function createTrainingRepository({
     doc,
     getDoc,
     getDocs,
+    getDocFromServer,
+    getDocsFromServer,
     setDoc,
     deleteDoc,
-    writeBatch
+    writeBatch,
+    waitForPendingWrites,
+    runTransaction,
+    query,
+    where,
+    orderBy,
+    limit
   } = firestore || {};
 
   if (!db || typeof getCurrentUser !== 'function' || typeof normalizeState !== 'function') {
@@ -65,6 +73,63 @@ export function createTrainingRepository({
       batch.set(userDocument(name, id), rest);
     });
     await batch.commit();
+  }
+
+  async function prepareWeeklyTargetFinalization({ completedStart, completedEnd } = {}) {
+    if (typeof waitForPendingWrites !== 'function'
+      || typeof getDocFromServer !== 'function'
+      || typeof getDocsFromServer !== 'function'
+      || typeof query !== 'function'
+      || typeof where !== 'function'
+      || typeof orderBy !== 'function'
+      || typeof limit !== 'function') {
+      throw new Error('Server-confirmed weekly target finalization is unavailable');
+    }
+    await waitForPendingWrites(db);
+    const completedRef = userCollection('completed');
+    const rangeQuery = query(
+      completedRef,
+      where('date', '>=', completedStart),
+      where('date', '<=', completedEnd),
+      orderBy('date', 'asc')
+    );
+    const predecessorQuery = query(
+      completedRef,
+      where('date', '<', completedStart),
+      orderBy('date', 'desc'),
+      limit(1)
+    );
+    const [settingsSnapshot, rangeSnapshot, predecessorSnapshot] = await Promise.all([
+      getDocFromServer(userDocument('settings', 'preferences')),
+      getDocsFromServer(rangeQuery),
+      getDocsFromServer(predecessorQuery)
+    ]);
+    if (!settingsSnapshot.exists()) throw new Error('Server-confirmed settings are missing');
+    const completedById = new Map();
+    [...predecessorSnapshot.docs, ...rangeSnapshot.docs].forEach(item => {
+      completedById.set(item.id, { id: item.id, ...item.data() });
+    });
+    return {
+      settings: settingsSnapshot.data(),
+      completed: [...completedById.values()].sort((a, b) => String(a.date || '').localeCompare(String(b.date || '')))
+    };
+  }
+
+  async function finalizeWeeklyTargetSnapshot(snapshot) {
+    if (typeof runTransaction !== 'function') {
+      throw new Error('Transactional weekly target finalization is unavailable');
+    }
+    if (!snapshot?.id) throw new Error('Weekly target snapshot is missing an id');
+    const snapshotRef = userDocument('weeklyTargetSnapshots', snapshot.id);
+    return runTransaction(db, async transaction => {
+      const existing = await transaction.get(snapshotRef);
+      if (existing.exists() && existing.data()?.status === 'final') {
+        return { created: false, snapshot: { id: existing.id || snapshot.id, ...existing.data() } };
+      }
+      const { id, ...data } = snapshot;
+      transaction.set(snapshotRef, data);
+      return { created: true, snapshot };
+    });
   }
 
   async function importActivities({ completedItems = [], plannedItems = [] } = {}, chunkSize = 400) {
@@ -150,6 +215,15 @@ export function createTrainingRepository({
     await commitOperations(deleteOperations);
   }
 
-  return { load, set, remove, batchSet, importActivities, replace, clearData };
+  return {
+    load,
+    set,
+    remove,
+    batchSet,
+    importActivities,
+    replace,
+    clearData,
+    prepareWeeklyTargetFinalization,
+    finalizeWeeklyTargetSnapshot
+  };
 }
-
