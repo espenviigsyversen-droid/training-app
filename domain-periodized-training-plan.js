@@ -34,6 +34,57 @@ function normalizeReduction(value = {}) {
   };
 }
 
+export function weeklyTargetComebackReadWindow(rules = {}) {
+  const comeback = rules?.thresholds?.comeback && typeof rules.thresholds.comeback === 'object'
+    ? rules.thresholds.comeback
+    : {};
+  const protocolDays = positiveSessionTarget(comeback.protocolDays, 7);
+  const longBreakDays = positiveSessionTarget(comeback.longBreakDays, 10);
+  return {
+    protocolDays,
+    longBreakDays,
+    lookbackDays: protocolDays + longBreakDays
+  };
+}
+
+export function normalizeWeeklyTargetCandidate(input = {}) {
+  const source = input && typeof input === 'object' && !Array.isArray(input) ? input : {};
+  const weekStart = validIsoDate(source.weekStart || source.id);
+  if (!weekStart) return null;
+  return {
+    id: weekStart,
+    version: 1,
+    weekStart,
+    normalTarget: positiveSessionTarget(source.normalTarget, 1),
+    capturedAt: String(source.capturedAt || '')
+  };
+}
+
+export function normalizeWeeklyTargetCandidates(items = []) {
+  const byWeek = new Map();
+  (Array.isArray(items) ? items : []).forEach(item => {
+    const normalized = normalizeWeeklyTargetCandidate(item);
+    if (normalized) byWeek.set(normalized.weekStart, normalized);
+  });
+  return [...byWeek.values()].sort((a, b) => a.weekStart.localeCompare(b.weekStart));
+}
+
+export function upsertOpenWeeklyTargetCandidate(items = [], {
+  weekStart,
+  normalTarget,
+  currentWeekStart = weekStart,
+  capturedAt = ''
+} = {}) {
+  const normalizedWeekStart = validIsoDate(weekStart);
+  const normalizedCurrentWeek = validIsoDate(currentWeekStart);
+  const existing = normalizeWeeklyTargetCandidates(items);
+  if (!normalizedWeekStart || !normalizedCurrentWeek || normalizedWeekStart !== normalizedCurrentWeek) return existing;
+  return normalizeWeeklyTargetCandidates([
+    ...existing.filter(item => item.weekStart !== normalizedWeekStart),
+    { weekStart: normalizedWeekStart, normalTarget, capturedAt }
+  ]);
+}
+
 export function normalizeWeeklyTargetSnapshotPolicy(input = {}, fallbackEffectiveFrom = '') {
   const source = input && typeof input === 'object' && !Array.isArray(input) ? input : {};
   return {
@@ -203,4 +254,3 @@ export function weeklyContinuityOutcome({ sessions = 0, target = 1, freezeProtec
     source: meetsTarget ? 'training' : protectedByFreeze ? 'freeze' : 'missing'
   };
 }
-
