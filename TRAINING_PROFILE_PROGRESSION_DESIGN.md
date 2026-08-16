@@ -32,20 +32,37 @@ Målet er å:
 
 ### Vindu og datakrav
 
-- Bruk de siste åtte avsluttede ISO-ukene.
-- Krev minst seks datakvalifiserte uker og minst 18 klassifiserbare økter totalt.
+- Se maksimalt 12 avsluttede kalenderuker tilbake og bruk de opptil åtte nyeste datakvalifiserte ISO-ukene i dette vinduet. Vinduet er dermed evidensstyrt, ikke låst til åtte kalenderuker.
+- Krev minst seks datakvalifiserte uker og minst 18 klassifiserbare økter totalt. Hvis seks slike uker ikke finnes innen 12 kalenderuker, vises datagrunnlaget uten endringsforslag.
 - En uke er datakvalifisert når den har minst to fullførte økter med utledbar rolle/intensjonsklasse.
-- Pågående uke holdes utenfor. Uker med aktiv skade-/comebackreduksjon eller eksplisitt avlastningsuke vises i grunnlaget, men teller ikke som bevis for permanent profilendring.
+- Pågående uke holdes utenfor. Uker med aktiv skade-/comebackreduksjon eller eksplisitt avlastningsuke vises i grunnlaget, men teller ikke som bevis for permanent profilendring. Søket fortsetter bakover forbi slike uker innen 12-ukersgrensen for å samle opptil åtte kvalifiserte uker; minst seks kreves.
 - Klassifisering skal gjenbruke eksisterende `inferredWorkoutRole()` og kanonisk intensitetsklassifisering. Ingen ny parallell rollemodell.
+
+Avlastningsuker holdes utenfor også for rollefordeling. De er med hensikt roligere og ville ellers trekke faktisk kvalitetsandel ned og skape et falskt profilavvik. Konsekvensen av det rullerende vinduet er at en normal sekvens med to avlastningsuker fortsatt gir seks bevisuker, mens sykdom eller ferie bare forlenger kalenderperioden. Tolvukersgrensen hindrer at gammel treningsadferd blir brukt som om den var aktuell.
 
 ### Utløser
 
 Et forslag vises når begge vilkår er oppfylt:
 
 1. Median faktisk antall kvalitetsøkter per datakvalifisert uke avviker med minst én økt fra den konfigurerte normaluken.
-2. Avviket går samme vei i minst seks av de åtte ukene, eller i alle seks datakvalifiserte uker dersom bare seks/sju finnes.
+2. Avviket går samme vei i minst seks av de opptil åtte datakvalifiserte ukene.
 
-For en normaluke med to kvalitetsroller og faktisk stabil gjennomføring med én kvalitet og to rolige vil forslaget derfor utløses. En enkelt sykdoms-, ferie- eller avlastningsuke gjør det ikke.
+For en normaluke med to kvalitetsroller og faktisk stabil gjennomføring med én kvalitet og to rolige vil forslaget derfor utløses. En enkelt sykdoms-, ferie- eller avlastningsuke gjør ikke funksjonen vanskeligere å utløse; den utvider bare kalenderperioden som må undersøkes.
+
+### Manuell profilendring og karens
+
+Når brukeren lagrer en manuell endring i ukeoppskrift eller coachnivå, opprettes en profilrevisjon med `effectiveFrom`, profilfingeravtrykk og endrede felt. Den er kontekst for deteksjonen, ikke en automatisk plan- eller historieendring.
+
+- Tidligere historikk kan vises i sammenligningen, men kan ikke utløse forslag mot den nye profilen.
+- Nye avviksforslag krever seks datakvalifiserte, avsluttede uker etter `effectiveFrom`, fortsatt innen et maksimalt søkevindu på 12 kalenderuker.
+- Endring midt i en uke gjør første hele ISO-uke etter endringen til første mulige bevisuke.
+- Appen kan derfor ikke foreslå å reversere endringen umiddelbart. Karensen er evidensbasert: den oppheves først når seks nye kvalifiserte uker viser et vedvarende avvik.
+- En aktiv blokk beholder sitt profilsnapshot. Den manuelle endringen gjelder nye uker uten aktiv blokk og som standard ved neste blokk-utkast.
+
+Tekst etter lagring:
+
+> **Ny normaluke er lagret**  
+> Vi vurderer den mot nye fullførte uker. Tidligere trening kan vises som historikk, men brukes ikke til å foreslå at du endrer tilbake.
 
 ### Visning og handling
 
@@ -54,7 +71,7 @@ Primær plassering er inline øverst i Setup → Treningsprofil, fordi endringen
 Tekstforslag:
 
 > **Ukeprofilen ser annerledes ut i praksis**  
-> De siste 8 ukene har du vanligvis gjennomført 1 kvalitetsøkt og 2 rolige økter. Profilen forventer 2 kvalitetsøkter. Vil du bruke den faktiske rytmen som ny normaluke?
+> I de siste 6 sammenlignbare ukene har du vanligvis gjennomført 1 kvalitetsøkt og 2 rolige økter. Profilen forventer 2 kvalitetsøkter. Vil du bruke den faktiske rytmen som ny normaluke?
 
 Handlinger: `Se sammenligning`, `Oppdater profil`, `Behold som den er`. Oppdatering viser en diff og krever bekreftelse. Ingen automatisk endring.
 
@@ -115,6 +132,8 @@ Runde 4 (controller og persistence) kan bygges etter at snapshotsperren er løft
 
 - Profilavvik foreslås først etter minst seks stabile datakvalifiserte uker og endrer ingenting automatisk.
 - Skade-, comeback- og avlastningsuker kan ikke alene omskrive normaluken.
+- Planlagte avlastningsuker reduserer ikke datamuligheten: søket fortsetter bakover, maksimalt 12 kalenderuker, for å samle opptil åtte kvalifiserte uker; minst seks kreves.
+- En manuell profilendring kan ikke reverseres av gammel historikk; seks nye kvalifiserte uker kreves før et nytt forslag.
 - Valgt coachnivå forklarer sin faktiske virkning og valideres mot eksisterende fitnessvurdering.
 - Oppgradering skjer bare gjennom eksisterende bekreftelsesflyt fra `domain-fitness.js`.
 - Ukesmål tre gir tre obligatoriske roller; en eventuell fjerde er tydelig frivillig bonus.
