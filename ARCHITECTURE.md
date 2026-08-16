@@ -30,6 +30,10 @@ Treningsapp/
 ├── domain-periodized-training-plan.js
 ├── calendar-ui.js
 ├── workout-template-ui.js
+├── workout-completion-ui.js
+├── workout-history-ui.js
+├── exercise-library-ui.js
+├── heart-rate-zones-ui.js
 ├── garmin-csv-import.js
 ├── training-import-controller.js
 ├── training-import-ui.js
@@ -38,6 +42,18 @@ Treningsapp/
 ├── domain-coach-rules.js
 ├── domain-coach.js
 ├── domain-fitness.js
+├── domain-exercises.js
+├── domain-heart-rate-zones.js
+├── domain-activity.js
+├── domain-volume-trends.js
+├── domain-performance-insights.js
+├── domain-insight-confidence.js
+├── insight-confidence-ui.js
+├── training-insights-ui.js
+├── workspace-sections-ui.js
+├── domain-workout-assessment.js
+├── domain-ai-workout-assessment.js
+├── domain-ai-workout-context.js
 ├── ai-coach-client.js
 ├── ai-coach-ui.js
 ├── styles.css
@@ -49,6 +65,7 @@ Treningsapp/
 ├── DATA_AND_SYNC.md
 ├── INTERVALS_DESIGN.md
 ├── GARMIN_CSV_IMPORT_DESIGN.md
+├── TRAINING_PLANS_DESIGN.md
 ├── TESTING.md
 ├── RELEASE_CHECKLIST.md
 ├── tests/
