@@ -307,6 +307,15 @@ Relativ langtursgrense eies av `coach-rules.json` og valideres med samme fallbac
 }
 ```
 
+`1.35` er et foreløpig designforslag, ikke en låst produksjonsverdi. Før nøkkelen skrives til `coach-rules.json` i rolleporten, skal implementeringsrunden beregne brukerens faktiske referansegrunnlag fra de siste åtte avsluttede ISO-ukene etter regelen nedenfor og levere en kalibreringsrapport med:
+
+- median referansevarighet og antall kvalifiserte referanseøkter
+- hver faktisk rolig løpeøkt i vinduet med varighet, beregnet grense og side av grensen
+- tydelig varsel dersom grunnlaget er akkurat eller nær minimum seks, fordi ferie/skade da kan gjøre relativ klassifisering utilgjengelig
+- antall og andel økter over, på og under grensen ved faktor `1.35`
+
+Ingen agent skal endre faktoren ut fra rapporten på eget initiativ. Brukeren velger om `1.35` låses eller justeres før regelfilen, fallbacken og kontraktfingeravtrykket endres. Hvis produksjonsdata ikke kan leses sikkert lokalt, skal rapporten beregnes i en eksplisitt read-only diagnoseflyt mot brukerens synkroniserte data; det skal ikke brukes demo- eller antatte økter som erstatning.
+
 Referansen er median varighet for brukerens fullførte løpeøkter i de foregående åtte avsluttede ISO-ukene som har rolig/base-intensjon, gyldig varighet og ikke er eksplisitt restitusjon, langtur, kvalitet eller race. Måløkten inngår aldri i egen referanse. Minst seks referanseøkter kreves. Uten nok referanse klassifiseres `Rolig` som `easy`, med mindre navnet entydig sier langtur. Ved nøyaktig grense (`durationSeconds >= median * factor`) blir økten `long_easy`; under grensen blir den `easy`. Det konverteres ikke fra fart eller distanse for å tvinge frem en vurdering.
 
 Baseblokkens tre standard-slots er `easy`, `easy`, `long_easy`; en eventuell fjerde base-slot er også `easy` med mindre brukeren velger noe annet. Avlastningsuke kan bruke `recovery` fordi restitusjon da er øktens faktiske formål. Gjentatte `easy` beholdes som separate slots. `priorityRoles` er fortsatt en unik prioritetsliste og uttrykker ikke antall; slotlisten eier antallet.
@@ -625,7 +634,15 @@ Normalisering, baseline, rammer, regelkilde, prospektiv validering, rollepolicy,
 
 ### Rolleport mellom runde 3 og 4
 
-Etter at første ekte ukesmåls-snapshot er verifisert, leveres `easy`, v2-klassifisering, validert relativ langtursgrense og tellende rolledekning som en egen liten runtime-runde. Runde 4 starter ikke før denne porten er verifisert, slik at ingen plan materialiseres med `recovery` som erstatning for vanlig rolig volum.
+Etter at første ekte ukesmåls-snapshot er verifisert, starter rolleporten med kalibreringsrapporten for faktor `1.35`. Først etter brukerens valg leveres `easy`, v2-klassifisering, validert relativ langtursgrense og tellende rolledekning som en egen liten runtime-runde. Runde 4 starter ikke før denne porten er verifisert, slik at ingen plan materialiseres med `recovery` som erstatning for vanlig rolig volum.
+
+Samme runtime-runde skal også:
+
+- gjøre «Rolig baseøkt» valgbar i Treningsprofil
+- bruke `easy`, `easy`, `long_easy` som baseblokkens tre standard-slots
+- fjerne den Set-baserte coachdekningen som egen sannhetskilde
+- rette dobbelt punktum i teksten om neste planlagte økt
+- oppdatere coach-kontraktens fingeravtrykk når `workoutRoles` legges til; testen skal kommentere at hashendringen er bevisst ved tilsiktede regelendringer og ellers er en regresjonsvakt
 
 ### Runde 4 – Controller og persistence
 
