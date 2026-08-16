@@ -88,7 +88,7 @@ node functions\tests\ai-backend-tests.js
 - `local-state-store.js` - normalisert lokal snapshot- og recovery-lagring
 - `training-repository.js` - avgrenset Firestore-repository for treningsdata
 - `domain-training-plan.js` - ren, testbar ukeplan- og øktforslagslogikk
-- `domain-periodized-training-plan.js` - ren normalisering, historiske ukesmåls-snapshots og felles effektivt ukesmål; utvides med blokklogikk i senere runder
+- `domain-periodized-training-plan.js` - ren normalisering, historiske ukesmåls-snapshots, fireukers blokkrammer, prospektiv volumvalidering, rolle-/race-policy og ukesevaluering
 - `calendar-ui.js` - kalendergrid og dagsmodal med injiserte data-/handlingsavhengigheter
 - `domain-core.js` - rene testbare domenehjelpere
 - `domain-goals.js` - rene testbare konkurranse-/mål-hjelpere
