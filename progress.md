@@ -1,5 +1,5 @@
 # Treningsapp — progress.md
-Oppdatert: 2026-08-16 (siste runtime-endring: v176o1)
+Oppdatert: 2026-08-16 (siste runtime-endring: v176p)
 
 ---
 
@@ -27,7 +27,7 @@ Standard Bakken-uke: Hoved-terskel → Støtte-terskel → Lang rolig → Valgfr
 **Hosting:** GitHub Pages.  
 **Backend:** Firebase (prosjekt `home-tasks-app-18de3`) — Firestore + Google Auth.  
 **Frontend:** Vanilla JS + HTML + CSS, single-page app, tab-navigasjon.  
-**Versjon:** v176o1 (konstant i `app.js`).
+**Versjon:** v176p (konstant i `app.js`).
 
 ### Filer
 
@@ -214,10 +214,10 @@ Treningsapp/
 
 ## Neste steg (prioritert)
 
-1. **Periodisert treningsplan v1 - Runde 3: ren blokkdomene-logikk**
-   - Bygg baseline, fire ukers rammer, prospektiv volumvalidering, rollepolicy og ukesevaluering fra produksjonsmodulen.
+1. **Verifiser første ekte ukesmålsnapshot**
+   - Kontroller snapshotet for uken 10.–16. august før controller/persistence kan kobles på.
 2. **Periodisert treningsplan v1 - Runde 4-6**
-   - Ren blokklogikk, trygg preview/materialisering, mobil produktflate, coach-kontekst og fullført-oppsummering etter `TRAINING_PLANS_DESIGN.md`.
+   - Bygg trygg preview/materialisering, mobil produktflate, coach-kontekst og fullført-oppsummering etter `TRAINING_PLANS_DESIGN.md`.
 3. **v177 - Nedoverbelastning**
    - Skill stigning/nedstigning og kondisjons-/muskelbelastning.
 4. **v178 - Kroppsmål for klær og utstyr**
@@ -544,6 +544,17 @@ Treningsapp/
 - Transaksjonen er den bærende integritetsmekanismen: et eksisterende `final`-snapshot beholdes, slik at samtidig ferdigstilling på flere enheter gir nøyaktig ett uforanderlig resultat.
 - Manglende serverkontakt eller ufullstendig grunnlag gir ingen final-skriving. Stabilitetstestene dekker eksisterende final, serverfeil og samtidig ferdigstilling.
 - PWA-cache og synlig versjon er `v176o1`.
+
+### v176p - Periodisert treningsplan runde 3: ren blokkdomene-logikk - Bygget
+
+- `domain-periodized-training-plan.js` normaliserer nå gyldige og eldre fireukersblokker, beregner representativ baseline og bygger nøyaktig fire ISO-uker med load/load/peak/deload.
+- Blokkfaktorer, baselinegrenser og volumvaktens maksimum kommer fra samme validerte `coach-rules.json`-kilde med produksjonsfallback.
+- Prospektiv volumvalidering skiller `validated`, `metric_mismatch` og `insufficient_data`. Et validert overskridende forslag får utfallet `reduced_by_guardrail`, automatisk tryggere maksimum, synlig begrunnelse og eksplisitt overstyring.
+- Avlastningsukens effektive øktmål kommer fra antall slots, også når volumrammen måles i minutter.
+- Aktiv blokk eier rolleprioriteten; uten aktiv blokk brukes eksisterende race-kjede uendret. `evaluatePlanWeek()` bruker bare injiserte vurderinger og muterer ikke input.
+- Ren konfliktklassifisering behandler eksisterende manuelle økter uten `planRef` som blokkerende hovedtilfelle og tilbyr bare ny dato eller hopp over.
+- Runde 3 har ingen Firestore-, controller-, materialiserings- eller UI-kobling. Runde 4 er fortsatt sperret til første ekte snapshot er verifisert.
+- PWA-cache og synlig versjon er `v176p`.
 
 ---
 
