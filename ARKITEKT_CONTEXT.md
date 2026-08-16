@@ -165,12 +165,28 @@ Appen er en PWA uten build-step.
 Typisk struktur:
 
 - `index.html` — app-skall, tabber, modaler og statisk UI
-- `app.js` — hovedorchestrator, state, Firebase, DOM-wiring, render og wrappers
+- `app.js` — hovedorchestrator, state-instans, Firebase, DOM-wiring, sammensatt render og små wrappers
+- `app-state.js` — defaults og bakoverkompatibel normalisering av samlet state
+- `local-state-store.js` — normalisert lokal snapshot og recovery med IndexedDB-reserve
+- `training-repository.js` — avgrensede Firestore-operasjoner, batcher og datasirkel
 - `domain-core.js` — rene testbare domenehjelpere uten DOM/Firebase/state
 - `domain-goals.js` — rene testbare mål-/race-/PB-hjelpere uten DOM/Firebase/state
 - `domain-coach-rules.js` — versjonerte coach-regler, validering og trygg fallback
 - `domain-coach.js` — ren coach-logikk, beslutningsmotor, volum-ramp og comeback
 - `domain-fitness.js` — ren transparent nivåvurdering, aldersrelatert VO2-sammenligning og PB-progresjon
+- `domain-training-plan.js` — ukesroller, rolledekning og enkeltforslag
+- `domain-periodized-training-plan.js` — historiske ukesmål og ren fireukers blokklogikk
+- `domain-activity.js` — kildeuavhengig aktivitetsmiljø
+- `domain-volume-trends.js` — seksvinduer og navigerbare uke-/måned-/årsserier
+- `domain-performance-insights.js` — årsoppsummering, milepæler og sammenlignbar form
+- `domain-insight-confidence.js` — felles evidens- og vurderingssikkerhetskontrakt
+- `domain-exercises.js` og `domain-heart-rate-zones.js` — øvelses- og pulssonedata
+- `domain-workout-assessment.js`, `domain-ai-workout-assessment.js` og `domain-ai-workout-context.js` — regelbasert og AI-støttet øktvurdering
+- `garmin-csv-import.js` og `training-import-controller.js` — ren import, matching og commitplan
+- `calendar-ui.js`, `workout-template-ui.js`, `workout-completion-ui.js` og `workout-history-ui.js` — avgrensede arbeidsflater for kalender og økter
+- `exercise-library-ui.js`, `heart-rate-zones-ui.js` og `training-import-ui.js` — avgrensede setup-/importflater
+- `training-insights-ui.js`, `insight-confidence-ui.js` og `workspace-sections-ui.js` — Innsikt/Mål-rendering og progressiv informasjon
+- `ai-coach-client.js` og `ai-coach-ui.js` — autentisert AI-klient og sikker tekst-UI
 - `styles.css` — design, mobil-first, desktop media queries
 - `service-worker.js` — PWA-cache/offline
 - `manifest.json` — PWA-manifest
@@ -181,7 +197,7 @@ Typisk struktur:
 - `BACKLOG.md` — prioritert backlog
 - `DEVELOPMENT_ROADMAP.md` — strategisk retning
 - `dashboard-spesifikasjon.md` — designretning for dashboard
-- relevante designfiler som `INTERVALS_DESIGN.md`, `AI_COACH_DESIGN.md`, `STREAK_FREEZE_DESIGN.md`, fremtidig `GARMIN_SYNC_DESIGN.md` osv.
+- relevante designfiler som `INTERVALS_DESIGN.md`, `AI_COACH_DESIGN.md`, `STREAK_FREEZE_DESIGN.md`, `GARMIN_CSV_IMPORT_DESIGN.md` og `TRAINING_PLANS_DESIGN.md`
 
 Backend/data:
 
@@ -200,6 +216,10 @@ Firestore-samlinger per bruker kan blant annet være:
 - `challenges`
 - `blockedDays`
 - `raceResults`
+- `exercises`
+- `heartRateZoneSets`
+- `continuityFreezes`
+- `weeklyTargetSnapshots`
 - `settings/preferences`
 
 ---
@@ -920,15 +940,14 @@ Bruk alltid siste `BACKLOG.md`, `DEVELOPMENT_ROADMAP.md` og `progress.md` som ki
 
 Per nå peker retningen mot:
 
-1. Etablere `coach-rules.json` v2 som validert regel-/parameterkilde med fallback.
-2. Fikse gylne-sone-logikken og samle intensitetsbalansen i én kanonisk vurdering.
-3. Legge til volum-ramp og comeback-protokoll.
-4. Flytte ren coach-logikk gradvis til `domain-coach.js`.
-5. Designe og deretter implementere fryskort på toppen av samme policy.
-6. Ta HRV, «i morgen»-perspektiv og AI-chat-design etter Coach foundation.
-7. Garmin/Strava/import når det gir tydelig verdi for coach-context.
+1. Verifisere første ekte `weeklyTargetSnapshot` etter ukeskiftet. Runde 4 for periodisert plan forblir sperret til dette er kontrollert.
+2. Utvide `domain-periodized-training-plan.js` med ren blokklogikk: normalisering, baseline, fire ukers rammer, prospektiv volumvalidering, rolle-/race-policy og ukesevaluering.
+3. Etter snapshot-porten: bygge controller og persistence med preview/diff, konflikt som hovedflyt, current+next-materialisering og uforanderlige fullførte økter.
+4. Bygge en mobil-først planflate i Kalender og et kompakt Hjem-kort, med rask vei for blokk to og senere.
+5. Koble sekundær plankontekst til coach, avslutte blokk eksplisitt og verifisere hele data-/backup-/recovery-sirkelen.
+6. Bruke minst én full fireukersblokk før en eventuell v2 med blokkbibliotek eller automatisk 12-ukers løpsplan vurderes.
 
-Ikke hopp til AI/Garmin bare fordi det er spennende hvis neste lavrisiko produktforbedring gir mer verdi.
+Sikkerhetsrekkefølgen står fast: kroppssignal og dagsform foran plan, forklarbar konflikt foran automatisk overskriving, og historisk integritet foran rask aktivering.
 
 ---
 
@@ -1033,3 +1052,4 @@ Den skal ikke overstyre:
 - dokumentert nyere roadmap/backlog/progress
 
 Hvis denne filen og nyere prosjektfiler er i konflikt, skal arkitekten følge de nyere og mer konkrete prosjektfilene.
+
