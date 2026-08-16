@@ -181,7 +181,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     import { createTrainingInsightsUi } from './training-insights-ui.js';
     import { createWorkspaceSectionsUi } from './workspace-sections-ui.js';
 
-const APP_VERSION = 'v176p';
+const APP_VERSION = 'v176q';
     const APP_CACHE_NAME = `treningsapp-${APP_VERSION}`;
 
     const firebaseConfig = {
@@ -3769,14 +3769,14 @@ const APP_VERSION = 'v176p';
         <button class="btn-primary btn-full" onclick="submitTrafficLight()" ${s.sleep && s.energy ? '' : 'disabled'}>Sjekk dagsform</button>`;
     }
 
-    function renderTrafficLightResult(readiness) {
+    function renderTrafficLightResult(readiness, completedToday = false) {
       const cfg = TRAFFIC_LIGHT_CONFIG[readiness.level];
       return `
         <div class="traffic-light-display">
           <span class="traffic-dot-lg ${readiness.level}"></span>
           <div>
             <strong>${escapeHtml(cfg.label)}</strong>
-            <p class="small-note" style="margin-top:4px;">${escapeHtml(cfg.advice)}</p>
+            ${completedToday ? '' : `<p class="small-note" style="margin-top:4px;">${escapeHtml(cfg.advice)}</p>`}
           </div>
         </div>
         <button class="btn-soft" style="margin-top:10px;font-size:0.82rem;padding:7px 12px;" onclick="resetTrafficLight()">Endre</button>`;
@@ -3874,7 +3874,8 @@ const APP_VERSION = 'v176p';
       if (!container) return;
       const readiness = loadDailyReadiness();
       const hasTrafficResult = Boolean(readiness?.level && TRAFFIC_LIGHT_CONFIG[readiness.level]);
-      container.innerHTML = `${hasTrafficResult ? renderTrafficLightResult(readiness) : renderTrafficLightForm()}${renderInjuryCheckinBlock(readiness)}`;
+      const completedToday = state.completed.some(item => item?.date === todayISO());
+      container.innerHTML = `${hasTrafficResult ? renderTrafficLightResult(readiness, completedToday) : renderTrafficLightForm()}${renderInjuryCheckinBlock(readiness)}`;
     }
 
     window.setTlValue = function(field, value) {
@@ -4745,11 +4746,12 @@ const APP_VERSION = 'v176p';
       heroActions.innerHTML = heroActionsHtml(heroState, firstPlanned, completedToday);
 
       heroIntensity.innerHTML = heroIntensityHtml(ctx);
-      heroPreparation.innerHTML = `
-        <div class="hero-prep-note">
-          <strong>${escapeHtml(decision?.support?.adjustment || decision?.title || 'Forberedelse')}</strong>
-          <p>${escapeHtml(decision?.support?.support || decision?.reason || 'Sjekk dagsform og juster ved kroppssignal.')}</p>
-        </div>`;
+      heroPreparation.classList.toggle('hidden', isPostWorkout);
+      heroPreparation.innerHTML = isPostWorkout ? '' : `
+          <div class="hero-prep-note">
+            <strong>${escapeHtml(decision?.support?.adjustment || decision?.title || 'Forberedelse')}</strong>
+            <p>${escapeHtml(decision?.support?.support || decision?.reason || 'Sjekk dagsform og juster ved kroppssignal.')}</p>
+          </div>`;
       primaryWorkout.innerHTML = heroWorkoutDetailHtml(primaryItems, isPostWorkout ? completedToday : null);
     }
 
@@ -5021,7 +5023,12 @@ const APP_VERSION = 'v176p';
       renderHomeHero(coachCtx, primaryItems, todayItems, todayDecisionResult);
       renderHomeMotivation(coachCtx, weekStart, weekSummary);
       renderTodayDecision(todayDecisionResult);
-      document.getElementById('homeCoachNote').textContent = buildCoachNote(coachCtx);
+      const homeCoachNote = document.getElementById('homeCoachNote');
+      if (homeCoachNote) {
+        const hasCompletedToday = Boolean(coachCtx.completedToday?.length);
+        homeCoachNote.classList.toggle('hidden', hasCompletedToday);
+        homeCoachNote.textContent = hasCompletedToday ? '' : buildCoachNote(coachCtx);
+      }
       renderInjuryWorkoutAdvice(buildInjuryWorkoutAdvice(coachCtx, primaryItems));
       renderHomeCoachBasis(buildHomeCoachBasis(coachCtx, todayDecisionResult, firstPlannedFromPrimary(primaryItems)));
       renderWeekPlan(today, weekSummary, weekItems, last14DaysForSignals, profile, effectiveGoals, plannedActive);
@@ -5128,6 +5135,10 @@ const APP_VERSION = 'v176p';
       const completedFeedback = latestTodayCompleted
         ? todayCompletedWorkoutFeedback({
             completed: completedWorkoutAdviceMeta(latestTodayCompleted),
+            nextPlanned: firstPlanned ? {
+              label: template?.name || 'planlagt økt',
+              dateLabel: firstPlanned.date ? formatDate(firstPlanned.date).toLowerCase() : ''
+            } : null,
             decision: enrichedDecision,
             injurySummary: ctx.injurySummary7,
             dailyReadinessLevel: ctx.dailyReadiness?.level || null
@@ -5145,7 +5156,16 @@ const APP_VERSION = 'v176p';
       const completed = ctx.completedToday?.[ctx.completedToday.length - 1] || null;
       if (!completed) return '';
       const meta = completedWorkoutAdviceMeta(completed);
-      const feedback = todayCompletedWorkoutFeedback({ completed: meta });
+      const nextPlanned = ctx.nextPlanned || null;
+      const nextTemplate = nextPlanned ? plannedTemplate(nextPlanned) : null;
+      const feedback = todayCompletedWorkoutFeedback({
+        completed: meta,
+        nextPlanned: nextPlanned ? {
+          label: nextTemplate?.name || 'planlagt økt',
+          dateLabel: nextPlanned.date ? formatDate(nextPlanned.date).toLowerCase() : ''
+        } : null,
+        injurySummary: ctx.injurySummary7
+      });
       if (!feedback) return '';
       const painBefore = numberOrZero(meta.painBefore);
       const painAfter = numberOrZero(meta.painAfter);
@@ -5153,12 +5173,12 @@ const APP_VERSION = 'v176p';
         ? ` Smerte gikk fra ${painBefore}/10 før til ${painAfter}/10 etter${meta.painArea ? ` i ${meta.painArea}` : ''}.`
         : '';
       if (feedback.level === 'red') {
-        return `Du har allerede gjennomført ${meta.label} i dag, men responsen krever forsiktighet.${painPart} Resten av dagen bør handle om ro, mat/drikke og ny smertevurdering i morgen. ${coachPrincipleLine(['body_signals_first', 'recovery_is_training'])}`;
+        return `${meta.label} er gjennomført, men responsen krever forsiktighet.${painPart} ${feedback.action}`;
       }
       if (painAfter > 0 || painBefore > 0) {
-        return `Du har allerede gjennomført ${meta.label} i dag, og responsen ser kontrollert ut.${painPart} Det er positivt, men bruk resten av dagen til restitusjon og følg med på om smerten holder seg lav. ${coachPrincipleLine(['body_signals_first'])}`;
+        return `${meta.label} er gjennomført.${painPart} ${feedback.action}`;
       }
-      return `Du har allerede gjennomført ${meta.label} i dag. Vurderingen nå er ikke om du bør trene mer, men om økten støtter kontinuiteten: fyll på mat/drikke, la kroppen hente seg inn og bruk neste økt som neste datapunkt. ${coachPrincipleLine(['recovery_is_training', 'repeatable_week'])}`;
+      return `${meta.label} er gjennomført. ${feedback.action}`;
     }
 
     function completedWorkoutAdviceMeta(completed) {
@@ -5224,6 +5244,12 @@ const APP_VERSION = 'v176p';
     function renderTodayDecision(decision) {
       const el = document.getElementById('homeDecision');
       if (!el || !decision) return;
+      const isPostWorkout = decision.mode === 'post_workout';
+      el.classList.toggle('hidden', isPostWorkout);
+      if (isPostWorkout) {
+        el.innerHTML = '';
+        return;
+      }
       const level = ['green', 'yellow', 'red', 'neutral'].includes(decision.level) ? decision.level : 'neutral';
       const support = decision.support || {};
       const kicker = decision.kicker || 'Dagens beslutning';
@@ -7685,4 +7711,3 @@ const APP_VERSION = 'v176p';
         navigator.serviceWorker.register(`./service-worker.js?v=${APP_VERSION}`).catch(() => {});
       });
     };
-
