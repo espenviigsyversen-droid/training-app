@@ -1647,7 +1647,7 @@ Rekkefølge og porter:
 
 1. Design og kontrakter er dokumentert uten runtime-endring.
 2. Historisk målfundament leverer `weeklyTargetSnapshots`, `effectiveWeeklyTargetForWeek()` og full state/repository/backup/recovery-kobling. Bygget i v176o.
-3. Ren blokkdomene-logikk leverer kalibrering, volumramme, prospektiv validering, rollepolicy og ukesevaluering.
+3. Ren blokkdomene-logikk leverer kalibrering, volumramme, prospektiv validering, rollepolicy og ukesevaluering. Bygget i v176p.
 4. Controller/persistence leverer planrevisjon, preview/diff, konfliktpolicy og materialisering av bare inneværende/neste uke.
 5. Mobil-først produktflate leverer firestegs opprettelse, Kalender-planoversikt, Hjem-kort og fullført-oppsummering.
 6. Coach-kontekst, ukefullføring, ende-til-ende-test og release avslutter v1.
@@ -1694,7 +1694,7 @@ Foreslått modulgrense:
 
 `v172a-v172b` er bygget samlet. `STRUCTURED_EXERCISES_DESIGN.md` dokumenterer den versjonerte modellen, og produksjonen bruker `domain-exercises.js` og `exercise-library-ui.js`. Øvelser kan gjenbrukes i styrkemaler med sett, repetisjoner, pause, belastning, notat og sikre lenker. Malen lagrer snapshots slik at senere bibliotekendringer ikke endrer planlagte eller historiske økter.
 
-Utviklingsløpet gjennom `v176o` er bygget. Garmin-importen er kontrollert og kildeuavhengig, Innsikt er organisert i progressive arbeidsflater, og `TRAINING_PLANS_DESIGN.md` er bindende for videre arbeid. Runde 2 har levert historisk stabile ukesmål, felles effektivt mål i Hjem/ukestatus/kontinuitet/coach og komplett state/repository/backup/recovery-kobling. Runde 3 med ren blokkdomene-logikk er neste planlagte steg. v177 nedoverbelastning og v178 kroppsmål beholdes som senere spor.
+Utviklingsløpet gjennom `v176p` er bygget. Garmin-importen er kontrollert og kildeuavhengig, Innsikt er organisert i progressive arbeidsflater, og `TRAINING_PLANS_DESIGN.md` er bindende for videre arbeid. Runde 2 har levert historisk stabile ukesmål og komplett datasirkel; runde 3 har levert ren blokkdomene-logikk og direkte produksjonstester. Før runde 4 starter skal første ekte snapshot verifiseres. Deretter følger controller/persistence med konfliktpreview som hovedflyt. v177 nedoverbelastning og v178 kroppsmål beholdes som senere spor.
 
 ## Hva vi bør vente med
 
