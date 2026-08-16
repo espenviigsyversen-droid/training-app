@@ -509,6 +509,7 @@ async function testAsync(name, fn) {
   } = domain;
   const {
     buildAiCoachContext,
+    completedWorkoutNextStep,
     coachDecisionEngine,
     coachDecisionBasis,
     comebackProtocol,
@@ -2863,8 +2864,8 @@ async function testAsync(name, fn) {
     assert.ok(workoutHistoryUiSource.includes('heartRateZoneDistributionRows'), 'history does not use production zone rows');
     assert.ok(workoutHistoryUiSource.includes('Tid i pulssoner'), 'completed detail is missing the heart-rate zone section');
     assert.ok(!workoutHistoryUiSource.includes("row.estimated ? 'ca. '"), 'zone duration should not be prefixed with ca.');
-    assert.ok(app.includes("const APP_VERSION = 'v176p'"), 'visible app version must be v176p');
-    assert.ok(serviceWorker.includes('treningsapp-v176p'), 'cache version must match v176p');
+    assert.ok(app.includes("const APP_VERSION = 'v176q'"), 'visible app version must be v176q');
+    assert.ok(serviceWorker.includes('treningsapp-v176q'), 'cache version must match v176q');
   });
 
   test('v174b evaluates easy and quality sessions without treating zone percentages as a hard truth', () => {
@@ -2959,8 +2960,8 @@ async function testAsync(name, fn) {
     assert.ok(index.includes('id="insightHeartRateComplianceCard"'), 'Insights is missing the compliance card');
     assert.ok(app.includes('heartRateZoneComplianceForItems(last28Days)'), 'coach context does not use the canonical compliance summary');
     assert.ok(app.includes('renderHeartRateZoneComplianceInsight(today)'), 'Insights does not render canonical compliance');
-    assert.ok(app.includes("const APP_VERSION = 'v176p'"), 'visible app version must be v176p');
-    assert.ok(serviceWorker.includes('treningsapp-v176p'), 'cache version must match v176p');
+    assert.ok(app.includes("const APP_VERSION = 'v176q'"), 'visible app version must be v176q');
+    assert.ok(serviceWorker.includes('treningsapp-v176q'), 'cache version must match v176q');
   });
 
   test('v174c uses the test profile for zones and keeps the golden zone as a separate coach reference', () => {
@@ -3323,7 +3324,7 @@ async function testAsync(name, fn) {
     assert.ok(result.evidence.includes('RPE 3/10'));
     assert.ok(result.evidence.includes('aerob treningseffekt 3,2'));
     assert.ok(result.planFit.includes('96 høydemeter'));
-    assert.ok(result.nextStep.includes('Normal plan kan fortsette'));
+    assert.match(result.nextStep, /neste planlagte kvalitet/i);
     assert.ok(workoutHistoryUiSource.includes('heart-rate-summary-card'));
     assert.ok(workoutHistoryUiSource.includes("detailSection('Coach-vurdering'"));
     assert.ok(serviceWorker.includes('./domain-workout-assessment.js'));
@@ -3331,6 +3332,65 @@ async function testAsync(name, fn) {
     assert.ok(styles.includes('.workout-coach-assessment'));
     assert.ok(workoutAssessmentSource.includes('buildWorkoutCoachAssessment'));
     assert.ok(styles.includes('.modal.detail-modal {'), 'workout detail should use the shared modal surface');
+  });
+
+  test('v176q makes the next step follow the observed easy-zone share', () => {
+    const common = {
+      template: { name: 'Easy Run', purpose: 'recovery', intensity: 'Rolig' },
+      loadAssessment: { level: 'low' },
+      trainingProfile: { primaryFocus: 'running', philosophy: 'bakken_threshold' }
+    };
+    const veryEasy = buildWorkoutCoachAssessment({
+      ...common,
+      completed: {
+        rpe: 2,
+        bodyStatus: { painBefore: 0, painAfter: 0, adaptation: 'none' },
+        heartRateZoneDistribution: { zones: [
+          { zoneId: 'z1', percent: 10 },
+          { zoneId: 'z2', percent: 89 },
+          { zoneId: 'z3', percent: 1 }
+        ] }
+      }
+    });
+    const somewhatHarder = buildWorkoutCoachAssessment({
+      ...common,
+      completed: {
+        rpe: 3,
+        bodyStatus: { painBefore: 0, painAfter: 0, adaptation: 'none' },
+        heartRateZoneDistribution: { zones: [
+          { zoneId: 'z1', percent: 10 },
+          { zoneId: 'z2', percent: 70 },
+          { zoneId: 'z3', percent: 20 }
+        ] }
+      }
+    });
+
+    assert.notStrictEqual(veryEasy.nextStep, somewhatHarder.nextStep);
+    assert.match(veryEasy.nextStep, /kvalitetsøkt kan beholdes/i);
+    assert.match(somewhatHarder.nextStep, /neste økt være rolig eller hvile/i);
+    assert.match(somewhatHarder.nextStep, /høyere soner/i);
+    assert.ok(!veryEasy.nextStep.includes('beina fortsatt kjennes friske'));
+  });
+
+  test('v176q derives workout next step through the existing coach engine', () => {
+    const nextStep = completedWorkoutNextStep({
+      easyIntent: true,
+      easyShare: 80,
+      rpe: 3,
+      loadLevel: 'low',
+      bodySignalObserved: true
+    });
+    const decision = coachDecisionEngine({
+      completedAssessment: {
+        easyIntent: true,
+        easyShare: 80,
+        rpe: 3,
+        loadLevel: 'low',
+        bodySignalObserved: true
+      }
+    });
+    assert.strictEqual(decision.recommendation, nextStep.recommendation);
+    assert.strictEqual(decision.primarySignal, 'post_workout_feedback');
   });
 
   test('v176j gives workout details professional modal chrome and accessible closing', () => {
@@ -3477,8 +3537,8 @@ async function testAsync(name, fn) {
     assert.ok(trainingImportControllerSource.includes("action: duplicate ? 'skip'"), 'duplicates should be skipped by default');
     assert.ok(!trainingImportControllerSource.includes('heartRateZoneDistribution'), 'controller must not synthesize pulse zones');
     assert.ok(styles.includes('.garmin-import-row'), 'Garmin preview styling is missing');
-    assert.ok(app.includes("const APP_VERSION = 'v176p'"));
-    assert.ok(serviceWorker.includes('treningsapp-v176p'));
+    assert.ok(app.includes("const APP_VERSION = 'v176q'"));
+    assert.ok(serviceWorker.includes('treningsapp-v176q'));
   });
 
   test('structured interval UI fields and summaries are wired into production files', () => {
@@ -4301,7 +4361,8 @@ async function testAsync(name, fn) {
         painBefore: 0,
         painAfter: 1,
         painArea: 'Begge kne'
-      }
+      },
+      nextPlanned: { label: 'Rolig langtur', dateLabel: 'søn. 16. aug.' }
     });
 
     assert.strictEqual(feedback.mode, 'post_workout');
@@ -4309,6 +4370,7 @@ async function testAsync(name, fn) {
     assert.strictEqual(feedback.level, 'green');
     assert.match(feedback.title, /Bra justert/);
     assert.match(feedback.reason, /Rolig Kort Tur/);
+    assert.match(feedback.action, /Rolig langtur søn\. 16\. aug\./);
     assert.match(feedback.support.support, /karbohydrater|protein|Drikk|drikk/);
   });
 
@@ -4424,10 +4486,11 @@ async function testAsync(name, fn) {
   test('home hero state supports post-workout, rest day and comeback states', () => {
     const completed = homeHeroState({
       completedToday: { label: 'Rolig Kort Tur', type: 'Løping' },
-      decision: { level: 'green', title: 'Bra justert økt', reason: 'Rolig respons.' }
+      decision: { level: 'green', title: 'Bra justert økt', action: 'Neste planlagte økt er Langtur søndag.', reason: 'Rolig respons.' }
     });
     assert.strictEqual(completed.state, 'post_workout');
     assert.match(completed.kicker, /Fullført/);
+    assert.match(completed.body, /Langtur søndag/);
 
     const rest = homeHeroState({
       planned: { label: 'Støtteterskel', intensity: 'Terskel' },
@@ -4448,6 +4511,15 @@ async function testAsync(name, fn) {
     });
     assert.strictEqual(comeback.state, 'comeback');
     assert.match(comeback.body, /8 dager/);
+  });
+
+  test('v176q removes pre-workout traffic advice and duplicate home advice after completion', () => {
+    assert.ok(app.includes('renderTrafficLightResult(readiness, completedToday)'));
+    assert.ok(app.includes("homeCoachNote.classList.toggle('hidden', hasCompletedToday)"));
+    assert.ok(app.includes("heroPreparation.classList.toggle('hidden', isPostWorkout)"));
+    assert.ok(app.includes("el.classList.toggle('hidden', isPostWorkout)"));
+    assert.ok(!app.includes('bruk neste økt som neste datapunkt'));
+    assert.ok(!app.includes('Prinsipp: Restitusjon er aktiv belastningsstyring. Normaluken skal være enkel, repeterbar og justerbar.'));
   });
 
   test('home hero treats quality during comeback or rapid volume growth as a conflict', () => {
@@ -4591,4 +4663,3 @@ async function testAsync(name, fn) {
   console.error(err);
   process.exit(1);
 });
-
