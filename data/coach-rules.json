@@ -112,6 +112,18 @@
       "minimumBaselineSessions": 4,
       "minimumRecentSessions": 2
     },
+    "periodizedPlan": {
+      "baselineLookbackWeeks": 6,
+      "minimumBaselineWeeks": 4,
+      "durationCoverageThreshold": 0.5,
+      "significantBaselineChangeFactor": 0.1,
+      "blockFactors": [
+        { "min": 0.95, "max": 1.0 },
+        { "min": 1.0, "max": 1.05 },
+        { "min": 1.05, "max": 1.15 },
+        { "min": 0.7, "max": 0.8 }
+      ]
+    },
     "comeback": {
       "triggerDaysSinceLast": 5,
       "longBreakDays": 10,
@@ -137,3 +149,4 @@
     }
   }
 }
+
