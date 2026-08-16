@@ -1,5 +1,5 @@
 # Treningsapp — progress.md
-Oppdatert: 2026-08-16 (siste runtime-endring: v176p)
+Oppdatert: 2026-08-16 (siste runtime-endring: v176q)
 
 ---
 
@@ -27,7 +27,7 @@ Standard Bakken-uke: Hoved-terskel → Støtte-terskel → Lang rolig → Valgfr
 **Hosting:** GitHub Pages.  
 **Backend:** Firebase (prosjekt `home-tasks-app-18de3`) — Firestore + Google Auth.  
 **Frontend:** Vanilla JS + HTML + CSS, single-page app, tab-navigasjon.  
-**Versjon:** v176p (konstant i `app.js`).
+**Versjon:** v176q (konstant i `app.js`).
 
 ### Filer
 
@@ -556,6 +556,17 @@ Treningsapp/
 - Runde 3 har ingen Firestore-, controller-, materialiserings- eller UI-kobling. Runde 4 er fortsatt sperret til første ekte snapshot er verifisert.
 - PWA-cache og synlig versjon er `v176p`.
 
+### v176q - Dagens råd etter fullført økt - Bygget
+
+- Øktdetaljens «Neste steg» går nå gjennom `coachDecisionEngine()` og skiller blant annet svært rolig økt, kontrollert rolig økt og en rolig økt som fikk merkbar tid i høyere soner.
+- 99 prosent i sone 1–2 med lav RPE kan beholde neste kvalitet, mens 80 prosent gir et eksplisitt roligere neste steg. Observasjon og anbefaling kan dermed ikke lenger motsi hverandre i dette tilfellet.
+- Generiske forbehold om «friske bein» er erstattet med registrert smerte, tilpasning eller en nøytral anbefaling når kroppssignal ikke er registrert.
+- Etter fullført økt navngir Hjem neste planlagte økt og dato. Før-økt-råd fra trafikklys, forberedelsesfelt og duplisert coachtekst skjules etter gjennomføring.
+- Filosofi-boilerplate er fjernet fra etter-økt-teksten. Coachgrunnlaget er fortsatt tilgjengelig progressivt, men hovedflaten viser ett handlingsbudskap.
+- Nytt `TRAINING_PROFILE_PROGRESSION_DESIGN.md` dokumenterer avviksdeteksjon for normaluke, verifisert bruk av coachnivå, gjenbruk av `domain-fitness.js`, forenkling av mål/profil og grensesnittet mot blokkplaner. Dokumentet har ingen runtime-kobling.
+- Ingen datamodell, Firestore-samling eller snapshotlogikk er endret. Runde 4 i planarbeidet er fortsatt sperret til første ekte snapshot er verifisert.
+- PWA-cache og synlig versjon er `v176q`.
+
 ---
 
 ## Arbeidsnotater
@@ -564,4 +575,3 @@ Treningsapp/
 - Lokal kopi — ikke et Git-repo. Endrede filer synkroniseres til GitHub Pages via GitHub-connectoren når skrivetilgang er tilgjengelig.
 - Filer som typisk endres per økt: `app.js`, `index.html`, `styles.css`, `service-worker.js`
 - Husk alltid å bumpe `APP_VERSION` i `app.js` og `CACHE_NAME` i `service-worker.js`
-
