@@ -211,6 +211,114 @@ function signalReason(signal) {
   };
 }
 
+export function completedWorkoutNextStep(input = {}) {
+  const easyIntent = Boolean(input.easyIntent);
+  const easyShare = input.easyShare === null || input.easyShare === undefined
+    ? null
+    : Math.max(0, Math.min(100, Number(input.easyShare) || 0));
+  const rpe = Math.max(0, Number(input.rpe) || 0);
+  const loadLevel = String(input.loadLevel || '').toLowerCase();
+  const painBefore = Math.max(0, Number(input.painBefore) || 0);
+  const painAfter = Math.max(0, Number(input.painAfter) || 0);
+  const painArea = String(input.painArea || '').trim();
+  const adaptation = String(input.adaptation || '').trim().toLowerCase();
+  const bodySignalObserved = Boolean(input.bodySignalObserved);
+  const bakkenProfile = input.primaryFocus === 'running' && input.philosophy === 'bakken_threshold';
+  const painConcern = painAfter >= 4 || painAfter > painBefore + 1;
+  const painPresent = painBefore > 0 || painAfter > 0;
+  const areaText = painArea ? ` i ${painArea}` : '';
+  const clearSignalText = bodySignalObserved && !painPresent
+    ? 'Ingen negativ smerterespons er registrert.'
+    : '';
+
+  if (painConcern) {
+    return {
+      level: 'red',
+      title: 'Kroppssignal styrer neste steg',
+      recommendation: `Smerteresponsen${areaText} økte til ${painAfter}/10. Velg hvile eller smertefri alternativ trening neste gang, og vurder signalet på nytt før løping.`,
+      summary: 'Registrert smerte veier tyngre enn puls- og belastningstall.'
+    };
+  }
+
+  if (painPresent) {
+    return {
+      level: 'yellow',
+      title: 'Følg registrert kroppssignal',
+      recommendation: `Smerte${areaText} var ${painBefore}/10 før og ${painAfter}/10 etter. Hold neste økt rolig eller alternativ til signalet er lavt og stabilt.`,
+      summary: 'Neste steg er knyttet til den registrerte kroppsresponsen.'
+    };
+  }
+
+  if (adaptation && adaptation !== 'none') {
+    return {
+      level: 'yellow',
+      title: 'Bekreft responsen etter tilpasningen',
+      recommendation: 'Økten ble tilpasset. La neste økt være rolig og bruk den registrerte kroppsresponsen til å avgjøre når belastningen kan økes.',
+      summary: 'En gjennomføringstilpasning skal påvirke neste valg.'
+    };
+  }
+
+  if (loadLevel === 'high') {
+    return {
+      level: 'yellow',
+      title: 'Gi kvaliteten plass til å virke',
+      recommendation: bakkenProfile
+        ? 'Prioriter rolig volum, mobilitet eller hvile før neste Bakken-inspirerte kvalitetsøkt.'
+        : 'La neste økt være rolig eller restitusjon før ny kvalitetsbelastning.',
+      summary: 'Høy belastning bør følges av et tydelig lettere neste steg.'
+    };
+  }
+
+  if (easyIntent && easyShare !== null) {
+    if (easyShare >= 95 && (!rpe || rpe <= 3)) {
+      return {
+        level: 'green',
+        title: 'Den rolige intensjonen traff svært godt',
+        recommendation: `${clearSignalText ? `${clearSignalText} ` : ''}Neste planlagte kvalitetsøkt kan beholdes; denne økten krever ingen ekstra belastningsjustering.`,
+        summary: `${Math.round(easyShare)} % i sone 1–2 og lav RPE viser en tydelig rolig økt.`
+      };
+    }
+    if (easyShare >= 85) {
+      return {
+        level: 'green',
+        title: 'Rolig økt med god kontroll',
+        recommendation: `${clearSignalText ? `${clearSignalText} ` : ''}Følg normal plan videre; økten gir ikke grunn til å flytte neste planlagte kvalitet.`,
+        summary: 'Pulsfordelingen samsvarer i hovedsak med den rolige intensjonen.'
+      };
+    }
+    if (easyShare >= 70) {
+      return {
+        level: 'yellow',
+        title: 'Rolig økt ble litt hardere enn ønsket',
+        recommendation: `${clearSignalText ? `${clearSignalText} ` : ''}La neste økt være rolig eller hvile før ny kvalitet; mer tid i høyere soner skal gi et lettere neste steg.`,
+        summary: `${Math.round(easyShare)} % i sone 1–2 betyr at en merkbar del av økten gikk høyere enn den rolige intensjonen.`
+      };
+    }
+    return {
+      level: 'yellow',
+      title: 'Økten traff ikke rolig intensjon',
+      recommendation: `${clearSignalText ? `${clearSignalText} ` : ''}Behandle økten som moderat belastning og prioriter restitusjon eller svært rolig trening neste gang.`,
+      summary: 'Pulsfordelingen viser for mye arbeid over rolige soner til å følge opp med ny kvalitet.'
+    };
+  }
+
+  if (loadLevel === 'moderate') {
+    return {
+      level: 'yellow',
+      title: 'Moderat belastning trenger rolig støtte',
+      recommendation: `${clearSignalText ? `${clearSignalText} ` : ''}La neste økt være rolig nok til at denne belastningen kan absorberes.`,
+      summary: 'Belastningsnivået tilsier rolig støtte før mer kvalitet.'
+    };
+  }
+
+  return {
+    level: 'green',
+    title: 'Normal plan kan fortsette',
+    recommendation: `${clearSignalText ? `${clearSignalText} ` : ''}Følg neste planlagte økt; de registrerte belastningstallene krever ingen endring.`,
+    summary: 'Ingen høyere prioritert observasjon krever justering.'
+  };
+}
+
 export function coachDecisionEngine(input = {}) {
   const rules = input.rules && typeof input.rules === 'object' ? input.rules : getCoachRules();
   const planned = input.planned && typeof input.planned === 'object' ? input.planned : {};
@@ -229,7 +337,19 @@ export function coachDecisionEngine(input = {}) {
   const hasNextPlanned = Boolean(input.hasNextPlanned || plannedLabel);
   const plannedQuality = plannedWorkoutIsQuality(planned) || plannedWorkoutIsQuality({ ...planned, label: plannedLabel });
   const tomorrowQuality = plannedWorkoutIsQuality(tomorrowPlanned);
-  const completedFeedback = input.completedFeedback && typeof input.completedFeedback === 'object' ? input.completedFeedback : null;
+  const completedAssessment = input.completedAssessment && typeof input.completedAssessment === 'object'
+    ? completedWorkoutNextStep(input.completedAssessment)
+    : null;
+  const completedFeedback = input.completedFeedback && typeof input.completedFeedback === 'object'
+    ? input.completedFeedback
+    : completedAssessment
+    ? {
+        level: completedAssessment.level,
+        title: completedAssessment.title,
+        action: completedAssessment.recommendation,
+        reason: completedAssessment.summary
+      }
+    : null;
   const continuityFreezeToday = Boolean(input.continuityFreezeToday);
   const signals = [];
 
@@ -829,7 +949,7 @@ export function homeHeroState(input = {}) {
       level: decision.level || 'green',
       kicker: completedToday.type ? `Fullført i dag · ${completedToday.type}` : 'Fullført i dag',
       title: decision.title || `Bra gjennomført: ${completedToday.label || 'dagens økt'}`,
-      body: decision.reason || decision.action || 'Økten er logget. Bruk resten av dagen til restitusjon og respons.',
+      body: decision.action || decision.reason || 'Økten er logget. Neste steg følger av responsen og planen.',
       primaryAction: 'details'
     };
   }
