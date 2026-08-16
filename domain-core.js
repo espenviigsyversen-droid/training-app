@@ -372,6 +372,19 @@ export function todayCompletedWorkoutFeedback(input = {}) {
   const completed = input.completed || null;
   if (!completed) return null;
 
+  const nextPlanned = input.nextPlanned && typeof input.nextPlanned === 'object' ? input.nextPlanned : null;
+  const nextLabel = String(nextPlanned?.label || '').trim();
+  const nextDateLabel = String(nextPlanned?.dateLabel || '').trim();
+  const nextPlanSentence = nextLabel
+    ? `Neste planlagte økt er ${nextLabel}${nextDateLabel ? ` ${nextDateLabel}` : ''}.`
+    : 'Det ligger ingen ny planlagt økt i kalenderen ennå.';
+  const injurySummary = input.injurySummary && typeof input.injurySummary === 'object' ? input.injurySummary : null;
+  const activeSignalArea = String(injurySummary?.area || injurySummary?.latestArea || '').trim();
+  const activeSignalScore = Number(injurySummary?.latestScore ?? injurySummary?.painNow);
+  const activeSignalText = injurySummary?.hasSignal
+    ? `Aktivt kroppssignal${activeSignalArea ? ` i ${activeSignalArea}` : ''}${Number.isFinite(activeSignalScore) ? ` er ${activeSignalScore}/10` : ''}.`
+    : '';
+
   const label = String(completed.label || 'dagens økt').trim();
   const loadLevel = String(completed.loadLevel || '').toLowerCase();
   const loadLabel = String(completed.loadLabel || '').trim();
@@ -408,7 +421,7 @@ export function todayCompletedWorkoutFeedback(input = {}) {
       kicker: 'Dagens vurdering',
       level: 'red',
       title: 'Økten ga for mye smerterespons',
-      action: 'Hold igjen resten av dagen og velg hvile eller smertefri alternativ trening neste gang.',
+      action: `Smerteresponsen styrer nå: velg hvile eller smertefri alternativ trening neste gang. ${nextPlanSentence}`,
       reason: `${label} er logget. ${painText}`,
       support: {
         adjustment: 'Ikke bruk neste økt til å teste formen. Vent til smerten er lavere eller stabil.',
@@ -426,8 +439,8 @@ export function todayCompletedWorkoutFeedback(input = {}) {
       level: stableOrBetter && isLowLoad ? 'green' : 'yellow',
       title: stableOrBetter ? 'Bra justert økt' : 'Følg med på responsen',
       action: stableOrBetter
-        ? 'Resten av dagen handler om restitusjon og å bekrefte at smerten holder seg lav.'
-        : 'Hold neste treningsvalg rolig til du ser at kroppen responderer stabilt.',
+        ? `${painText} ${nextPlanSentence}`
+        : `${painText} Hold neste treningsvalg rolig til kroppssignalet er stabilt. ${nextPlanSentence}`,
       reason: `${label} er gjennomført${completedSummary ? ' (' + completedSummary + ')' : ''}. ${painText}`,
       support: {
         adjustment: stableOrBetter ? 'Planen bør nå vurderes ut fra responsen i kveld og i morgen.' : 'Ikke legg inn hard løping før smerteresponsen er stabil.',
@@ -443,7 +456,7 @@ export function todayCompletedWorkoutFeedback(input = {}) {
       kicker: 'Dagens vurdering',
       level: 'green',
       title: 'Kvalitet gjennomført kontrollert',
-      action: 'La resten av dagen og neste økt støtte effekten av arbeidet.',
+      action: `${activeSignalText || 'Ingen aktiv smerterespons er registrert.'} ${nextPlanSentence}`,
       reason: `${label} er logget${completedSummary ? ` (${completedSummary})` : ''}.`,
       support: {
         adjustment: 'Neste valg bør være rolig, restitusjon eller lett styrke hvis kroppen er fin.',
@@ -458,12 +471,12 @@ export function todayCompletedWorkoutFeedback(input = {}) {
     kicker: 'Dagens vurdering',
     level: isLowLoad ? 'green' : 'neutral',
     title: isLowLoad ? 'Bra gjennomført rolig økt' : 'Økt gjennomført',
-    action: 'Bruk resten av dagen til å hente ut effekten av økten.',
+    action: `${activeSignalText || 'Ingen aktiv smerterespons er registrert.'} ${nextPlanSentence}`,
     reason: `${label} er logget${completedSummary ? ` (${completedSummary})` : ''}.${execution ? ` Gjennomføring: ${execution}.` : ''}`,
     support: {
-      adjustment: 'Ikke jag mer trening i dag med mindre det er planlagt som lett bonus.',
-      support: 'Drikk godt og spis nok etter økten, spesielt hvis du trener igjen innen 24-48 timer.',
-      motivation: 'Dette bygger kontinuitet: én gjennomført økt teller mer enn en perfekt plan.'
+      adjustment: nextPlanSentence,
+      support: activeSignalText || 'Ingen aktiv smerterespons er registrert.',
+      motivation: 'Økten er registrert og inngår i ukens belastningsgrunnlag.'
     }
   };
 }
