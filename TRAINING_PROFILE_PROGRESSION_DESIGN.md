@@ -36,7 +36,9 @@ Målet er å:
 - Krev minst seks datakvalifiserte uker og minst 18 klassifiserbare økter totalt. Hvis seks slike uker ikke finnes innen 12 kalenderuker, vises datagrunnlaget uten endringsforslag.
 - En uke er datakvalifisert når den har minst to fullførte økter med utledbar rolle/intensjonsklasse.
 - Pågående uke holdes utenfor. Uker med aktiv skade-/comebackreduksjon eller eksplisitt avlastningsuke vises i grunnlaget, men teller ikke som bevis for permanent profilendring. Søket fortsetter bakover forbi slike uker innen 12-ukersgrensen for å samle opptil åtte kvalifiserte uker; minst seks kreves.
-- Klassifisering skal gjenbruke eksisterende `inferredWorkoutRole()` og kanonisk intensitetsklassifisering. Ingen ny parallell rollemodell.
+- Klassifisering skal gjenbruke v2 av `inferredWorkoutRole()` og kanonisk intensitetsklassifisering etter rolleporten i `TRAINING_PLANS_DESIGN.md`. Den kanoniske modellen skiller `easy` (vanlig rolig base), `long_easy` (langtur) og `recovery` (bevisst restitusjon). Ingen ny parallell rollemodell.
+- Avviksdeteksjonen kan ikke implementeres før v2-rollen og tellende `roleCoverage()` er levert. Ellers vil vanlig rolig løping feilaktig telle som langtur/restitusjon, og én økt kan dekke flere like profilplasser.
+- Nye bevisuker bruker snapshots med `roleClassificationVersion: 2`. Legacy-uker kan vises som historikk med sin opprinnelige klassifisering, men inngår ikke i et forslag som sammenligner mot en profilrevisjon etter rolleporten.
 
 Avlastningsuker holdes utenfor også for rollefordeling. De er med hensikt roligere og ville ellers trekke faktisk kvalitetsandel ned og skape et falskt profilavvik. Konsekvensen av det rullerende vinduet er at en normal sekvens med to avlastningsuker fortsatt gir seks bevisuker, mens sykdom eller ferie bare forlenger kalenderperioden. Tolvukersgrensen hindrer at gammel treningsadferd blir brukt som om den var aktuell.
 
@@ -121,12 +123,13 @@ Hvert felt får en kort «Påvirker»-linje:
 - Treningsprofilen er standardforslag ved opprettelse av en ny blokk, ikke en levende regel for en aktiv blokk.
 - Når en blokk bekreftes, snapshotter den valgte roller, frekvens, volumetrikk og relevante profilverdier. Senere profilendringer endrer ikke aktive eller historiske planer.
 - `roleAwareSuggestions` og blokkutkast skal lese samme normaliserte profil. Blokkens egne roller har prioritet etter bekreftelse.
+- Normalprofilen kan inneholde gjentatte `easy`-roller. Hver forekomst er en egen øktplass og krever et eget fullført eller planlagt treff; `priorityRoles` i blokken forblir en unik prioritetsliste, mens slots eier antallet.
 - En profilkonflikt vises i opprettelsesforhåndsvisningen: «Profilen foreslår to kvalitetsøkter, men faktisk rytme har vært én. Velg utgangspunkt.»
 - Avviksforslag kan forhåndsutfylle neste blokk, men kan aldri endre plan, challenge eller historisk ukesmål uten bekreftelse.
 
 ### Anbefalt sekvensering
 
-Runde 4 (controller og persistence) kan bygges etter at snapshotsperren er løftet, fordi den kan lagre eksplisitte planverdier uavhengig av profil-UI. Samlingen av ukesmål og ukeoppskrift bør derimot gjennomføres **før runde 5**, slik at den mobil-første blokkflyten ikke bygges rundt dagens tvetydige «tre mål, fire roller»-modell. Avviksdeteksjon og nivåvalidering kan følge som en egen ren domene-/UI-runde før eller sammen med runde 5, men skal ikke utvide runde 4.
+Runde 4 (controller og persistence) kan bygges etter at snapshotsperren er løftet **og rolleporten med `easy` og tellende dekning er verifisert**. Den kan deretter lagre eksplisitte planverdier uavhengig av profil-UI. Samlingen av ukesmål og ukeoppskrift bør gjennomføres **før runde 5**, slik at den mobil-første blokkflyten ikke bygges rundt dagens tvetydige «tre mål, fire roller»-modell. Avviksdeteksjon og nivåvalidering kan følge som en egen ren domene-/UI-runde før eller sammen med runde 5, men skal ikke utvide runde 4.
 
 ## 6. Akseptansekriterier for senere implementering
 
@@ -134,6 +137,8 @@ Runde 4 (controller og persistence) kan bygges etter at snapshotsperren er løft
 - Skade-, comeback- og avlastningsuker kan ikke alene omskrive normaluken.
 - Planlagte avlastningsuker reduserer ikke datamuligheten: søket fortsetter bakover, maksimalt 12 kalenderuker, for å samle opptil åtte kvalifiserte uker; minst seks kreves.
 - En manuell profilendring kan ikke reverseres av gammel historikk; seks nye kvalifiserte uker kreves før et nytt forslag.
+- Avviksdeteksjonen bruker den kanoniske v2-rollemodellen og skiller vanlig rolig base, langtur og restitusjon uten å omklassifisere legacy-historikk.
+- To like roller i normaluken krever to ulike økter i dekningsgrunnlaget.
 - Valgt coachnivå forklarer sin faktiske virkning og valideres mot eksisterende fitnessvurdering.
 - Oppgradering skjer bare gjennom eksisterende bekreftelsesflyt fra `domain-fitness.js`.
 - Ukesmål tre gir tre obligatoriske roller; en eventuell fjerde er tydelig frivillig bonus.
