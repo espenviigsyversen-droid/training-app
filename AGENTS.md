@@ -47,16 +47,24 @@ node --check domain-coach.js
 node --check domain-fitness.js
 node --check domain-exercises.js
 node --check domain-heart-rate-zones.js
+node --check domain-activity.js
+node --check domain-performance-insights.js
+node --check domain-volume-trends.js
 node --check domain-workout-assessment.js
 node --check domain-ai-workout-assessment.js
 node --check domain-ai-workout-context.js
 node --check domain-insight-confidence.js
 node --check insight-confidence-ui.js
+node --check training-insights-ui.js
+node --check workspace-sections-ui.js
 node --check exercise-library-ui.js
 node --check heart-rate-zones-ui.js
 node --check workout-template-ui.js
 node --check workout-completion-ui.js
 node --check workout-history-ui.js
+node --check garmin-csv-import.js
+node --check training-import-controller.js
+node --check training-import-ui.js
 node --check ai-coach-client.js
 node --check ai-coach-ui.js
 node --check app-state.js
@@ -139,16 +147,24 @@ node --check domain-coach.js
 node --check domain-fitness.js
 node --check domain-exercises.js
 node --check domain-heart-rate-zones.js
+node --check domain-activity.js
+node --check domain-performance-insights.js
+node --check domain-volume-trends.js
 node --check domain-workout-assessment.js
 node --check domain-ai-workout-assessment.js
 node --check domain-ai-workout-context.js
 node --check domain-insight-confidence.js
 node --check insight-confidence-ui.js
+node --check training-insights-ui.js
+node --check workspace-sections-ui.js
 node --check exercise-library-ui.js
 node --check heart-rate-zones-ui.js
 node --check workout-template-ui.js
 node --check workout-completion-ui.js
 node --check workout-history-ui.js
+node --check garmin-csv-import.js
+node --check training-import-controller.js
+node --check training-import-ui.js
 node --check ai-coach-client.js
 node --check ai-coach-ui.js
 node --check app-state.js
@@ -189,6 +205,7 @@ Følg guardrails før ny funksjonalitet bygges:
 - nye felter må være bakoverkompatible med gamle Firestore-data og backupfiler
 - normaliser data fra Firestore, import og lokal snapshot før bruk
 - oppdater PWA-cache hvis nye runtime JS-filer legges til
+- registrer hver nye runtime-modul i alle tre vedlikeholdsflater samtidig: `node --check`-listene i `AGENTS.md`/`RELEASE_CHECKLIST.md`, `APP_SHELL` i `service-worker.js` og filstrukturen i `ARCHITECTURE.md`
 - legg aldri OpenAI- eller andre leverandørnøkler i frontend, localStorage, GitHub Pages eller repo; bruk autentisert backend og kontroller Firestore Rules før deploy
 
 ## Sluttrapport
