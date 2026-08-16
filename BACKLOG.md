@@ -339,6 +339,16 @@ Prioritert backlog for videre utvikling av Treningsapp.
     - La det store økthodet rulle bort på mobil og gi detaljene nesten full skjermhøyde med safe-area-hensyn.
     - Behold desktopvisningen, toppkrysset og den nederste Lukk-handlingen uendret.
 
+52j.2. **v176q - Dagens råd etter fullført økt** - Bygget
+    - La «Neste steg» følge den konkrete observasjonen og gå gjennom eksisterende `coachDecisionEngine()`.
+    - Skill svært rolig gjennomføring fra en rolig økt med merkbar tid høyere enn ønsket.
+    - Navngi neste kalenderøkt etter gjennomføring, bruk faktiske kroppssignal og fjern duplisert før-økt-råd og filosofi-boilerplate.
+
+52j.3. **Treningsprofil, normaluke og progresjon** - Design dokumentert
+    - `TRAINING_PROFILE_PROGRESSION_DESIGN.md` spesifiserer et åtteukers avviksvindu med minst seks kvalifiserte uker, forslag uten automatisk endring og gjenbruk av `domain-fitness.js`.
+    - Ukesmål og ukeoppskrift skal samles før planarbeidets runde 5. Tre økter skal gi tre obligatoriske roller; en fjerde rolle skal være tydelig bonus.
+    - Coachnivå skal forklare sin faktiske effekt på pulsgrenser og valideres mot datagrunnlaget uten automatisk nedgradering.
+
 52k. **Periodisert treningsplan v1 - Runde 3 bygget, tre implementeringsrunder gjenstår**
     - Bruk `TRAINING_PLANS_DESIGN.md` som bindende utviklingsgrunnlag for én manuell fireukersblokk med tre belastningsuker og én avlastningsuke.
     - Historisk stabile `weeklyTargetSnapshots` og felles `effectiveWeeklyTargetForWeek()` er levert i v176o før blokkaktivering. Legacy-streak er bevart, og avlastningsmål skilles fra fryskort.
@@ -381,7 +391,7 @@ Disse punktene var del av den tidlige v142-idéen, men er bevisst flyttet ut av 
 
 ## Anbefalt neste steg
 
-Utviklingsløpet gjennom `v176p` er bygget. `TRAINING_PLANS_DESIGN.md` er bindende grunnlag for periodisert treningsplan v1, og runde 3 har levert ren blokkdomene-logikk uten Firestore- eller UI-kobling. Før runde 4 starter skal første ekte `weeklyTargetSnapshot` verifiseres. Deretter er controller/persistence med realistiske manuelle konflikter neste utviklingsrunde. v177 og v178 beholdes i backloggen, men er midlertidig lavere prioritert enn det godkjente treningsplansporet.
+Utviklingsløpet gjennom `v176q` er bygget. `TRAINING_PLANS_DESIGN.md` er bindende grunnlag for periodisert treningsplan v1, og runde 3 har levert ren blokkdomene-logikk uten Firestore- eller UI-kobling. Før runde 4 starter skal første ekte `weeklyTargetSnapshot` verifiseres. Deretter er controller/persistence med realistiske manuelle konflikter neste utviklingsrunde. Samlingen av ukesmål og ukeoppskrift fra `TRAINING_PROFILE_PROGRESSION_DESIGN.md` bør skje før planarbeidets runde 5. v177 og v178 beholdes i backloggen, men er midlertidig lavere prioritert enn det godkjente treningsplansporet.
 
 v164a-v169 har etablert modulgrensene som de nye rundene skal bygge videre på. v170a-v171 har lukket de åpne tekniske sporene for lokal snapshot-kvote og Firebase Functions SDK.
 
@@ -397,4 +407,3 @@ Begrunnelse:
 - v155-reglene er testet i Firestore-emulator: eierens appdata fungerer, andre brukere avvises, chat-writes er backend-only og `apiKeys/{uid}` / `aiUsage/{uid}` er sperret
 - v154 har fungerende dynamisk tilkoblingsstatus, egen Chat-fane og bestått ende-til-ende-test med ekte OpenAI-svar
 - Produksjonsreglene er sammenlignet og deployet. Chat ligger i isolert `aiChatUsers/{uid}`-rot, og den sammenslåtte regelfilen bevarer eksisterende regler for `users`, `households`, `families`, `familyCodes` og `adminFamilyHealth`.
-
