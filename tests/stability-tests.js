@@ -10,6 +10,9 @@ const app = read('app.js');
 const index = read('index.html');
 const styles = read('styles.css');
 const serviceWorker = read('service-worker.js');
+const agentsSource = read('AGENTS.md');
+const releaseChecklistSource = read('RELEASE_CHECKLIST.md');
+const architectureSource = read('ARCHITECTURE.md');
 const appStateSource = read('app-state.js');
 const plannerSource = read('domain-training-plan.js');
 const periodizedPlanSource = read('domain-periodized-training-plan.js');
@@ -653,6 +656,18 @@ async function testAsync(name, fn) {
     assert.strictEqual(appVersion, cacheVersion);
   });
 
+  test('runtime module inventory stays aligned across shell, checks and architecture', () => {
+    const shellModules = [...serviceWorker.matchAll(/['"]\.\/([^'"]+\.js)['"]/g)]
+      .map(match => match[1])
+      .filter(file => !file.startsWith('functions/'));
+    assert.ok(shellModules.length >= 30, 'expected complete frontend module inventory');
+    shellModules.forEach(file => {
+      assert.ok(agentsSource.includes(`node --check ${file}`), `${file} is missing from AGENTS.md node checks`);
+      assert.ok(releaseChecklistSource.includes(`node --check ${file}`), `${file} is missing from release node checks`);
+      assert.ok(architectureSource.includes(`├── ${file}`), `${file} is missing from ARCHITECTURE.md`);
+    });
+  });
+
   test('stylesheet is complete and retains critical shell rules', () => {
     assert.ok(styles.length > 100000, 'styles.css appears unexpectedly truncated');
     assert.ok(!/tokens truncated/i.test(styles), 'styles.css contains a transfer truncation marker');
@@ -1130,6 +1145,170 @@ async function testAsync(name, fn) {
       capturedAt: '2026-08-17T10:00:00.000Z'
     });
     assert.strictEqual(closed[0].normalTarget, 4);
+  });
+
+  test('v176p normalizes a valid four-week block and keeps invalid plans as drafts', () => {
+    const valid = periodizedPlan.normalizePeriodizedTrainingPlan({
+      id: 'plan-1', status: 'active', name: 'Baseblokk', focus: 'base', startDate: '2026-08-17',
+      calibration: { metric: 'duration', baselineValue: 180, sourceCoverage: 0.9, userConfirmed: true }
+    });
+    assert.strictEqual(valid.status, 'active');
+    assert.strictEqual(valid.endDate, '2026-09-13');
+    assert.strictEqual(valid.weeks.length, 4);
+    assert.deepStrictEqual(valid.weeks.map(week => week.type), ['load', 'load', 'peak', 'deload']);
+    assert.strictEqual(valid.canMaterialize, true);
+    const invalid = periodizedPlan.normalizePeriodizedTrainingPlan({
+      status: 'active', startDate: '2026-08-18', calibration: { metric: 'duration', baselineValue: 0, userConfirmed: true },
+      weeks: [{}, {}, {}]
+    });
+    assert.strictEqual(invalid.status, 'draft');
+    assert.strictEqual(invalid.canMaterialize, false);
+    assert.deepStrictEqual(invalid.validation.errors, [
+      'startDate_must_be_iso_monday', 'baseline_missing', 'exactly_four_weeks_required'
+    ]);
+  });
+
+  test('v176p derives duration and session baselines from representative production data', () => {
+    const completed = [];
+    ['2026-07-06', '2026-07-13', '2026-07-20', '2026-07-27', '2026-08-03', '2026-08-10'].forEach((date, index) => {
+      completed.push({ id: `a-${index}`, date, durationSeconds: 3600 });
+      completed.push({ id: `b-${index}`, date, durationSeconds: 1800 });
+    });
+    const duration = periodizedPlan.derivePeriodizedPlanBaseline(completed, { startDate: '2026-08-17' });
+    assert.strictEqual(duration.metric, 'duration');
+    assert.strictEqual(duration.baselineValue, 90);
+    assert.strictEqual(duration.weekCount, 6);
+    assert.strictEqual(duration.enoughData, true);
+    const sessions = periodizedPlan.derivePeriodizedPlanBaseline(
+      completed.map(({ durationSeconds, ...item }) => item),
+      { startDate: '2026-08-17' }
+    );
+    assert.strictEqual(sessions.metric, 'sessions');
+    assert.strictEqual(sessions.baselineValue, 2);
+    assert.strictEqual(sessions.enoughData, true);
+  });
+
+  test('v176p block factors and guardrail maximum share the validated coach rule source', () => {
+    const customRules = JSON.parse(JSON.stringify(DEFAULT_COACH_RULES));
+    customRules.thresholds.periodizedPlan.blockFactors[2] = { min: 1.02, max: 1.1 };
+    customRules.thresholds.volumeRamp.maxWeeklyIncreaseFactor = 1.12;
+    const resolved = periodizedPlan.periodizedPlanRules(customRules);
+    assert.deepStrictEqual(resolved.blockFactors[2], { min: 1.02, max: 1.1 });
+    assert.strictEqual(resolved.maxWeeklyIncreaseFactor, 1.12);
+    const frame = periodizedPlan.buildFourWeekVolumeFrame({
+      startDate: '2026-08-17', baselineValue: 180, metric: 'duration', rules: customRules
+    });
+    assert.strictEqual(frame.weeks[2].targetMax, 198);
+    const validation = periodizedPlan.validateProspectiveVolumeFrame({
+      frame: { metric: 'duration', targetMin: 180, targetMax: 207 },
+      volumeRamp: { enoughData: true, metric: 'duration', maxFactor: 1.12, baselineWeekly: { seconds: 10800 } },
+      rules: customRules
+    });
+    assert.strictEqual(validation.guardrailMaxFactor, 1.12);
+    assert.strictEqual(validation.maximumWithinGuardrail, 201.6);
+    assert.strictEqual(validation.ruleSourceAligned, true);
+  });
+
+  test('v176p prospective volume validation distinguishes unavailable checks and reducing outcomes', () => {
+    const frame = { metric: 'duration', targetMin: 189, targetMax: 207 };
+    const insufficient = periodizedPlan.validateProspectiveVolumeFrame({ frame, volumeRamp: { enoughData: false } });
+    assert.strictEqual(insufficient.validationStatus, 'insufficient_data');
+    const mismatch = periodizedPlan.validateProspectiveVolumeFrame({
+      frame,
+      volumeRamp: { enoughData: true, metric: 'sessions', baselineWeekly: { sessions: 3 } }
+    });
+    assert.strictEqual(mismatch.validationStatus, 'metric_mismatch');
+    const reduced = periodizedPlan.validateProspectiveVolumeFrame({
+      frame,
+      volumeRamp: { enoughData: true, metric: 'duration', maxFactor: 1.25, baselineWeekly: { seconds: 9600 } }
+    });
+    assert.strictEqual(reduced.validationStatus, 'validated');
+    assert.strictEqual(reduced.outcome, 'reduced_by_guardrail');
+    assert.strictEqual(reduced.originalTargetMax, 207);
+    assert.strictEqual(reduced.proposedTargetMax, 200);
+    assert.strictEqual(reduced.overrideAvailable, true);
+    assert.match(reduced.message, /justert fra 207 til 200/);
+    const overridden = periodizedPlan.validateProspectiveVolumeFrame({
+      frame,
+      volumeRamp: { enoughData: true, metric: 'duration', maxFactor: 1.25, baselineWeekly: { seconds: 9600 } },
+      override: true
+    });
+    assert.strictEqual(overridden.proposedTargetMax, 207);
+    assert.strictEqual(overridden.overrideApplied, true);
+    const within = periodizedPlan.validateProspectiveVolumeFrame({
+      frame: { metric: 'duration', targetMin: 170, targetMax: 190 },
+      volumeRamp: { enoughData: true, metric: 'duration', maxFactor: 1.25, baselineWeekly: { seconds: 9600 } }
+    });
+    assert.strictEqual(within.outcome, 'within_guardrail');
+  });
+
+  test('v176p duration frame derives the deload session target from week-four slots', () => {
+    const frame = periodizedPlan.buildFourWeekVolumeFrame({
+      startDate: '2026-08-17', baselineValue: 180, metric: 'duration',
+      slotsByWeek: [[], [], [], [
+        { slotId: 'd1', role: 'recovery', preferredDay: 2 },
+        { slotId: 'd2', role: 'long_easy', preferredDay: 5 }
+      ]]
+    });
+    assert.strictEqual(frame.weeks[3].targetMin, 126);
+    assert.strictEqual(frame.weeks[3].targetMax, 144);
+    assert.strictEqual(frame.weeks[3].effectiveWeeklyTarget, 2);
+  });
+
+  test('v176p active blocks own role priority while inactive blocks retain the race chain', () => {
+    const normal = [
+      { title: 'Rolig', roles: ['long_easy'] },
+      { title: 'Terskel', roles: ['support_threshold'] },
+      { title: 'Mobilitet', roles: ['mobility'] }
+    ];
+    const blockMix = periodizedPlan.periodizedSuggestionMix(normal, {
+      activeBlockContext: { active: true, priorityRoles: ['main_threshold', 'long_easy'] },
+      raceContext: { active: true, allowRaceTest: true, testSuggestion: { title: 'Race' } },
+      count: 2
+    });
+    assert.deepStrictEqual(blockMix.map(item => item.roles[0]), ['main_threshold', 'long_easy']);
+    const raceMix = periodizedPlan.periodizedSuggestionMix(normal, {
+      activeBlockContext: null,
+      raceContext: { active: true, allowRaceTest: true, testSuggestion: { title: 'Kontrollert 5 km' } },
+      count: 2
+    });
+    assert.strictEqual(raceMix[0].roles[0], 'race');
+  });
+
+  test('v176p treats realistic manual workouts as the primary plan-slot conflict', () => {
+    const slots = ['2026-08-17', '2026-08-19', '2026-08-21', '2026-08-24'].map((date, index) => ({
+      slotId: `slot-${index + 1}`, date, role: 'long_easy'
+    }));
+    const existing = slots.map((slot, index) => ({
+      id: `manual-${index + 1}`, date: slot.date, templateSnapshot: { name: `Manuell økt ${index + 1}` }
+    }));
+    const conflicts = periodizedPlan.detectPeriodizedPlanConflicts(slots, existing, { planId: 'plan-1' });
+    assert.strictEqual(conflicts.filter(item => item.status === 'conflict').length, 4);
+    assert.ok(conflicts.every(item => item.conflictType === 'manual_workout'));
+    assert.ok(conflicts.every(item => !item.allowedActions.includes('adopt')));
+    assert.deepStrictEqual(conflicts[0].allowedActions, ['choose_another_date', 'skip']);
+  });
+
+  test('v176p evaluatePlanWeek consumes injected assessments without mutating input', () => {
+    const input = {
+      planWeek: {
+        weekStart: '2026-08-17', index: 1, type: 'load', targetMin: 3, targetMax: 4,
+        slots: [{ slotId: 'a' }, { slotId: 'b' }, { slotId: 'c' }]
+      },
+      plannedItems: [{ id: 'p1', planRef: { slotId: 'b' }, userModified: true }],
+      completedItems: [{ id: 'c1', planRef: { slotId: 'a' } }],
+      roleCoverage: [{ role: 'long_easy', required: true, status: 'completed' }],
+      volumeRamp: { status: 'stable' }, bodyState: { level: 'none' }, comebackState: { active: false }
+    };
+    const before = JSON.stringify(input);
+    const result = periodizedPlan.evaluatePlanWeek(input);
+    assert.strictEqual(result.status, 'on_track');
+    assert.strictEqual(result.slots.fulfilled, 2);
+    assert.strictEqual(result.userModifiedCount, 1);
+    assert.strictEqual(JSON.stringify(input), before);
+    const safety = periodizedPlan.evaluatePlanWeek({ ...input, bodyState: { level: 'active' } });
+    assert.strictEqual(safety.status, 'safety_attention');
+    assert.deepStrictEqual(safety.safety.reasons, ['body_signal']);
   });
 
   await testAsync('v176o1 preserves an existing final snapshot and concurrent finalization creates one document', async () => {
@@ -2651,8 +2830,8 @@ async function testAsync(name, fn) {
     assert.ok(workoutHistoryUiSource.includes('heartRateZoneDistributionRows'), 'history does not use production zone rows');
     assert.ok(workoutHistoryUiSource.includes('Tid i pulssoner'), 'completed detail is missing the heart-rate zone section');
     assert.ok(!workoutHistoryUiSource.includes("row.estimated ? 'ca. '"), 'zone duration should not be prefixed with ca.');
-    assert.ok(app.includes("const APP_VERSION = 'v176o1'"), 'visible app version must be v176o1');
-    assert.ok(serviceWorker.includes('treningsapp-v176o1'), 'cache version must match v176o1');
+    assert.ok(app.includes("const APP_VERSION = 'v176p'"), 'visible app version must be v176p');
+    assert.ok(serviceWorker.includes('treningsapp-v176p'), 'cache version must match v176p');
   });
 
   test('v174b evaluates easy and quality sessions without treating zone percentages as a hard truth', () => {
@@ -2747,8 +2926,8 @@ async function testAsync(name, fn) {
     assert.ok(index.includes('id="insightHeartRateComplianceCard"'), 'Insights is missing the compliance card');
     assert.ok(app.includes('heartRateZoneComplianceForItems(last28Days)'), 'coach context does not use the canonical compliance summary');
     assert.ok(app.includes('renderHeartRateZoneComplianceInsight(today)'), 'Insights does not render canonical compliance');
-    assert.ok(app.includes("const APP_VERSION = 'v176o1'"), 'visible app version must be v176o1');
-    assert.ok(serviceWorker.includes('treningsapp-v176o1'), 'cache version must match v176o1');
+    assert.ok(app.includes("const APP_VERSION = 'v176p'"), 'visible app version must be v176p');
+    assert.ok(serviceWorker.includes('treningsapp-v176p'), 'cache version must match v176p');
   });
 
   test('v174c uses the test profile for zones and keeps the golden zone as a separate coach reference', () => {
@@ -3265,8 +3444,8 @@ async function testAsync(name, fn) {
     assert.ok(trainingImportControllerSource.includes("action: duplicate ? 'skip'"), 'duplicates should be skipped by default');
     assert.ok(!trainingImportControllerSource.includes('heartRateZoneDistribution'), 'controller must not synthesize pulse zones');
     assert.ok(styles.includes('.garmin-import-row'), 'Garmin preview styling is missing');
-    assert.ok(app.includes("const APP_VERSION = 'v176o1'"));
-    assert.ok(serviceWorker.includes('treningsapp-v176o1'));
+    assert.ok(app.includes("const APP_VERSION = 'v176p'"));
+    assert.ok(serviceWorker.includes('treningsapp-v176p'));
   });
 
   test('structured interval UI fields and summaries are wired into production files', () => {
@@ -4379,3 +4558,4 @@ async function testAsync(name, fn) {
   console.error(err);
   process.exit(1);
 });
+
