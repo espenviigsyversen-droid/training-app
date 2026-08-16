@@ -339,9 +339,10 @@ Prioritert backlog for videre utvikling av Treningsapp.
     - La det store økthodet rulle bort på mobil og gi detaljene nesten full skjermhøyde med safe-area-hensyn.
     - Behold desktopvisningen, toppkrysset og den nederste Lukk-handlingen uendret.
 
-52k. **Periodisert treningsplan v1 - Runde 2 bygget, fire implementeringsrunder gjenstår**
+52k. **Periodisert treningsplan v1 - Runde 3 bygget, tre implementeringsrunder gjenstår**
     - Bruk `TRAINING_PLANS_DESIGN.md` som bindende utviklingsgrunnlag for én manuell fireukersblokk med tre belastningsuker og én avlastningsuke.
     - Historisk stabile `weeklyTargetSnapshots` og felles `effectiveWeeklyTargetForWeek()` er levert i v176o før blokkaktivering. Legacy-streak er bevart, og avlastningsmål skilles fra fryskort.
+    - Ren blokklogikk er levert i v176p: normalisering, baseline, fireukers rammer, felles regelkilde, prospektiv volumvalidering, rolle-/race-policy, konfliktklassifisering og ukesevaluering.
     - Valider blokkens øvre volumramme mot `trainingVolumeRamp()` sitt faktiske beregningsgrunnlag. Vis `metric_mismatch` eller `insufficient_data` uten konvertering eller gjetting.
     - Materialiser bare inneværende og neste uke etter eksplisitt preview. Bevar fullførte, historiske og brukerendrede økter.
     - Bygg mobil-først opprettelsesflyt, Treningsplan-visning under Kalender, kompakt Hjem-kort og blokk-fullført-oppsummering med konkrete tom-, konflikt- og feiltilstander.
@@ -380,7 +381,7 @@ Disse punktene var del av den tidlige v142-idéen, men er bevisst flyttet ut av 
 
 ## Anbefalt neste steg
 
-Utviklingsløpet gjennom `v176o` er bygget. `TRAINING_PLANS_DESIGN.md` er bindende grunnlag for periodisert treningsplan v1, og runde 2 har levert det historiske målfundamentet før blokkaktivering. Neste utviklingsrunde bør være runde 3: ren blokkdomene-logikk, baseline, volumrammer og prospektiv validering. v177 og v178 beholdes i backloggen, men er midlertidig lavere prioritert enn det godkjente treningsplansporet.
+Utviklingsløpet gjennom `v176p` er bygget. `TRAINING_PLANS_DESIGN.md` er bindende grunnlag for periodisert treningsplan v1, og runde 3 har levert ren blokkdomene-logikk uten Firestore- eller UI-kobling. Før runde 4 starter skal første ekte `weeklyTargetSnapshot` verifiseres. Deretter er controller/persistence med realistiske manuelle konflikter neste utviklingsrunde. v177 og v178 beholdes i backloggen, men er midlertidig lavere prioritert enn det godkjente treningsplansporet.
 
 v164a-v169 har etablert modulgrensene som de nye rundene skal bygge videre på. v170a-v171 har lukket de åpne tekniske sporene for lokal snapshot-kvote og Firebase Functions SDK.
 
