@@ -13,16 +13,49 @@ node --check domain-core.js
 node --check domain-goals.js
 node --check domain-coach-rules.js
 node --check domain-coach.js
-node --check domain-periodized-training-plan.js
+node --check domain-fitness.js
+node --check domain-exercises.js
+node --check domain-heart-rate-zones.js
+node --check domain-activity.js
+node --check domain-performance-insights.js
+node --check domain-volume-trends.js
+node --check domain-workout-assessment.js
+node --check domain-ai-workout-assessment.js
+node --check domain-ai-workout-context.js
+node --check domain-insight-confidence.js
+node --check insight-confidence-ui.js
+node --check training-insights-ui.js
+node --check workspace-sections-ui.js
+node --check exercise-library-ui.js
+node --check heart-rate-zones-ui.js
+node --check workout-template-ui.js
+node --check workout-completion-ui.js
+node --check workout-history-ui.js
+node --check garmin-csv-import.js
+node --check training-import-controller.js
+node --check training-import-ui.js
 node --check ai-coach-client.js
 node --check ai-coach-ui.js
+node --check app-state.js
+node --check local-state-store.js
+node --check training-repository.js
+node --check domain-training-plan.js
+node --check domain-periodized-training-plan.js
+node --check calendar-ui.js
+node --check functions\ai\chat-store.js
+node --check functions\ai\model-profiles.js
+node --check functions\ai\ai-preferences.js
 node tests\stability-tests.js
 node functions\tests\ai-backend-tests.js
 ```
 
+Når en ny runtime-modul opprettes, skal den samtidig registreres i denne
+`node --check`-listen og listen i `AGENTS.md`, i `APP_SHELL` i
+`service-worker.js` og i filstrukturen i `ARCHITECTURE.md`.
+
 ## Versjon/cache
 
-Hvis `app.js`, `domain-core.js`, `index.html`, `styles.css` eller `service-worker.js` er endret:
+Hvis en runtime-fil, `index.html`, `styles.css` eller `service-worker.js` er endret:
 
 - sjekk `APP_VERSION` i `app.js`
 - sjekk `CACHE_NAME` i `service-worker.js`
