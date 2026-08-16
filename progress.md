@@ -1,5 +1,5 @@
 # Treningsapp — progress.md
-Oppdatert: 2026-08-10 (siste runtime-endring: v176m)
+Oppdatert: 2026-08-16 (siste runtime-endring: v176o1)
 
 ---
 
@@ -27,7 +27,7 @@ Standard Bakken-uke: Hoved-terskel → Støtte-terskel → Lang rolig → Valgfr
 **Hosting:** GitHub Pages.  
 **Backend:** Firebase (prosjekt `home-tasks-app-18de3`) — Firestore + Google Auth.  
 **Frontend:** Vanilla JS + HTML + CSS, single-page app, tab-navigasjon.  
-**Versjon:** v176m (konstant i `app.js`).
+**Versjon:** v176o1 (konstant i `app.js`).
 
 ### Filer
 
@@ -39,6 +39,7 @@ Treningsapp/
 ├── local-state-store.js # Normalisert lokal snapshot- og recovery-lagring.
 ├── training-repository.js # Firestore-repository for treningsdata.
 ├── domain-training-plan.js # Ren ukeplan-, rolle- og øktforslagslogikk.
+├── domain-periodized-training-plan.js # Historiske ukesmål og ren blokkdomene-logikk.
 ├── calendar-ui.js      # Kalendergrid, månedsnavigasjon og dagsmodal.
 ├── domain-core.js      # Rene testbare domenehjelpere uten DOM/Firebase/state.
 ├── domain-activity.js  # Kildeuavhengig aktivitetsmiljø og bakoverkompatibel avledning.
@@ -221,6 +222,64 @@ Treningsapp/
    - Skill stigning/nedstigning og kondisjons-/muskelbelastning.
 4. **v178 - Kroppsmål for klær og utstyr**
    - Praktisk målehistorikk under Setup, uten kobling til coach- eller nivåscore.
+
+### v167 - Øktmaler som egen UI-feature - Bygget
+
+- Ny `workout-template-ui.js` eier skjema-lesing og -fylling, strukturert intervall-preview, select-options, sortering, søk/filter, coach-klarhet og bibliotek-rendering.
+- `app.js` er fortsatt orchestrator for ID-oppretting, normalisering, standardmal-import, bekreftelser, state-mutasjon og Firestore/repository-skriving.
+- Datamodell, eksisterende maler, strukturert intervallstøtte og synlig brukerflyt er uendret.
+- Modulen ligger i PWA app shell, og stabilitetstestene bruker produksjonsfunksjonene for sortering, filter og coach-klarhet.
+
+### v168 - Fullføringsflyt som egen UI-feature - Bygget
+
+- Ny `workout-completion-ui.js` eier skjema-lesing og -fylling, nullstilling, modalmodus, varighetsfelt, pace-preview og gylne-sone-hint.
+- `app.js` beholder state, coach-signaler, kalenderoppfriskning og all repository-/Firestore-skriving.
+- Datamodell, fullføringsresultat og brukerflyt er uendret.
+
+### v169 - Historikk som egen UI-feature - Bygget
+
+- Ny `workout-history-ui.js` eier ren filtrering/sortering, filterstatus, kompakte historikkrader og detaljvisning.
+- `app.js` beholder state, modal-wrappers, bekreftet sletting/angre og persistence.
+- Produksjonsfunksjonene for periode og filter testes direkte. Begge nye runtime-moduler ligger i PWA app shell.
+- Sluttversjon for den samlede v168/v169-runden er v169.
+
+### v170a-v170b - Lokal snapshot-kvote - Bygget
+
+- `local-state-store.js` normaliserer og størrelsesmåler snapshots før lagring.
+- LocalStorage brukes normalt; ved kvoteproblem lagres snapshot/recovery i IndexedDB.
+- Nyeste gyldige kopi velges ved lesing, og korrupt lokal kopi gir trygg fallback.
+- Setup viser oppdatert lokal sikkerhetskopi, lagringslag og størrelse, eller en tydelig feilstatus.
+
+### v171 - Firebase Functions SDK - Bygget, testet og deployet
+
+- `firebase-functions` er oppgradert fra 6.x til 7.3.0 uten endring i API-kontrakter eller AI-funksjonalitet.
+- Node 22 er beholdt. AI-backend-testene passerer med ny SDK.
+- Sluttversjon for den samlede runden er v171 / `treningsapp-v171`.
+
+### v172a-v172b - Strukturert styrke og øvelsesbibliotek - Bygget og testet
+
+- Ny `STRUCTURED_EXERCISES_DESIGN.md` dokumenterer valgfri, versjonert og bakoverkompatibel `exercisePlan` på øktmaler samt separat `exercises`-samling.
+- Ny `domain-exercises.js` normaliserer øvelser, blokker, snapshots, https-lenker og kompakte sammendrag uten DOM, Firebase eller global state.
+- Ny `exercise-library-ui.js` gir søkbart bibliotek med navn, beskrivelse, muskelgrupper, formål, utstyr og demonstrasjonslenke.
+- `workout-template-ui.js` støtter strukturert styrke med øvelsesrekkefølge, sett, repetisjoner, pause, belastning og notat. Øktmalen kan også ha en generell https-lenke.
+- Planlagte økter og fullført detaljvisning viser kompakt styrkesammendrag. Snapshots bevarer historisk innhold dersom bibliotekøvelsen senere redigeres eller slettes.
+- Gamle maler uten `exercisePlan`, gamle snapshots og backupfiler normaliseres fortsatt trygt. Sluttversjonen er v172b / `treningsapp-v172b`.
+
+### v172c-v172e - Oppstarts- og stilpatch etter publiseringsfeil
+
+- Rettet en produksjonsfeil der nettleserens modulparser avviste et nestet template-uttrykk i `domain-core.js` og stoppet appen på lasteskjermen før første render.
+- Uttrykket er forenklet uten at rådlogikken endres.
+- Rettet deretter en separat publiseringsfeil der GitHub-versjonen av `styles.css` var fysisk avkortet midt i filen. Dette gjorde at nettleseren forkastet sentrale regler for innlogging, appskall, navigasjon og modaler.
+- Stabilitetstesten kontrollerer nå at stilarket har forventet minimumslengde, ikke inneholder overføringsmarkører og fortsatt har kritiske skallregler.
+- App/cache bumpes til v172e / `treningsapp-v172e` slik at PWA-en henter det komplette stilarket.
+
+### v172f - Komplett app-skall og tydelig feilgrense
+
+- Rettet en publiseringsfeil der GitHub-versjonen av `index.html` var fysisk avkortet. Det manglende DOM-skallet gjorde at innlogget rendering stoppet, navigasjon ble passiv og renderfeilen feilaktig ble vist som synkfeil.
+- Firestore-lasting og rendering har nå separate feilgrenser, slik at en UI-feil ikke lenger rapporteres som «Feil ved synk».
+- Stabilitetstesten avviser nå avkortet `index.html` og kontrollerer kritiske elementer samt komplett avslutning av dokumentet.
+- App/cache bumpes til v172f / `treningsapp-v172f`.
+- Ingen datamodell, brukerflyt eller styrkefunksjonalitet er endret.
 
 ### Planlagt arkitektur for v172-v178
 
@@ -477,63 +536,14 @@ Treningsapp/
 - Dokumentet er presisert med eget volumvalideringsutfall, automatisk tryggere forslag med overstyring, slot-basert øktmål i avlastningsuke og rask gjenbruksflyt for blokk to og senere.
 - PWA-cache og synlig versjon er `v176o`.
 
-### v167 - Øktmaler som egen UI-feature - Bygget
+### v176o1 - Serversikret snapshot-ferdigstilling - Bygget
 
-- Ny `workout-template-ui.js` eier skjema-lesing og -fylling, strukturert intervall-preview, select-options, sortering, søk/filter, coach-klarhet og bibliotek-rendering.
-- `app.js` er fortsatt orchestrator for ID-oppretting, normalisering, standardmal-import, bekreftelser, state-mutasjon og Firestore/repository-skriving.
-- Datamodell, eksisterende maler, strukturert intervallstøtte og synlig brukerflyt er uendret.
-- Modulen ligger i PWA app shell, og stabilitetstestene bruker produksjonsfunksjonene for sortering, filter og coach-klarhet.
-
-### v168 - Fullføringsflyt som egen UI-feature - Bygget
-
-- Ny `workout-completion-ui.js` eier skjema-lesing og -fylling, nullstilling, modalmodus, varighetsfelt, pace-preview og gylne-sone-hint.
-- `app.js` beholder state, coach-signaler, kalenderoppfriskning og all repository-/Firestore-skriving.
-- Datamodell, fullføringsresultat og brukerflyt er uendret.
-
-### v169 - Historikk som egen UI-feature - Bygget
-
-- Ny `workout-history-ui.js` eier ren filtrering/sortering, filterstatus, kompakte historikkrader og detaljvisning.
-- `app.js` beholder state, modal-wrappers, bekreftet sletting/angre og persistence.
-- Produksjonsfunksjonene for periode og filter testes direkte. Begge nye runtime-moduler ligger i PWA app shell.
-- Sluttversjon for den samlede v168/v169-runden er v169.
-
-### v170a-v170b - Lokal snapshot-kvote - Bygget
-
-- `local-state-store.js` normaliserer og størrelsesmåler snapshots før lagring.
-- LocalStorage brukes normalt; ved kvoteproblem lagres snapshot/recovery i IndexedDB.
-- Nyeste gyldige kopi velges ved lesing, og korrupt lokal kopi gir trygg fallback.
-- Setup viser oppdatert lokal sikkerhetskopi, lagringslag og størrelse, eller en tydelig feilstatus.
-
-### v171 - Firebase Functions SDK - Bygget, testet og deployet
-
-- `firebase-functions` er oppgradert fra 6.x til 7.3.0 uten endring i API-kontrakter eller AI-funksjonalitet.
-- Node 22 er beholdt. AI-backend-testene passerer med ny SDK.
-- Sluttversjon for den samlede runden er v171 / `treningsapp-v171`.
-
-### v172a-v172b - Strukturert styrke og øvelsesbibliotek - Bygget og testet
-
-- Ny `STRUCTURED_EXERCISES_DESIGN.md` dokumenterer valgfri, versjonert og bakoverkompatibel `exercisePlan` på øktmaler samt separat `exercises`-samling.
-- Ny `domain-exercises.js` normaliserer øvelser, blokker, snapshots, https-lenker og kompakte sammendrag uten DOM, Firebase eller global state.
-- Ny `exercise-library-ui.js` gir søkbart bibliotek med navn, beskrivelse, muskelgrupper, formål, utstyr og demonstrasjonslenke.
-- `workout-template-ui.js` støtter strukturert styrke med øvelsesrekkefølge, sett, repetisjoner, pause, belastning og notat. Øktmalen kan også ha en generell https-lenke.
-- Planlagte økter og fullført detaljvisning viser kompakt styrkesammendrag. Snapshots bevarer historisk innhold dersom bibliotekøvelsen senere redigeres eller slettes.
-- Gamle maler uten `exercisePlan`, gamle snapshots og backupfiler normaliseres fortsatt trygt. Sluttversjonen er v172b / `treningsapp-v172b`.
-
-### v172c-v172e - Oppstarts- og stilpatch etter publiseringsfeil
-
-- Rettet en produksjonsfeil der nettleserens modulparser avviste et nestet template-uttrykk i `domain-core.js` og stoppet appen på lasteskjermen før første render.
-- Uttrykket er forenklet uten at rådlogikken endres.
-- Rettet deretter en separat publiseringsfeil der GitHub-versjonen av `styles.css` var fysisk avkortet midt i filen. Dette gjorde at nettleseren forkastet sentrale regler for innlogging, appskall, navigasjon og modaler.
-- Stabilitetstesten kontrollerer nå at stilarket har forventet minimumslengde, ikke inneholder overføringsmarkører og fortsatt har kritiske skallregler.
-- App/cache bumpes til v172e / `treningsapp-v172e` slik at PWA-en henter det komplette stilarket.
-
-### v172f - Komplett app-skall og tydelig feilgrense
-
-- Rettet en publiseringsfeil der GitHub-versjonen av `index.html` var fysisk avkortet. Det manglende DOM-skallet gjorde at innlogget rendering stoppet, navigasjon ble passiv og renderfeilen feilaktig ble vist som synkfeil.
-- Firestore-lasting og rendering har nå separate feilgrenser, slik at en UI-feil ikke lenger rapporteres som «Feil ved synk».
-- Stabilitetstesten avviser nå avkortet `index.html` og kontrollerer kritiske elementer samt komplett avslutning av dokumentet.
-- App/cache bumpes til v172f / `treningsapp-v172f`.
-- Ingen datamodell, brukerflyt eller styrkefunksjonalitet er endret.
+- Snapshot-ferdigstilling kjører asynkront etter første render og blokkerer ikke Hjem eller kontinuitet. En rolig ventetilstand vises mens servergrunnlaget bekreftes.
+- Kandidatverdien for ordinært ukesmål fryses lokalt ved ukeslutt. Senere målendringer kan derfor ikke omskrive grunnlaget før ferdigstilling.
+- Ventende Firestore-skriv tømmes før en avgrenset serverlesing. Lesevinduet utledes fra validerte comeback-regler, ikke et hardkodet antall dager.
+- Transaksjonen er den bærende integritetsmekanismen: et eksisterende `final`-snapshot beholdes, slik at samtidig ferdigstilling på flere enheter gir nøyaktig ett uforanderlig resultat.
+- Manglende serverkontakt eller ufullstendig grunnlag gir ingen final-skriving. Stabilitetstestene dekker eksisterende final, serverfeil og samtidig ferdigstilling.
+- PWA-cache og synlig versjon er `v176o1`.
 
 ---
 
