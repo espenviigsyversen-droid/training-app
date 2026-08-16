@@ -125,6 +125,18 @@ export const DEFAULT_COACH_RULES = deepFreeze({
       minimumBaselineSessions: 4,
       minimumRecentSessions: 2
     },
+    periodizedPlan: {
+      baselineLookbackWeeks: 6,
+      minimumBaselineWeeks: 4,
+      durationCoverageThreshold: 0.5,
+      significantBaselineChangeFactor: 0.1,
+      blockFactors: [
+        { min: 0.95, max: 1 },
+        { min: 1, max: 1.05 },
+        { min: 1.05, max: 1.15 },
+        { min: 0.7, max: 0.8 }
+      ]
+    },
     comeback: {
       triggerDaysSinceLast: 5,
       longBreakDays: 10,
@@ -199,6 +211,10 @@ function validateResolvedRules(rules, errors) {
     ['thresholds.volumeRamp.maxWeeklyIncreaseFactor', rules.thresholds?.volumeRamp?.maxWeeklyIncreaseFactor],
     ['thresholds.volumeRamp.minimumBaselineSessions', rules.thresholds?.volumeRamp?.minimumBaselineSessions],
     ['thresholds.volumeRamp.minimumRecentSessions', rules.thresholds?.volumeRamp?.minimumRecentSessions],
+    ['thresholds.periodizedPlan.baselineLookbackWeeks', rules.thresholds?.periodizedPlan?.baselineLookbackWeeks],
+    ['thresholds.periodizedPlan.minimumBaselineWeeks', rules.thresholds?.periodizedPlan?.minimumBaselineWeeks],
+    ['thresholds.periodizedPlan.durationCoverageThreshold', rules.thresholds?.periodizedPlan?.durationCoverageThreshold],
+    ['thresholds.periodizedPlan.significantBaselineChangeFactor', rules.thresholds?.periodizedPlan?.significantBaselineChangeFactor],
     ['thresholds.comeback.triggerDaysSinceLast', rules.thresholds?.comeback?.triggerDaysSinceLast],
     ['thresholds.comeback.longBreakDays', rules.thresholds?.comeback?.longBreakDays],
     ['thresholds.comeback.reducedWeekFactor', rules.thresholds?.comeback?.reducedWeekFactor],
@@ -217,6 +233,17 @@ function validateResolvedRules(rules, errors) {
       errors.push(`thresholds.goldenZone.${level} must contain two numbers`);
     }
   });
+
+  const blockFactors = rules.thresholds?.periodizedPlan?.blockFactors;
+  if (!Array.isArray(blockFactors) || blockFactors.length !== 4 || blockFactors.some((factor) => (
+    !isPlainObject(factor)
+    || !finiteNumber(factor.min)
+    || !finiteNumber(factor.max)
+    || factor.min <= 0
+    || factor.max < factor.min
+  ))) {
+    errors.push('thresholds.periodizedPlan.blockFactors must contain four positive min/max ranges');
+  }
 
   const roles = rules.bakkenRunningWeek?.roles;
   if (!Array.isArray(roles) || !roles.length || roles.some(role => typeof role !== 'string' || !role)) {
@@ -352,3 +379,4 @@ export async function loadCoachRules(url = './data/coach-rules.json', fetchImpl 
     return fallback;
   }
 }
+
