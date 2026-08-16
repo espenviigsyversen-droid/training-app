@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const assert = require('assert');
+const crypto = require('crypto');
 const { pathToFileURL } = require('url');
 
 const root = path.resolve(__dirname, '..');
@@ -1745,6 +1746,38 @@ async function testAsync(name, fn) {
     assert.strictEqual(DEFAULT_COACH_RULES.thresholds.streakFreeze.maxDaysPerFreeze, 14);
     assert.strictEqual(DEFAULT_COACH_RULES.thresholds.streakFreeze.protectedWeekCoverageDays, 3);
     assert.deepStrictEqual(DEFAULT_COACH_RULES.thresholds.goldenZone.experienced, [0.8, 0.87]);
+  });
+
+  test('v176p adds periodized plan rules without changing the v176o1 coach contract', () => {
+    const canonicalize = value => Array.isArray(value)
+      ? value.map(canonicalize)
+      : value && typeof value === 'object'
+        ? Object.fromEntries(Object.keys(value).sort().map(key => [key, canonicalize(value[key])]))
+        : value;
+    const legacyContract = rules => {
+      const copy = JSON.parse(JSON.stringify(rules));
+      delete copy.thresholds.periodizedPlan;
+      return canonicalize(copy);
+    };
+    const defaultLegacy = legacyContract(DEFAULT_COACH_RULES);
+    const deployedLegacy = legacyContract(coachRulesJson);
+    assert.deepStrictEqual(defaultLegacy, deployedLegacy);
+    const fingerprint = crypto.createHash('sha256')
+      .update(JSON.stringify(deployedLegacy))
+      .digest('hex');
+    assert.strictEqual(fingerprint, 'ebc2db119f0a7a6f5930cc2651a1d7f776f8d4830a2ab83844ddf9ed3978970a');
+    assert.deepStrictEqual(coachRulesJson.thresholds.periodizedPlan, {
+      baselineLookbackWeeks: 6,
+      minimumBaselineWeeks: 4,
+      durationCoverageThreshold: 0.5,
+      significantBaselineChangeFactor: 0.1,
+      blockFactors: [
+        { min: 0.95, max: 1 },
+        { min: 1, max: 1.05 },
+        { min: 1.05, max: 1.15 },
+        { min: 0.7, max: 0.8 }
+      ]
+    });
   });
 
   test('app loads coach rules and service worker uses explicit network-first fallback', () => {
