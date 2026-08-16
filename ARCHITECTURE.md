@@ -107,7 +107,7 @@ Er appens orchestrator og UI-kobling:
 - `local-state-store.js` eier normalisert lokal snapshot/recovery, UTF-8-størrelsesmåling og kontrollert IndexedDB-fallback gjennom injiserbare storage-grensesnitt.
 - `training-repository.js` kapsler Firestore-lesing, skriving, sletting, batch-operasjoner og utskifting av treningsdata. Auth og Firestore-avhengigheter injiseres fra `app.js`.
 - `domain-training-plan.js` inneholder ren rolledekning, template-scoring og ukeplan-/øktforslag uten DOM, Firebase eller global state.
-- `domain-periodized-training-plan.js` eier det historiske målfundamentet for periodiserte planer: normalisering av ukesmålsnapshots, felles valg av effektivt ukesmål og skillet mellom ordinær kontinuitet og fryskort. Senere runder utvider samme modul med ren blokklogikk.
+- `domain-periodized-training-plan.js` eier det rene domenet for periodiserte planer: historiske ukesmålsnapshots, felles effektivt mål, baseline, fireukers rammer, prospektiv volumvalidering, rolle-/race-policy, konfliktklassifisering og ukesevaluering. Firestore og UI ligger fortsatt utenfor modulen.
 - `calendar-ui.js` renderer kalendergrid og dagsmodal med injiserte data og callbacks. Selve mutasjonene, bekreftelsene og persistence-wrappere forblir i `app.js`.
 
 ### `domain-core.js`
