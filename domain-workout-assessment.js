@@ -1,3 +1,5 @@
+import { coachDecisionEngine } from './domain-coach.js';
+
 const numberValue = value => {
   if (value === '' || value === null || value === undefined) return 0;
   const parsed = Number(String(value).replace(',', '.'));
@@ -20,16 +22,6 @@ function intendedEasyWorkout(template = {}) {
     .map(value => String(value || '').toLowerCase())
     .join(' ');
   return /recovery|restitusjon|easy|rolig|base|low/.test(context);
-}
-
-function adaptationLabel(value) {
-  return {
-    shorter: 'kortere',
-    easier: 'lettere',
-    alternative: 'alternativ',
-    changed: 'endret',
-    aborted: 'avbrutt'
-  }[value] || 'tilpasset';
 }
 
 function evidenceSentence(completed, easyShare) {
@@ -88,24 +80,29 @@ export function buildWorkoutCoachAssessment({
     planFit = `${planFit.replace(/\.$/, '')}, også med ${elevationGain} høydemeter.`;
   }
 
-  let nextStep = 'Normal plan kan fortsette dersom dagsformen fortsatt er god.';
   if (painConcern) {
     headline = 'Kroppssignal krever oppfølging';
     planFit = 'Registrert smerte veier tyngre enn puls- og belastningstallene.';
-    nextStep = 'Velg rolig, alternativ trening eller hvile hvis samme område fortsatt kjennes.';
-  } else if (adaptation && adaptation !== 'none') {
-    nextStep = `Økten ble gjennomført ${adaptationLabel(adaptation)}; bekreft god kroppsrespons før belastningen økes.`;
-  } else if (level === 'high') {
-    nextStep = 'La neste økt gi overskudd tilbake før ny kvalitetsbelastning.';
-  } else if (level === 'moderate') {
-    nextStep = 'Behold neste kvalitetsøkt bare dersom beina kjennes friske.';
-  } else if (easyIntent) {
-    nextStep = 'Normal plan kan fortsette; behold neste kvalitetsøkt dersom beina fortsatt kjennes friske.';
   }
 
-  if (trainingProfile.primaryFocus === 'running' && trainingProfile.philosophy === 'bakken_threshold' && level === 'high') {
-    nextStep = 'Prioriter rolig volum, mobilitet eller hvile før neste Bakken-inspirerte kvalitetsøkt.';
-  }
+  const bodyStatus = completed?.bodyStatus && typeof completed.bodyStatus === 'object' ? completed.bodyStatus : {};
+  const bodySignalObserved = ['painBefore', 'painAfter', 'adaptation'].some(key => Object.hasOwn(bodyStatus, key));
+  const coachDecision = coachDecisionEngine({
+    completedAssessment: {
+      easyIntent,
+      easyShare,
+      rpe: completed.rpe,
+      loadLevel: level,
+      painBefore,
+      painAfter,
+      painArea: bodyStatus.area,
+      adaptation,
+      bodySignalObserved,
+      primaryFocus: trainingProfile.primaryFocus,
+      philosophy: trainingProfile.philosophy
+    }
+  });
+  const nextStep = coachDecision.recommendation;
 
   return {
     version: 1,
