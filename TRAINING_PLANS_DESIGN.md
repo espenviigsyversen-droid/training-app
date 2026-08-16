@@ -117,7 +117,7 @@ Foreslått v1-kontrakt:
     weekEnd: "2026-08-23",
     index: 1,
     type: "load" | "peak" | "deload",
-    priorityRoles: ["easy", "long"],
+    priorityRoles: ["easy", "long_easy"],
     targetMin: 171,
     targetMax: 180,
     slots: [{ slotId, role, preferredDay, templateId: null }],
@@ -269,6 +269,53 @@ Når `validationStatus` er `validated`, settes et eget utfall:
 `metric_mismatch` og `insufficient_data` avviser ikke rammen automatisk. Et validert overskridende forslag justeres som beskrevet over. Sikkerhetsadvarsler kan fortsatt stoppe en konkret materialisering. Valideringen kjøres på nytt etter nye fullførte eller importerte økter, ved planredigering, ved ukesevaluering og før hver materialisering. Allerede materialiserte økter endres ikke automatisk.
 
 ### 3.3 Rolle-, race- og challenge-policy
+
+#### Kanoniske roller og deterministisk klassifisering
+
+Den kanoniske rollelisten utvides med `easy` (**Rolig baseøkt**). `recovery` beholder betydningen bevisst kort/lett restitusjon, og `long_easy` beholder betydningen rolig langtur. Vanlig rolig volum skal aldri representeres som `recovery` bare fordi RPE er lav.
+
+Nye planlagte og fullførte malsnapshots får `roleClassificationVersion: 2`. Eksisterende snapshots uten feltet behandles som v1 og bruker nøyaktig dagens utledning. Det gjennomføres ingen bulk-migrering, og eksplisitt lagret rolle vinner alltid, også på v1-data. Dermed endres ingen historisk rolle, Innsikt-beregning eller intensitetsbalanse bakover i tid av denne runden.
+
+V2 følger denne prioriteten:
+
+1. Gyldig eksplisitt `role` brukes uendret.
+2. Deretter brukes normalisert, eksakt `intensity` fra malsnapshotet:
+   - `Restitusjon` gir `recovery`.
+   - `Rolig` etablerer rolig basefamilie. Økten blir `long_easy` bare ved et entydig langt navn eller når den relative langtursgrensen nedenfor er nådd; ellers blir den `easy`.
+   - øvrige intensiteter beholder dagens terskel-/styrkeutledning.
+3. Mangler både rolle og intensitet, brukes normaliserte, versjonerte markører i denne rekkefølgen:
+   - restitusjon: `restitusjon`, `recovery`, `gåtur`
+   - langtur: `langtur`, `rolig lang`, `long run`
+   - rolig base: `easy run`, `rolig løp`, `rolig tur`, `rolig kort`, `base`, `low aerobic`, `lav aerob`
+   - ingen entydig markør gir `other`.
+
+Markører skal treffes som hele normaliserte ord/fraser, ikke vilkårlig delstreng. En lagret rolle kan derfor ikke overstyres av navn, intensitet, RPE, fart eller varighet. Fart og RPE beskriver gjennomføring/belastning og brukes ikke til å velge rolle.
+
+Relativ langtursgrense eies av `coach-rules.json` og valideres med samme fallback-prinsipp som øvrige coach-regler:
+
+```json
+{
+  "thresholds": {
+    "workoutRoles": {
+      "longEasy": {
+        "lookbackWeeks": 8,
+        "minimumBaselineSessions": 6,
+        "durationFactorVsMedianEasy": 1.35
+      }
+    }
+  }
+}
+```
+
+Referansen er median varighet for brukerens fullførte løpeøkter i de foregående åtte avsluttede ISO-ukene som har rolig/base-intensjon, gyldig varighet og ikke er eksplisitt restitusjon, langtur, kvalitet eller race. Måløkten inngår aldri i egen referanse. Minst seks referanseøkter kreves. Uten nok referanse klassifiseres `Rolig` som `easy`, med mindre navnet entydig sier langtur. Ved nøyaktig grense (`durationSeconds >= median * factor`) blir økten `long_easy`; under grensen blir den `easy`. Det konverteres ikke fra fart eller distanse for å tvinge frem en vurdering.
+
+Baseblokkens tre standard-slots er `easy`, `easy`, `long_easy`; en eventuell fjerde base-slot er også `easy` med mindre brukeren velger noe annet. Avlastningsuke kan bruke `recovery` fordi restitusjon da er øktens faktiske formål. Gjentatte `easy` beholdes som separate slots. `priorityRoles` er fortsatt en unik prioritetsliste og uttrykker ikke antall; slotlisten eier antallet.
+
+#### Tellende rolledekning
+
+`roleCoverage()` skal gjøre stabil én-til-én-allokering i rolleplanens rekkefølge: hver slot bruker først én ennå ubrukt fullført økt med samme rolle, deretter én ennå ubrukt planlagt økt. Treffet markeres brukt og kan ikke dekke en ny slot. Den Set-baserte `completedRoles`/`missingRoles`-beregningen i coachkonteksten fjernes som egen sannhet og bygges fra samme tellende dekningsresultat.
+
+Kodesøk viser ett direkte `.find()`-mønster som gjenbruker samme økt i `roleCoverage()`, samt den separate Set-baserte coachberegningen. `evaluatePlanWeek()` beregner ikke treff selv, men må fortsette å motta det samkjørte dekningsresultatet.
 
 Når en aktiv blokk finnes, er kjeden:
 
@@ -500,6 +547,11 @@ Før sletting vises plan, berørte fremtidige økter, eventuelle brukerendringer
 - Snapshot vinner over levende plan for avsluttet uke.
 - Legacy-uke bruker ordinært mål og endrer ikke eksisterende streak.
 - Aktiv blokk bruker blokkrolle; uten blokk brukes race-kjeden uendret.
+- V1-fixtures uten `roleClassificationVersion` beholder nøyaktig dagens roller og gir identisk historisk intensitetsbalanse før og etter rolleutvidelsen.
+- V2-prioritet låses med representative fixtures: eksplisitt rolle vinner; `Restitusjon` gir `recovery`; vanlig `Rolig` gir `easy`; entydig langtursnavn gir `long_easy`; manglende rolle/intensitet/markør gir `other`.
+- Relativ langtursgrense bruker validert regelkilde og tidligere historikk: under grensen gir `easy`, nøyaktig på og over grensen gir `long_easy`, og utilstrekkelig baseline gjetter ikke langtur.
+- Normaluke `easy/easy/long_easy` med to fullførte økter viser nøyaktig én manglende rolle. Samme økt kan ikke dekke to slots.
+- Coachens rolledekning er identisk med `roleCoverage()` også når samme rolle forekommer flere ganger.
 - Challenge-mål endres aldri av avlastning.
 - `evaluatePlanWeek()` bruker injiserte vurderinger og muterer ikke input.
 
@@ -571,6 +623,10 @@ Bygg `effectiveWeeklyTargetForWeek()`, `weeklyTargetSnapshots`, repository/state
 
 Normalisering, baseline, rammer, regelkilde, prospektiv validering, rollepolicy, race-kjede og `evaluatePlanWeek()` med direkte stabilitetstester. Når `domain-periodized-training-plan.js` utvides, skal filen stå i `AGENTS.md` og `RELEASE_CHECKLIST.md` sine `node --check`-lister og i service-workerens `APP_SHELL`.
 
+### Rolleport mellom runde 3 og 4
+
+Etter at første ekte ukesmåls-snapshot er verifisert, leveres `easy`, v2-klassifisering, validert relativ langtursgrense og tellende rolledekning som en egen liten runtime-runde. Runde 4 starter ikke før denne porten er verifisert, slik at ingen plan materialiseres med `recovery` som erstatning for vanlig rolig volum.
+
 ### Runde 4 – Controller og persistence
 
 Planlagring, `planRevision`, planreferanser, preview/diff, konfliktpolicy, current+next-materialisering og atomisk snapshot ved redigering/sletting. `training-plan-controller.js` skal samtidig legges til i `AGENTS.md` og `RELEASE_CHECKLIST.md` sine `node --check`-lister og i service-workerens `APP_SHELL`; samme krav gjelder `training-plan-ui.js` når den opprettes i UI-runden. **Dette er absolutt siste trygge tidspunkt for snapshotmekanismen før aktivering, selv om den etter planen allerede er levert i runde 2. Aktiveringsporten forblir lukket til mekanismen er i produksjon.**
@@ -601,4 +657,3 @@ Sekundær plankontekst, ukentlig evaluering, blokk-fullført-oppsummering, ende-
 ## 11. Senere utvikling
 
 Når v1 er stabil og brukt i minst én full blokk, kan v2 vurdere flere blokker i en 12-ukers løpsplan, blokkbibliotek, forsiktig forslag til neste blokk og bedre kobling mot mål-løp. Dette er eksplisitt utenfor v1 og skal bygge på faktisk erfaring med opprettelse, konflikter, avlastning og fullført-oppsummering.
-
