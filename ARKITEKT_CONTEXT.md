@@ -941,11 +941,10 @@ Bruk alltid siste `BACKLOG.md`, `DEVELOPMENT_ROADMAP.md` og `progress.md` som ki
 Per nå peker retningen mot:
 
 1. Verifisere første ekte `weeklyTargetSnapshot` etter ukeskiftet. Runde 4 for periodisert plan forblir sperret til dette er kontrollert.
-2. Utvide `domain-periodized-training-plan.js` med ren blokklogikk: normalisering, baseline, fire ukers rammer, prospektiv volumvalidering, rolle-/race-policy og ukesevaluering.
-3. Etter snapshot-porten: bygge controller og persistence med preview/diff, konflikt som hovedflyt, current+next-materialisering og uforanderlige fullførte økter.
-4. Bygge en mobil-først planflate i Kalender og et kompakt Hjem-kort, med rask vei for blokk to og senere.
-5. Koble sekundær plankontekst til coach, avslutte blokk eksplisitt og verifisere hele data-/backup-/recovery-sirkelen.
-6. Bruke minst én full fireukersblokk før en eventuell v2 med blokkbibliotek eller automatisk 12-ukers løpsplan vurderes.
+2. Etter snapshot-porten: bygge controller og persistence med preview/diff, konflikt som hovedflyt, current+next-materialisering og uforanderlige fullførte økter.
+3. Bygge en mobil-først planflate i Kalender og et kompakt Hjem-kort, med rask vei for blokk to og senere.
+4. Koble sekundær plankontekst til coach, avslutte blokk eksplisitt og verifisere hele data-/backup-/recovery-sirkelen.
+5. Bruke minst én full fireukersblokk før en eventuell v2 med blokkbibliotek eller automatisk 12-ukers løpsplan vurderes.
 
 Sikkerhetsrekkefølgen står fast: kroppssignal og dagsform foran plan, forklarbar konflikt foran automatisk overskriving, og historisk integritet foran rask aktivering.
 
