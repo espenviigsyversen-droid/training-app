@@ -181,7 +181,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     import { createTrainingInsightsUi } from './training-insights-ui.js';
     import { createWorkspaceSectionsUi } from './workspace-sections-ui.js';
 
-const APP_VERSION = 'v176q';
+const APP_VERSION = 'v176r';
     const APP_CACHE_NAME = `treningsapp-${APP_VERSION}`;
 
     const firebaseConfig = {
@@ -631,7 +631,7 @@ const APP_VERSION = 'v176q';
     const WEEK_PLAN_PRESETS = {
       bakken_3: ['main_threshold', 'support_threshold', 'long_easy', 'x_workout'],
       bakken_4: ['main_threshold', 'support_threshold', 'long_easy', 'x_workout'],
-      easy_build: ['long_easy', 'recovery', 'long_easy', 'mobility']
+      easy_build: ['easy', 'easy', 'long_easy', 'mobility']
     };
 
     const BAKKEN_STANDARD_TEMPLATES = [
@@ -3010,9 +3010,10 @@ const APP_VERSION = 'v176q';
         const templateId = document.getElementById('completeTemplate').value || state.completed[completedIndex].templateId;
         const manualName = document.getElementById('completeManualName').value.trim();
         const existingCompleted = state.completed[completedIndex];
+        const classificationContext = { id: editingId, date, ...formData };
         const preservedSnapshot = templateId === existingCompleted.templateId && existingCompleted.templateSnapshot
-          ? templateSnapshotFromTemplate(existingCompleted.templateSnapshot, manualName)
-          : completedTemplateSnapshot(templateId, manualName);
+          ? templateSnapshotFromTemplate(existingCompleted.templateSnapshot, manualName, classificationContext)
+          : completedTemplateSnapshot(templateId, manualName, classificationContext);
 
         const updatedCompleted = {
           ...existingCompleted,
@@ -3055,7 +3056,7 @@ const APP_VERSION = 'v176q';
           plannedWorkoutId: '',
           templateId,
           manualName,
-          templateSnapshot: completedTemplateSnapshot(templateId, manualName),
+          templateSnapshot: completedTemplateSnapshot(templateId, manualName, { date, ...formData }),
           date,
           ...formData,
           completedAt: new Date().toISOString(),
@@ -3075,7 +3076,9 @@ const APP_VERSION = 'v176q';
         plannedWorkoutId: plannedId,
         templateId: planned.templateId,
         manualName: '',
-        templateSnapshot: planned.templateSnapshot || completedTemplateSnapshot(planned.templateId, ''),
+        templateSnapshot: planned.templateSnapshot
+          ? templateSnapshotFromTemplate(planned.templateSnapshot, '', { id: `completed-from-${plannedId}`, date: planned.date, ...formData })
+          : completedTemplateSnapshot(planned.templateId, '', { id: `completed-from-${plannedId}`, date: planned.date, ...formData }),
         date: planned.date,
         ...formData,
         completedAt: new Date().toISOString()
@@ -3150,18 +3153,30 @@ const APP_VERSION = 'v176q';
       return state.templates.find(t => t.id === id) || { name: 'Slettet øktmal', type: 'Annet', intensity: '', role: '', purpose: '', load: '', recommendedWhen: [], avoidWhen: [], structure: '', sourceUrl: '', structuredWorkout: null, exercisePlan: null };
     }
 
-    function templateSnapshotFromTemplate(template, manualName = '') {
-      const normalized = normalizeTemplate(template || {});
-      return normalizeTemplate({
-        ...normalized,
-        id: normalized.id || '',
-        name: manualName || normalized.name || 'Historisk økt'
-      });
+    function completedRoleHistoryItems() {
+      return (state.completed || []).map(item => ({ ...item, template: completedTemplate(item) }));
     }
 
-    function completedTemplateSnapshot(templateId, manualName) {
+    function templateSnapshotFromTemplate(template, manualName = '', workoutContext = {}) {
+      const normalized = normalizeTemplate(template || {});
+      const versioned = normalizeTemplate({
+        ...normalized,
+        id: normalized.id || '',
+        name: manualName || normalized.name || 'Historisk økt',
+        roleClassificationVersion: 2
+      });
+      const role = inferredWorkoutRole(versioned, {
+        item: workoutContext,
+        completedItems: completedRoleHistoryItems(),
+        rules: getCoachRules(),
+        resolveTemplate: item => item.template || completedTemplate(item)
+      });
+      return normalizeTemplate({ ...versioned, role: versioned.role || role });
+    }
+
+    function completedTemplateSnapshot(templateId, manualName, workoutContext = {}) {
       const template = state.templates.find(t => t.id === templateId);
-      return templateSnapshotFromTemplate(template || { name: manualName || 'Historisk økt' }, manualName);
+      return templateSnapshotFromTemplate(template || { name: manualName || 'Historisk økt' }, manualName, workoutContext);
     }
 
     function plannedTemplate(planned) {
@@ -3454,7 +3469,7 @@ const APP_VERSION = 'v176q';
       if (role === 'mobility' || purpose === 'mobility' || ['Sykling', 'Ski', 'Gåtur', 'Mobilitet'].includes(type)) {
         return { key: 'alternative', label: 'Alternativ' };
       }
-      if (role === 'long_easy' || purpose === 'base' || intensity === 'Rolig' || load === 'low') {
+      if (role === 'easy' || role === 'long_easy' || purpose === 'base' || intensity === 'Rolig' || load === 'low') {
         return { key: 'easy', label: 'Rolig' };
       }
       return { key: 'neutral', label: 'Økt' };
@@ -4179,7 +4194,12 @@ const APP_VERSION = 'v176q';
 
     function itemWorkoutRole(item) {
       const isCompleted = state.completed.some(entry => entry.id === item.id);
-      return inferredWorkoutRole(isCompleted ? completedTemplate(item) : plannedTemplate(item));
+      return inferredWorkoutRole(isCompleted ? completedTemplate(item) : plannedTemplate(item), {
+        item,
+        completedItems: completedRoleHistoryItems(),
+        rules: getCoachRules(),
+        resolveTemplate: entry => entry.template || completedTemplate(entry)
+      });
     }
 
     function itemsWithWorkoutRole(items = []) {
@@ -4431,9 +4451,17 @@ const APP_VERSION = 'v176q';
       const nextRoleSummary = missingNextRoles.length
         ? `Neste uke mangler foreløpig: ${missingNextRoles.join(', ')}.`
         : 'Neste uke dekker rollene i normaluka.';
-      const suggestedNextRoles = new Set(suggestedNextWeek.flatMap(item => asArray(item.suggestion?.roles || [])));
-      const skippedNextRoles = nextRoleCoverage
-        .filter(item => item.status === 'missing' && item.required && !suggestedNextRoles.has(item.role))
+      const missingNextRolePlan = nextRoleCoverage.filter(item => item.status === 'missing' && item.required);
+      const suggestedNextRoleCoverage = roleCoverageCore(
+        missingNextRolePlan.map(item => ({ role: item.role, required: true })),
+        [],
+        suggestedNextWeek.map((item, index) => ({
+          id: `suggested-next-${index}`,
+          workoutRole: asArray(item.suggestion?.roles || [])[0] || 'other'
+        }))
+      );
+      const skippedNextRoles = suggestedNextRoleCoverage
+        .filter(item => item.status === 'missing')
         .map(item => WORKOUT_ROLE_LABELS[item.role]).filter(Boolean);
       const skippedRoleNote = skippedNextRoles.length && (bodyState.level === 'cooling' || bodyState.level === 'caution')
         ? `${skippedNextRoles.join(' og ')} er ikke foreslått denne uken fordi coachen starter rolig etter registrert kroppssignal. Trykk på "Mangler →"-chipen for å legge det inn manuelt hvis du føler deg klar.`
@@ -6166,10 +6194,9 @@ const APP_VERSION = 'v176q';
       const heartRateZoneProfile = heartRateReference.zoneSet;
 
       const weekPlanRoles = trainingProfile.weekPlanRoles || [];
-      const completedRoles = new Set(
-        thisWeek.map(c => completedTemplate(c).role).filter(Boolean)
-      );
-      const missingRoles = weekPlanRoles.filter(role => role && !completedRoles.has(role));
+      const coachRoleCoverage = roleCoverage(normalWeekRoles(trainingProfile, goals), thisWeek, []);
+      const completedRoles = coachRoleCoverage.filter(item => item.status === 'completed').map(item => item.role);
+      const missingRoles = coachRoleCoverage.filter(item => item.status === 'missing').map(item => item.role);
 
       const activeChallenge = (state.challenges || []).find(ch =>
         ch.active && (!ch.startDate || ch.startDate <= today) && (!ch.endDate || ch.endDate >= today)
@@ -6208,7 +6235,7 @@ const APP_VERSION = 'v176q';
         volumeRamp, comeback, weeklyTargetDecision, effectiveWeeklyTarget,
         latestHrv, latestRestingHr,
         goldenZone, heartRateZoneProfile, heartRateCompliance14, heartRateZoneCompliance28, intensityBalance14,
-        weekPlanRoles, completedRoles, missingRoles,
+        weekPlanRoles, completedRoles, missingRoles, roleCoverage: coachRoleCoverage,
         activeChallenge, nextPlanned, tomorrowPlanned,
         hardCount7, hardCount14, easyCount14,
         gradedPain, dailyReadiness, structuredIntervals, injuryCheckins14,
