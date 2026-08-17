@@ -111,6 +111,8 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     import { createIndexedDbKeyValueStore, createLocalStateStore } from './local-state-store.js';
     import { createTrainingRepository } from './training-repository.js';
     import { createCalendarUi } from './calendar-ui.js';
+    import { createTrainingPlanController } from './training-plan-controller.js';
+    import { createTrainingPlanUi } from './training-plan-ui.js';
     import { createWorkoutTemplateUi } from './workout-template-ui.js';
     import { createExerciseLibraryUi } from './exercise-library-ui.js';
     import { createWorkoutCompletionUi } from './workout-completion-ui.js';
@@ -193,7 +195,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     } from './domain-template-snapshot-update.js';
     import { createTemplateSnapshotUpdateUi } from './template-snapshot-update-ui.js';
 
-const APP_VERSION = 'v176t';
+const APP_VERSION = 'v176u';
     const APP_CACHE_NAME = `treningsapp-${APP_VERSION}`;
 
     const firebaseConfig = {
@@ -3718,6 +3720,8 @@ const APP_VERSION = 'v176t';
 
     // ── Calendar ──────────────────────────────────────────────────────────────
     let calendarUi = null;
+    let trainingPlanController = null;
+    let trainingPlanUi = null;
 
     function ensureCalendarUi() {
       if (!calendarUi) {
@@ -3747,6 +3751,29 @@ const APP_VERSION = 'v176t';
 
     function renderCalendar() {
       ensureCalendarUi().render();
+      ensureTrainingPlanUi().render();
+    }
+
+    function ensureTrainingPlanUi() {
+      if (!trainingPlanController) {
+        trainingPlanController = createTrainingPlanController({
+          getState: () => state,
+          getRules: () => getCoachRules()
+        });
+      }
+      if (!trainingPlanUi) {
+        trainingPlanUi = createTrainingPlanUi({
+          getState: () => state,
+          getRules: () => getCoachRules(),
+          todayISO,
+          trainingVolumeRamp,
+          controller: trainingPlanController,
+          escapeHtml,
+          formatDate,
+          roleLabels: WORKOUT_ROLE_LABELS
+        });
+      }
+      return trainingPlanUi;
     }
 
     window.renderCalendar = renderCalendar;
@@ -4494,6 +4521,7 @@ const APP_VERSION = 'v176t';
       const role = template?.role || asArray(suggestion.roles)[0] || '';
       const roleLabel = WORKOUT_ROLE_LABELS[role] || '';
       if (!roleLabel) return suggestion.note || '';
+      if (role === 'race') return `${roleLabel}: bonusforslag som ikke dekker en rolle i normaluka.`;
       if (role === 'recovery' || role === 'mobility') return `${roleLabel}: valgt for lav risiko og bedre totalbelastning.`;
       if (role === 'x_workout') return `${roleLabel}: valgfri variasjon hvis kroppen har overskudd.`;
       return `${roleLabel}: dekker en rolle i normaluka.`;
@@ -4588,16 +4616,23 @@ const APP_VERSION = 'v176t';
       const plannedCount = plannedThisWeek.length;
       const remainingAfterPlanned = Math.max(0, goals.weeklySessionsTarget - completedCount - plannedCount);
       const status = weeklyTrainingStatus(weekItems, weekSummary, goals, profile);
-      const bodyState = bodySignalState(last14Days);
-      const raceContext = buildRaceWeekPlanContext(today);
-      const nextRaceContext = raceContext?.active && remainingAfterPlanned > 0
-        ? { ...raceContext, allowRaceTest: false, testSuggestion: null }
-        : raceContext;
-      const suggestedItems = buildWeekPlanSuggestions(today, weekEnd, plannedThisWeek, weekSummary, weekItems, last14Days, profile, remainingAfterPlanned, raceContext);
-      const suggestedNextWeek = buildNextWeekPlanSuggestions(nextWeekStart, nextWeekEnd, plannedNextWeek, weekSummary, weekItems, last14Days, profile, goals, nextRaceContext);
       const rolePlan = normalWeekRoles(profile, goals);
       const currentRoleCoverage = roleCoverage(rolePlan, weekItems, plannedThisWeek);
       const nextRoleCoverage = roleCoverage(rolePlan, [], plannedNextWeek);
+      const bodyState = bodySignalState(last14Days);
+      const raceContextBase = buildRaceWeekPlanContext(today);
+      const raceContext = raceContextBase?.active
+        ? { ...raceContextBase, normalWeekCovered: currentRoleCoverage.filter(item => item.required).every(item => item.status !== 'missing') }
+        : raceContextBase;
+      const nextRaceContext = raceContextBase?.active
+        ? {
+            ...raceContextBase,
+            normalWeekCovered: nextRoleCoverage.filter(item => item.required).every(item => item.status !== 'missing'),
+            ...(remainingAfterPlanned > 0 ? { allowRaceTest: false, testSuggestion: null } : {})
+          }
+        : raceContextBase;
+      const suggestedItems = buildWeekPlanSuggestions(today, weekEnd, plannedThisWeek, weekSummary, weekItems, last14Days, profile, remainingAfterPlanned, raceContext);
+      const suggestedNextWeek = buildNextWeekPlanSuggestions(nextWeekStart, nextWeekEnd, plannedNextWeek, weekSummary, weekItems, last14Days, profile, goals, nextRaceContext);
       const suggestionDates = suggestedItems.map(item => item.date);
       const nextWeekDates = suggestedNextWeek.map(item => item.date);
       const mainSuggestion = suggestedItems[0]?.suggestion || buildWorkoutSuggestion(today, weekSummary, weekItems, last14Days, profile);
@@ -7807,7 +7842,7 @@ const APP_VERSION = 'v176t';
           const keys = await caches.keys();
           await Promise.all(keys.filter(key => key.startsWith('treningsapp-')).map(key => caches.delete(key)));
         }
-        await Promise.all(['./index.html', './styles.css', './app.js', './ai-coach-client.js', './ai-coach-ui.js', './domain-core.js', './domain-coach.js', './domain-goals.js', './domain-coach-rules.js', './domain-fitness.js', './domain-exercises.js', './domain-heart-rate-zones.js', './domain-volume-trends.js', './domain-workout-assessment.js', './domain-insight-confidence.js', './insight-confidence-ui.js', './garmin-csv-import.js', './training-import-controller.js', './training-import-ui.js', './app-state.js', './local-state-store.js', './training-repository.js', './domain-training-plan.js', './domain-periodized-training-plan.js', './training-plan-controller.js', './domain-template-snapshot-update.js', './template-snapshot-update-ui.js', './calendar-ui.js', './workout-template-ui.js', './workout-completion-ui.js', './workout-history-ui.js', './exercise-library-ui.js', './heart-rate-zones-ui.js', './data/coach-rules.json', './service-worker.js'].map(path =>
+        await Promise.all(['./index.html', './styles.css', './app.js', './ai-coach-client.js', './ai-coach-ui.js', './domain-core.js', './domain-coach.js', './domain-goals.js', './domain-coach-rules.js', './domain-fitness.js', './domain-exercises.js', './domain-heart-rate-zones.js', './domain-volume-trends.js', './domain-workout-assessment.js', './domain-insight-confidence.js', './insight-confidence-ui.js', './garmin-csv-import.js', './training-import-controller.js', './training-import-ui.js', './app-state.js', './local-state-store.js', './training-repository.js', './domain-training-plan.js', './domain-periodized-training-plan.js', './training-plan-controller.js', './training-plan-ui.js', './domain-template-snapshot-update.js', './template-snapshot-update-ui.js', './calendar-ui.js', './workout-template-ui.js', './workout-completion-ui.js', './workout-history-ui.js', './exercise-library-ui.js', './heart-rate-zones-ui.js', './data/coach-rules.json', './service-worker.js'].map(path =>
           fetch(path, { cache: 'reload' }).catch(() => null)
         ));
       } finally {
@@ -7909,4 +7944,3 @@ const APP_VERSION = 'v176t';
         navigator.serviceWorker.register(`./service-worker.js?v=${APP_VERSION}`).catch(() => {});
       });
     };
-
