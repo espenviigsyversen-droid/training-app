@@ -1,6 +1,141 @@
+import { DEFAULT_COACH_RULES } from './domain-coach-rules.js';
+
 function asArray(value) {
   if (Array.isArray(value)) return value.filter(Boolean);
   return value ? [value] : [];
+}
+
+const CANONICAL_WORKOUT_ROLES = new Set([
+  'main_threshold', 'support_threshold', 'easy', 'long_easy', 'recovery',
+  'x_workout', 'strength', 'mobility', 'technique', 'race', 'other'
+]);
+const RECOVERY_MARKERS = ['restitusjon', 'recovery', 'gåtur'];
+const LONG_EASY_MARKERS = ['langtur', 'rolig lang', 'long run'];
+const EASY_MARKERS = ['easy run', 'rolig løp', 'rolig tur', 'rolig kort', 'base', 'low aerobic', 'lav aerob'];
+const NON_RUNNING_MARKERS = ['hiking', 'fottur'];
+
+function normalizedMarkerText(value) {
+  return String(value || '')
+    .toLowerCase()
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/ø/g, 'o')
+    .replace(/æ/g, 'ae')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim()
+    .replace(/\s+/g, ' ');
+}
+
+function hasWholeMarker(value, markers = []) {
+  const normalized = ` ${normalizedMarkerText(value)} `;
+  return markers.some(marker => normalized.includes(` ${normalizedMarkerText(marker)} `));
+}
+
+function isoDate(value) {
+  const text = String(value || '').trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(text)) return '';
+  const date = new Date(`${text}T12:00:00Z`);
+  return Number.isNaN(date.getTime()) || date.toISOString().slice(0, 10) !== text ? '' : text;
+}
+
+function addIsoDays(value, days) {
+  const date = new Date(`${value}T12:00:00Z`);
+  date.setUTCDate(date.getUTCDate() + Number(days || 0));
+  return date.toISOString().slice(0, 10);
+}
+
+function weekStartIso(value) {
+  const valid = isoDate(value);
+  if (!valid) return '';
+  const date = new Date(`${valid}T12:00:00Z`);
+  const day = date.getUTCDay() || 7;
+  return addIsoDays(valid, 1 - day);
+}
+
+function workoutDurationSeconds(item = {}) {
+  const seconds = Number(item.durationSeconds);
+  if (Number.isFinite(seconds) && seconds > 0) return seconds;
+  const minutes = Number(item.durationMinutes);
+  return Number.isFinite(minutes) && minutes > 0 ? minutes * 60 : 0;
+}
+
+function median(values = []) {
+  const sorted = values.filter(Number.isFinite).sort((a, b) => a - b);
+  if (!sorted.length) return 0;
+  const middle = Math.floor(sorted.length / 2);
+  return sorted.length % 2 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2;
+}
+
+function workoutTemplateFor(item = {}, resolveTemplate) {
+  if (typeof resolveTemplate === 'function') return resolveTemplate(item) || {};
+  return item.template || item.templateSnapshot || {};
+}
+
+export function workoutRoleRules(rules = DEFAULT_COACH_RULES) {
+  const fallback = DEFAULT_COACH_RULES.thresholds.workoutRoles.longEasy;
+  const source = rules?.thresholds?.workoutRoles?.longEasy || {};
+  const lookbackWeeks = Number(source.lookbackWeeks);
+  const minimumBaselineSessions = Number(source.minimumBaselineSessions);
+  const durationFactorVsMedianEasy = Number(source.durationFactorVsMedianEasy);
+  return {
+    lookbackWeeks: Number.isInteger(lookbackWeeks) && lookbackWeeks >= 4 && lookbackWeeks <= 16
+      ? lookbackWeeks : fallback.lookbackWeeks,
+    minimumBaselineSessions: Number.isInteger(minimumBaselineSessions) && minimumBaselineSessions >= 3 && minimumBaselineSessions <= 30
+      ? minimumBaselineSessions : fallback.minimumBaselineSessions,
+    durationFactorVsMedianEasy: Number.isFinite(durationFactorVsMedianEasy) && durationFactorVsMedianEasy >= 1 && durationFactorVsMedianEasy <= 3
+      ? durationFactorVsMedianEasy : fallback.durationFactorVsMedianEasy
+  };
+}
+
+function explicitReferenceRole(template = {}) {
+  const role = String(template.role || '').trim().toLowerCase();
+  return CANONICAL_WORKOUT_ROLES.has(role) ? role : '';
+}
+
+function isEasyDurationReference(item = {}, template = {}) {
+  const name = String(template.name || item.manualName || '');
+  const type = normalizedMarkerText(template.type);
+  const intensity = normalizedMarkerText(template.intensity);
+  const purpose = normalizedMarkerText(template.purpose);
+  const role = explicitReferenceRole(template);
+  if (!['loping', 'running', 'run'].includes(type)) return false;
+  if (hasWholeMarker(name, NON_RUNNING_MARKERS)) return false;
+  if (role && role !== 'easy') return false;
+  if (hasWholeMarker(name, [...RECOVERY_MARKERS, ...LONG_EASY_MARKERS])) return false;
+  if (['restitusjon', 'terskel', 'intervall', 'tempo', 'anaerob', 'race'].includes(intensity)) return false;
+  if (['recovery', 'threshold', 'vo2max', 'race'].includes(purpose)) return false;
+  return role === 'easy' || intensity === 'rolig' || purpose === 'base' || hasWholeMarker(name, EASY_MARKERS);
+}
+
+export function easyRunDurationBaseline(completedItems = [], {
+  targetDate,
+  targetId = '',
+  rules = DEFAULT_COACH_RULES,
+  resolveTemplate
+} = {}) {
+  const config = workoutRoleRules(rules);
+  const currentWeekStart = weekStartIso(targetDate);
+  if (!currentWeekStart) return { ...config, count: 0, enoughData: false, medianDurationSeconds: 0, projectedThresholdDurationSeconds: 0, thresholdDurationSeconds: 0, range: { start: '', end: '' }, references: [] };
+  const rangeEnd = addIsoDays(currentWeekStart, -1);
+  const rangeStart = addIsoDays(currentWeekStart, -(config.lookbackWeeks * 7));
+  const references = (Array.isArray(completedItems) ? completedItems : [])
+    .filter(item => item?.id !== targetId && isoDate(item?.date) >= rangeStart && isoDate(item?.date) <= rangeEnd)
+    .map(item => ({ item, template: workoutTemplateFor(item, resolveTemplate), durationSeconds: workoutDurationSeconds(item) }))
+    .filter(entry => entry.durationSeconds > 0 && isEasyDurationReference(entry.item, entry.template))
+    .map(entry => ({ id: String(entry.item.id || ''), date: entry.item.date, name: String(entry.template.name || entry.item.manualName || 'Rolig økt'), durationSeconds: entry.durationSeconds }));
+  const medianDurationSeconds = median(references.map(item => item.durationSeconds));
+  const enoughData = references.length >= config.minimumBaselineSessions;
+  const projectedThresholdDurationSeconds = medianDurationSeconds * config.durationFactorVsMedianEasy;
+  return {
+    ...config,
+    count: references.length,
+    enoughData,
+    medianDurationSeconds,
+    projectedThresholdDurationSeconds,
+    thresholdDurationSeconds: enoughData ? projectedThresholdDurationSeconds : 0,
+    range: { start: rangeStart, end: rangeEnd },
+    references
+  };
 }
 
 function withCoachPrinciples(suggestion, ids = []) {
@@ -15,12 +150,29 @@ export function gentleBaseSuggestion(note = 'Foreslått som rolig støtte rundt 
     principleIds: ['easy_support'],
     types: ['Løping', 'Gåtur', 'Sykling', 'Ski', 'Mobilitet'],
     intensities: ['Rolig', 'Restitusjon'],
-    roles: ['long_easy', 'recovery', 'mobility'],
+    roles: ['easy', 'long_easy', 'recovery', 'mobility'],
     purposes: ['base', 'recovery', 'mobility'],
     loads: ['low'],
     recommendedWhen: ['normal', 'tired', 'after_hard', 'bonus', 'pain_adaptation'],
     avoidTemplateWhen: [],
     keywords: ['rolig', 'lett', 'kort', 'restitusjon', 'base', 'gå']
+  };
+}
+
+export function easySuggestion(note = 'Foreslått som vanlig rolig basevolum i en repeterbar uke.') {
+  return {
+    title: 'Rolig baseøkt',
+    detail: 'Løp lett og kontrollert. Målet er aerob base og overskudd til resten av uka.',
+    note,
+    principleIds: ['easy_support', 'repeatable_week'],
+    types: ['Løping'],
+    intensities: ['Rolig'],
+    roles: ['easy'],
+    purposes: ['base'],
+    loads: ['low'],
+    recommendedWhen: ['normal', 'fresh_legs', 'after_hard', 'bonus'],
+    avoidTemplateWhen: ['pain'],
+    keywords: ['easy run', 'rolig løp', 'rolig tur', 'rolig kort', 'base', 'lav aerob']
   };
 }
 
@@ -113,6 +265,7 @@ export function suggestionForWorkoutRole(role) {
   const map = {
     main_threshold: () => mainThresholdSuggestion(),
     support_threshold: () => supportThresholdSuggestion(),
+    easy: () => easySuggestion(),
     long_easy: () => longEasySuggestion(),
     recovery: () => recoverySuggestion(),
     x_workout: () => xWorkoutSuggestion(),
@@ -138,7 +291,7 @@ export function suggestionForWorkoutRole(role) {
   return (map[role] || (() => gentleBaseSuggestion()))();
 }
 
-export function inferredWorkoutRole(template = {}) {
+function inferredWorkoutRoleV1(template = {}) {
   if (template.role) return template.role;
   const name = String(template.name || '').toLowerCase();
   const type = String(template.type || '').toLowerCase();
@@ -154,6 +307,41 @@ export function inferredWorkoutRole(template = {}) {
   return 'other';
 }
 
+export function inferredWorkoutRole(template = {}, options = {}) {
+  const classificationVersion = Number(template.roleClassificationVersion || options.roleClassificationVersion || 1);
+  if (classificationVersion < 2) return inferredWorkoutRoleV1(template);
+
+  const role = explicitReferenceRole(template);
+  if (role) return role;
+  const name = String(template.name || options.item?.manualName || '');
+  const type = normalizedMarkerText(template.type);
+  const intensity = normalizedMarkerText(template.intensity);
+
+  if (hasWholeMarker(name, NON_RUNNING_MARKERS)) return 'other';
+  if (type === 'mobilitet' || hasWholeMarker(name, ['yoga', 'mobilitet'])) return 'mobility';
+  if (type === 'styrke' || intensity === 'styrke') return 'strength';
+  if (intensity === 'restitusjon') return 'recovery';
+  if (intensity === 'rolig') {
+    if (hasWholeMarker(name, LONG_EASY_MARKERS)) return 'long_easy';
+    const baseline = easyRunDurationBaseline(options.completedItems, {
+      targetDate: options.item?.date || options.targetDate,
+      targetId: options.item?.id || options.targetId,
+      rules: options.rules,
+      resolveTemplate: options.resolveTemplate
+    });
+    const durationSeconds = workoutDurationSeconds(options.item || options);
+    return baseline.enoughData && durationSeconds >= baseline.thresholdDurationSeconds ? 'long_easy' : 'easy';
+  }
+  if (['45 15', '10x3', '10 x 3', '12x2', '12 x 2', '30x1', '30 x 1'].some(value => normalizedMarkerText(name).includes(value))) return 'support_threshold';
+  if (['6x6', '6 x 6', '4x10', '4 x 10', '5x5', '5 x 5'].some(value => normalizedMarkerText(name).includes(value))) return 'main_threshold';
+  if (intensity === 'terskel') return 'support_threshold';
+  if (intensity) return 'other';
+  if (hasWholeMarker(name, RECOVERY_MARKERS)) return 'recovery';
+  if (hasWholeMarker(name, LONG_EASY_MARKERS)) return 'long_easy';
+  if (hasWholeMarker(name, EASY_MARKERS)) return 'easy';
+  return 'other';
+}
+
 export function normalWeekRoles(profile = {}, goals = {}, defaultRoles = []) {
   const roles = asArray(profile.weekPlanRoles).slice(0, 4);
   asArray(defaultRoles).forEach(role => {
@@ -164,9 +352,15 @@ export function normalWeekRoles(profile = {}, goals = {}, defaultRoles = []) {
 }
 
 export function roleCoverage(rolePlan, completedItems = [], plannedItems = []) {
+  const usedCompleted = new Set();
+  const usedPlanned = new Set();
   return rolePlan.map(plan => {
-    const completed = completedItems.find(item => item.workoutRole === plan.role);
-    const planned = plannedItems.find(item => item.workoutRole === plan.role);
+    const completedIndex = completedItems.findIndex((item, index) => !usedCompleted.has(index) && item.workoutRole === plan.role);
+    const completed = completedIndex >= 0 ? completedItems[completedIndex] : null;
+    if (completedIndex >= 0) usedCompleted.add(completedIndex);
+    const plannedIndex = completed ? -1 : plannedItems.findIndex((item, index) => !usedPlanned.has(index) && item.workoutRole === plan.role);
+    const planned = plannedIndex >= 0 ? plannedItems[plannedIndex] : null;
+    if (plannedIndex >= 0) usedPlanned.add(plannedIndex);
     return { ...plan, status: completed ? 'completed' : planned ? 'planned' : plan.required ? 'missing' : 'optional', completed, planned };
   });
 }
@@ -197,13 +391,13 @@ export function roleAwareSuggestions(count, bodyState, weekItems, profile, goals
   const missingRoles = missingRoleOrder(profile, goals, completedItems, plannedItems, options.defaultRoles || []);
   if (bodyState.level === 'cooling') {
     if (profile.priority === 'injury_free_progression') {
-      const safeRoles = missingRoles.filter(role => ['long_easy', 'recovery', 'mobility'].includes(role));
+      const safeRoles = missingRoles.filter(role => ['easy', 'long_easy', 'recovery', 'mobility'].includes(role));
       return [longEasySuggestion('Lav smerte registrert. Start rolig og bekreft at kroppen svarer fint.'), ...safeRoles.map(suggestionForWorkoutRole), gentleBaseSuggestion('Rolig støtte. Legg terskel neste gang kroppen kjennes frisk.'), xWorkoutSuggestion('Bonus hvis beina er friske - men lett er bedre enn hard.')].slice(0, target);
     }
     return [longEasySuggestion('Siste signal virker på vei ned. Start med rolig base og se at kroppen svarer fint.'), ...missingRoles.filter(role => role !== 'long_easy').map(suggestionForWorkoutRole), xWorkoutSuggestion('X-økt hvis beina er friske etter terskel.'), gentleBaseSuggestion('Rolig støtte rundt kvaliteten.')].slice(0, target);
   }
   if (hardThisWeek >= 2 || moderateOrHard >= 3) {
-    const controlled = missingRoles.filter(role => ['long_easy', 'recovery', 'mobility'].includes(role)).map(suggestionForWorkoutRole);
+    const controlled = missingRoles.filter(role => ['easy', 'long_easy', 'recovery', 'mobility'].includes(role)).map(suggestionForWorkoutRole);
     return [...controlled, longEasySuggestion('Perioden har allerede hatt mye kvalitet. Start kontrollert før ny belastning.'), gentleBaseSuggestion('Rolig støtte for kontinuitet.'), recoverySuggestion('Bonus bør være lett hvis totalbelastningen kjennes høy.')].slice(0, target);
   }
   const suggestions = missingRoles.map(suggestionForWorkoutRole);
@@ -331,4 +525,3 @@ export function nextWeekPlanSummary(planned, suggested, goals, status, bodyState
   if (status.level === 'caution') return `Neste uke bør starte kontrollert. Appen foreslår ${suggested.length} økt${suggested.length === 1 ? '' : 'er'} med lavere risiko først.`;
   return `Forslag til neste uke: ${suggested.length} økt${suggested.length === 1 ? '' : 'er'} mot ukesmålet på ${target}, med kvalitet, rolig base og justering etter dagsform.`;
 }
-
