@@ -6692,6 +6692,10 @@
       margin-bottom: 4px;
     }
 
+    .week-plan-item-head strong {
+      white-space: nowrap;
+    }
+
     .week-plan-item strong,
     .week-plan-item span,
     .week-plan-item small {
@@ -6797,6 +6801,11 @@
       min-width: 86px;
       padding: 10px 12px;
       font-size: 0.82rem;
+    }
+
+    .week-plan-item .week-plan-open {
+      min-width: 72px;
+      white-space: nowrap;
     }
 
     .week-plan-card .week-plan-note {
@@ -8246,3 +8255,4 @@
   .snapshot-diff-row { grid-template-columns:1fr 1fr; }
   .snapshot-diff-row > strong { grid-column:1 / -1; }
 }
+
