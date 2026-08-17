@@ -632,8 +632,11 @@ async function testAsync(name, fn) {
   const {
     assembleWeekPlanSuggestions,
     buildWorkoutSuggestion,
+    easyRunDurationBaseline,
     findSuggestedTemplate,
+    inferredWorkoutRole,
     normalWeekRoles,
+    roleCoverage,
     templateSuggestionScore
   } = planner;
   const { createLocalStateStore, isStorageQuotaError, snapshotByteLength } = localStoreDomain;
@@ -1530,6 +1533,95 @@ async function testAsync(name, fn) {
     );
   });
 
+  test('v176r keeps representative v1 history classification unchanged', () => {
+    const legacyTemplates = [
+      { name: 'Easy Run', type: 'Løping', intensity: 'Rolig' },
+      { name: 'Hiking', type: 'Løping', intensity: 'Rolig' },
+      { name: 'Rolig Kort Tur', type: 'Løping', intensity: 'Restitusjon' },
+      { name: 'Rolig Langtur Base', type: 'Løping', intensity: 'Rolig' },
+      { name: 'Terskel Friløp', type: 'Løping', intensity: 'Terskel' }
+    ];
+    assert.deepStrictEqual(legacyTemplates.map(template => inferredWorkoutRole(template)), [
+      'long_easy', 'long_easy', 'recovery', 'long_easy', 'support_threshold'
+    ]);
+  });
+
+  test('v176r v2 separates easy, long easy, recovery and non-running names deterministically', () => {
+    const v2 = template => ({ roleClassificationVersion: 2, type: 'Løping', ...template });
+    assert.strictEqual(inferredWorkoutRole(v2({ name: 'Easy Run', intensity: 'Rolig' }), { targetDate: '2026-08-17' }), 'easy');
+    assert.strictEqual(inferredWorkoutRole(v2({ name: 'Rolig Langtur Base', intensity: 'Rolig' }), { targetDate: '2026-08-17' }), 'long_easy');
+    assert.strictEqual(inferredWorkoutRole(v2({ name: 'Easy Run', intensity: 'Rolig', role: 'recovery' })), 'recovery');
+    assert.strictEqual(inferredWorkoutRole(v2({ name: 'Hiking', intensity: 'Rolig' })), 'other');
+    assert.strictEqual(inferredWorkoutRole(v2({ name: 'Fottur', intensity: 'Rolig' })), 'other');
+    assert.strictEqual(inferredWorkoutRole(v2({ name: 'Uten metadata' })), 'other');
+  });
+
+  test('v176r calibrated long-run baseline activates only after six completed-week references', () => {
+    const referenceDurations = [1818, 1989, 2942, 2969, 2998];
+    const fiveReferences = referenceDurations.map((durationSeconds, index) => ({
+      id: `easy-${index + 1}`,
+      date: `2026-07-${String(index + 1).padStart(2, '0')}`,
+      durationSeconds,
+      templateSnapshot: { roleClassificationVersion: 2, name: 'Easy Run', type: 'Løping', intensity: 'Rolig', role: 'easy' }
+    }));
+    const five = easyRunDurationBaseline(fiveReferences, { targetDate: '2026-08-17', rules: coachRulesJson });
+    assert.strictEqual(five.count, 5);
+    assert.strictEqual(five.enoughData, false);
+    assert.strictEqual(five.medianDurationSeconds, 2942);
+    assert.ok(Math.abs(five.projectedThresholdDurationSeconds - 3971.7) < 0.001);
+    const beforeActivation = inferredWorkoutRole(
+      { roleClassificationVersion: 2, name: 'Rolig økt', type: 'Løping', intensity: 'Rolig' },
+      { item: { id: 'target-before', date: '2026-08-17', durationSeconds: 5000 }, completedItems: fiveReferences, rules: coachRulesJson }
+    );
+    assert.strictEqual(beforeActivation, 'easy');
+
+    const sixReferences = [...fiveReferences, {
+      id: 'easy-6', date: '2026-08-09', durationSeconds: 2955,
+      templateSnapshot: { roleClassificationVersion: 2, name: 'Easy Run', type: 'Løping', intensity: 'Rolig', role: 'easy' }
+    }];
+    const six = easyRunDurationBaseline(sixReferences, { targetDate: '2026-08-17', rules: coachRulesJson });
+    assert.strictEqual(six.count, 6);
+    assert.strictEqual(six.enoughData, true);
+    assert.strictEqual(six.thresholdDurationSeconds, six.projectedThresholdDurationSeconds);
+    assert.strictEqual(inferredWorkoutRole(
+      { roleClassificationVersion: 2, name: 'Rolig økt', type: 'Løping', intensity: 'Rolig' },
+      { item: { id: 'target-after', date: '2026-08-17', durationSeconds: 5000 }, completedItems: sixReferences, rules: coachRulesJson }
+    ), 'long_easy');
+    assert.strictEqual(inferredWorkoutRole(
+      { roleClassificationVersion: 2, name: 'Tidligere økt', type: 'Løping', intensity: 'Rolig', role: 'easy' },
+      { item: { id: 'frozen-history', date: '2026-08-17', durationSeconds: 5000 }, completedItems: sixReferences, rules: coachRulesJson }
+    ), 'easy');
+  });
+
+  test('v176r role coverage consumes each workout exactly once', () => {
+    const plan = [
+      { role: 'easy', required: true },
+      { role: 'easy', required: true },
+      { role: 'long_easy', required: true }
+    ];
+    const coverage = roleCoverage(plan, [
+      { id: 'easy-one', workoutRole: 'easy' },
+      { id: 'long-one', workoutRole: 'long_easy' }
+    ], []);
+    assert.deepStrictEqual(coverage.map(item => item.status), ['completed', 'missing', 'completed']);
+    assert.strictEqual(coverage.filter(item => item.status === 'missing').length, 1);
+    const completedBeforePlanned = roleCoverage([{ role: 'easy', required: true }], [
+      { id: 'done', workoutRole: 'easy' }
+    ], [{ id: 'future', workoutRole: 'easy' }]);
+    assert.strictEqual(completedBeforePlanned[0].completed.id, 'done');
+    assert.strictEqual(completedBeforePlanned[0].planned, null);
+  });
+
+  test('v176r role gate is wired into snapshots, profile choices and base blocks', () => {
+    assert.strictEqual(WORKOUT_ROLE_LABELS.easy, 'Rolig baseøkt');
+    assert.strictEqual((index.match(/<option value="easy">Rolig baseøkt<\/option>/g) || []).length, 5);
+    assert.ok(app.includes('roleClassificationVersion: 2'));
+    assert.ok(trainingImportControllerSource.includes('roleClassificationVersion: 2'));
+    assert.ok(app.includes('roleCoverage: coachRoleCoverage'));
+    assert.ok(!app.includes('const completedRoles = new Set('));
+    assert.deepStrictEqual(periodizedPlan.periodizedRolePolicy({ focus: 'base', slotCount: 3 }).roles, ['easy', 'easy', 'long_easy']);
+  });
+
   test('v164 workout suggestion remains conservative with an active body signal', () => {
     const suggestion = buildWorkoutSuggestion({
       weekSummary: { sessions: 1 },
@@ -1749,7 +1841,7 @@ async function testAsync(name, fn) {
     assert.deepStrictEqual(DEFAULT_COACH_RULES.thresholds.goldenZone.experienced, [0.8, 0.87]);
   });
 
-  test('v176p adds periodized plan rules without changing the v176o1 coach contract', () => {
+  test('v176r adds the intentional workout-role contract without changing older coach thresholds', () => {
     const canonicalize = value => Array.isArray(value)
       ? value.map(canonicalize)
       : value && typeof value === 'object'
@@ -1766,7 +1858,8 @@ async function testAsync(name, fn) {
     const fingerprint = crypto.createHash('sha256')
       .update(JSON.stringify(deployedLegacy))
       .digest('hex');
-    assert.strictEqual(fingerprint, 'ebc2db119f0a7a6f5930cc2651a1d7f776f8d4830a2ab83844ddf9ed3978970a');
+    // Update this hash only for an intentional coach-contract change; otherwise a mismatch is a regression.
+    assert.strictEqual(fingerprint, 'ea5f13ac651f4bcb45589e7bbdc7be3baee7da8005e0abfc22bcb2de2e8307a6');
     assert.deepStrictEqual(coachRulesJson.thresholds.periodizedPlan, {
       baselineLookbackWeeks: 6,
       minimumBaselineWeeks: 4,
@@ -1778,6 +1871,11 @@ async function testAsync(name, fn) {
         { min: 1.05, max: 1.15 },
         { min: 0.7, max: 0.8 }
       ]
+    });
+    assert.deepStrictEqual(coachRulesJson.thresholds.workoutRoles.longEasy, {
+      lookbackWeeks: 8,
+      minimumBaselineSessions: 6,
+      durationFactorVsMedianEasy: 1.35
     });
   });
 
@@ -2686,7 +2784,7 @@ async function testAsync(name, fn) {
     assert.ok(index.includes('id="templateCooldownExerciseRows"'), 'cooldown exercise block is missing');
     assert.ok(workoutTemplateUiSource.includes("addExercise('warmup')") || index.includes("addTemplateExercise('warmup')"), 'warmup exercise action is missing');
     assert.ok(appStateSource.includes('normalizePlannedItems'), 'planned template snapshots should be normalized');
-    assert.ok(app.includes('templateSnapshot: planned.templateSnapshot || completedTemplateSnapshot'), 'completion should preserve the planned snapshot');
+    assert.ok(app.includes('planned.templateSnapshot\n          ? templateSnapshotFromTemplate(planned.templateSnapshot'), 'completion should preserve and version the planned snapshot');
     assert.ok(exerciseLibraryUiSource.includes('createExerciseLibraryUi'), 'exercise library controller is missing');
     assert.ok(exerciseDomainSource.includes('exerciseSnapshot'), 'exercise snapshots should be part of the production model');
     assert.deepStrictEqual(filterExercises([
@@ -2864,8 +2962,8 @@ async function testAsync(name, fn) {
     assert.ok(workoutHistoryUiSource.includes('heartRateZoneDistributionRows'), 'history does not use production zone rows');
     assert.ok(workoutHistoryUiSource.includes('Tid i pulssoner'), 'completed detail is missing the heart-rate zone section');
     assert.ok(!workoutHistoryUiSource.includes("row.estimated ? 'ca. '"), 'zone duration should not be prefixed with ca.');
-    assert.ok(app.includes("const APP_VERSION = 'v176q'"), 'visible app version must be v176q');
-    assert.ok(serviceWorker.includes('treningsapp-v176q'), 'cache version must match v176q');
+    assert.ok(app.includes("const APP_VERSION = 'v176r'"), 'visible app version must be v176r');
+    assert.ok(serviceWorker.includes('treningsapp-v176r'), 'cache version must match v176r');
   });
 
   test('v174b evaluates easy and quality sessions without treating zone percentages as a hard truth', () => {
@@ -2960,8 +3058,8 @@ async function testAsync(name, fn) {
     assert.ok(index.includes('id="insightHeartRateComplianceCard"'), 'Insights is missing the compliance card');
     assert.ok(app.includes('heartRateZoneComplianceForItems(last28Days)'), 'coach context does not use the canonical compliance summary');
     assert.ok(app.includes('renderHeartRateZoneComplianceInsight(today)'), 'Insights does not render canonical compliance');
-    assert.ok(app.includes("const APP_VERSION = 'v176q'"), 'visible app version must be v176q');
-    assert.ok(serviceWorker.includes('treningsapp-v176q'), 'cache version must match v176q');
+    assert.ok(app.includes("const APP_VERSION = 'v176r'"), 'visible app version must be v176r');
+    assert.ok(serviceWorker.includes('treningsapp-v176r'), 'cache version must match v176r');
   });
 
   test('v174c uses the test profile for zones and keeps the golden zone as a separate coach reference', () => {
@@ -3537,8 +3635,8 @@ async function testAsync(name, fn) {
     assert.ok(trainingImportControllerSource.includes("action: duplicate ? 'skip'"), 'duplicates should be skipped by default');
     assert.ok(!trainingImportControllerSource.includes('heartRateZoneDistribution'), 'controller must not synthesize pulse zones');
     assert.ok(styles.includes('.garmin-import-row'), 'Garmin preview styling is missing');
-    assert.ok(app.includes("const APP_VERSION = 'v176q'"));
-    assert.ok(serviceWorker.includes('treningsapp-v176q'));
+    assert.ok(app.includes("const APP_VERSION = 'v176r'"));
+    assert.ok(serviceWorker.includes('treningsapp-v176r'));
   });
 
   test('structured interval UI fields and summaries are wired into production files', () => {
@@ -4371,6 +4469,7 @@ async function testAsync(name, fn) {
     assert.match(feedback.title, /Bra justert/);
     assert.match(feedback.reason, /Rolig Kort Tur/);
     assert.match(feedback.action, /Rolig langtur søn\. 16\. aug\./);
+    assert.ok(!feedback.action.includes('aug..'));
     assert.match(feedback.support.support, /karbohydrater|protein|Drikk|drikk/);
   });
 
