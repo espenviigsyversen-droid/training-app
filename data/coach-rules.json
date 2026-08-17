@@ -124,6 +124,13 @@
         { "min": 0.7, "max": 0.8 }
       ]
     },
+    "workoutRoles": {
+      "longEasy": {
+        "lookbackWeeks": 8,
+        "minimumBaselineSessions": 6,
+        "durationFactorVsMedianEasy": 1.35
+      }
+    },
     "comeback": {
       "triggerDaysSinceLast": 5,
       "longBreakDays": 10,
@@ -149,4 +156,3 @@
     }
   }
 }
-
