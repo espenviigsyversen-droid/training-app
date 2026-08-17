@@ -72,6 +72,7 @@ node --check local-state-store.js
 node --check training-repository.js
 node --check domain-training-plan.js
 node --check domain-periodized-training-plan.js
+node --check training-plan-controller.js
 node --check domain-template-snapshot-update.js
 node --check template-snapshot-update-ui.js
 node --check calendar-ui.js
@@ -91,6 +92,7 @@ node functions\tests\ai-backend-tests.js
 - `training-repository.js` - avgrenset Firestore-repository for treningsdata
 - `domain-training-plan.js` - ren, testbar ukeplan- og øktforslagslogikk
 - `domain-periodized-training-plan.js` - ren normalisering, historiske ukesmåls-snapshots, fireukers blokkrammer, prospektiv volumvalidering, rolle-/race-policy og ukesevaluering
+- `training-plan-controller.js` - skrivefri materialiseringspreview og feltvis diff for current+next, konflikter, planrevisjoner og vern av brukerendringer
 - `domain-template-snapshot-update.js` - ren feltvis diff og beskyttet, eksplisitt oppdatering av frosne malsnapshots
 - `template-snapshot-update-ui.js` - mobil modal for enkeltvis forhåndsvisning og bekreftelse av snapshot-oppdatering
 - `calendar-ui.js` - kalendergrid og dagsmodal med injiserte data-/handlingsavhengigheter
@@ -176,6 +178,7 @@ node --check local-state-store.js
 node --check training-repository.js
 node --check domain-training-plan.js
 node --check domain-periodized-training-plan.js
+node --check training-plan-controller.js
 node --check domain-template-snapshot-update.js
 node --check template-snapshot-update-ui.js
 node --check calendar-ui.js
@@ -222,3 +225,4 @@ Oppsummer alltid:
 - hvilke sjekker som er kjørt
 - hvilke filer som er synkronisert direkte til GitHub, eller hvilke filer brukeren må laste opp manuelt hvis direkte synk ikke var mulig
 - om noe ikke ble testet
+
