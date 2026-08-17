@@ -1,7 +1,13 @@
 # Treningsapp — progress.md
-Oppdatert: 2026-08-17 (siste runtime-endring: v176u)
+Oppdatert: 2026-08-17 (siste runtime-endring: v176u1)
 
 ---
+
+## v176u1 – profilprioritet og presis blokkpreview
+
+- Ny blokk bruker treningsprofilens normaluke som standard; blokkstandarden er et synlig alternativ.
+- Kalenderdiffen sier nå korrekt hvilke slots som ville blitt opprettet i inneværende/neste uke, og mellomrommet etter «Ny planøkt» er rettet.
+- Steg 2 er fortsatt sperret: previewen har ingen lagrings- eller materialiseringshandling.
 
 ## v176u – mobil blokkforhåndsvisning uten skriving
 
