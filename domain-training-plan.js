@@ -502,7 +502,9 @@ export function applyRaceContextToSuggestionMix(suggestions, raceContext, count)
   if (!raceContext?.active || !target) return suggestions.slice(0, target);
   const avoidRoles = new Set(asArray(raceContext.avoidRoles));
   let next = suggestions.filter(suggestion => !asArray(suggestion.roles).some(role => avoidRoles.has(role)));
-  const testSuggestion = raceTestWeekSuggestion(raceContext);
+  const testSuggestion = raceContext.normalWeekCovered === true
+    ? raceTestWeekSuggestion(raceContext)
+    : null;
   if (testSuggestion && !next.some(suggestion => asArray(suggestion.roles).includes('race'))) next = [testSuggestion, ...next];
   while (next.length < target) next.push(gentleBaseSuggestion('Mål-løpet ligger i bakgrunnen, men planen bør først sikre rolig kontinuitet og friske bein.'));
   return next.slice(0, target);
