@@ -1,0 +1,444 @@
+import { normalizePeriodizedTrainingPlan } from './domain-periodized-training-plan.js';
+import { capturePlanPrescription, normalizePlanChangeTracking } from './domain-template-snapshot-update.js';
+
+const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+const TEMPLATE_SNAPSHOT_FIELDS = [
+  'name', 'type', 'intensity', 'role', 'purpose', 'load', 'structure', 'sourceUrl',
+  'structuredWorkout', 'exercisePlan', 'avoidWhen', 'roleClassificationVersion'
+];
+
+function plainObject(value) {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+}
+
+function cloneValue(value) {
+  if (value === undefined) return undefined;
+  return JSON.parse(JSON.stringify(value));
+}
+
+function validIsoDate(value) {
+  const text = String(value || '').trim();
+  if (!ISO_DATE_PATTERN.test(text)) return '';
+  const date = new Date(`${text}T12:00:00Z`);
+  return Number.isNaN(date.getTime()) || date.toISOString().slice(0, 10) !== text ? '' : text;
+}
+
+function addIsoDays(value, days) {
+  const iso = validIsoDate(value);
+  if (!iso) return '';
+  const date = new Date(`${iso}T12:00:00Z`);
+  date.setUTCDate(date.getUTCDate() + Number(days || 0));
+  return date.toISOString().slice(0, 10);
+}
+
+function isoWeekStart(value) {
+  const iso = validIsoDate(value);
+  if (!iso) return '';
+  const date = new Date(`${iso}T12:00:00Z`);
+  const weekday = date.getUTCDay() || 7;
+  date.setUTCDate(date.getUTCDate() - weekday + 1);
+  return date.toISOString().slice(0, 10);
+}
+
+function comparable(value) {
+  if (value === undefined || value === null || value === '') return '';
+  if (typeof value !== 'object') return String(value);
+  if (Array.isArray(value)) return JSON.stringify(value.map(item => comparableObject(item)));
+  return JSON.stringify(comparableObject(value));
+}
+
+function comparableObject(value) {
+  if (!value || typeof value !== 'object') return value;
+  if (Array.isArray(value)) return value.map(comparableObject);
+  return Object.keys(value).sort().reduce((result, key) => {
+    const normalized = comparableObject(value[key]);
+    if (normalized !== undefined) result[key] = normalized;
+    return result;
+  }, {});
+}
+
+function comparableRecord(value = {}) {
+  const copy = { ...value };
+  delete copy.updatedAt;
+  return comparable(copy);
+}
+
+function stablePreviewId(planId, slotId) {
+  return `planned-${String(planId || 'plan').replace(/[^a-zA-Z0-9_-]/g, '-')}-${String(slotId || 'slot').replace(/[^a-zA-Z0-9_-]/g, '-')}`;
+}
+
+function defaultTemplateSnapshot(template = {}) {
+  return TEMPLATE_SNAPSHOT_FIELDS.reduce((snapshot, field) => {
+    if (template[field] !== undefined) snapshot[field] = cloneValue(template[field]);
+    return snapshot;
+  }, { roleClassificationVersion: 2 });
+}
+
+function materializationWeeks(plan, today) {
+  const currentWeekStart = isoWeekStart(today);
+  const nextWeekStart = addIsoDays(currentWeekStart, 7);
+  const selected = new Set([currentWeekStart, nextWeekStart].filter(Boolean));
+  return plan.weeks.filter(week => selected.has(week.weekStart));
+}
+
+function slotKey(planId, slotId) {
+  return `${String(planId || '')}::${String(slotId || '')}`;
+}
+
+function templateForSlot(slot, templates) {
+  return (Array.isArray(templates) ? templates : []).find(template => String(template?.id || '') === String(slot?.templateId || '')) || null;
+}
+
+function planRefFor(plan, week, slot, prescriptionSnapshot) {
+  return {
+    planId: plan.id,
+    planRevision: plan.planRevision,
+    weekStart: week.weekStart,
+    weekIndex: week.index,
+    slotId: slot.slotId,
+    prescribedDate: slot.date,
+    prescriptionSnapshot: cloneValue(prescriptionSnapshot)
+  };
+}
+
+function plannedRecordForSlot(plan, week, slot, template, {
+  id,
+  now,
+  buildTemplateSnapshot = defaultTemplateSnapshot
+} = {}) {
+  const templateSnapshot = buildTemplateSnapshot(template, slot, plan) || defaultTemplateSnapshot(template);
+  const base = normalizePlanChangeTracking({
+    id: id || stablePreviewId(plan.id, slot.slotId),
+    templateId: template.id,
+    templateSnapshot: { ...cloneValue(templateSnapshot), roleClassificationVersion: 2 },
+    date: slot.date,
+    status: 'planned',
+    notes: '',
+    repeatGroupId: null,
+    userModified: false,
+    userModifiedFields: [],
+    scheduleAdjustment: null,
+    metadataRevision: null,
+    planIntentOverride: null,
+    planIntentBaseline: null,
+    createdAt: now,
+    updatedAt: now
+  });
+  const prescriptionSnapshot = capturePlanPrescription({
+    ...base,
+    role: slot.role,
+    intensity: base.templateSnapshot?.intensity
+  });
+  return {
+    ...base,
+    planRef: planRefFor(plan, week, slot, prescriptionSnapshot)
+  };
+}
+
+function diffRows(before = {}, after = {}) {
+  const fields = [
+    ['date', 'Dato'], ['templateId', 'Mal'], ['templateSnapshot', 'Malsnapshot'],
+    ['planRef', 'Planreferanse'], ['scheduleAdjustment', 'Datoflytting'],
+    ['metadataRevision', 'Metadataretting'], ['userModified', 'Intensjonsoverstyring']
+  ];
+  return fields
+    .filter(([key]) => comparable(before?.[key]) !== comparable(after?.[key]))
+    .map(([key, label]) => ({ key, label, before: comparable(before?.[key]), after: comparable(after?.[key]) }));
+}
+
+function samePlanSlot(item, plan, slot) {
+  return String(item?.planRef?.planId || '') === String(plan.id || '')
+    && String(item?.planRef?.slotId || '') === String(slot.slotId || '');
+}
+
+function metadataMatchesSlot(item, slot, expected) {
+  const currentRole = String(item?.templateSnapshot?.role || item?.role || '');
+  const expectedRole = String(slot?.role || expected?.templateSnapshot?.role || '');
+  const currentIntensity = String(item?.templateSnapshot?.intensity || item?.intensity || '');
+  const expectedIntensity = String(expected?.templateSnapshot?.intensity || '');
+  return currentRole === expectedRole && (!expectedIntensity || currentIntensity === expectedIntensity);
+}
+
+function operationBase(type, reason, plan, week, slot, before = null, after = null) {
+  return {
+    id: `${type}:${plan.id}:${slot.slotId}`,
+    type,
+    reason,
+    planId: plan.id,
+    planRevision: plan.planRevision,
+    weekStart: week.weekStart,
+    weekIndex: week.index,
+    slotId: slot.slotId,
+    date: slot.date,
+    role: slot.role,
+    before: before ? cloneValue(before) : null,
+    after: after ? cloneValue(after) : null,
+    diff: diffRows(before || {}, after || {})
+  };
+}
+
+function conflictOperation(reason, plan, week, slot, {
+  before = null,
+  after = null,
+  blockingItems = [],
+  allowedActions = [],
+  selectedAction = null
+} = {}) {
+  return {
+    ...operationBase('conflict', reason, plan, week, slot, before, after),
+    blockingItems: cloneValue(blockingItems),
+    blockingItemIds: blockingItems.map(item => String(item?.id || '')).filter(Boolean),
+    allowedActions,
+    selectedAction,
+    requiresChoice: true
+  };
+}
+
+function resolvedExistingOperation({ plan, week, slot, existing, expected, selectedAction }) {
+  const tracked = normalizePlanChangeTracking(existing);
+  if (tracked.scheduleAdjustment) {
+    if (!selectedAction) {
+      return conflictOperation('schedule_adjustment', plan, week, slot, {
+        before: tracked,
+        after: expected,
+        allowedActions: ['keep_adjusted', 'use_plan_date']
+      });
+    }
+    if (selectedAction === 'keep_adjusted') {
+      return { ...operationBase('keep', 'schedule_adjustment_respected', plan, week, slot, tracked, tracked), selectedAction };
+    }
+    if (selectedAction === 'use_plan_date') {
+      const next = { ...tracked, date: slot.date, scheduleAdjustment: null, planRef: expected.planRef, updatedAt: expected.updatedAt };
+      return { ...operationBase('update', 'schedule_adjustment_explicitly_reset', plan, week, slot, tracked, next), selectedAction };
+    }
+  }
+  if (tracked.userModified) {
+    if (!selectedAction) {
+      return conflictOperation('user_intent_override', plan, week, slot, {
+        before: tracked,
+        after: expected,
+        allowedActions: ['keep_user_intent', 'restore_plan_intent']
+      });
+    }
+    if (selectedAction === 'keep_user_intent') {
+      return { ...operationBase('keep', 'user_intent_respected', plan, week, slot, tracked, tracked), selectedAction };
+    }
+    if (selectedAction === 'restore_plan_intent') {
+      return { ...operationBase('update', 'plan_intent_explicitly_restored', plan, week, slot, tracked, expected), selectedAction };
+    }
+  }
+  if (tracked.metadataRevision && !metadataMatchesSlot(tracked, slot, expected)) {
+    if (selectedAction === 'keep_corrected_metadata') {
+      return { ...operationBase('keep', 'metadata_revision_respected', plan, week, slot, tracked, tracked), selectedAction };
+    }
+    if (selectedAction === 'use_plan_metadata') {
+      return { ...operationBase('update', 'plan_metadata_explicitly_restored', plan, week, slot, tracked, expected), selectedAction };
+    }
+    return conflictOperation('metadata_revision_mismatch', plan, week, slot, {
+      before: tracked,
+      after: expected,
+      allowedActions: ['keep_corrected_metadata', 'use_plan_metadata'],
+      selectedAction
+    });
+  }
+  const next = tracked.metadataRevision
+    ? { ...tracked, planRef: expected.planRef, updatedAt: expected.updatedAt }
+    : {
+        ...tracked,
+        templateId: expected.templateId,
+        templateSnapshot: expected.templateSnapshot,
+        date: expected.date,
+        status: tracked.status || expected.status,
+        planRef: expected.planRef,
+        updatedAt: expected.updatedAt
+      };
+  if (comparableRecord(tracked) === comparableRecord(next)) return operationBase('keep', 'already_materialized', plan, week, slot, tracked, tracked);
+  return operationBase('update', tracked.metadataRevision ? 'metadata_revision_preserved' : 'plan_revision_changed', plan, week, slot, tracked, next);
+}
+
+export function buildTrainingPlanMaterializationPreview({
+  plan: inputPlan = {},
+  plannedItems = [],
+  completedItems = [],
+  templates = [],
+  today,
+  choices = {},
+  rules,
+  now = new Date().toISOString(),
+  createId,
+  buildTemplateSnapshot = defaultTemplateSnapshot
+} = {}) {
+  const plan = normalizePeriodizedTrainingPlan(inputPlan, { rules });
+  const normalizedToday = validIsoDate(today);
+  const operations = [];
+  if (!normalizedToday) {
+    return { ready: false, errors: ['today_invalid'], plan, window: null, operations, summary: {} };
+  }
+  if (!plan.canMaterialize || plan.status === 'cancelled' || plan.status === 'completed') {
+    return { ready: false, errors: ['plan_not_materializable'], plan, window: null, operations, summary: {} };
+  }
+  const weeks = materializationWeeks(plan, normalizedToday);
+  const window = {
+    currentWeekStart: isoWeekStart(normalizedToday),
+    nextWeekStart: addIsoDays(isoWeekStart(normalizedToday), 7),
+    weekStarts: weeks.map(week => week.weekStart)
+  };
+  const planned = Array.isArray(plannedItems) ? plannedItems : [];
+  const completed = Array.isArray(completedItems) ? completedItems : [];
+  const planSlots = new Set();
+
+  weeks.forEach(week => {
+    week.slots.forEach(slot => {
+      planSlots.add(slotKey(plan.id, slot.slotId));
+      const template = templateForSlot(slot, templates);
+      if (!template) {
+        operations.push(conflictOperation('template_missing', plan, week, slot, {
+          allowedActions: ['choose_template', 'skip'],
+          selectedAction: choices[slot.slotId]?.action || null
+        }));
+        return;
+      }
+      const id = typeof createId === 'function' ? createId(plan, week, slot) : stablePreviewId(plan.id, slot.slotId);
+      const expected = plannedRecordForSlot(plan, week, slot, template, { id, now, buildTemplateSnapshot });
+      const existingCompleted = completed.find(item => samePlanSlot(item, plan, slot));
+      if (existingCompleted) {
+        operations.push(operationBase('keep', 'completed_never_changes', plan, week, slot, existingCompleted, existingCompleted));
+        return;
+      }
+      const existing = planned.find(item => samePlanSlot(item, plan, slot));
+      if (existing) {
+        if (validIsoDate(existing.date) && existing.date < normalizedToday) {
+          operations.push(operationBase('keep', 'past_planned_never_changes', plan, week, slot, existing, existing));
+          return;
+        }
+        operations.push(resolvedExistingOperation({
+          plan,
+          week,
+          slot,
+          existing,
+          expected,
+          selectedAction: choices[slot.slotId]?.action || null
+        }));
+        return;
+      }
+      if (slot.date < normalizedToday) {
+        operations.push(operationBase('keep', 'past_slot_not_created', plan, week, slot));
+        return;
+      }
+      const blockingItems = planned.filter(item => validIsoDate(item?.date) === slot.date && !samePlanSlot(item, plan, slot));
+      if (blockingItems.length) {
+        const selectedAction = choices[slot.slotId]?.action || null;
+        if (selectedAction === 'skip') {
+          operations.push({ ...operationBase('keep', 'manual_conflict_skipped', plan, week, slot), selectedAction });
+        } else if (selectedAction === 'choose_another_date') {
+          const alternateDate = validIsoDate(choices[slot.slotId]?.date);
+          const withinWeek = alternateDate && alternateDate >= week.weekStart && alternateDate <= week.weekEnd;
+          const alternateBlocking = withinWeek
+            ? planned.filter(item => validIsoDate(item?.date) === alternateDate && !samePlanSlot(item, plan, slot))
+            : blockingItems;
+          if (withinWeek && !alternateBlocking.length) {
+            const alternateSlot = { ...slot, date: alternateDate };
+            const alternateExpected = plannedRecordForSlot(plan, week, alternateSlot, template, { id, now, buildTemplateSnapshot });
+            operations.push({
+              ...operationBase('create', 'manual_conflict_rescheduled', plan, week, alternateSlot, null, alternateExpected),
+              selectedAction
+            });
+          } else {
+            operations.push(conflictOperation('alternate_date_unavailable', plan, week, slot, {
+              after: expected,
+              blockingItems: alternateBlocking,
+              allowedActions: ['choose_another_date', 'skip'],
+              selectedAction
+            }));
+          }
+        } else {
+          const hasManual = blockingItems.some(item => !plainObject(item?.planRef));
+          operations.push(conflictOperation(hasManual ? 'manual_workout' : 'other_plan', plan, week, slot, {
+            after: expected,
+            blockingItems,
+            allowedActions: ['choose_another_date', 'skip'],
+            selectedAction
+          }));
+        }
+        return;
+      }
+      operations.push(operationBase('create', 'slot_missing', plan, week, slot, null, expected));
+    });
+  });
+
+  planned
+    .filter(item => String(item?.planRef?.planId || '') === plan.id)
+    .filter(item => window.weekStarts.includes(String(item?.planRef?.weekStart || '')))
+    .filter(item => !planSlots.has(slotKey(plan.id, item?.planRef?.slotId)))
+    .forEach(item => {
+      const week = weeks.find(candidate => candidate.weekStart === item.planRef.weekStart) || weeks[0];
+      const slot = { slotId: item.planRef.slotId || item.id, date: item.date, role: item.templateSnapshot?.role || 'other' };
+      if (!week || validIsoDate(item.date) < normalizedToday) {
+        if (week) operations.push(operationBase('keep', 'orphan_past_never_changes', plan, week, slot, item, item));
+        return;
+      }
+      const selectedAction = choices[slot.slotId]?.action || null;
+      if (selectedAction === 'detach_keep_workout') {
+        const detached = { ...cloneValue(item) };
+        delete detached.planRef;
+        operations.push({ ...operationBase('detach', 'slot_removed_keep_loose', plan, week, slot, item, detached), selectedAction });
+        return;
+      }
+      if (selectedAction === 'remove_plan_workout') {
+        operations.push({ ...operationBase('remove', 'slot_removed_delete', plan, week, slot, item, null), selectedAction });
+        return;
+      }
+      operations.push(conflictOperation('slot_removed', plan, week, slot, {
+        before: item,
+        allowedActions: ['detach_keep_workout', 'remove_plan_workout'],
+        selectedAction
+      }));
+    });
+
+  const summary = ['create', 'update', 'remove', 'detach', 'keep', 'conflict'].reduce((result, type) => {
+    result[type] = operations.filter(operation => operation.type === type).length;
+    return result;
+  }, {});
+  summary.requiresChoice = operations.filter(operation => operation.requiresChoice).length;
+  summary.total = operations.length;
+  return {
+    ready: summary.requiresChoice === 0,
+    errors: [],
+    plan,
+    window,
+    operations,
+    summary,
+    writeEnabled: false
+  };
+}
+
+export function createTrainingPlanController({
+  getState,
+  getRules = () => undefined,
+  now = () => new Date().toISOString(),
+  createId,
+  buildTemplateSnapshot
+} = {}) {
+  if (typeof getState !== 'function') throw new Error('Training plan controller requires getState');
+  return {
+    preview(plan, { today, choices = {} } = {}) {
+      const state = getState() || {};
+      return buildTrainingPlanMaterializationPreview({
+        plan,
+        plannedItems: state.planned,
+        completedItems: state.completed,
+        templates: state.templates,
+        today,
+        choices,
+        rules: getRules(),
+        now: now(),
+        createId,
+        buildTemplateSnapshot
+      });
+    },
+    materialize() {
+      throw new Error('Materialisering er sperret til forhåndsvisningen er verifisert.');
+    }
+  };
+}
+
