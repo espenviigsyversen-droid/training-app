@@ -9,6 +9,7 @@ export const TRAINING_DATA_COLLECTIONS = [
   'raceResults',
   'continuityFreezes',
   'heartRateZoneSets',
+  'trainingPlans',
   'weeklyTargetSnapshots'
 ];
 
@@ -227,3 +228,4 @@ export function createTrainingRepository({
     finalizeWeeklyTargetSnapshot
   };
 }
+
