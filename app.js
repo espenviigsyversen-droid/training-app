@@ -195,7 +195,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     } from './domain-template-snapshot-update.js';
     import { createTemplateSnapshotUpdateUi } from './template-snapshot-update-ui.js';
 
-const APP_VERSION = 'v176u';
+const APP_VERSION = 'v176u1';
     const APP_CACHE_NAME = `treningsapp-${APP_VERSION}`;
 
     const firebaseConfig = {
