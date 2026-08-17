@@ -711,6 +711,8 @@ Samme runtime-runde skal også:
 
 Planlagring, `planRevision`, planreferanser, preview/diff, konfliktpolicy, current+next-materialisering og atomisk snapshot ved redigering/sletting. `training-plan-controller.js` skal samtidig legges til i `AGENTS.md` og `RELEASE_CHECKLIST.md` sine `node --check`-lister og i service-workerens `APP_SHELL`; samme krav gjelder `training-plan-ui.js` når den opprettes i UI-runden. **Dette er absolutt siste trygge tidspunkt for snapshotmekanismen før aktivering, selv om den etter planen allerede er levert i runde 2. Aktiveringsporten forblir lukket til mekanismen er i produksjon.**
 
+**Preview-port levert i v176t:** `trainingPlans` inngår i hele datasirkelen, og `training-plan-controller.js` bygger current+next-diff fra produksjonsmodulen. Controllerens materialiseringshandling kaster eksplisitt feil og previewen merkes `writeEnabled: false` inntil konflikt- og endringsvernet er verifisert. Ingen økt opprettes eller endres i dette delsteget.
+
 ### Runde 5 – Mobil-først produktflate
 
 Opprettelsesflyt, Kalender-visning, Hjem-kort, tom-/konflikt-/feiltilstander og progressiv forklaring. Kan utvikles bak deaktivert feature-flag til runde 4 er verifisert.
