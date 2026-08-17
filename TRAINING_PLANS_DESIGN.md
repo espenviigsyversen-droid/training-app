@@ -143,12 +143,57 @@ planRef: {
   materializedAt
 },
 userModified: false,
-userModifiedFields: []
+userModifiedFields: [],
+scheduleAdjustment: null,
+metadataRevision: null
 ```
 
 `planRevision` er et monotont heltall som økes hver gang planens materielle innhold endres. En planlagt økt lagrer revisjonen den sist ble materialisert fra; diffen kan dermed finne utdaterte økter.
 
-Plan-eide felter er dato, øktmal/malsnapshot, rolle og tilsiktet mål/ramme. `userModified` blir først sann når brukeren endrer et plan-eid felt. Vanlig fullføring, RPE, følelse, smerte, notat og øvrige subjektive fullføringsfelt setter ikke flagget. Ved fullføring kopieres `planRef` og modifikasjonsmetadata til historikken. En plan kan aldri mutere en fullført økt.
+Plan-eide intensjonsfelt er valgt øktmal, rolle, intensitet/struktur og tilsiktet mål/ramme. Dato er planrelatert, men en vanlig flytting er en tidsjustering og ikke en endring av treningsintensjonen. `userModified` betyr derfor bare **aktiv intensjonsoverstyring**; det er ikke et generelt «brukeren har berørt økten»-flagg.
+
+Tre endringstyper holdes atskilt:
+
+```js
+scheduleAdjustment: {
+  originalDate,
+  currentDate,
+  changedAt,
+  reason: "illness" | "calendar" | "other" | ""
+},
+metadataRevision: {
+  source: "manual_template_refresh",
+  changedAt,
+  templateId,
+  roleClassificationVersion: 2
+},
+userModified: true,
+userModifiedFields: ["templateId", "targetDurationSeconds"]
+```
+
+- `scheduleAdjustment` bevarer en bevisst flytting uten å frede hele økten. Materialiseringen kjenner fortsatt slotens identitet og skal ikke umiddelbart flytte den tilbake. Ved en senere planrevisjon vises «Behold valgt dato» eller «Følg planens dato» i diffen.
+- `metadataRevision` er en uttrykkelig korreksjon av lagrede fakta. Den setter aldri `userModified`, selv om kildemalen byttes i korrigeringsdialogen. Hvis korrigert rolle ikke samsvarer med `planRef.role`, vises dette som en reell konflikt i neste preview; metadataen overskrives ikke stille.
+- `userModified` settes bare ved en uttrykkelig endring av planens treningsintensjon. Flagget er reversibelt gjennom «Tilbakestill til plan».
+
+Deterministisk handlingstabell:
+
+| Handling | `userModified` | Annen metadata | Begrunnelse |
+|---|---:|---|---|
+| Flytt dato, også ved sykdom/hverdag | Nei | `scheduleAdjustment` | Samme slot og treningsintensjon, nytt tidspunkt. |
+| «Bruk planens dato» | Nei | Fjerner `scheduleAdjustment` etter preview | Eksplisitt retur til planens plassering. |
+| «Oppdater fra mal» | Nei | `metadataRevision` | Bevisst faktakorrigering, ikke planoverstyring. |
+| Bytt planlagt mal i ordinær redigering | Ja | `userModifiedFields: ["templateId", "templateSnapshot"]` | Brukeren velger annet øktinnhold enn materialisert slot. |
+| Endre planlagt rolle, intensitet, struktur eller målvarighet/-distanse | Ja | Det konkrete feltet legges i `userModifiedFields` | Endrer planens intensjon eller dose. |
+| Endre notat | Nei | Vanlig `updatedAt` | Notatet er brukerens kontekst, ikke planens resept. |
+| Marker utført | Nei | Kopierer `planRef`, `scheduleAdjustment`, `metadataRevision`, `userModified` og `userModifiedFields` til historikken | Fullføring er status, ikke planendring. |
+| Registrer/rediger varighet, distanse, puls, RPE, følelse, smerte eller fullføringsnotat | Nei | Resultatdata | Målt gjennomføring skal aldri tolkes som planoverstyring. |
+| Slett planlagt økt | Ikke relevant | Økten fjernes etter bekreftelse | Skal håndteres som eksplisitt slot-avvik i planpreview/evaluering. |
+
+«Tilbakestill til plan» viser feltvis diff mot gjeldende planrevisjon, gjenoppretter bare plan-eide intensjonsfelt og nullstiller `userModified`/`userModifiedFields` etter bekreftelse. Egne notater og resultatdata røres aldri. Finnes ikke den opprinnelige planen eller sloten lenger, kan økten i stedet frikobles som løs økt; appen skal ikke gjette en gammel planintensjon.
+
+Ved fullføring kopieres `planRef` og alle tre endringssporene til historikken. En plan kan aldri mutere en fullført økt.
+
+**Implementeringsport før runde 4:** v176s setter foreløpig `userModified` ved «Oppdater fra mal», har ingen reset-handling og kopierer ikke planmetadata ved fullføring. Dette er kartlagte runtime-avvik, ikke ønsket kontrakt. Snapshot-korrigeringen skal flyttes til `metadataRevision`, reset-kontrakten skal implementeres, og fullføringskopien skal være testet før blokkmaterialisering aktiveres. Datoflytting setter allerede ikke `userModified`, men mangler fortsatt det separate `scheduleAdjustment`-sporet.
 
 ### 2.6 Historisk effektivt ukesmål
 
@@ -351,7 +396,7 @@ En challenge har eget mål og egen periode gjennom `challengeProgress()` og er u
 
 Bare inneværende og neste uke materialiseres som `planned`. Senere uker forblir en planramme. Alle skriver krever forhåndsvisning og eksplisitt bekreftelse.
 
-En materialiseringsdiff kan foreslå `create`, `update`, `remove`, `detach`, `keep` eller `conflict`. Ingen handling mot `userModified: true` utføres uten et separat valg.
+En materialiseringsdiff kan foreslå `create`, `update`, `remove`, `detach`, `keep` eller `conflict`. Ingen handling mot en aktiv intensjonsoverstyring (`userModified: true`) utføres uten et separat valg. `scheduleAdjustment` og `metadataRevision` skal vises i preview, men gjør ikke økten permanent urørlig.
 
 | Situasjon | Policy |
 |---|---|
@@ -359,6 +404,8 @@ En materialiseringsdiff kan foreslå `create`, `update`, `remove`, `detach`, `ke
 | Planøkt i fortiden | Endres aldri. |
 | Fremtidig, umodifisert planøkt | Kan foreslås oppdatert eller fjernet i preview. |
 | Fremtidig `userModified` planøkt | Beholdes og vises som konflikt; brukeren velger. |
+| Fremtidig økt med `scheduleAdjustment` | Samme slot beholdes på valgt dato. Ved ny planrevisjon velger brukeren mellom valgt dato og planens dato. |
+| Fremtidig økt med `metadataRevision` | Korrigert metadata beholdes når den samsvarer med sloten; avvikende rolle/intensjon vises som konflikt. |
 | Slot fjernes fra planen | Foreslå «Behold som løs økt» eller «Slett planøkten». |
 | Plan avsluttes/kanselleres | Vis konsekvenser; ingen stille sletting. |
 | Planlagt økt uten `planRef` | Urørt og telles aldri som planens slot, men teller fysisk belastning/sikkerhet. |
@@ -577,6 +624,9 @@ Før sletting vises plan, berørte fremtidige økter, eventuelle brukerendringer
 - Fullført og historisk økt endres aldri.
 - Manuell økt uten `planRef` beholdes og skaper konflikt.
 - `userModified` og `userModifiedFields` bevares.
+- `userModified` settes bare av intensjonshandlingene i tabellen i 2.5 og kan oppheves med feltvis «Tilbakestill til plan».
+- Datoflytting og snapshot-korrigering bruker henholdsvis `scheduleAdjustment` og `metadataRevision`, uten å sette `userModified`.
+- Fullføring kopierer `planRef` og alle modifikasjonsspor til den fullførte økten uten å endre dem.
 - Utdatert `planRevision` finnes og forhåndsvises.
 - Sletting i pågående avlastningsuke skriver snapshot før planendring.
 - Feil midt i batch kan gjenopptas uten duplikater.
