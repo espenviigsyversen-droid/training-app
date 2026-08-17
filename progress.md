@@ -1,5 +1,5 @@
 # Treningsapp — progress.md
-Oppdatert: 2026-08-16 (siste runtime-endring: v176q)
+Oppdatert: 2026-08-17 (siste runtime-endring: v176r)
 
 ---
 
@@ -27,7 +27,7 @@ Standard Bakken-uke: Hoved-terskel → Støtte-terskel → Lang rolig → Valgfr
 **Hosting:** GitHub Pages.  
 **Backend:** Firebase (prosjekt `home-tasks-app-18de3`) — Firestore + Google Auth.  
 **Frontend:** Vanilla JS + HTML + CSS, single-page app, tab-navigasjon.  
-**Versjon:** v176q (konstant i `app.js`).
+**Versjon:** v176r (konstant i `app.js`).
 
 ### Filer
 
@@ -566,6 +566,16 @@ Treningsapp/
 - Nytt `TRAINING_PROFILE_PROGRESSION_DESIGN.md` dokumenterer avviksdeteksjon for normaluke, verifisert bruk av coachnivå, gjenbruk av `domain-fitness.js`, forenkling av mål/profil og grensesnittet mot blokkplaner. Dokumentet har ingen runtime-kobling.
 - Ingen datamodell, Firestore-samling eller snapshotlogikk er endret. Runde 4 i planarbeidet er fortsatt sperret til første ekte snapshot er verifisert.
 - PWA-cache og synlig versjon er `v176q`.
+
+### v176r - Rolleport: Rolig baseøkt og historisk stabil klassifisering - Bygget
+
+- Ny kanonisk rolle `easy` vises som «Rolig baseøkt» og skilles fra `long_easy` og `recovery`.
+- V1-snapshots beholder nøyaktig tidligere utledning; nye planlagte/fullførte snapshots får v2 og en eksplisitt, frosset rolle.
+- Relativ langtursgrense bruker åtte avsluttede ISO-uker, minst seks gyldige referanser og faktor `1,35` fra validert coach-regel. `Hiking`/`Fottur` som hele ord gir `other`.
+- Produksjonskalibreringen ga fem gyldige easy-referanser, median `49:02` og en foreløpig grense `1:06:12`; grensen aktiveres først når seks referanser finnes.
+- Rolledekning teller forekomster én til én, og coachkontekstens separate Set-beregning er fjernet.
+- Baseblokkens standard-slots er `easy/easy/long_easy`; dobbelt punktum i neste planlagte økt er rettet.
+- PWA-cache og synlig versjon er `v176r`.
 
 ---
 
