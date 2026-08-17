@@ -17,11 +17,14 @@ users/{uid}/
 ├── raceResults/
 ├── continuityFreezes/
 ├── heartRateZoneSets/
+├── trainingPlans/
 ├── weeklyTargetSnapshots/
 └── settings/preferences
 ```
 
 `weeklyTargetSnapshots/{weekStart}` fryser det effektive øktmålet for hver avsluttet uke fra og med `settings.preferences.weeklyTargetSnapshotPolicy.effectiveFrom`. Uker før denne datoen bruker den gamle logikken og det ordinære `goals.weeklySessionsTarget`, slik at eksisterende streak ikke endres. Snapshotet skrives ved første autentiserte synkronisering etter at uken er avsluttet, før historisk kontinuitet renderes eller nye treningsdata skrives. Et nådd redusert mål teller som ordinær trening; et kontinuitetsfryskort vurderes bare når målet ikke er nådd.
+
+`trainingPlans/{planId}` lagrer normaliserte fireukersblokker og revisjoner. Samlingen er med i samme backup-, replace-, lokal snapshot- og recovery-sirkel som øvrige treningsdata. v176t innfører samlingen og en skrivefri materialiseringspreview; ingen kalenderøkt kan opprettes fra controlleren før preview-porten er verifisert.
 
 AI-chat lagres separat under `aiChatUsers/{uid}/projects/...` og inngår ikke i vanlig treningsbackup/import. Den separate roten er nødvendig fordi Firebase-prosjektet deles med andre apper og har en eksisterende rekursiv eierregel under `users/{uid}`. Frontend kan lese egne chatdokumenter, mens oppretting, endring, arkivering og rekursiv sletting skal gå via autentisert backend.
 
@@ -40,6 +43,7 @@ Hovedfelter:
 - `raceResults`
 - `continuityFreezes`
 - `heartRateZoneSets`
+- `trainingPlans`
 - `weeklyTargetSnapshots`
 - `settings`
 
@@ -90,7 +94,7 @@ Korrekt importflyt:
 
 Dette hindrer at gamle Firestore-dokumenter gjenoppstår etter import.
 
-`weeklyTargetSnapshots` følger samme fullstendige eksport-, replace-, lokal snapshot- og recovery-flyt som øvrige treningssamlinger. Gamle backuper uten samlingen normaliseres til en tom liste. Ved første påfølgende autentiserte synkronisering settes `snapshotEffectiveFrom` til inneværende ukes mandag; tidligere uker forblir legacy og rekonstrueres ikke.
+`trainingPlans` og `weeklyTargetSnapshots` følger samme fullstendige eksport-, replace-, lokal snapshot- og recovery-flyt som øvrige treningssamlinger. Gamle backuper uten samlingene normaliseres til tomme lister. Ved første påfølgende autentiserte synkronisering settes `snapshotEffectiveFrom` til inneværende ukes mandag; tidligere uker forblir legacy og rekonstrueres ikke.
 
 ## Recovery
 
