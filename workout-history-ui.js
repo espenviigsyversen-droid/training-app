@@ -200,7 +200,8 @@ export function createWorkoutHistoryUi({
   templateCalendarKind,
   uniqueValues,
   aiAssessmentState,
-  todayISO
+  todayISO,
+  roleLabel = value => value || 'Ikke angitt'
 }) {
   function element(id) {
     return documentRef.getElementById(id);
@@ -353,6 +354,9 @@ export function createWorkoutHistoryUi({
     });
     const heartRateSummary = heartRateSummaryHtml(completed, heartRateReference);
     const settingLabel = activitySettingLabel(activitySettingForCompleted(completed));
+    const snapshotUpdatedLabel = completed.templateSnapshotUpdatedAt
+      ? new Date(completed.templateSnapshotUpdatedAt).toLocaleString('nb-NO')
+      : '';
     return `
       <div class="detail-hero">
         <div class="detail-hero-heading">
@@ -371,6 +375,10 @@ export function createWorkoutHistoryUi({
         ${detailMetric('Fart', pace.averageSpeedKmh ? `${pace.averageSpeedKmh} km/t` : '')}
       </div>
       ${detailSection('Tid og bevegelse', detailDataGrid(activityDetails.timing))}
+      ${detailSection('Klassifisering', [
+        detailLine('Rolle', roleLabel(template.role)),
+        detailLine('Malsnapshot oppdatert', snapshotUpdatedLabel)
+      ].join(''))}
       ${detailSection('Belastning', `
         <div class="load-assessment ${assessment.level}"><span class="tag load-${assessment.level}">${escapeHtml(assessment.label)}</span><p>${escapeHtml(assessment.reason)}</p></div>
         ${trainingEffect ? `<p class="detail-text"><strong>Treningseffekt:</strong> ${escapeHtml(trainingEffect.label)} · ${escapeHtml(trainingEffect.categoryLabel)}</p>` : ''}
@@ -406,6 +414,7 @@ export function createWorkoutHistoryUi({
       ${detailSection('Egne notater', completed.notes ? `<p>${escapeHtml(completed.notes)}</p>` : '')}
       <div class="button-row">
         <button class="btn-primary" onclick="editCompleted('${completed.id}'); closeWorkoutDetailModal();">Rediger</button>
+        <button class="btn-soft" onclick="openTemplateSnapshotUpdate('completed', '${completed.id}')">Oppdater fra mal</button>
         <button class="btn-soft" onclick="closeWorkoutDetailModal()">Lukk</button>
       </div>
       <div class="detail-danger-row"><button class="btn-subtle-danger" onclick="undoComplete('${completed.id}')">${completed.plannedWorkoutId ? 'Angre utført' : 'Slett fra logg'}</button></div>`;
