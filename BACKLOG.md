@@ -365,10 +365,11 @@ Prioritert backlog for videre utvikling av Treningsapp.
     - Forslaget skal kreve brukerbekreftelse og aldri endre aktivitetstype automatisk.
     - Bruk samme validering ved manuell logging og importforhåndsvisning, uten å blokkere lagring når aktiviteten faktisk er tilsiktet.
 
-52k. **Periodisert treningsplan v1 - Runde 3 bygget, tre implementeringsrunder gjenstår**
+52k. **Periodisert treningsplan v1 - Runde 4 preview levert, materialisering sperret**
     - Bruk `TRAINING_PLANS_DESIGN.md` som bindende utviklingsgrunnlag for én manuell fireukersblokk med tre belastningsuker og én avlastningsuke.
     - Historisk stabile `weeklyTargetSnapshots` og felles `effectiveWeeklyTargetForWeek()` er levert i v176o før blokkaktivering. Legacy-streak er bevart, og avlastningsmål skilles fra fryskort.
     - Ren blokklogikk er levert i v176p: normalisering, baseline, fireukers rammer, felles regelkilde, prospektiv volumvalidering, rolle-/race-policy, konfliktklassifisering og ukesevaluering.
+    - Skrivefri current+next-preview og `trainingPlans` i state/repository/backup/recovery er levert i v176t. Materialisering kan ikke kalles før preview-porten er godkjent.
     - Valider blokkens øvre volumramme mot `trainingVolumeRamp()` sitt faktiske beregningsgrunnlag. Vis `metric_mismatch` eller `insufficient_data` uten konvertering eller gjetting.
     - Materialiser bare inneværende og neste uke etter eksplisitt preview. Bevar fullførte, historiske og brukerendrede økter.
     - Bygg mobil-først opprettelsesflyt, Treningsplan-visning under Kalender, kompakt Hjem-kort og blokk-fullført-oppsummering med konkrete tom-, konflikt- og feiltilstander.
@@ -423,3 +424,4 @@ Begrunnelse:
 - v155-reglene er testet i Firestore-emulator: eierens appdata fungerer, andre brukere avvises, chat-writes er backend-only og `apiKeys/{uid}` / `aiUsage/{uid}` er sperret
 - v154 har fungerende dynamisk tilkoblingsstatus, egen Chat-fane og bestått ende-til-ende-test med ekte OpenAI-svar
 - Produksjonsreglene er sammenlignet og deployet. Chat ligger i isolert `aiChatUsers/{uid}`-rot, og den sammenslåtte regelfilen bevarer eksisterende regler for `users`, `households`, `families`, `familyCodes` og `adminFamilyHealth`.
+
