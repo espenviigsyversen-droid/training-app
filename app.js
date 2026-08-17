@@ -180,8 +180,15 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     import { insightEvidenceDisclosureHtml } from './insight-confidence-ui.js';
     import { createTrainingInsightsUi } from './training-insights-ui.js';
     import { createWorkspaceSectionsUi } from './workspace-sections-ui.js';
+    import {
+      applyExplicitTemplateSnapshotUpdate,
+      buildTemplateSnapshotDiff,
+      templateSnapshotUpdateAffectsRoleHistory,
+      versionedTemplateSnapshot
+    } from './domain-template-snapshot-update.js';
+    import { createTemplateSnapshotUpdateUi } from './template-snapshot-update-ui.js';
 
-const APP_VERSION = 'v176r';
+const APP_VERSION = 'v176s';
     const APP_CACHE_NAME = `treningsapp-${APP_VERSION}`;
 
     const firebaseConfig = {
@@ -1175,11 +1182,13 @@ const APP_VERSION = 'v176r';
         if (typeof afterApply === 'function') afterApply();
         await write();
         showToast(successMessage);
+        return true;
       } catch (err) {
         console.error(errorMessage, err);
         restoreAppState(snapshot);
         setSyncStatus(navigator.onLine ? 'error' : 'offline');
         showToast(`${errorMessage}. Endringen er rullet tilbake.`, 'error');
+        return false;
       }
     }
 
@@ -3297,6 +3306,7 @@ const APP_VERSION = 'v176r';
             const fingerprint = aiWorkoutAssessmentFingerprint(workoutAiAssessmentInput(completed));
             return { assessment, stale: isAiWorkoutAssessmentStale(assessment, fingerprint) };
           },
+          roleLabel: value => WORKOUT_ROLE_LABELS[value] || value || 'Ikke angitt',
           todayISO
         });
       }
@@ -3314,6 +3324,96 @@ const APP_VERSION = 'v176r';
       modal.setAttribute('aria-hidden', 'false');
       if (!wasOpen) modal.querySelector('.detail-modal').scrollTop = 0;
       modal.querySelector('[data-workout-detail-close]')?.focus();
+    };
+
+    let templateSnapshotUpdateUi = null;
+
+    function snapshotUpdateRecord(kind, id) {
+      const collection = kind === 'completed' ? state.completed : state.planned;
+      return collection.find(item => item.id === id) || null;
+    }
+
+    function snapshotUpdatePreview(kind, id, templateId) {
+      const record = snapshotUpdateRecord(kind, id);
+      const template = state.templates.find(item => item.id === templateId);
+      if (!record || !template) return null;
+      const currentSnapshot = record.templateSnapshot || getTemplate(record.templateId);
+      const context = kind === 'completed' ? record : { id: record.id, date: record.date };
+      const nextSnapshot = versionedTemplateSnapshot(
+        templateSnapshotFromTemplate(template, kind === 'completed' ? record.manualName : '', context),
+        new Date().toISOString()
+      );
+      const diff = buildTemplateSnapshotDiff({
+        currentTemplateId: record.templateId,
+        currentSnapshot,
+        nextTemplateId: templateId,
+        nextSnapshot
+      }).map(row => row.key === 'templateId'
+        ? {
+            ...row,
+            before: state.templates.find(item => item.id === row.before)?.name || currentSnapshot.name || row.before,
+            after: template.name || row.after
+          }
+        : row.key === 'role'
+          ? { ...row, before: WORKOUT_ROLE_LABELS[row.before] || row.before, after: WORKOUT_ROLE_LABELS[row.after] || row.after }
+          : row.key === 'roleClassificationVersion'
+            ? { ...row, before: row.before ? `Versjon ${row.before}` : 'Legacy/v1', after: `Versjon ${row.after}` }
+            : row);
+      return {
+        record,
+        template,
+        nextSnapshot,
+        diff,
+        affectsRoleHistory: templateSnapshotUpdateAffectsRoleHistory(kind)
+      };
+    }
+
+    function getTemplateSnapshotUpdateUi() {
+      if (!templateSnapshotUpdateUi) {
+        templateSnapshotUpdateUi = createTemplateSnapshotUpdateUi({
+          escapeHtml,
+          getPreview: snapshotUpdatePreview,
+          confirmUpdate: async (kind, id, templateId) => {
+            const preview = snapshotUpdatePreview(kind, id, templateId);
+            if (!preview || !preview.diff.length) return false;
+            const updatedAt = new Date().toISOString();
+            const updated = applyExplicitTemplateSnapshotUpdate(preview.record, {
+              kind,
+              templateId,
+              templateSnapshot: preview.nextSnapshot,
+              updatedAt
+            });
+            const collectionName = kind === 'completed' ? 'completed' : 'planned';
+            const saved = await safeStateWrite({
+              apply: () => {
+                state[collectionName] = state[collectionName].map(item => item.id === id ? updated : item);
+              },
+              write: () => fsSet(collectionName, id, updated),
+              successMessage: 'Malsnapshot oppdatert',
+              errorMessage: 'Kunne ikke oppdatere malsnapshot'
+            });
+            if (saved && kind === 'completed') window.openWorkoutDetail(id);
+            if (saved && kind === 'planned' && document.getElementById('calendarDayModal')?.classList.contains('active')) {
+              openCalendarDayModal(selectedCalendarDate());
+            }
+            return saved;
+          }
+        });
+      }
+      return templateSnapshotUpdateUi;
+    }
+
+    window.openTemplateSnapshotUpdate = function(kind, id) {
+      const record = snapshotUpdateRecord(kind, id);
+      if (!record) return;
+      const current = kind === 'completed' ? completedTemplate(record) : plannedTemplate(record);
+      getTemplateSnapshotUpdateUi().open({
+        kind,
+        id,
+        itemLabel: `${current.name || 'Økt'} · ${formatDate(record.date)}`,
+        templateId: record.templateId,
+        templates: [...state.templates].sort((a, b) => String(a.name).localeCompare(String(b.name), 'nb'))
+      });
     };
 
     document.getElementById('workoutDetailModal')?.addEventListener('click', event => {
@@ -3411,6 +3511,7 @@ const APP_VERSION = 'v176r';
           <div class="button-row">
             ${planned.status !== 'done' ? `<button class="btn-success" onclick="openCompleteModal('${planned.id}')">Marker utført</button>` : ''}
             ${planned.status !== 'done' ? `<button class="btn-soft" onclick="openRescheduleModal('${planned.id}')">Endre dato</button>` : ''}
+            ${planned.status !== 'done' ? `<button class="btn-soft" onclick="openTemplateSnapshotUpdate('planned', '${planned.id}')">Oppdater fra mal</button>` : ''}
             ${options.canDelete ? `<button class="btn-soft" onclick="deletePlanned('${planned.id}')">Slett</button>` : ''}
           </div>
         </div>`;
@@ -4376,7 +4477,10 @@ const APP_VERSION = 'v176r';
             ${chips ? `<div class="week-plan-chip-row">${chips}</div>` : ''}
             ${item.notes ? `<small class="week-plan-reason">${escapeHtml(item.notes)}</small>` : ''}
           </div>
-          <button class="btn-soft" onclick="openPlan('${item.date}')">Endre</button>
+          <div class="button-row">
+            <button class="btn-soft" onclick="openPlan('${item.date}')">Endre</button>
+            <button class="btn-soft" onclick="openTemplateSnapshotUpdate('planned', '${item.id}')">Oppdater fra mal</button>
+          </div>
         </div>`;
     }
 
@@ -7636,7 +7740,7 @@ const APP_VERSION = 'v176r';
           const keys = await caches.keys();
           await Promise.all(keys.filter(key => key.startsWith('treningsapp-')).map(key => caches.delete(key)));
         }
-        await Promise.all(['./index.html', './styles.css', './app.js', './ai-coach-client.js', './ai-coach-ui.js', './domain-core.js', './domain-coach.js', './domain-goals.js', './domain-coach-rules.js', './domain-fitness.js', './domain-exercises.js', './domain-heart-rate-zones.js', './domain-volume-trends.js', './domain-workout-assessment.js', './domain-insight-confidence.js', './insight-confidence-ui.js', './garmin-csv-import.js', './training-import-controller.js', './training-import-ui.js', './app-state.js', './local-state-store.js', './training-repository.js', './domain-training-plan.js', './domain-periodized-training-plan.js', './calendar-ui.js', './workout-template-ui.js', './workout-completion-ui.js', './workout-history-ui.js', './exercise-library-ui.js', './heart-rate-zones-ui.js', './data/coach-rules.json', './service-worker.js'].map(path =>
+        await Promise.all(['./index.html', './styles.css', './app.js', './ai-coach-client.js', './ai-coach-ui.js', './domain-core.js', './domain-coach.js', './domain-goals.js', './domain-coach-rules.js', './domain-fitness.js', './domain-exercises.js', './domain-heart-rate-zones.js', './domain-volume-trends.js', './domain-workout-assessment.js', './domain-insight-confidence.js', './insight-confidence-ui.js', './garmin-csv-import.js', './training-import-controller.js', './training-import-ui.js', './app-state.js', './local-state-store.js', './training-repository.js', './domain-training-plan.js', './domain-periodized-training-plan.js', './domain-template-snapshot-update.js', './template-snapshot-update-ui.js', './calendar-ui.js', './workout-template-ui.js', './workout-completion-ui.js', './workout-history-ui.js', './exercise-library-ui.js', './heart-rate-zones-ui.js', './data/coach-rules.json', './service-worker.js'].map(path =>
           fetch(path, { cache: 'reload' }).catch(() => null)
         ));
       } finally {
