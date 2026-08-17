@@ -1,5 +1,15 @@
 # Treningsapp — progress.md
-Oppdatert: 2026-08-17 (siste runtime-endring: v176s2)
+Oppdatert: 2026-08-17 (siste runtime-endring: v176t)
+
+---
+
+## v176t – skrivefri port for planmaterialisering
+
+- Ny `training-plan-controller.js` bygger current+next-preview med feltvis diff, planrevisjon og eksplisitte konflikter uten å kunne skrive kalenderdata.
+- Fire realistiske manuelle økter uten `planRef` er hovedtilfelle i stabilitetstesten; de beholdes og krever annen dato eller «Hopp over».
+- `scheduleAdjustment`, `userModified`, `metadataRevision`, fullførte økter og fjernede slots behandles etter den godkjente konfliktpolicyen.
+- `trainingPlans` inngår nå bakoverkompatibelt i Firestore-repository, samlet state, backup, lokal snapshot og recovery.
+- Race-observasjonen er diagnostisert som feil forklaringstekst i `suggestionRoleReason()`, ikke som feil i tellende `roleCoverage()`. Den er rapportert, men ikke rettet i denne runden.
 
 ---
 
@@ -55,7 +65,7 @@ Standard Bakken-uke: Hoved-terskel → Støtte-terskel → Lang rolig → Valgfr
 **Hosting:** GitHub Pages.  
 **Backend:** Firebase (prosjekt `home-tasks-app-18de3`) — Firestore + Google Auth.  
 **Frontend:** Vanilla JS + HTML + CSS, single-page app, tab-navigasjon.  
-**Versjon:** v176s2 (konstant i `app.js`).
+**Versjon:** v176t (konstant i `app.js`).
 
 ### Filer
 
