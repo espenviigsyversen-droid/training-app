@@ -279,11 +279,12 @@ Nye planlagte og fullførte malsnapshots får `roleClassificationVersion: 2`. Ek
 V2 følger denne prioriteten:
 
 1. Gyldig eksplisitt `role` brukes uendret.
-2. Deretter brukes normalisert, eksakt `intensity` fra malsnapshotet:
+2. Navnene `Hiking` og `Fottur`, truffet som hele ord, gir `other`. Dette er en defensiv rollegrense; feil aktivitetstype skal fortsatt rettes i kildedata og skjules ikke av rollemodellen.
+3. Deretter brukes normalisert, eksakt `intensity` fra malsnapshotet:
    - `Restitusjon` gir `recovery`.
    - `Rolig` etablerer rolig basefamilie. Økten blir `long_easy` bare ved et entydig langt navn eller når den relative langtursgrensen nedenfor er nådd; ellers blir den `easy`.
    - øvrige intensiteter beholder dagens terskel-/styrkeutledning.
-3. Mangler både rolle og intensitet, brukes normaliserte, versjonerte markører i denne rekkefølgen:
+4. Mangler både rolle og intensitet, brukes normaliserte, versjonerte markører i denne rekkefølgen:
    - restitusjon: `restitusjon`, `recovery`, `gåtur`
    - langtur: `langtur`, `rolig lang`, `long run`
    - rolig base: `easy run`, `rolig løp`, `rolig tur`, `rolig kort`, `base`, `low aerobic`, `lav aerob`
@@ -307,7 +308,11 @@ Relativ langtursgrense eies av `coach-rules.json` og valideres med samme fallbac
 }
 ```
 
-`1.35` er et foreløpig designforslag, ikke en låst produksjonsverdi. Før nøkkelen skrives til `coach-rules.json` i rolleporten, skal implementeringsrunden beregne brukerens faktiske referansegrunnlag fra de siste åtte avsluttede ISO-ukene etter regelen nedenfor og levere en kalibreringsrapport med:
+`1.35` er kalibrert og godkjent mot produksjonsdata 17. august 2026. Seks bokstavelige kandidater ga median `49:15,5` og grense `1:06:30`; den sjette var den feilregistrerte aktiviteten `Hiking`. Etter korrekt semantisk eksklusjon står fem gyldige referanser igjen, medianen er `49:02` og grensen `1:06:12`.
+
+Faktoren er robust: uten det tvilsomme datapunktet flyttes grensen bare 18 sekunder. Separasjonen er samtidig komfortabel: lengste vanlige easy run var `49:58`, mens korteste eksplisitte langtur var `1:09:52`. Grensen ligger dermed midt i et tomrom på omtrent tjue minutter, ikke tett på en tvetydig økt.
+
+Før kalibreringen skulle implementeringsrunden levere:
 
 - median referansevarighet og antall kvalifiserte referanseøkter
 - hver faktisk rolig løpeøkt i vinduet med varighet, beregnet grense og side av grensen
@@ -317,6 +322,8 @@ Relativ langtursgrense eies av `coach-rules.json` og valideres med samme fallbac
 Ingen agent skal endre faktoren ut fra rapporten på eget initiativ. Brukeren velger om `1.35` låses eller justeres før regelfilen, fallbacken og kontraktfingeravtrykket endres. Hvis produksjonsdata ikke kan leses sikkert lokalt, skal rapporten beregnes i en eksplisitt read-only diagnoseflyt mot brukerens synkroniserte data; det skal ikke brukes demo- eller antatte økter som erstatning.
 
 Referansen er median varighet for brukerens fullførte løpeøkter i de foregående åtte avsluttede ISO-ukene som har rolig/base-intensjon, gyldig varighet og ikke er eksplisitt restitusjon, langtur, kvalitet eller race. Måløkten inngår aldri i egen referanse. Minst seks referanseøkter kreves. Uten nok referanse klassifiseres `Rolig` som `easy`, med mindre navnet entydig sier langtur. Ved nøyaktig grense (`durationSeconds >= median * factor`) blir økten `long_easy`; under grensen blir den `easy`. Det konverteres ikke fra fart eller distanse for å tvinge frem en vurdering.
+
+Når den sjette gyldige referanseøkten senere ligger i et avsluttet ISO-ukevindu, aktiveres den relative grensen for nye snapshots. Tidligere snapshots revurderes ikke: v1 forblir v1, og v2 lagrer den valgte rollen eksplisitt ved opprettelse/fullføring. Dermed kan et voksende datagrunnlag forbedre fremtidige valg uten å endre historisk rolledekning eller Innsikt bakover i tid.
 
 Baseblokkens tre standard-slots er `easy`, `easy`, `long_easy`; en eventuell fjerde base-slot er også `easy` med mindre brukeren velger noe annet. Avlastningsuke kan bruke `recovery` fordi restitusjon da er øktens faktiske formål. Gjentatte `easy` beholdes som separate slots. `priorityRoles` er fortsatt en unik prioritetsliste og uttrykker ikke antall; slotlisten eier antallet.
 
@@ -634,7 +641,7 @@ Normalisering, baseline, rammer, regelkilde, prospektiv validering, rollepolicy,
 
 ### Rolleport mellom runde 3 og 4
 
-Etter at første ekte ukesmåls-snapshot er verifisert, starter rolleporten med kalibreringsrapporten for faktor `1.35`. Først etter brukerens valg leveres `easy`, v2-klassifisering, validert relativ langtursgrense og tellende rolledekning som en egen liten runtime-runde. Runde 4 starter ikke før denne porten er verifisert, slik at ingen plan materialiseres med `recovery` som erstatning for vanlig rolig volum.
+Etter at første ekte ukesmåls-snapshot er verifisert, starter rolleporten med kalibreringsrapporten for faktor `1.35`. Først etter brukerens valg leveres `easy`, v2-klassifisering, validert relativ langtursgrense og tellende rolledekning som en egen liten runtime-runde. **Levert i v176r:** faktor `1.35` er kalibrert og låst, fem gyldige referanser gir ærlig utilstrekkelig grunnlag, og v2-snapshots fryser fremtidig klassifisering uten å endre v1-historikk. Runde 4 starter ikke før denne porten er verifisert, slik at ingen plan materialiseres med `recovery` som erstatning for vanlig rolig volum.
 
 Samme runtime-runde skal også:
 
