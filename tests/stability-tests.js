@@ -102,7 +102,7 @@ async function testAsync(name, fn) {
   const workoutAssessmentDomain = await import(pathToFileURL(path.join(root, 'domain-workout-assessment.js')).href);
   const aiWorkoutAssessmentDomain = await import(pathToFileURL(path.join(root, 'domain-ai-workout-assessment.js')).href);
   const aiWorkoutContextDomain = await import(pathToFileURL(path.join(root, 'domain-ai-workout-context.js')).href);
-  test('v176s previews and applies explicit template snapshot updates safely', () => {
+  test('v176s1 keeps metadata revision separate from plan intent overrides', () => {
     const current = { name: 'Easy Run', type: 'Løping', intensity: 'Rolig', role: 'recovery', roleClassificationVersion: 1 };
     const next = { name: 'Easy Run', type: 'Løping', intensity: 'Rolig', role: 'easy', roleClassificationVersion: 2 };
     const diff = snapshotUpdateDomain.buildTemplateSnapshotDiff({
@@ -126,22 +126,85 @@ async function testAsync(name, fn) {
     assert.strictEqual(updated.templateSnapshot.snapshotUpdateSource, 'manual_template_refresh');
     assert.strictEqual(updated.templateSnapshotUpdatedAt, '2026-08-17T12:00:00.000Z');
 
-    const planned = snapshotUpdateDomain.applyExplicitTemplateSnapshotUpdate({ id: 'planned-1', userModifiedFields: ['date'] }, {
+    const planned = snapshotUpdateDomain.applyExplicitTemplateSnapshotUpdate({ id: 'planned-1' }, {
       kind: 'planned', templateId: 'easy-template', templateSnapshot: next, updatedAt: '2026-08-17T12:00:00.000Z'
     });
-    assert.strictEqual(planned.userModified, true);
-    assert.deepStrictEqual(planned.userModifiedFields, ['date', 'templateId', 'templateSnapshot']);
+    assert.strictEqual(planned.userModified, false);
+    assert.deepStrictEqual(planned.userModifiedFields, []);
+    assert.strictEqual(planned.metadataRevision.source, 'manual_template_refresh');
+
+    const migrated = snapshotUpdateDomain.normalizePlanChangeTracking({
+      id: 'planned-v176s', userModified: true, userModifiedFields: ['templateId', 'templateSnapshot'],
+      templateSnapshotUpdateSource: 'manual_template_refresh', templateSnapshotUpdatedAt: '2026-08-17T12:00:00.000Z'
+    });
+    assert.strictEqual(migrated.userModified, false);
+    assert.strictEqual(migrated.metadataRevision.source, 'manual_template_refresh');
   });
 
-  test('v176s snapshot refresh is wired as a versioned modular runtime feature', () => {
-    assert.ok(app.includes("const APP_VERSION = 'v176s'"));
-    assert.ok(serviceWorker.includes('treningsapp-v176s'));
+  test('v176s1 tracks scheduling, reversible intent and completion independently', () => {
+    const base = {
+      id: 'p1', date: '2026-08-18', templateId: 'threshold', templateSnapshot: { name: 'Terskel' },
+      planRef: { planId: 'plan-1', weekStart: '2026-08-17', slotId: 'w1-s1' }
+    };
+    const moved = snapshotUpdateDomain.applyScheduleAdjustment(base, {
+      newDate: '2026-08-20', changedAt: '2026-08-17T13:00:00.000Z'
+    });
+    assert.strictEqual(moved.userModified, false);
+    assert.strictEqual(moved.scheduleAdjustment.state, 'rescheduled');
+    const movedOut = snapshotUpdateDomain.applyScheduleAdjustment(moved, {
+      newDate: '2026-08-25', changedAt: '2026-08-17T14:00:00.000Z'
+    });
+    assert.strictEqual(movedOut.scheduleAdjustment.originalDate, '2026-08-18');
+    assert.strictEqual(movedOut.scheduleAdjustment.state, 'rescheduled_out');
+
+    const overridden = snapshotUpdateDomain.applyPlanIntentOverride(movedOut, {
+      updates: { templateId: 'easy', templateSnapshot: { name: 'Easy Run' } },
+      fields: ['templateId', 'templateSnapshot'], updatedAt: '2026-08-17T15:00:00.000Z'
+    });
+    assert.strictEqual(overridden.userModified, true);
+    assert.strictEqual(overridden.planRef.prescriptionSnapshot.templateId, 'threshold');
+    const resetDiff = snapshotUpdateDomain.buildPlanIntentResetDiff(overridden);
+    assert.deepStrictEqual(resetDiff.map(row => row.key), ['templateId', 'templateSnapshot']);
+    const reset = snapshotUpdateDomain.resetPlanIntentOverride(overridden, { updatedAt: '2026-08-17T16:00:00.000Z' });
+    assert.strictEqual(reset.templateId, 'threshold');
+    assert.strictEqual(reset.userModified, false);
+    assert.ok(reset.scheduleAdjustment, 'reset must preserve date adjustment');
+
+    const completedTracking = snapshotUpdateDomain.planTrackingForCompletion(overridden);
+    assert.strictEqual(completedTracking.planRef.slotId, 'w1-s1');
+    assert.strictEqual(completedTracking.scheduleAdjustment.state, 'rescheduled_out');
+    assert.strictEqual(completedTracking.userModified, true);
+  });
+
+  test('v176s1 app-state lazily migrates snapshot-only v176s flags', () => {
+    const normalized = appStateDomain.normalizePlannedItems([{
+      id: 'legacy-refresh', templateId: 'easy', userModified: true,
+      userModifiedFields: ['templateId', 'templateSnapshot'],
+      templateSnapshotUpdateSource: 'manual_template_refresh',
+      templateSnapshotUpdatedAt: '2026-08-17T12:00:00.000Z'
+    }, {
+      id: 'real-override', templateId: 'easy', userModified: true,
+      userModifiedFields: ['templateId'], planIntentOverride: { active: true },
+      templateSnapshotUpdateSource: 'manual_template_refresh'
+    }]);
+    assert.strictEqual(normalized[0].userModified, false);
+    assert.strictEqual(normalized[0].metadataRevision.templateId, 'easy');
+    assert.strictEqual(normalized[1].userModified, true, 'a real intent override must not be migrated away');
+  });
+
+  test('v176s1 snapshot refresh is wired as a versioned modular runtime feature', () => {
+    assert.ok(app.includes("const APP_VERSION = 'v176s1'"));
+    assert.ok(serviceWorker.includes('treningsapp-v176s1'));
     ['./domain-template-snapshot-update.js', './template-snapshot-update-ui.js']
       .forEach(file => assert.ok(serviceWorker.includes(file), `${file} is missing from APP_SHELL`));
     assert.ok(index.includes('id="templateSnapshotUpdateModal"'));
     assert.ok(workoutHistoryUiSource.includes("openTemplateSnapshotUpdate('completed'"));
     assert.ok(app.includes("openTemplateSnapshotUpdate('planned'"));
     assert.ok(app.includes("roleLabel: value => WORKOUT_ROLE_LABELS[value]"));
+    assert.ok(app.includes('applyScheduleAdjustment(p'));
+    assert.ok(app.includes('...planTrackingForCompletion(planned)'));
+    assert.ok(app.includes('applyPlanIntentOverride(item'));
+    assert.ok(app.includes("openPlanIntentReset('${planned.id}')"));
   });
   test('volume trend windows use six synchronized periods and safe navigation', () => {
     const expectedStarts = {
@@ -3004,8 +3067,8 @@ async function testAsync(name, fn) {
     assert.ok(workoutHistoryUiSource.includes('heartRateZoneDistributionRows'), 'history does not use production zone rows');
     assert.ok(workoutHistoryUiSource.includes('Tid i pulssoner'), 'completed detail is missing the heart-rate zone section');
     assert.ok(!workoutHistoryUiSource.includes("row.estimated ? 'ca. '"), 'zone duration should not be prefixed with ca.');
-    assert.ok(app.includes("const APP_VERSION = 'v176s'"), 'visible app version must be v176s');
-    assert.ok(serviceWorker.includes('treningsapp-v176s'), 'cache version must match v176s');
+    assert.ok(app.includes("const APP_VERSION = 'v176s1'"), 'visible app version must be v176s1');
+    assert.ok(serviceWorker.includes('treningsapp-v176s1'), 'cache version must match v176s1');
   });
 
   test('v174b evaluates easy and quality sessions without treating zone percentages as a hard truth', () => {
@@ -3100,8 +3163,8 @@ async function testAsync(name, fn) {
     assert.ok(index.includes('id="insightHeartRateComplianceCard"'), 'Insights is missing the compliance card');
     assert.ok(app.includes('heartRateZoneComplianceForItems(last28Days)'), 'coach context does not use the canonical compliance summary');
     assert.ok(app.includes('renderHeartRateZoneComplianceInsight(today)'), 'Insights does not render canonical compliance');
-    assert.ok(app.includes("const APP_VERSION = 'v176s'"), 'visible app version must be v176s');
-    assert.ok(serviceWorker.includes('treningsapp-v176s'), 'cache version must match v176s');
+    assert.ok(app.includes("const APP_VERSION = 'v176s1'"), 'visible app version must be v176s1');
+    assert.ok(serviceWorker.includes('treningsapp-v176s1'), 'cache version must match v176s1');
   });
 
   test('v174c uses the test profile for zones and keeps the golden zone as a separate coach reference', () => {
@@ -3677,8 +3740,8 @@ async function testAsync(name, fn) {
     assert.ok(trainingImportControllerSource.includes("action: duplicate ? 'skip'"), 'duplicates should be skipped by default');
     assert.ok(!trainingImportControllerSource.includes('heartRateZoneDistribution'), 'controller must not synthesize pulse zones');
     assert.ok(styles.includes('.garmin-import-row'), 'Garmin preview styling is missing');
-    assert.ok(app.includes("const APP_VERSION = 'v176s'"));
-    assert.ok(serviceWorker.includes('treningsapp-v176s'));
+    assert.ok(app.includes("const APP_VERSION = 'v176s1'"));
+    assert.ok(serviceWorker.includes('treningsapp-v176s1'));
   });
 
   test('structured interval UI fields and summaries are wired into production files', () => {
@@ -4804,3 +4867,4 @@ async function testAsync(name, fn) {
   console.error(err);
   process.exit(1);
 });
+
