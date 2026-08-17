@@ -265,7 +265,7 @@ const PLAN_FOCUSES = new Set(['base', 'threshold', 'custom']);
 const PLAN_METRICS = new Set(['duration', 'sessions']);
 const WEEK_TYPES = ['load', 'load', 'peak', 'deload'];
 const CANONICAL_ROLES = new Set([
-  'main_threshold', 'support_threshold', 'long_easy', 'recovery',
+  'main_threshold', 'support_threshold', 'easy', 'long_easy', 'recovery',
   'x_workout', 'strength', 'mobility', 'technique', 'race', 'other'
 ]);
 
@@ -430,9 +430,9 @@ export function periodizedRolePolicy({ focus = 'base', slotCount = 3, customRole
   const count = Math.max(1, Math.min(4, Math.round(finiteNumber(slotCount, 3))));
   const normalizedFocus = PLAN_FOCUSES.has(focus) ? focus : 'custom';
   const defaults = normalizedFocus === 'threshold'
-    ? ['main_threshold', 'long_easy', 'support_threshold', 'recovery']
+    ? ['main_threshold', 'easy', 'support_threshold', 'long_easy']
     : normalizedFocus === 'base'
-      ? ['long_easy', 'recovery', 'x_workout', 'long_easy']
+      ? ['easy', 'easy', 'long_easy', 'easy']
       : uniqueRoles(customRoles, 4);
   const deloadDefaults = ['recovery', 'long_easy', 'mobility', 'recovery'];
   const source = weekType === 'deload' ? deloadDefaults : defaults;
@@ -730,4 +730,3 @@ export function evaluatePlanWeek({
     effectiveWeeklyTarget: planWeek?.type === 'deload' ? Math.max(1, slots.length) : null
   };
 }
-
