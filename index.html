@@ -1698,6 +1698,30 @@
     </div>
   </div>
 
+  <div id="templateSnapshotUpdateModal" class="modal-backdrop" aria-hidden="true">
+    <div class="modal snapshot-update-modal" role="dialog" aria-modal="true" aria-labelledby="snapshotUpdateTitle">
+      <div class="snapshot-update-head">
+        <div>
+          <p class="eyebrow">Bevisst datakorrigering</p>
+          <h2 id="snapshotUpdateTitle">Oppdater fra mal</h2>
+          <p id="snapshotUpdateItem" class="small-note"></p>
+        </div>
+        <button id="snapshotUpdateClose" type="button" class="btn-icon" aria-label="Lukk">×</button>
+      </div>
+      <div class="inline-form">
+        <div><label for="snapshotUpdateTemplate">Kildemal</label><select id="snapshotUpdateTemplate"></select></div>
+        <p id="snapshotUpdateEmpty" class="empty hidden">Ingen maler er tilgjengelige. Opprett eller gjenopprett en øktmal først.</p>
+        <div id="snapshotUpdateDiff"></div>
+        <p id="snapshotUpdateImpact" class="snapshot-update-impact"></p>
+        <p class="small-note">Oppdateringen skjer bare for denne økten. Den kan ikke overskrive registrerte målinger, puls, RPE eller notater.</p>
+        <div class="button-row">
+          <button id="snapshotUpdateConfirm" class="btn-primary">Bekreft oppdatering</button>
+          <button id="snapshotUpdateCancel" class="btn-soft">Avbryt</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div id="continuityFreezeModal" class="modal-backdrop">
     <div class="modal">
       <h2>Frys kontinuitet</h2>
