@@ -374,7 +374,7 @@ Referansen er median varighet for brukerens fullførte løpeøkter i de foregåe
 
 Når den sjette gyldige referanseøkten senere ligger i et avsluttet ISO-ukevindu, aktiveres den relative grensen for nye snapshots. Tidligere snapshots revurderes ikke: v1 forblir v1, og v2 lagrer den valgte rollen eksplisitt ved opprettelse/fullføring. Dermed kan et voksende datagrunnlag forbedre fremtidige valg uten å endre historisk rolledekning eller Innsikt bakover i tid.
 
-Baseblokkens tre standard-slots er `easy`, `easy`, `long_easy`; en eventuell fjerde base-slot er også `easy` med mindre brukeren velger noe annet. Avlastningsuke kan bruke `recovery` fordi restitusjon da er øktens faktiske formål. Gjentatte `easy` beholdes som separate slots. `priorityRoles` er fortsatt en unik prioritetsliste og uttrykker ikke antall; slotlisten eier antallet.
+Ved ny blokk er brukerens `trainingProfile.weekPlanRoles` standardforslaget. Baseblokkens blokkstandard `easy`, `easy`, `long_easy` vises som et eksplisitt alternativ; en eventuell fjerde base-slot er også `easy`. Profilen vinner som forhåndsvalg fordi den uttrykker brukerens avtalte normaluke, mens blokkstandarden er en faglig snarvei som aldri skal overskrive profilen stille. Avlastningsuke kan bruke `recovery` fordi restitusjon da er øktens faktiske formål. Gjentatte `easy` beholdes som separate slots. `priorityRoles` er fortsatt en unik prioritetsliste og uttrykker ikke antall; slotlisten eier antallet.
 
 #### Tellende rolledekning
 
