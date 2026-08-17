@@ -193,7 +193,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     } from './domain-template-snapshot-update.js';
     import { createTemplateSnapshotUpdateUi } from './template-snapshot-update-ui.js';
 
-const APP_VERSION = 'v176s1';
+const APP_VERSION = 'v176s2';
     const APP_CACHE_NAME = `treningsapp-${APP_VERSION}`;
 
     const firebaseConfig = {
@@ -4541,11 +4541,7 @@ const APP_VERSION = 'v176s1';
             ${chips ? `<div class="week-plan-chip-row">${chips}</div>` : ''}
             ${item.notes ? `<small class="week-plan-reason">${escapeHtml(item.notes)}</small>` : ''}
           </div>
-          <div class="button-row">
-            <button class="btn-soft" onclick="openPlan('${item.date}')">Endre</button>
-            <button class="btn-soft" onclick="openTemplateSnapshotUpdate('planned', '${item.id}')">Oppdater fra mal</button>
-            ${item.userModified && (item.planRef?.prescriptionSnapshot || item.planIntentBaseline) ? `<button class="btn-soft" onclick="openPlanIntentReset('${item.id}')">Tilbakestill til plan</button>` : ''}
-          </div>
+          <button class="btn-soft week-plan-open" onclick="openCalendarDayModal('${item.date}')">Åpne</button>
         </div>`;
     }
 
