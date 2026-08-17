@@ -21,6 +21,7 @@ import {
 export const WORKOUT_ROLE_LABELS = {
   main_threshold: 'Hovedterskel',
   support_threshold: 'Støtteterskel',
+  easy: 'Rolig baseøkt',
   long_easy: 'Rolig langtur',
   recovery: 'Restitusjon',
   x_workout: 'X-økt',
@@ -383,4 +384,3 @@ export function normalizeAppState(input = {}) {
     settings: normalizeSettings(input.settings)
   };
 }
-
