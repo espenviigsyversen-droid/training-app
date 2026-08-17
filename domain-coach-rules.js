@@ -137,6 +137,13 @@ export const DEFAULT_COACH_RULES = deepFreeze({
         { min: 0.7, max: 0.8 }
       ]
     },
+    workoutRoles: {
+      longEasy: {
+        lookbackWeeks: 8,
+        minimumBaselineSessions: 6,
+        durationFactorVsMedianEasy: 1.35
+      }
+    },
     comeback: {
       triggerDaysSinceLast: 5,
       longBreakDays: 10,
@@ -215,6 +222,9 @@ function validateResolvedRules(rules, errors) {
     ['thresholds.periodizedPlan.minimumBaselineWeeks', rules.thresholds?.periodizedPlan?.minimumBaselineWeeks],
     ['thresholds.periodizedPlan.durationCoverageThreshold', rules.thresholds?.periodizedPlan?.durationCoverageThreshold],
     ['thresholds.periodizedPlan.significantBaselineChangeFactor', rules.thresholds?.periodizedPlan?.significantBaselineChangeFactor],
+    ['thresholds.workoutRoles.longEasy.lookbackWeeks', rules.thresholds?.workoutRoles?.longEasy?.lookbackWeeks],
+    ['thresholds.workoutRoles.longEasy.minimumBaselineSessions', rules.thresholds?.workoutRoles?.longEasy?.minimumBaselineSessions],
+    ['thresholds.workoutRoles.longEasy.durationFactorVsMedianEasy', rules.thresholds?.workoutRoles?.longEasy?.durationFactorVsMedianEasy],
     ['thresholds.comeback.triggerDaysSinceLast', rules.thresholds?.comeback?.triggerDaysSinceLast],
     ['thresholds.comeback.longBreakDays', rules.thresholds?.comeback?.longBreakDays],
     ['thresholds.comeback.reducedWeekFactor', rules.thresholds?.comeback?.reducedWeekFactor],
@@ -243,6 +253,15 @@ function validateResolvedRules(rules, errors) {
     || factor.max < factor.min
   ))) {
     errors.push('thresholds.periodizedPlan.blockFactors must contain four positive min/max ranges');
+  }
+
+  const longEasy = rules.thresholds?.workoutRoles?.longEasy || {};
+  if (
+    !Number.isInteger(longEasy.lookbackWeeks) || longEasy.lookbackWeeks < 4 || longEasy.lookbackWeeks > 16
+    || !Number.isInteger(longEasy.minimumBaselineSessions) || longEasy.minimumBaselineSessions < 3 || longEasy.minimumBaselineSessions > 30
+    || !finiteNumber(longEasy.durationFactorVsMedianEasy) || longEasy.durationFactorVsMedianEasy < 1 || longEasy.durationFactorVsMedianEasy > 3
+  ) {
+    errors.push('thresholds.workoutRoles.longEasy must contain a valid lookback, minimum baseline and duration factor');
   }
 
   const roles = rules.bakkenRunningWeek?.roles;
@@ -379,4 +398,3 @@ export async function loadCoachRules(url = './data/coach-rules.json', fetchImpl 
     return fallback;
   }
 }
-
