@@ -1,5 +1,15 @@
 # Treningsapp — progress.md
-Oppdatert: 2026-08-17 (siste runtime-endring: v176s)
+Oppdatert: 2026-08-17 (siste runtime-endring: v176s1)
+
+---
+
+## v176s1 – planendringer med tydelig semantikk
+
+- `userModified` betyr nå bare en aktiv overstyring av planens treningsintensjon og kan oppheves med feltvis «Tilbakestill til plan».
+- Datoflytting lagres som `scheduleAdjustment`; flytting ut av blokkuken markeres `rescheduled_out` uten stille erstatningsøkt.
+- «Oppdater fra mal» lagres som `metadataRevision` uten å frede økten. v176s-markeringer med kun snapshotfelter normaliseres bakoverkompatibelt.
+- Fullføring kopierer `planRef` og alle endringsspor til historikken, slik at planslotten kan evalueres mot faktisk gjennomføring.
+- Heltekortets malbytte registreres som en reell intensjonsoverstyring.
 
 ---
 
@@ -37,7 +47,7 @@ Standard Bakken-uke: Hoved-terskel → Støtte-terskel → Lang rolig → Valgfr
 **Hosting:** GitHub Pages.  
 **Backend:** Firebase (prosjekt `home-tasks-app-18de3`) — Firestore + Google Auth.  
 **Frontend:** Vanilla JS + HTML + CSS, single-page app, tab-navigasjon.  
-**Versjon:** v176s (konstant i `app.js`).
+**Versjon:** v176s1 (konstant i `app.js`).
 
 ### Filer
 
@@ -595,3 +605,4 @@ Treningsapp/
 - Lokal kopi — ikke et Git-repo. Endrede filer synkroniseres til GitHub Pages via GitHub-connectoren når skrivetilgang er tilgjengelig.
 - Filer som typisk endres per økt: `app.js`, `index.html`, `styles.css`, `service-worker.js`
 - Husk alltid å bumpe `APP_VERSION` i `app.js` og `CACHE_NAME` i `service-worker.js`
+
