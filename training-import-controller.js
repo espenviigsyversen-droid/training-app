@@ -4,6 +4,7 @@ import {
   parseGarminActivitiesCsv,
   suggestGarminMatches
 } from './garmin-csv-import.js';
+import { inferredWorkoutRole } from './domain-training-plan.js';
 
 export const GARMIN_IMPORT_MAX_FILE_BYTES = 5 * 1024 * 1024;
 export const GARMIN_IMPORT_MAX_ROWS = 2000;
@@ -163,14 +164,15 @@ function selectedMatch(row) {
   return row.matches.find(match => match.key === row.selectedTargetKey) || null;
 }
 
-function cleanTemplateSnapshot(template, fallbackName, fallbackType) {
+function cleanTemplateSnapshot(template, fallbackName, fallbackType, workoutContext = {}) {
   const source = plainObject(template);
-  return {
+  const snapshot = {
     id: String(source.id || ''),
     name: String(source.name || fallbackName || 'Garmin-økt').slice(0, 160),
     type: String(source.type || fallbackType || 'Annet').slice(0, 80),
     intensity: String(source.intensity || '').slice(0, 80),
     role: String(source.role || '').slice(0, 80),
+    roleClassificationVersion: 2,
     purpose: String(source.purpose || '').slice(0, 80),
     load: String(source.load || '').slice(0, 40),
     structure: String(source.structure || '').slice(0, 4000),
@@ -178,6 +180,8 @@ function cleanTemplateSnapshot(template, fallbackName, fallbackType) {
     structuredWorkout: source.structuredWorkout || null,
     exercisePlan: source.exercisePlan || null
   };
+  snapshot.role = snapshot.role || inferredWorkoutRole(snapshot, { item: workoutContext });
+  return snapshot;
 }
 
 function materializeCompleted(candidate, { id, now, planned = null, resolveTemplate } = {}) {
@@ -186,7 +190,8 @@ function materializeCompleted(candidate, { id, now, planned = null, resolveTempl
   const templateSnapshot = cleanTemplateSnapshot(
     linkedTemplate,
     draft.manualName || draft.activityType,
-    draft.activityType
+    draft.activityType,
+    draft
   );
   const withProvenance = mergeGarminIntoCompleted({}, candidate, { importedAt: now });
   const completed = {
