@@ -181,14 +181,19 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     import { createTrainingInsightsUi } from './training-insights-ui.js';
     import { createWorkspaceSectionsUi } from './workspace-sections-ui.js';
     import {
+      applyPlanIntentOverride,
+      applyScheduleAdjustment,
       applyExplicitTemplateSnapshotUpdate,
+      buildPlanIntentResetDiff,
       buildTemplateSnapshotDiff,
+      planTrackingForCompletion,
+      resetPlanIntentOverride,
       templateSnapshotUpdateAffectsRoleHistory,
       versionedTemplateSnapshot
     } from './domain-template-snapshot-update.js';
     import { createTemplateSnapshotUpdateUi } from './template-snapshot-update-ui.js';
 
-const APP_VERSION = 'v176s';
+const APP_VERSION = 'v176s1';
     const APP_CACHE_NAME = `treningsapp-${APP_VERSION}`;
 
     const firebaseConfig = {
@@ -2253,16 +2258,21 @@ const APP_VERSION = 'v176s';
           if (shiftFollowing) {
             state.planned.forEach(p => {
               if (p.status !== 'done' && p.date >= oldDate) {
-                p.date = addDays(p.date, diffDays);
-                p.updatedAt = new Date().toISOString();
+                Object.assign(p, applyScheduleAdjustment(p, {
+                  newDate: addDays(p.date, diffDays),
+                  changedAt: new Date().toISOString(),
+                  reason: p.id === plannedId ? 'user_reschedule' : 'shift_following'
+                }));
                 toUpdate.push(p);
               }
             });
           } else {
             const item = state.planned.find(p => p.id === plannedId);
             if (item) {
-              item.date = newDate;
-              item.updatedAt = new Date().toISOString();
+              Object.assign(item, applyScheduleAdjustment(item, {
+                newDate,
+                changedAt: new Date().toISOString()
+              }));
               toUpdate.push(item);
             }
           }
@@ -3089,6 +3099,7 @@ const APP_VERSION = 'v176s';
           ? templateSnapshotFromTemplate(planned.templateSnapshot, '', { id: `completed-from-${plannedId}`, date: planned.date, ...formData })
           : completedTemplateSnapshot(planned.templateId, '', { id: `completed-from-${plannedId}`, date: planned.date, ...formData }),
         date: planned.date,
+        ...planTrackingForCompletion(planned),
         ...formData,
         completedAt: new Date().toISOString()
       };
@@ -3368,11 +3379,52 @@ const APP_VERSION = 'v176s';
       };
     }
 
+    function planIntentResetPreview(id) {
+      const record = snapshotUpdateRecord('planned', id);
+      if (!record?.userModified || !record.planRef?.prescriptionSnapshot) return null;
+      const diff = buildPlanIntentResetDiff(record).map(row => {
+        if (row.key === 'templateId') {
+          return {
+            ...row,
+            before: state.templates.find(item => item.id === row.before)?.name || row.before,
+            after: state.templates.find(item => item.id === row.after)?.name || row.after
+          };
+        }
+        if (row.key === 'templateSnapshot') {
+          const snapshotName = value => {
+            try { return JSON.parse(value || '{}')?.name || 'Malsnapshot'; }
+            catch { return 'Malsnapshot'; }
+          };
+          return { ...row, before: snapshotName(row.before), after: snapshotName(row.after) };
+        }
+        return row.key === 'role'
+          ? { ...row, before: WORKOUT_ROLE_LABELS[row.before] || row.before, after: WORKOUT_ROLE_LABELS[row.after] || row.after }
+          : row;
+      });
+      return { record, diff };
+    }
+
     function getTemplateSnapshotUpdateUi() {
       if (!templateSnapshotUpdateUi) {
         templateSnapshotUpdateUi = createTemplateSnapshotUpdateUi({
           escapeHtml,
           getPreview: snapshotUpdatePreview,
+          getResetPreview: planIntentResetPreview,
+          confirmReset: async id => {
+            const preview = planIntentResetPreview(id);
+            if (!preview?.diff?.length) return false;
+            const updated = resetPlanIntentOverride(preview.record, { updatedAt: new Date().toISOString() });
+            const saved = await safeStateWrite({
+              apply: () => { state.planned = state.planned.map(item => item.id === id ? updated : item); },
+              write: () => fsSet('planned', id, updated),
+              successMessage: 'Økten følger planen igjen',
+              errorMessage: 'Kunne ikke tilbakestille økten'
+            });
+            if (saved && document.getElementById('calendarDayModal')?.classList.contains('active')) {
+              openCalendarDayModal(selectedCalendarDate());
+            }
+            return saved;
+          },
           confirmUpdate: async (kind, id, templateId) => {
             const preview = snapshotUpdatePreview(kind, id, templateId);
             if (!preview || !preview.diff.length) return false;
@@ -3413,6 +3465,17 @@ const APP_VERSION = 'v176s';
         itemLabel: `${current.name || 'Økt'} · ${formatDate(record.date)}`,
         templateId: record.templateId,
         templates: [...state.templates].sort((a, b) => String(a.name).localeCompare(String(b.name), 'nb'))
+      });
+    };
+
+    window.openPlanIntentReset = function(id) {
+      const record = snapshotUpdateRecord('planned', id);
+      const preview = planIntentResetPreview(id);
+      if (!record || !preview) return alert('Planens opprinnelige innhold er ikke tilgjengelig for denne økten.');
+      const current = plannedTemplate(record);
+      getTemplateSnapshotUpdateUi().openReset({
+        id,
+        itemLabel: `${current.name || 'Økt'} · ${formatDate(record.date)}`
       });
     };
 
@@ -3512,6 +3575,7 @@ const APP_VERSION = 'v176s';
             ${planned.status !== 'done' ? `<button class="btn-success" onclick="openCompleteModal('${planned.id}')">Marker utført</button>` : ''}
             ${planned.status !== 'done' ? `<button class="btn-soft" onclick="openRescheduleModal('${planned.id}')">Endre dato</button>` : ''}
             ${planned.status !== 'done' ? `<button class="btn-soft" onclick="openTemplateSnapshotUpdate('planned', '${planned.id}')">Oppdater fra mal</button>` : ''}
+            ${planned.status !== 'done' && planned.userModified && planned.planRef?.prescriptionSnapshot ? `<button class="btn-soft" onclick="openPlanIntentReset('${planned.id}')">Tilbakestill til plan</button>` : ''}
             ${options.canDelete ? `<button class="btn-soft" onclick="deletePlanned('${planned.id}')">Slett</button>` : ''}
           </div>
         </div>`;
@@ -4480,6 +4544,7 @@ const APP_VERSION = 'v176s';
           <div class="button-row">
             <button class="btn-soft" onclick="openPlan('${item.date}')">Endre</button>
             <button class="btn-soft" onclick="openTemplateSnapshotUpdate('planned', '${item.id}')">Oppdater fra mal</button>
+            ${item.userModified && item.planRef?.prescriptionSnapshot ? `<button class="btn-soft" onclick="openPlanIntentReset('${item.id}')">Tilbakestill til plan</button>` : ''}
           </div>
         </div>`;
     }
@@ -4818,11 +4883,17 @@ const APP_VERSION = 'v176s';
         apply: () => {
           const item = state.planned.find(entry => entry.id === plannedId);
           if (!item) return;
-          item.templateId = alternative.id;
-          item.templateSnapshot = templateSnapshotFromTemplate(alternative);
-          item.notes = [item.notes, 'Byttet fra heltekortet fordi dagsform/belastning tilsa lettere økt.']
+          const updated = applyPlanIntentOverride(item, {
+            updates: {
+              templateId: alternative.id,
+              templateSnapshot: templateSnapshotFromTemplate(alternative)
+            },
+            fields: ['templateId', 'templateSnapshot'],
+            updatedAt: new Date().toISOString()
+          });
+          updated.notes = [item.notes, 'Byttet fra heltekortet fordi dagsform/belastning tilsa lettere økt.']
             .filter(Boolean).join('\n');
-          item.updatedAt = new Date().toISOString();
+          Object.assign(item, updated);
         },
         write: () => {
           const updated = state.planned.find(entry => entry.id === plannedId);
@@ -7842,3 +7913,4 @@ const APP_VERSION = 'v176s';
         navigator.serviceWorker.register(`./service-worker.js?v=${APP_VERSION}`).catch(() => {});
       });
     };
+
