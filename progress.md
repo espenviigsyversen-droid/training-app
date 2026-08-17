@@ -1,7 +1,15 @@
 # Treningsapp — progress.md
-Oppdatert: 2026-08-17 (siste runtime-endring: v176t)
+Oppdatert: 2026-08-17 (siste runtime-endring: v176u)
 
 ---
+
+## v176u – mobil blokkforhåndsvisning uten skriving
+
+- Ny `training-plan-ui.js` gir en firestegs hurtigflyt fra retning og roller til faktisk volumvalidering og full fireukersoversikt.
+- Previewen viser baseuker med `easy/easy/long_easy`, én færre slot og redusert effektivt ukesmål i avlastningsuken, samt current+next-diff med eksplisitte konfliktvalg.
+- UI-et har ingen lagrings- eller materialiseringshandling; utkast og konfliktvalg holdes kun lokalt i minnet.
+- Race kan ikke lenger fortrenge en manglende normalukerolle, og forklaringen sier eksplisitt at race ikke dekker normaluka.
+- `APP_VERSION` og PWA-cache er `v176u`.
 
 ## v176t – skrivefri port for planmaterialisering
 
@@ -65,7 +73,7 @@ Standard Bakken-uke: Hoved-terskel → Støtte-terskel → Lang rolig → Valgfr
 **Hosting:** GitHub Pages.  
 **Backend:** Firebase (prosjekt `home-tasks-app-18de3`) — Firestore + Google Auth.  
 **Frontend:** Vanilla JS + HTML + CSS, single-page app, tab-navigasjon.  
-**Versjon:** v176t (konstant i `app.js`).
+**Versjon:** v176u (konstant i `app.js`).
 
 ### Filer
 
@@ -78,6 +86,8 @@ Treningsapp/
 ├── training-repository.js # Firestore-repository for treningsdata.
 ├── domain-training-plan.js # Ren ukeplan-, rolle- og øktforslagslogikk.
 ├── domain-periodized-training-plan.js # Historiske ukesmål og ren blokkdomene-logikk.
+├── training-plan-controller.js # Skrivefri current+next-diff og konfliktpolicy.
+├── training-plan-ui.js # Mobil hurtigflyt og full blokkforhåndsvisning uten skriving.
 ├── calendar-ui.js      # Kalendergrid, månedsnavigasjon og dagsmodal.
 ├── domain-core.js      # Rene testbare domenehjelpere uten DOM/Firebase/state.
 ├── domain-activity.js  # Kildeuavhengig aktivitetsmiljø og bakoverkompatibel avledning.
@@ -623,4 +633,3 @@ Treningsapp/
 - Lokal kopi — ikke et Git-repo. Endrede filer synkroniseres til GitHub Pages via GitHub-connectoren når skrivetilgang er tilgjengelig.
 - Filer som typisk endres per økt: `app.js`, `index.html`, `styles.css`, `service-worker.js`
 - Husk alltid å bumpe `APP_VERSION` i `app.js` og `CACHE_NAME` i `service-worker.js`
-
