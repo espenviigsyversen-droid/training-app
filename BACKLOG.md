@@ -349,6 +349,16 @@ Prioritert backlog for videre utvikling av Treningsapp.
     - Ukesmål og ukeoppskrift skal samles før planarbeidets runde 5. Tre økter skal gi tre obligatoriske roller; en fjerde rolle skal være tydelig bonus.
     - Coachnivå skal forklare sin faktiske effekt på pulsgrenser og valideres mot datagrunnlaget uten automatisk nedgradering.
 
+52j.4. **v176r - Kanonisk easy-rolle og tellende rolledekning** - Bygget
+    - Skill vanlig rolig baseøkt (`easy`) fra langtur og bevisst restitusjon uten å endre v1-historikk.
+    - Bruk en validert relativ langtursgrense på `1,35` først når seks gyldige referanseøkter finnes i avsluttede ISO-uker.
+    - La hver fullført eller planlagt økt dekke nøyaktig én rolleplass, også ved normaluke `easy/easy/long_easy`.
+
+52j.5. **Aktivitetstypevakt ved logging/import** - Senere
+    - Varsle diskret når et helt aktivitetsnavn som `Hiking` eller `Fottur` motsier lagret aktivitetstype `Løping`.
+    - Forslaget skal kreve brukerbekreftelse og aldri endre aktivitetstype automatisk.
+    - Bruk samme validering ved manuell logging og importforhåndsvisning, uten å blokkere lagring når aktiviteten faktisk er tilsiktet.
+
 52k. **Periodisert treningsplan v1 - Runde 3 bygget, tre implementeringsrunder gjenstår**
     - Bruk `TRAINING_PLANS_DESIGN.md` som bindende utviklingsgrunnlag for én manuell fireukersblokk med tre belastningsuker og én avlastningsuke.
     - Historisk stabile `weeklyTargetSnapshots` og felles `effectiveWeeklyTargetForWeek()` er levert i v176o før blokkaktivering. Legacy-streak er bevart, og avlastningsmål skilles fra fryskort.
