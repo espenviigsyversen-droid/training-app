@@ -174,6 +174,15 @@ async function testAsync(name, fn) {
     assert.strictEqual(completedTracking.planRef.slotId, 'w1-s1');
     assert.strictEqual(completedTracking.scheduleAdjustment.state, 'rescheduled_out');
     assert.strictEqual(completedTracking.userModified, true);
+
+    const legacyPlanned = snapshotUpdateDomain.applyPlanIntentOverride({
+      id: 'manual-p1', templateId: 'threshold', templateSnapshot: { name: 'Terskel' }
+    }, {
+      updates: { templateId: 'easy', templateSnapshot: { name: 'Easy Run' } },
+      fields: ['templateId', 'templateSnapshot'], updatedAt: '2026-08-17T15:30:00.000Z'
+    });
+    assert.strictEqual(legacyPlanned.planIntentBaseline.templateId, 'threshold');
+    assert.strictEqual(snapshotUpdateDomain.resetPlanIntentOverride(legacyPlanned).templateId, 'threshold');
   });
 
   test('v176s1 app-state lazily migrates snapshot-only v176s flags', () => {
