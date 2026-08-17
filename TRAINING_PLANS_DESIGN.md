@@ -193,7 +193,7 @@ Deterministisk handlingstabell:
 | Registrer/rediger varighet, distanse, puls, RPE, følelse, smerte eller fullføringsnotat | Nei | Resultatdata | Målt gjennomføring skal aldri tolkes som planoverstyring. |
 | Slett planlagt økt | Ikke relevant | Økten fjernes etter bekreftelse | Skal håndteres som eksplisitt slot-avvik i planpreview/evaluering. |
 
-«Tilbakestill til plan» viser feltvis diff mot den materialiserte `planRef.prescriptionSnapshot`, gjenoppretter bare plan-eide intensjonsfelt og nullstiller `userModified`/`userModifiedFields` etter bekreftelse. Egne notater, `scheduleAdjustment`, `metadataRevision` og resultatdata røres aldri. Mangler reseptsnapshotet, deaktiveres handlingen; appen skal ikke gjette en gammel planintensjon.
+«Tilbakestill til plan» viser feltvis diff mot den materialiserte `planRef.prescriptionSnapshot`, gjenoppretter bare plan-eide intensjonsfelt og nullstiller `userModified`/`userModifiedFields` etter bekreftelse. Egne notater, `scheduleAdjustment`, `metadataRevision` og resultatdata røres aldri. For eldre planlagte økter uten `planRef` fryses et lokalt `planIntentBaseline` idet brukeren første gang bytter innhold; også disse kan dermed reverseres uten gjetting. Mangler både reseptsnapshot og slik baseline, deaktiveres handlingen.
 
 Ved fullføring kopieres `planRef` og alle tre endringssporene til historikken. En plan kan aldri mutere en fullført økt.
 
