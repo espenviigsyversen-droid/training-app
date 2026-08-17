@@ -18,6 +18,7 @@ const appStateSource = read('app-state.js');
 const plannerSource = read('domain-training-plan.js');
 const periodizedPlanSource = read('domain-periodized-training-plan.js');
 const trainingPlanControllerSource = read('training-plan-controller.js');
+const trainingPlanUiSource = read('training-plan-ui.js');
 const repositorySource = read('training-repository.js');
 const calendarUiSource = read('calendar-ui.js');
 const workoutTemplateUiSource = read('workout-template-ui.js');
@@ -85,6 +86,7 @@ async function testAsync(name, fn) {
   const planner = await import(pathToFileURL(path.join(root, 'domain-training-plan.js')).href);
   const periodizedPlan = await import(pathToFileURL(path.join(root, 'domain-periodized-training-plan.js')).href);
   const trainingPlanController = await import(pathToFileURL(path.join(root, 'training-plan-controller.js')).href);
+  const trainingPlanUi = await import(pathToFileURL(path.join(root, 'training-plan-ui.js')).href);
   const snapshotUpdateDomain = await import(pathToFileURL(path.join(root, 'domain-template-snapshot-update.js')).href);
   const localStoreDomain = await import(pathToFileURL(path.join(root, 'local-state-store.js')).href);
   const workoutTemplateUiDomain = await import(pathToFileURL(path.join(root, 'workout-template-ui.js')).href);
@@ -204,8 +206,8 @@ async function testAsync(name, fn) {
   });
 
   test('v176s2 keeps rare snapshot actions in the day modal and the week overview compact', () => {
-    assert.ok(app.includes("const APP_VERSION = 'v176t'"));
-    assert.ok(serviceWorker.includes('treningsapp-v176t'));
+    assert.ok(app.includes("const APP_VERSION = 'v176u'"));
+    assert.ok(serviceWorker.includes('treningsapp-v176u'));
     ['./domain-template-snapshot-update.js', './template-snapshot-update-ui.js']
       .forEach(file => assert.ok(serviceWorker.includes(file), `${file} is missing from APP_SHELL`));
     assert.ok(index.includes('id="templateSnapshotUpdateModal"'));
@@ -1397,7 +1399,7 @@ async function testAsync(name, fn) {
     assert.deepStrictEqual(blockMix.map(item => item.roles[0]), ['main_threshold', 'long_easy']);
     const raceMix = periodizedPlan.periodizedSuggestionMix(normal, {
       activeBlockContext: null,
-      raceContext: { active: true, allowRaceTest: true, testSuggestion: { title: 'Kontrollert 5 km' } },
+      raceContext: { active: true, normalWeekCovered: true, allowRaceTest: true, testSuggestion: { title: 'Kontrollert 5 km' } },
       count: 2
     });
     assert.strictEqual(raceMix[0].roles[0], 'race');
@@ -1570,7 +1572,56 @@ async function testAsync(name, fn) {
     ];
     const coverage = planner.roleCoverage(roles, [], [{ id: 'race-1', workoutRole: 'race' }]);
     assert.deepStrictEqual(coverage.map(item => item.status), ['missing', 'missing', 'missing']);
-    assert.ok(app.includes("return `${roleLabel}: dekker en rolle i normaluka.`"), 'the reported defect is the generic explanation, not role coverage');
+    assert.ok(app.includes('bonusforslag som ikke dekker en rolle i normaluka'), 'race explanation must say it covers no normal-week role');
+  });
+
+  test('v176u race cannot displace a missing normal-week role and only appears after coverage', () => {
+    const normal = [
+      { title: 'Rolig base', roles: ['easy'] },
+      { title: 'Rolig langtur', roles: ['long_easy'] },
+      { title: 'Støtteterskel', roles: ['support_threshold'] }
+    ];
+    const raceContext = { active: true, allowRaceTest: true, testSuggestion: { title: '2 km konkurranse' } };
+    const missingRoles = planner.applyRaceContextToSuggestionMix(normal, { ...raceContext, normalWeekCovered: false }, 3);
+    assert.deepStrictEqual(missingRoles.map(item => item.roles[0]), ['easy', 'long_easy', 'support_threshold']);
+    const coveredRoles = planner.applyRaceContextToSuggestionMix(normal, { ...raceContext, normalWeekCovered: true }, 3);
+    assert.deepStrictEqual(coveredRoles.map(item => item.roles[0]), ['race', 'easy', 'long_easy']);
+  });
+
+  test('v176u plan UI builds base slots, reduced deload target and a write-free preview surface', () => {
+    const templates = [
+      { id: 'easy', name: 'Easy Run', role: 'easy' },
+      { id: 'long', name: 'Rolig langtur', role: 'long_easy' },
+      { id: 'recovery', name: 'Kort rolig', role: 'recovery' },
+      { id: 'mobility', name: 'Mobilitet', role: 'mobility' }
+    ];
+    const completed = [];
+    for (let week = 0; week < 6; week += 1) {
+      for (let session = 0; session < 3; session += 1) {
+        const date = new Date('2026-08-23T12:00:00Z');
+        date.setUTCDate(date.getUTCDate() - (week * 7) - session - 1);
+        completed.push({ id: `c-${week}-${session}`, date: date.toISOString().slice(0, 10), durationSeconds: 3000 });
+      }
+    }
+    const ramp = coach.trainingVolumeRamp(completed, { todayIso: '2026-08-17', rules: coachRulesJson });
+    const model = trainingPlanUi.buildTrainingPlanPreviewModel({
+      draft: { id: 'preview', name: 'Baseblokk', focus: 'base', startDate: '2026-08-24', slotCount: 3, metric: 'auto', userConfirmed: true },
+      completedItems: completed,
+      templates,
+      rules: coachRulesJson,
+      volumeRamp: ramp
+    });
+    assert.deepStrictEqual(model.plan.weeks[0].slots.map(slot => slot.role), ['easy', 'easy', 'long_easy']);
+    assert.strictEqual(model.plan.weeks[3].slots.length, 2);
+    assert.strictEqual(model.plan.weeks[3].effectiveWeeklyTarget, 2);
+    assert.strictEqual(model.validations.length, 4);
+    assert.ok(model.validations.every(item => item.validationStatus), 'every week must show validation status');
+    assert.ok(index.includes('id="trainingPlanPreview"'));
+    assert.ok(app.includes('createTrainingPlanUi'));
+    assert.ok(serviceWorker.includes('./training-plan-ui.js'));
+    assert.ok(!trainingPlanUiSource.includes('.materialize('), 'preview UI must have no materialization call');
+    assert.ok(!trainingPlanUiSource.includes('data-plan-action="confirm"'), 'preview UI must expose no confirm action');
+    assert.ok(styles.includes('@media (max-width: 700px)'), 'plan preview must include mobile layout');
   });
 
   test('v176t training plans are normalized through state, backup and repository wiring', () => {
@@ -3254,8 +3305,8 @@ async function testAsync(name, fn) {
     assert.ok(workoutHistoryUiSource.includes('heartRateZoneDistributionRows'), 'history does not use production zone rows');
     assert.ok(workoutHistoryUiSource.includes('Tid i pulssoner'), 'completed detail is missing the heart-rate zone section');
     assert.ok(!workoutHistoryUiSource.includes("row.estimated ? 'ca. '"), 'zone duration should not be prefixed with ca.');
-    assert.ok(app.includes("const APP_VERSION = 'v176t'"), 'visible app version must be v176t');
-    assert.ok(serviceWorker.includes('treningsapp-v176t'), 'cache version must match v176t');
+    assert.ok(app.includes("const APP_VERSION = 'v176u'"), 'visible app version must be v176u');
+    assert.ok(serviceWorker.includes('treningsapp-v176u'), 'cache version must match v176u');
   });
 
   test('v174b evaluates easy and quality sessions without treating zone percentages as a hard truth', () => {
@@ -3350,8 +3401,8 @@ async function testAsync(name, fn) {
     assert.ok(index.includes('id="insightHeartRateComplianceCard"'), 'Insights is missing the compliance card');
     assert.ok(app.includes('heartRateZoneComplianceForItems(last28Days)'), 'coach context does not use the canonical compliance summary');
     assert.ok(app.includes('renderHeartRateZoneComplianceInsight(today)'), 'Insights does not render canonical compliance');
-    assert.ok(app.includes("const APP_VERSION = 'v176t'"), 'visible app version must be v176t');
-    assert.ok(serviceWorker.includes('treningsapp-v176t'), 'cache version must match v176t');
+    assert.ok(app.includes("const APP_VERSION = 'v176u'"), 'visible app version must be v176u');
+    assert.ok(serviceWorker.includes('treningsapp-v176u'), 'cache version must match v176u');
   });
 
   test('v174c uses the test profile for zones and keeps the golden zone as a separate coach reference', () => {
@@ -3927,8 +3978,8 @@ async function testAsync(name, fn) {
     assert.ok(trainingImportControllerSource.includes("action: duplicate ? 'skip'"), 'duplicates should be skipped by default');
     assert.ok(!trainingImportControllerSource.includes('heartRateZoneDistribution'), 'controller must not synthesize pulse zones');
     assert.ok(styles.includes('.garmin-import-row'), 'Garmin preview styling is missing');
-    assert.ok(app.includes("const APP_VERSION = 'v176t'"));
-    assert.ok(serviceWorker.includes('treningsapp-v176t'));
+    assert.ok(app.includes("const APP_VERSION = 'v176u'"));
+    assert.ok(serviceWorker.includes('treningsapp-v176u'));
   });
 
   test('structured interval UI fields and summaries are wired into production files', () => {
@@ -5054,4 +5105,3 @@ async function testAsync(name, fn) {
   console.error(err);
   process.exit(1);
 });
-
