@@ -206,8 +206,8 @@ async function testAsync(name, fn) {
   });
 
   test('v176s2 keeps rare snapshot actions in the day modal and the week overview compact', () => {
-    assert.ok(app.includes("const APP_VERSION = 'v176u'"));
-    assert.ok(serviceWorker.includes('treningsapp-v176u'));
+    assert.ok(app.includes("const APP_VERSION = 'v176u1'"));
+    assert.ok(serviceWorker.includes('treningsapp-v176u1'));
     ['./domain-template-snapshot-update.js', './template-snapshot-update-ui.js']
       .forEach(file => assert.ok(serviceWorker.includes(file), `${file} is missing from APP_SHELL`));
     assert.ok(index.includes('id="templateSnapshotUpdateModal"'));
@@ -1622,6 +1622,15 @@ async function testAsync(name, fn) {
     assert.ok(!trainingPlanUiSource.includes('.materialize('), 'preview UI must have no materialization call');
     assert.ok(!trainingPlanUiSource.includes('data-plan-action="confirm"'), 'preview UI must expose no confirm action');
     assert.ok(styles.includes('@media (max-width: 700px)'), 'plan preview must include mobile layout');
+  });
+
+  test('v176u1 uses the configured normal week before the optional block standard', () => {
+    assert.deepStrictEqual(trainingPlanUi.trainingProfileRolesForPreview({
+      weekPlanRoles: ['easy', 'support_threshold', 'long_easy']
+    }, 3, 'base'), ['easy', 'support_threshold', 'long_easy']);
+    assert.deepStrictEqual(trainingPlanUi.trainingProfileRolesForPreview({ weekPlanRoles: [] }, 3, 'base'), ['easy', 'easy', 'long_easy']);
+    assert.ok(trainingPlanUiSource.includes('Denne planplassen ville blitt opprettet nå.'));
+    assert.ok(!trainingPlanUiSource.includes('Denne planplassen ville blitt opprettet senere.'));
   });
 
   test('v176t training plans are normalized through state, backup and repository wiring', () => {
@@ -3305,8 +3314,8 @@ async function testAsync(name, fn) {
     assert.ok(workoutHistoryUiSource.includes('heartRateZoneDistributionRows'), 'history does not use production zone rows');
     assert.ok(workoutHistoryUiSource.includes('Tid i pulssoner'), 'completed detail is missing the heart-rate zone section');
     assert.ok(!workoutHistoryUiSource.includes("row.estimated ? 'ca. '"), 'zone duration should not be prefixed with ca.');
-    assert.ok(app.includes("const APP_VERSION = 'v176u'"), 'visible app version must be v176u');
-    assert.ok(serviceWorker.includes('treningsapp-v176u'), 'cache version must match v176u');
+    assert.ok(app.includes("const APP_VERSION = 'v176u1'"), 'visible app version must be v176u1');
+    assert.ok(serviceWorker.includes('treningsapp-v176u1'), 'cache version must match v176u1');
   });
 
   test('v174b evaluates easy and quality sessions without treating zone percentages as a hard truth', () => {
@@ -3401,8 +3410,8 @@ async function testAsync(name, fn) {
     assert.ok(index.includes('id="insightHeartRateComplianceCard"'), 'Insights is missing the compliance card');
     assert.ok(app.includes('heartRateZoneComplianceForItems(last28Days)'), 'coach context does not use the canonical compliance summary');
     assert.ok(app.includes('renderHeartRateZoneComplianceInsight(today)'), 'Insights does not render canonical compliance');
-    assert.ok(app.includes("const APP_VERSION = 'v176u'"), 'visible app version must be v176u');
-    assert.ok(serviceWorker.includes('treningsapp-v176u'), 'cache version must match v176u');
+    assert.ok(app.includes("const APP_VERSION = 'v176u1'"), 'visible app version must be v176u1');
+    assert.ok(serviceWorker.includes('treningsapp-v176u1'), 'cache version must match v176u1');
   });
 
   test('v174c uses the test profile for zones and keeps the golden zone as a separate coach reference', () => {
@@ -3978,8 +3987,8 @@ async function testAsync(name, fn) {
     assert.ok(trainingImportControllerSource.includes("action: duplicate ? 'skip'"), 'duplicates should be skipped by default');
     assert.ok(!trainingImportControllerSource.includes('heartRateZoneDistribution'), 'controller must not synthesize pulse zones');
     assert.ok(styles.includes('.garmin-import-row'), 'Garmin preview styling is missing');
-    assert.ok(app.includes("const APP_VERSION = 'v176u'"));
-    assert.ok(serviceWorker.includes('treningsapp-v176u'));
+    assert.ok(app.includes("const APP_VERSION = 'v176u1'"));
+    assert.ok(serviceWorker.includes('treningsapp-v176u1'));
   });
 
   test('structured interval UI fields and summaries are wired into production files', () => {
