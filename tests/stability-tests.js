@@ -83,6 +83,7 @@ async function testAsync(name, fn) {
   const appStateDomain = await import(pathToFileURL(path.join(root, 'app-state.js')).href);
   const planner = await import(pathToFileURL(path.join(root, 'domain-training-plan.js')).href);
   const periodizedPlan = await import(pathToFileURL(path.join(root, 'domain-periodized-training-plan.js')).href);
+  const snapshotUpdateDomain = await import(pathToFileURL(path.join(root, 'domain-template-snapshot-update.js')).href);
   const localStoreDomain = await import(pathToFileURL(path.join(root, 'local-state-store.js')).href);
   const workoutTemplateUiDomain = await import(pathToFileURL(path.join(root, 'workout-template-ui.js')).href);
   const exerciseDomain = await import(pathToFileURL(path.join(root, 'domain-exercises.js')).href);
@@ -101,6 +102,47 @@ async function testAsync(name, fn) {
   const workoutAssessmentDomain = await import(pathToFileURL(path.join(root, 'domain-workout-assessment.js')).href);
   const aiWorkoutAssessmentDomain = await import(pathToFileURL(path.join(root, 'domain-ai-workout-assessment.js')).href);
   const aiWorkoutContextDomain = await import(pathToFileURL(path.join(root, 'domain-ai-workout-context.js')).href);
+  test('v176s previews and applies explicit template snapshot updates safely', () => {
+    const current = { name: 'Easy Run', type: 'Løping', intensity: 'Rolig', role: 'recovery', roleClassificationVersion: 1 };
+    const next = { name: 'Easy Run', type: 'Løping', intensity: 'Rolig', role: 'easy', roleClassificationVersion: 2 };
+    const diff = snapshotUpdateDomain.buildTemplateSnapshotDiff({
+      currentTemplateId: 'old-template', currentSnapshot: current,
+      nextTemplateId: 'easy-template', nextSnapshot: next
+    });
+    assert.deepStrictEqual(diff.map(row => row.key), ['templateId', 'role', 'roleClassificationVersion']);
+
+    const completed = {
+      id: 'completed-1', templateId: 'old-template', templateSnapshot: current,
+      date: '2026-07-10', durationSeconds: 2989, distanceKm: 6.08,
+      avgHeartRate: 153, rpe: 2, notes: 'Behold dette', externalData: { garmin: { steps: 7000 } }
+    };
+    const updated = snapshotUpdateDomain.applyExplicitTemplateSnapshotUpdate(completed, {
+      kind: 'completed', templateId: 'easy-template', templateSnapshot: next, updatedAt: '2026-08-17T12:00:00.000Z'
+    });
+    ['date', 'durationSeconds', 'distanceKm', 'avgHeartRate', 'rpe', 'notes', 'externalData']
+      .forEach(key => assert.deepStrictEqual(updated[key], completed[key], `${key} must be preserved`));
+    assert.strictEqual(updated.templateSnapshot.role, 'easy');
+    assert.strictEqual(updated.templateSnapshot.roleClassificationVersion, 2);
+    assert.strictEqual(updated.templateSnapshot.snapshotUpdateSource, 'manual_template_refresh');
+    assert.strictEqual(updated.templateSnapshotUpdatedAt, '2026-08-17T12:00:00.000Z');
+
+    const planned = snapshotUpdateDomain.applyExplicitTemplateSnapshotUpdate({ id: 'planned-1', userModifiedFields: ['date'] }, {
+      kind: 'planned', templateId: 'easy-template', templateSnapshot: next, updatedAt: '2026-08-17T12:00:00.000Z'
+    });
+    assert.strictEqual(planned.userModified, true);
+    assert.deepStrictEqual(planned.userModifiedFields, ['date', 'templateId', 'templateSnapshot']);
+  });
+
+  test('v176s snapshot refresh is wired as a versioned modular runtime feature', () => {
+    assert.ok(app.includes("const APP_VERSION = 'v176s'"));
+    assert.ok(serviceWorker.includes('treningsapp-v176s'));
+    ['./domain-template-snapshot-update.js', './template-snapshot-update-ui.js']
+      .forEach(file => assert.ok(serviceWorker.includes(file), `${file} is missing from APP_SHELL`));
+    assert.ok(index.includes('id="templateSnapshotUpdateModal"'));
+    assert.ok(workoutHistoryUiSource.includes("openTemplateSnapshotUpdate('completed'"));
+    assert.ok(app.includes("openTemplateSnapshotUpdate('planned'"));
+    assert.ok(app.includes("roleLabel: value => WORKOUT_ROLE_LABELS[value]"));
+  });
   test('volume trend windows use six synchronized periods and safe navigation', () => {
     const expectedStarts = {
       week: ['2026-07-06', '2026-07-13', '2026-07-20', '2026-07-27', '2026-08-03', '2026-08-10'],
@@ -2962,8 +3004,8 @@ async function testAsync(name, fn) {
     assert.ok(workoutHistoryUiSource.includes('heartRateZoneDistributionRows'), 'history does not use production zone rows');
     assert.ok(workoutHistoryUiSource.includes('Tid i pulssoner'), 'completed detail is missing the heart-rate zone section');
     assert.ok(!workoutHistoryUiSource.includes("row.estimated ? 'ca. '"), 'zone duration should not be prefixed with ca.');
-    assert.ok(app.includes("const APP_VERSION = 'v176r'"), 'visible app version must be v176r');
-    assert.ok(serviceWorker.includes('treningsapp-v176r'), 'cache version must match v176r');
+    assert.ok(app.includes("const APP_VERSION = 'v176s'"), 'visible app version must be v176s');
+    assert.ok(serviceWorker.includes('treningsapp-v176s'), 'cache version must match v176s');
   });
 
   test('v174b evaluates easy and quality sessions without treating zone percentages as a hard truth', () => {
@@ -3058,8 +3100,8 @@ async function testAsync(name, fn) {
     assert.ok(index.includes('id="insightHeartRateComplianceCard"'), 'Insights is missing the compliance card');
     assert.ok(app.includes('heartRateZoneComplianceForItems(last28Days)'), 'coach context does not use the canonical compliance summary');
     assert.ok(app.includes('renderHeartRateZoneComplianceInsight(today)'), 'Insights does not render canonical compliance');
-    assert.ok(app.includes("const APP_VERSION = 'v176r'"), 'visible app version must be v176r');
-    assert.ok(serviceWorker.includes('treningsapp-v176r'), 'cache version must match v176r');
+    assert.ok(app.includes("const APP_VERSION = 'v176s'"), 'visible app version must be v176s');
+    assert.ok(serviceWorker.includes('treningsapp-v176s'), 'cache version must match v176s');
   });
 
   test('v174c uses the test profile for zones and keeps the golden zone as a separate coach reference', () => {
@@ -3635,8 +3677,8 @@ async function testAsync(name, fn) {
     assert.ok(trainingImportControllerSource.includes("action: duplicate ? 'skip'"), 'duplicates should be skipped by default');
     assert.ok(!trainingImportControllerSource.includes('heartRateZoneDistribution'), 'controller must not synthesize pulse zones');
     assert.ok(styles.includes('.garmin-import-row'), 'Garmin preview styling is missing');
-    assert.ok(app.includes("const APP_VERSION = 'v176r'"));
-    assert.ok(serviceWorker.includes('treningsapp-v176r'));
+    assert.ok(app.includes("const APP_VERSION = 'v176s'"));
+    assert.ok(serviceWorker.includes('treningsapp-v176s'));
   });
 
   test('structured interval UI fields and summaries are wired into production files', () => {
