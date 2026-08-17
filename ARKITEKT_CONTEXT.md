@@ -176,6 +176,7 @@ Typisk struktur:
 - `domain-fitness.js` — ren transparent nivåvurdering, aldersrelatert VO2-sammenligning og PB-progresjon
 - `domain-training-plan.js` — ukesroller, rolledekning og enkeltforslag
 - `domain-periodized-training-plan.js` — historiske ukesmål og ren fireukers blokklogikk
+- `domain-template-snapshot-update.js` og `template-snapshot-update-ui.js` — eksplisitt, feltvis oppdatering av frosne malsnapshots uten å endre registrerte øktdata
 - `domain-activity.js` — kildeuavhengig aktivitetsmiljø
 - `domain-volume-trends.js` — seksvinduer og navigerbare uke-/måned-/årsserier
 - `domain-performance-insights.js` — årsoppsummering, milepæler og sammenlignbar form
@@ -1051,4 +1052,3 @@ Den skal ikke overstyre:
 - dokumentert nyere roadmap/backlog/progress
 
 Hvis denne filen og nyere prosjektfiler er i konflikt, skal arkitekten følge de nyere og mer konkrete prosjektfilene.
-
