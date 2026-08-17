@@ -2,6 +2,12 @@
 
 Prioritert backlog for videre utvikling av Treningsapp.
 
+## Datakvalitet
+
+- **Navn og aktivitetstype som motsier hverandre** - senere
+  - Vis en rolig, ikke-blokkerende advarsel ved manuell logging/import når hele ord i øktnavnet tydelig peker på en annen aktivitetstype, for eksempel Hiking/Fottur lagret som Løping.
+  - Ikke gjett eller endre aktivitetstype automatisk.
+
 ## Mål, konkurranse og motivasjon
 
 1. **Dashboard heltekort** - Bygget v134
