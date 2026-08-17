@@ -3381,7 +3381,7 @@ const APP_VERSION = 'v176s1';
 
     function planIntentResetPreview(id) {
       const record = snapshotUpdateRecord('planned', id);
-      if (!record?.userModified || !record.planRef?.prescriptionSnapshot) return null;
+      if (!record?.userModified || (!record.planRef?.prescriptionSnapshot && !record.planIntentBaseline)) return null;
       const diff = buildPlanIntentResetDiff(record).map(row => {
         if (row.key === 'templateId') {
           return {
@@ -3575,7 +3575,7 @@ const APP_VERSION = 'v176s1';
             ${planned.status !== 'done' ? `<button class="btn-success" onclick="openCompleteModal('${planned.id}')">Marker utført</button>` : ''}
             ${planned.status !== 'done' ? `<button class="btn-soft" onclick="openRescheduleModal('${planned.id}')">Endre dato</button>` : ''}
             ${planned.status !== 'done' ? `<button class="btn-soft" onclick="openTemplateSnapshotUpdate('planned', '${planned.id}')">Oppdater fra mal</button>` : ''}
-            ${planned.status !== 'done' && planned.userModified && planned.planRef?.prescriptionSnapshot ? `<button class="btn-soft" onclick="openPlanIntentReset('${planned.id}')">Tilbakestill til plan</button>` : ''}
+            ${planned.status !== 'done' && planned.userModified && (planned.planRef?.prescriptionSnapshot || planned.planIntentBaseline) ? `<button class="btn-soft" onclick="openPlanIntentReset('${planned.id}')">Tilbakestill til plan</button>` : ''}
             ${options.canDelete ? `<button class="btn-soft" onclick="deletePlanned('${planned.id}')">Slett</button>` : ''}
           </div>
         </div>`;
@@ -4544,7 +4544,7 @@ const APP_VERSION = 'v176s1';
           <div class="button-row">
             <button class="btn-soft" onclick="openPlan('${item.date}')">Endre</button>
             <button class="btn-soft" onclick="openTemplateSnapshotUpdate('planned', '${item.id}')">Oppdater fra mal</button>
-            ${item.userModified && item.planRef?.prescriptionSnapshot ? `<button class="btn-soft" onclick="openPlanIntentReset('${item.id}')">Tilbakestill til plan</button>` : ''}
+            ${item.userModified && (item.planRef?.prescriptionSnapshot || item.planIntentBaseline) ? `<button class="btn-soft" onclick="openPlanIntentReset('${item.id}')">Tilbakestill til plan</button>` : ''}
           </div>
         </div>`;
     }
