@@ -17,6 +17,7 @@ const architectureSource = read('ARCHITECTURE.md');
 const appStateSource = read('app-state.js');
 const plannerSource = read('domain-training-plan.js');
 const periodizedPlanSource = read('domain-periodized-training-plan.js');
+const trainingPlanControllerSource = read('training-plan-controller.js');
 const repositorySource = read('training-repository.js');
 const calendarUiSource = read('calendar-ui.js');
 const workoutTemplateUiSource = read('workout-template-ui.js');
@@ -83,6 +84,7 @@ async function testAsync(name, fn) {
   const appStateDomain = await import(pathToFileURL(path.join(root, 'app-state.js')).href);
   const planner = await import(pathToFileURL(path.join(root, 'domain-training-plan.js')).href);
   const periodizedPlan = await import(pathToFileURL(path.join(root, 'domain-periodized-training-plan.js')).href);
+  const trainingPlanController = await import(pathToFileURL(path.join(root, 'training-plan-controller.js')).href);
   const snapshotUpdateDomain = await import(pathToFileURL(path.join(root, 'domain-template-snapshot-update.js')).href);
   const localStoreDomain = await import(pathToFileURL(path.join(root, 'local-state-store.js')).href);
   const workoutTemplateUiDomain = await import(pathToFileURL(path.join(root, 'workout-template-ui.js')).href);
@@ -202,8 +204,8 @@ async function testAsync(name, fn) {
   });
 
   test('v176s2 keeps rare snapshot actions in the day modal and the week overview compact', () => {
-    assert.ok(app.includes("const APP_VERSION = 'v176s2'"));
-    assert.ok(serviceWorker.includes('treningsapp-v176s2'));
+    assert.ok(app.includes("const APP_VERSION = 'v176t'"));
+    assert.ok(serviceWorker.includes('treningsapp-v176t'));
     ['./domain-template-snapshot-update.js', './template-snapshot-update-ui.js']
       .forEach(file => assert.ok(serviceWorker.includes(file), `${file} is missing from APP_SHELL`));
     assert.ok(index.includes('id="templateSnapshotUpdateModal"'));
@@ -1061,7 +1063,7 @@ async function testAsync(name, fn) {
   });
 
   test('all user data collections are included in replacement import', () => {
-    ['exercises', 'templates', 'planned', 'completed', 'wellness', 'challenges', 'blockedDays', 'raceResults', 'continuityFreezes', 'heartRateZoneSets', 'weeklyTargetSnapshots'].forEach(collection => {
+    ['exercises', 'templates', 'planned', 'completed', 'wellness', 'challenges', 'blockedDays', 'raceResults', 'continuityFreezes', 'heartRateZoneSets', 'trainingPlans', 'weeklyTargetSnapshots'].forEach(collection => {
       assert.ok(repositorySource.includes(`'${collection}'`), `${collection} is missing from TRAINING_DATA_COLLECTIONS`);
     });
     assert.ok(app.includes('replaceFirestoreData(nextState)'), 'import does not call replaceFirestoreData(nextState)');
@@ -1413,6 +1415,175 @@ async function testAsync(name, fn) {
     assert.ok(conflicts.every(item => item.conflictType === 'manual_workout'));
     assert.ok(conflicts.every(item => !item.allowedActions.includes('adopt')));
     assert.deepStrictEqual(conflicts[0].allowedActions, ['choose_another_date', 'skip']);
+  });
+
+  test('v176t preview materializes only current and next week and makes realistic manual collisions primary conflicts', () => {
+    const templates = [
+      { id: 'easy', name: 'Easy Run', type: 'Løping', intensity: 'Rolig', role: 'easy' },
+      { id: 'long', name: 'Rolig langtur', type: 'Løping', intensity: 'Rolig', role: 'long_easy' }
+    ];
+    const weeks = [0, 1, 2, 3].map((weekIndex) => ({
+      slots: [0, 1, 2].map((slotIndex) => ({
+        slotId: `w${weekIndex + 1}-s${slotIndex + 1}`,
+        preferredDay: slotIndex + 1,
+        role: slotIndex === 2 ? 'long_easy' : 'easy',
+        templateId: slotIndex === 2 ? 'long' : 'easy'
+      }))
+    }));
+    const plan = {
+      id: 'base-1', status: 'active', name: 'Baseblokk', focus: 'base', startDate: '2026-08-17', planRevision: 2,
+      calibration: { metric: 'sessions', baselineValue: 3, sourceCoverage: 1, userConfirmed: true }, weeks
+    };
+    const plannedItems = ['2026-08-17', '2026-08-18', '2026-08-19', '2026-08-24'].map((date, index) => ({
+      id: `manual-${index + 1}`, date, status: 'planned', templateId: 'easy', templateSnapshot: templates[0]
+    }));
+    const before = JSON.stringify({ plan, plannedItems, templates });
+    const preview = trainingPlanController.buildTrainingPlanMaterializationPreview({
+      plan, plannedItems, templates, today: '2026-08-17', now: '2026-08-17T10:00:00.000Z'
+    });
+    assert.deepStrictEqual(preview.window.weekStarts, ['2026-08-17', '2026-08-24']);
+    assert.strictEqual(preview.operations.length, 6);
+    assert.strictEqual(preview.summary.conflict, 4);
+    assert.strictEqual(preview.summary.create, 2);
+    assert.strictEqual(preview.summary.requiresChoice, 4);
+    assert.ok(preview.operations.filter(item => item.reason === 'manual_workout').every(item => {
+      return item.allowedActions.join(',') === 'choose_another_date,skip' && !item.allowedActions.includes('adopt');
+    }));
+    assert.ok(preview.operations.every(item => item.weekIndex <= 2));
+    assert.strictEqual(preview.writeEnabled, false);
+    assert.strictEqual(JSON.stringify({ plan, plannedItems, templates }), before, 'preview must not mutate input');
+  });
+
+  test('v176t preview protects intent overrides and schedule adjustments and never creates a moved-slot replacement', () => {
+    const template = { id: 'easy', name: 'Easy Run', type: 'Løping', intensity: 'Rolig', role: 'easy' };
+    const plan = {
+      id: 'base-2', status: 'active', focus: 'base', startDate: '2026-08-17', planRevision: 3,
+      calibration: { metric: 'sessions', baselineValue: 2, sourceCoverage: 1, userConfirmed: true },
+      weeks: [
+        { slots: [
+          { slotId: 'w1-s1', preferredDay: 2, role: 'easy', templateId: 'easy' },
+          { slotId: 'w1-s2', preferredDay: 4, role: 'easy', templateId: 'easy' }
+        ] }, { slots: [
+          { slotId: 'w2-s1', preferredDay: 2, role: 'easy', templateId: 'easy' },
+          { slotId: 'w2-s2', preferredDay: 4, role: 'easy', templateId: 'easy' }
+        ] }, { slots: [] }, { slots: [] }
+      ]
+    };
+    const plannedItems = [
+      {
+        id: 'moved', date: '2026-08-24', templateId: 'easy', templateSnapshot: template,
+        planRef: { planId: 'base-2', planRevision: 2, weekStart: '2026-08-17', weekIndex: 1, slotId: 'w1-s1' },
+        scheduleAdjustment: { originalDate: '2026-08-18', adjustedDate: '2026-08-24', state: 'rescheduled_out' }
+      },
+      {
+        id: 'changed', date: '2026-08-20', templateId: 'threshold', templateSnapshot: { ...template, id: 'threshold', role: 'support_threshold' },
+        planRef: { planId: 'base-2', planRevision: 2, weekStart: '2026-08-17', weekIndex: 1, slotId: 'w1-s2' },
+        userModified: true, userModifiedFields: ['templateId', 'templateSnapshot'], planIntentOverride: { active: true }
+      }
+    ];
+    const preview = trainingPlanController.buildTrainingPlanMaterializationPreview({
+      plan, plannedItems, templates: [template], today: '2026-08-17', now: '2026-08-17T10:00:00.000Z'
+    });
+    assert.strictEqual(preview.operations.filter(item => item.weekStart === '2026-08-17').length, 2, 'moved slot must not get a replacement');
+    assert.strictEqual(preview.operations.filter(item => item.slotId === 'w1-s1').length, 1, 'moved slot must remain one tracked slot');
+    assert.strictEqual(preview.operations.find(item => item.slotId === 'w1-s1').reason, 'schedule_adjustment');
+    assert.strictEqual(preview.operations.find(item => item.slotId === 'w1-s2').reason, 'user_intent_override');
+    assert.strictEqual(preview.summary.requiresChoice, 2);
+    const keepPreview = trainingPlanController.buildTrainingPlanMaterializationPreview({
+      plan, plannedItems, templates: [template], today: '2026-08-17',
+      choices: { 'w1-s1': { action: 'keep_adjusted' }, 'w1-s2': { action: 'keep_user_intent' } }
+    });
+    assert.strictEqual(keepPreview.operations.filter(item => item.weekStart === '2026-08-17' && item.type === 'keep').length, 2);
+    assert.strictEqual(keepPreview.summary.requiresChoice, 0);
+    assert.strictEqual(keepPreview.operations.find(item => item.slotId === 'w1-s1').before.date, '2026-08-24');
+  });
+
+  test('v176t materialization preview is compatible with template refresh, plan reset and completion tracking', () => {
+    const template = { id: 'easy', name: 'Easy Run', type: 'Løping', intensity: 'Rolig', role: 'easy' };
+    const plan = {
+      id: 'base-3', status: 'active', focus: 'base', startDate: '2026-08-17', planRevision: 1,
+      calibration: { metric: 'sessions', baselineValue: 1, sourceCoverage: 1, userConfirmed: true },
+      weeks: [{ slots: [{ slotId: 'w1-s1', preferredDay: 2, role: 'easy', templateId: 'easy' }] }, { slots: [] }, { slots: [] }, { slots: [] }]
+    };
+    const preview = trainingPlanController.buildTrainingPlanMaterializationPreview({
+      plan, templates: [template], today: '2026-08-17', now: '2026-08-17T10:00:00.000Z'
+    });
+    const createOperation = preview.operations.find(item => item.slotId === 'w1-s1');
+    const materialized = createOperation.after;
+    assert.strictEqual(createOperation.type, 'create');
+    assert.strictEqual(materialized.templateSnapshot.roleClassificationVersion, 2);
+    assert.strictEqual(materialized.planRef.slotId, 'w1-s1');
+    assert.strictEqual(materialized.planRef.prescriptionSnapshot.templateId, 'easy');
+    const overridden = snapshotUpdateDomain.applyPlanIntentOverride(materialized, {
+      updates: { templateId: 'threshold', templateSnapshot: { ...template, role: 'support_threshold' } },
+      fields: ['templateId', 'templateSnapshot'], updatedAt: '2026-08-18T10:00:00.000Z'
+    });
+    const reset = snapshotUpdateDomain.resetPlanIntentOverride(overridden, { updatedAt: '2026-08-18T11:00:00.000Z' });
+    assert.strictEqual(reset.templateId, 'easy');
+    assert.strictEqual(reset.userModified, false);
+    const completionTracking = snapshotUpdateDomain.planTrackingForCompletion(materialized);
+    assert.strictEqual(completionTracking.planRef.planId, 'base-3');
+  });
+
+  test('v176t controller is read-only until preview is verified', () => {
+    const state = { planned: [], completed: [], templates: [] };
+    const before = JSON.stringify(state);
+    const controller = trainingPlanController.createTrainingPlanController({ getState: () => state });
+    assert.throws(() => controller.materialize(), /sperret/);
+    assert.strictEqual(JSON.stringify(state), before);
+    assert.ok(trainingPlanControllerSource.includes('writeEnabled: false'));
+  });
+
+  test('v176t preview is idempotent and preserves user notes while updating only an outdated plan prescription', () => {
+    const template = { id: 'easy', name: 'Easy Run', type: 'Løping', intensity: 'Rolig', role: 'easy' };
+    const plan = {
+      id: 'base-4', status: 'active', focus: 'base', startDate: '2026-08-17', planRevision: 1,
+      calibration: { metric: 'sessions', baselineValue: 1, sourceCoverage: 1, userConfirmed: true },
+      weeks: [
+        { slots: [{ slotId: 'w1-s1', preferredDay: 2, role: 'easy', templateId: 'easy' }] },
+        { slots: [{ slotId: 'w2-s1', preferredDay: 2, role: 'easy', templateId: 'easy' }] },
+        { slots: [] }, { slots: [] }
+      ]
+    };
+    const first = trainingPlanController.buildTrainingPlanMaterializationPreview({
+      plan, templates: [template], today: '2026-08-17', now: '2026-08-17T10:00:00.000Z'
+    });
+    const existing = first.operations.map(item => ({ ...item.after, notes: 'Mitt eget notat' }));
+    const same = trainingPlanController.buildTrainingPlanMaterializationPreview({
+      plan, plannedItems: existing, templates: [template], today: '2026-08-17', now: '2026-08-17T11:00:00.000Z'
+    });
+    assert.ok(same.operations.every(item => item.type === 'keep' && item.reason === 'already_materialized'));
+    const revised = trainingPlanController.buildTrainingPlanMaterializationPreview({
+      plan: { ...plan, planRevision: 2 }, plannedItems: existing, templates: [template],
+      today: '2026-08-17', now: '2026-08-17T12:00:00.000Z'
+    });
+    assert.ok(revised.operations.every(item => item.type === 'update'));
+    assert.ok(revised.operations.every(item => item.after.notes === 'Mitt eget notat'));
+    assert.ok(revised.operations.every(item => item.after.planRef.planRevision === 2));
+  });
+
+  test('v176t race does not cover any configured normal-week role', () => {
+    const roles = [
+      { role: 'easy', required: true },
+      { role: 'support_threshold', required: true },
+      { role: 'long_easy', required: true }
+    ];
+    const coverage = planner.roleCoverage(roles, [], [{ id: 'race-1', workoutRole: 'race' }]);
+    assert.deepStrictEqual(coverage.map(item => item.status), ['missing', 'missing', 'missing']);
+    assert.ok(app.includes("return `${roleLabel}: dekker en rolle i normaluka.`"), 'the reported defect is the generic explanation, not role coverage');
+  });
+
+  test('v176t training plans are normalized through state, backup and repository wiring', () => {
+    const normalized = appStateDomain.normalizeAppState({
+      trainingPlans: [{
+        id: 'plan-state', status: 'draft', startDate: '2026-08-17',
+        calibration: { metric: 'sessions', baselineValue: 3, userConfirmed: false }
+      }]
+    });
+    assert.strictEqual(normalized.trainingPlans.length, 1);
+    assert.strictEqual(normalized.trainingPlans[0].id, 'plan-state');
+    assert.deepStrictEqual(appStateDomain.createEmptyAppState().trainingPlans, []);
+    assert.ok(repositorySource.includes("'trainingPlans'"));
   });
 
   test('v176p evaluatePlanWeek consumes injected assessments without mutating input', () => {
@@ -3083,8 +3254,8 @@ async function testAsync(name, fn) {
     assert.ok(workoutHistoryUiSource.includes('heartRateZoneDistributionRows'), 'history does not use production zone rows');
     assert.ok(workoutHistoryUiSource.includes('Tid i pulssoner'), 'completed detail is missing the heart-rate zone section');
     assert.ok(!workoutHistoryUiSource.includes("row.estimated ? 'ca. '"), 'zone duration should not be prefixed with ca.');
-    assert.ok(app.includes("const APP_VERSION = 'v176s2'"), 'visible app version must be v176s2');
-    assert.ok(serviceWorker.includes('treningsapp-v176s2'), 'cache version must match v176s2');
+    assert.ok(app.includes("const APP_VERSION = 'v176t'"), 'visible app version must be v176t');
+    assert.ok(serviceWorker.includes('treningsapp-v176t'), 'cache version must match v176t');
   });
 
   test('v174b evaluates easy and quality sessions without treating zone percentages as a hard truth', () => {
@@ -3179,8 +3350,8 @@ async function testAsync(name, fn) {
     assert.ok(index.includes('id="insightHeartRateComplianceCard"'), 'Insights is missing the compliance card');
     assert.ok(app.includes('heartRateZoneComplianceForItems(last28Days)'), 'coach context does not use the canonical compliance summary');
     assert.ok(app.includes('renderHeartRateZoneComplianceInsight(today)'), 'Insights does not render canonical compliance');
-    assert.ok(app.includes("const APP_VERSION = 'v176s2'"), 'visible app version must be v176s2');
-    assert.ok(serviceWorker.includes('treningsapp-v176s2'), 'cache version must match v176s2');
+    assert.ok(app.includes("const APP_VERSION = 'v176t'"), 'visible app version must be v176t');
+    assert.ok(serviceWorker.includes('treningsapp-v176t'), 'cache version must match v176t');
   });
 
   test('v174c uses the test profile for zones and keeps the golden zone as a separate coach reference', () => {
@@ -3756,8 +3927,8 @@ async function testAsync(name, fn) {
     assert.ok(trainingImportControllerSource.includes("action: duplicate ? 'skip'"), 'duplicates should be skipped by default');
     assert.ok(!trainingImportControllerSource.includes('heartRateZoneDistribution'), 'controller must not synthesize pulse zones');
     assert.ok(styles.includes('.garmin-import-row'), 'Garmin preview styling is missing');
-    assert.ok(app.includes("const APP_VERSION = 'v176s2'"));
-    assert.ok(serviceWorker.includes('treningsapp-v176s2'));
+    assert.ok(app.includes("const APP_VERSION = 'v176t'"));
+    assert.ok(serviceWorker.includes('treningsapp-v176t'));
   });
 
   test('structured interval UI fields and summaries are wired into production files', () => {
