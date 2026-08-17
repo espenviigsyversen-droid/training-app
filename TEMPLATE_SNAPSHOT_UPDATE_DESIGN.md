@@ -11,7 +11,7 @@ Ingen snapshot oppdateres automatisk. Det finnes ingen skjult bulkoperasjon.
 - Kilden er en konkret, eksisterende øktmal som brukeren velger.
 - Forhåndsvisningen viser gammel og ny verdi for mal, navn, aktivitetstype, intensitet, rolle, formål, belastning, struktur, lenke, strukturert intervall og øvelsesplan.
 - Et bekreftet snapshot får `roleClassificationVersion: 2`, `snapshotUpdatedAt` og `snapshotUpdateSource: "manual_template_refresh"`.
-- Planlagte økter markeres `userModified: true`, og `templateId`/`templateSnapshot` legges til `userModifiedFields`. Runde 4 må derfor behandle dem som fredede konflikter.
+- Planlagte økter får `metadataRevision` med kilde, tidspunkt, mal og rollemodell. En eksplisitt faktakorrigering skal ikke sette `userModified`; bare en reell overstyring av planens intensjon skal fredes. Dette skillet ferdigstilles i runde 4 før blokkfunksjonen aktiveres.
 - Fullførte økter får bare nytt `templateId`, `templateSnapshot` og revisjonsmetadata. Dato, målinger, varighet, distanse, puls, RPE, kroppssignal og notater bevares byte-for-byte av domenefunksjonen.
 - Oppdateringen vises i øktdetaljene med rolle og dato.
 - Avbrytelse eller lagringsfeil etterlater originalen uendret.
@@ -48,9 +48,12 @@ Feiltilstand: «Kunne ikke oppdatere malsnapshot. Økten er ikke endret.»
 
 - Diffen viser bare faktiske metadataendringer og inkluderer malreferansen.
 - Oppdatering av en fullført økt bevarer alle registrerte felt.
-- Planlagt økt blir `userModified` og kan ikke stille overskrives av senere materialisering.
+- Planlagt økt får sporbar `metadataRevision` uten å bli permanent fredet. Rolleavvik mot en senere planslot skal likevel vises som konflikt.
 - Snapshot versjoneres til v2 og tidsstemples.
 - Samme mal/samme metadata gir tom diff og deaktivert bekreftelse.
 - Rolle og oppdateringsdato vises i fullført detaljmodal.
 - Begge økttyper kan oppdateres fra mobil.
 
+## Implementeringsstatus før runde 4
+
+v176s leverte den feltvise, enkeltvise ventilen, men første versjon setter fortsatt `userModified` på en planlagt økt. Dette er nå definert som feil semantikk: handlingen er en `metadataRevision`, ikke en intensjonsoverstyring. Korrigeringen og den reversible «Tilbakestill til plan»-kontrakten er en eksplisitt port før blokkmaterialisering.
