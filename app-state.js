@@ -14,6 +14,7 @@ import {
 import { normalizeAiWorkoutAssessment } from './domain-ai-workout-assessment.js';
 import { activitySettingForCompleted } from './domain-activity.js';
 import {
+  normalizePeriodizedTrainingPlans,
   normalizeWeeklyTargetSnapshotPolicy,
   normalizeWeeklyTargetSnapshots
 } from './domain-periodized-training-plan.js';
@@ -113,6 +114,7 @@ export function createEmptyAppState(settings = freshDefaultSettings()) {
     raceResults: [],
     continuityFreezes: [],
     heartRateZoneSets: [],
+    trainingPlans: [],
     weeklyTargetSnapshots: [],
     settings: normalizeSettings(settings)
   };
@@ -381,6 +383,7 @@ export function normalizeAppState(input = {}) {
     raceResults: normalizeRaceResultEntries(input.raceResults),
     continuityFreezes: normalizeContinuityFreezes(input.continuityFreezes),
     heartRateZoneSets: normalizeHeartRateZoneSets(input.heartRateZoneSets),
+    trainingPlans: normalizePeriodizedTrainingPlans(input.trainingPlans),
     weeklyTargetSnapshots: normalizeWeeklyTargetSnapshots(input.weeklyTargetSnapshots),
     settings: normalizeSettings(input.settings)
   };
