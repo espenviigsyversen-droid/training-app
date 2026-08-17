@@ -41,6 +41,8 @@ node --check local-state-store.js
 node --check training-repository.js
 node --check domain-training-plan.js
 node --check domain-periodized-training-plan.js
+node --check domain-template-snapshot-update.js
+node --check template-snapshot-update-ui.js
 node --check calendar-ui.js
 node --check functions\ai\chat-store.js
 node --check functions\ai\model-profiles.js
@@ -82,6 +84,8 @@ Ved vanlig appendring:
 - `domain-core.js`
 - `domain-coach.js`
 - `domain-periodized-training-plan.js`
+- `domain-template-snapshot-update.js`
+- `template-snapshot-update-ui.js`
 - `ai-coach-client.js`
 - `ai-coach-ui.js`
 - `index.html`
@@ -139,4 +143,3 @@ Ved oppgradering av Firebase Functions SDK:
 3. Last opp alle endrede filer på nytt
 4. Hvis data ser feil ut: ikke importer backup før årsaken er forstått
 5. Bruk eventuelt `Gjenopprett sikkerhetskopi` hvis feilen kom etter import/reset
-
