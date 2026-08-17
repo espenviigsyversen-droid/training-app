@@ -11,6 +11,7 @@ node --check app.js
 node --check service-worker.js
 node --check domain-core.js
 node --check domain-periodized-training-plan.js
+node --check training-plan-controller.js
 node tests\stability-tests.js
 ```
 
