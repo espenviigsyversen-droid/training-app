@@ -191,6 +191,7 @@ export function applyPlanIntentOverride(record = {}, { updates = {}, fields = []
   next.userModified = true;
   next.userModifiedFields = uniqueText([...tracked.userModifiedFields, ...changedFields]);
   next.planIntentOverride = { active: true, changedAt: timestamp, fields: [...next.userModifiedFields] };
+  next.planIntentBaseline = cloneValue(tracked.planIntentBaseline || prescription);
   if (tracked.planRef) {
     next.planRef = {
       ...tracked.planRef,
@@ -201,7 +202,7 @@ export function applyPlanIntentOverride(record = {}, { updates = {}, fields = []
   return next;
 }
 
-export function buildPlanIntentResetDiff(record = {}, prescriptionSnapshot = record?.planRef?.prescriptionSnapshot || {}) {
+export function buildPlanIntentResetDiff(record = {}, prescriptionSnapshot = record?.planRef?.prescriptionSnapshot || record?.planIntentBaseline || {}) {
   const prescribed = prescriptionSnapshot && typeof prescriptionSnapshot === 'object' ? prescriptionSnapshot : {};
   return uniqueText(record.userModifiedFields)
     .filter(field => PLAN_INTENT_FIELDS.has(field) && Object.prototype.hasOwnProperty.call(prescribed, field))
@@ -218,7 +219,7 @@ export function buildPlanIntentResetDiff(record = {}, prescriptionSnapshot = rec
 
 export function resetPlanIntentOverride(record = {}, { prescriptionSnapshot, updatedAt } = {}) {
   if (!record?.id) throw new Error('Planlagt økt må være angitt.');
-  const prescribed = prescriptionSnapshot || record.planRef?.prescriptionSnapshot;
+  const prescribed = prescriptionSnapshot || record.planRef?.prescriptionSnapshot || record.planIntentBaseline;
   if (!prescribed || typeof prescribed !== 'object') throw new Error('Planens opprinnelige innhold er ikke tilgjengelig.');
   const next = { ...normalizePlanChangeTracking(record) };
   uniqueText(next.userModifiedFields).forEach(field => {
@@ -229,6 +230,7 @@ export function resetPlanIntentOverride(record = {}, { prescriptionSnapshot, upd
   next.userModified = false;
   next.userModifiedFields = [];
   next.planIntentOverride = null;
+  next.planIntentBaseline = null;
   next.updatedAt = String(updatedAt || new Date().toISOString());
   return next;
 }
@@ -240,6 +242,7 @@ export function planTrackingForCompletion(record = {}) {
     ...(tracked.scheduleAdjustment ? { scheduleAdjustment: cloneValue(tracked.scheduleAdjustment) } : {}),
     ...(tracked.metadataRevision ? { metadataRevision: cloneValue(tracked.metadataRevision) } : {}),
     ...(tracked.planIntentOverride ? { planIntentOverride: cloneValue(tracked.planIntentOverride) } : {}),
+    ...(tracked.planIntentBaseline ? { planIntentBaseline: cloneValue(tracked.planIntentBaseline) } : {}),
     userModified: tracked.userModified === true,
     userModifiedFields: [...tracked.userModifiedFields]
   };
