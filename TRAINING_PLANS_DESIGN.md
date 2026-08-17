@@ -390,7 +390,7 @@ activeBlock
   : applyRaceContextToSuggestionMix(normalSuggestions, raceContext, count)
 ```
 
-Race-kontekst kan fortsatt vises på planen, men kan ikke justere rolleblandingen en gang til. Uten aktiv blokk er dagens race-logikk uendret.
+Race-kontekst kan fortsatt vises på planen, men kan ikke justere rolleblandingen en gang til. Uten aktiv blokk får race bare bruke en forslagsplass når alle obligatoriske roller i normaluken allerede er dekket av fullførte eller planlagte økter. Race dekker aldri selv en normalukerolle. Når roller mangler, beholdes hele forslagstaket til rollehullene; race kan senere vises som eksplisitt bonus.
 
 En challenge har eget mål og egen periode gjennom `challengeProgress()` og er uavhengig av ukesmålet. Appen skal aldri redusere et selvvalgt challenge-mål automatisk. Ved konflikt vises:
 
@@ -713,6 +713,8 @@ Planlagring, `planRevision`, planreferanser, preview/diff, konfliktpolicy, curre
 
 **Preview-port levert i v176t:** `trainingPlans` inngår i hele datasirkelen, og `training-plan-controller.js` bygger current+next-diff fra produksjonsmodulen. Controllerens materialiseringshandling kaster eksplisitt feil og previewen merkes `writeEnabled: false` inntil konflikt- og endringsvernet er verifisert. Ingen økt opprettes eller endres i dette delsteget.
 
+**Preview-UI levert i v176u, steg 1:** `training-plan-ui.js` eksponerer hurtigflyt, faktisk historisk volumvalidering, alle fire uker, slot-basert avlastningsmål og eksplisitte konfliktvalg. Utkast og valg lever bare i minnet. UI-et kan bare kalle controllerens `preview()`; lagring og materialisering er fortsatt utilgjengelig.
+
 ### Runde 5 – Mobil-først produktflate
 
 Opprettelsesflyt, Kalender-visning, Hjem-kort, tom-/konflikt-/feiltilstander og progressiv forklaring. Kan utvikles bak deaktivert feature-flag til runde 4 er verifisert.
@@ -739,4 +741,3 @@ Sekundær plankontekst, ukentlig evaluering, blokk-fullført-oppsummering, ende-
 ## 11. Senere utvikling
 
 Når v1 er stabil og brukt i minst én full blokk, kan v2 vurdere flere blokker i en 12-ukers løpsplan, blokkbibliotek, forsiktig forslag til neste blokk og bedre kobling mot mål-løp. Dette er eksplisitt utenfor v1 og skal bygge på faktisk erfaring med opprettelse, konflikter, avlastning og fullført-oppsummering.
-
