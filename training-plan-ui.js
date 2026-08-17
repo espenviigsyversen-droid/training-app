@@ -74,6 +74,15 @@ function defaultRoles(focus, count) {
   return periodizedRolePolicy({ focus, slotCount: count, weekType: 'load' }).roles;
 }
 
+export function trainingProfileRolesForPreview(trainingProfile = {}, count = 3, focus = 'base') {
+  const target = Math.max(1, Math.min(4, Math.round(asNumber(count, 3))));
+  const fallback = defaultRoles(focus, target);
+  const configured = Array.isArray(trainingProfile?.weekPlanRoles) ? trainingProfile.weekPlanRoles : [];
+  return Array.from({ length: target }, (_, index) => (
+    ROLE_OPTIONS.includes(configured[index]) ? configured[index] : fallback[index]
+  ));
+}
+
 function formatMetricValue(value, metric) {
   const number = asNumber(value);
   return metric === 'duration' ? `${Math.round(number)} min` : `${Math.round(number)} økter`;
@@ -88,7 +97,7 @@ function validationLabel(validation = {}) {
 
 function operationLabel(operation = {}) {
   return {
-    create: 'Ny planøkt',
+    create: 'Ny planøkt:',
     update: 'Foreslått endring',
     keep: 'Beholdes',
     remove: 'Foreslått fjernet',
@@ -199,7 +208,8 @@ export function createTrainingPlanUi({
       focus,
       startDate: nextMonday(todayISO()),
       slotCount: target,
-      roles: defaultRoles(focus, target),
+      rolePreset: 'profile',
+      roles: trainingProfileRolesForPreview(state.settings?.trainingProfile, target, focus),
       templateIds: [],
       metric: 'auto',
       userConfirmed: false
@@ -274,6 +284,12 @@ export function createTrainingPlanUi({
     return `<div class="training-plan-step">
       <h3>Hva skal få fast plass?</h3>
       <p>Rollene gir blokken retning. Du velger konkrete maler for den skrivefrie forhåndsvisningen.</p>
+      <label for="trainingPlanRolePreset">Utgangspunkt for roller</label>
+      <select id="trainingPlanRolePreset" data-plan-field="rolePreset">
+        <option value="profile"${draft.rolePreset === 'profile' ? ' selected' : ''}>Min treningsprofil (anbefalt)</option>
+        <option value="block"${draft.rolePreset === 'block' ? ' selected' : ''}>Blokkstandard</option>
+        ${draft.rolePreset === 'custom' ? '<option value="custom" selected>Tilpasset av meg</option>' : ''}
+      </select>
       <label for="trainingPlanSlotCount">Økter i belastningsukene</label>
       <select id="trainingPlanSlotCount" data-plan-field="slotCount">
         ${[1, 2, 3, 4].map(count => `<option value="${count}"${count === draft.slotCount ? ' selected' : ''}>${count} økt${count === 1 ? '' : 'er'}</option>`).join('')}
@@ -291,7 +307,7 @@ export function createTrainingPlanUi({
           </label>
         </div>`).join('')}
       </div>
-      <p class="small-note">Baseblokk foreslår Rolig baseøkt, Rolig baseøkt og Rolig langtur. Avlastningsuken får én færre planplass.</p>
+      <p class="small-note">Treningsprofilen brukes som standard. Blokkstandarden er et synlig alternativ og foreslår Rolig baseøkt, Rolig baseøkt og Rolig langtur. Avlastningsuken får én færre planplass.</p>
     </div>`;
   }
 
@@ -383,7 +399,7 @@ export function createTrainingPlanUi({
       <section class="training-plan-diff">
         <div class="training-plan-diff-head"><div><span>Kalenderdiff</span><strong>Inneværende og neste uke</strong></div><small>${escapeHtml(preview.summary?.requiresChoice || 0)} valg gjenstår</small></div>
         ${preview.operations.length ? preview.operations.map(operation => `<div class="training-plan-operation ${escapeHtml(operation.type)}">
-          <div><span>${escapeHtml(operationLabel(operation))}</span><strong>${escapeHtml(formatDate(operation.date))} · ${escapeHtml(roleLabels[operation.role] || DEFAULT_ROLE_LABELS[operation.role] || operation.role)}</strong><p>${escapeHtml(operation.type === 'conflict' ? conflictText(operation.reason) : operation.reason === 'slot_missing' ? 'Denne planplassen ville blitt opprettet senere.' : 'Eksisterende data beholdes eller vises som differanse.')}</p></div>
+          <div><span>${escapeHtml(operationLabel(operation))} </span><strong>${escapeHtml(formatDate(operation.date))} · ${escapeHtml(roleLabels[operation.role] || DEFAULT_ROLE_LABELS[operation.role] || operation.role)}</strong><p>${escapeHtml(operation.type === 'conflict' ? conflictText(operation.reason) : operation.reason === 'slot_missing' ? 'Denne planplassen ville blitt opprettet nå.' : 'Eksisterende data beholdes eller vises som differanse.')}</p></div>
           ${operation.blockingItems?.length ? `<ul>${operation.blockingItems.map(item => `<li>${escapeHtml(item.templateSnapshot?.name || item.name || 'Eksisterende økt')} · ${escapeHtml(formatDate(item.date))}</li>`).join('')}</ul>` : ''}
           ${conflictChoice(operation)}
         </div>`).join('') : '<p class="small-note">Ingen uker ligger i materialiseringsvinduet ennå.</p>'}
@@ -425,8 +441,11 @@ export function createTrainingPlanUi({
       if (field) {
         const value = field === 'slotCount' ? Math.max(1, Math.min(4, Math.round(asNumber(event.target.value, 3)))) : event.target.value;
         draft[field] = value;
-        if (field === 'focus' || field === 'slotCount') {
-          draft.roles = defaultRoles(draft.focus, draft.slotCount);
+        if (field === 'rolePreset' || field === 'focus' || field === 'slotCount') {
+          const state = getState() || {};
+          draft.roles = draft.rolePreset === 'profile'
+            ? trainingProfileRolesForPreview(state.settings?.trainingProfile, draft.slotCount, draft.focus)
+            : defaultRoles(draft.focus, draft.slotCount);
           draft.templateIds = [];
         }
         draft.userConfirmed = false;
@@ -434,6 +453,7 @@ export function createTrainingPlanUi({
       if (event.target.dataset.planRole !== undefined) {
         const index = Number(event.target.dataset.planRole);
         draft.roles[index] = event.target.value;
+        draft.rolePreset = 'custom';
         draft.templateIds[index] = '';
       }
       if (event.target.dataset.planTemplate !== undefined) draft.templateIds[Number(event.target.dataset.planTemplate)] = event.target.value;
