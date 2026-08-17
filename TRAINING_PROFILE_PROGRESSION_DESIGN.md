@@ -37,6 +37,7 @@ Målet er å:
 - En uke er datakvalifisert når den har minst to fullførte økter med utledbar rolle/intensjonsklasse.
 - Pågående uke holdes utenfor. Uker med aktiv skade-/comebackreduksjon eller eksplisitt avlastningsuke vises i grunnlaget, men teller ikke som bevis for permanent profilendring. Søket fortsetter bakover forbi slike uker innen 12-ukersgrensen for å samle opptil åtte kvalifiserte uker; minst seks kreves.
 - Klassifisering skal gjenbruke v2 av `inferredWorkoutRole()` og kanonisk intensitetsklassifisering etter rolleporten i `TRAINING_PLANS_DESIGN.md`. Den kanoniske modellen skiller `easy` (vanlig rolig base), `long_easy` (langtur) og `recovery` (bevisst restitusjon). Ingen ny parallell rollemodell.
+- Avviksdeteksjonen bruker lagret v1/v2-klassifisering og skal aldri omklassifisere historiske uker når den relative langtursbaselinen senere får nok data.
 - Avviksdeteksjonen kan ikke implementeres før v2-rollen og tellende `roleCoverage()` er levert. Ellers vil vanlig rolig løping feilaktig telle som langtur/restitusjon, og én økt kan dekke flere like profilplasser.
 - Nye bevisuker bruker snapshots med `roleClassificationVersion: 2`. Legacy-uker kan vises som historikk med sin opprinnelige klassifisering, men inngår ikke i et forslag som sammenligner mot en profilrevisjon etter rolleporten.
 
