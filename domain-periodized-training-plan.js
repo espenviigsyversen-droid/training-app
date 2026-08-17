@@ -629,6 +629,18 @@ export function normalizePeriodizedTrainingPlan(input = {}, { rules = DEFAULT_CO
   };
 }
 
+export function normalizePeriodizedTrainingPlans(items = [], { rules = DEFAULT_COACH_RULES } = {}) {
+  const byId = new Map();
+  (Array.isArray(items) ? items : []).forEach(item => {
+    const normalized = normalizePeriodizedTrainingPlan(item, { rules });
+    if (normalized.id) byId.set(normalized.id, normalized);
+  });
+  return [...byId.values()].sort((a, b) => {
+    const byStart = String(a.startDate || '').localeCompare(String(b.startDate || ''));
+    return byStart || String(a.id || '').localeCompare(String(b.id || ''));
+  });
+}
+
 function suggestionPrimaryRole(suggestion = {}) {
   return normalizedRole(Array.isArray(suggestion.roles) ? suggestion.roles[0] : suggestion.role, '');
 }
@@ -730,3 +742,4 @@ export function evaluatePlanWeek({
     effectiveWeeklyTarget: planWeek?.type === 'deload' ? Math.max(1, slots.length) : null
   };
 }
+
