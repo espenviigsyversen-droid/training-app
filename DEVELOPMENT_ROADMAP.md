@@ -1648,7 +1648,7 @@ Rekkefølge og porter:
 1. Design og kontrakter er dokumentert uten runtime-endring.
 2. Historisk målfundament leverer `weeklyTargetSnapshots`, `effectiveWeeklyTargetForWeek()` og full state/repository/backup/recovery-kobling. Bygget i v176o.
 3. Ren blokkdomene-logikk leverer kalibrering, volumramme, prospektiv validering, rollepolicy og ukesevaluering. Bygget i v176p.
-4. Controller/persistence leverer planrevisjon, preview/diff, konfliktpolicy og materialisering av bare inneværende/neste uke. Skrivefri preview og `trainingPlans`-datasirkel er levert i v176t; materialisering står eksplisitt sperret til preview-porten er verifisert.
+4. Controller/persistence leverer planrevisjon, preview/diff, konfliktpolicy og materialisering av bare inneværende/neste uke. Skrivefri preview og `trainingPlans`-datasirkel er levert i v176t. Mobil hurtigflyt og full skrivefri preview er eksponert i v176u; materialisering står eksplisitt sperret til denne preview-porten er verifisert.
 5. Mobil-først produktflate leverer firestegs opprettelse, Kalender-planoversikt, Hjem-kort og fullført-oppsummering.
 6. Coach-kontekst, ukefullføring, ende-til-ende-test og release avslutter v1.
 
@@ -1801,4 +1801,3 @@ v154-v156 er deployet og manuelt verifisert, inkludert kryssenhetssynk, arkiv og
 - assistant-svar vises roligere og mindre kortpreget; brukermeldinger beholdes som diskrete bobler
 - grunnlag og personvern ligger under den eksisterende samtale-/prosjektadministrasjonen
 - backend, Firestore-modell, synkronisering, coach-context og sikkerhetsregler er uendret
-
