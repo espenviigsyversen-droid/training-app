@@ -28,6 +28,8 @@ Treningsapp/
 ├── training-repository.js
 ├── domain-training-plan.js
 ├── domain-periodized-training-plan.js
+├── domain-template-snapshot-update.js
+├── template-snapshot-update-ui.js
 ├── calendar-ui.js
 ├── workout-template-ui.js
 ├── workout-completion-ui.js
@@ -108,6 +110,7 @@ Er appens orchestrator og UI-kobling:
 - `training-repository.js` kapsler Firestore-lesing, skriving, sletting, batch-operasjoner og utskifting av treningsdata. Auth og Firestore-avhengigheter injiseres fra `app.js`.
 - `domain-training-plan.js` inneholder ren rolledekning, template-scoring og ukeplan-/øktforslag uten DOM, Firebase eller global state.
 - `domain-periodized-training-plan.js` eier det rene domenet for periodiserte planer: historiske ukesmålsnapshots, felles effektivt mål, baseline, fireukers rammer, prospektiv volumvalidering, rolle-/race-policy, konfliktklassifisering og ukesevaluering. Firestore og UI ligger fortsatt utenfor modulen.
+- `domain-template-snapshot-update.js` eier feltvis snapshot-diff og den rene kontrakten som bevarer registrerte øktdata. `template-snapshot-update-ui.js` eier den eksplisitte, enkeltvise forhåndsvisningen; `app.js` kobler state og persistence.
 - `calendar-ui.js` renderer kalendergrid og dagsmodal med injiserte data og callbacks. Selve mutasjonene, bekreftelsene og persistence-wrappere forblir i `app.js`.
 
 ### `domain-core.js`
@@ -229,4 +232,3 @@ De neste produktsporene skal følge samme kontrollerte uttrekksmønster som v164
 `app.js` skal ikke eie CSV-parsing, importmatching, øvelsesnormalisering, pulssoneklassifisering eller målevalidering. Filen beholder navigasjon, samlet state, bekreftelser og små persistence-wrappers. Firestore-operasjoner går via `training-repository.js` eller en senere, tydelig avgrenset repository-modul dersom datamodellen krever det.
 
 Nye runtime-moduler må lastes eksplisitt, inngå i PWA app shell når de trengs offline, og testes fra produksjonsfilene. Gamle maler, fullførte økter, backupfiler og Firestore-data skal fungere uten migrering.
-
