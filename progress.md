@@ -1,5 +1,13 @@
 # Treningsapp — progress.md
-Oppdatert: 2026-08-17 (siste runtime-endring: v176s1)
+Oppdatert: 2026-08-17 (siste runtime-endring: v176s2)
+
+---
+
+## v176s2 – kompakt ukeplan og tydelig testvei
+
+- Ukeplankortet viser dato, øktinformasjon og én «Åpne»-handling. Sjeldne snapshot- og resetthandlinger ligger i dagsmodalen.
+- Datoen holdes på én linje, også ved 390 px mobilbredde.
+- `planIntentBaseline` skrives først ved en faktisk innholdsoverstyring; derfor vises «Tilbakestill til plan» først etter et slikt bytte.
 
 ---
 
@@ -47,7 +55,7 @@ Standard Bakken-uke: Hoved-terskel → Støtte-terskel → Lang rolig → Valgfr
 **Hosting:** GitHub Pages.  
 **Backend:** Firebase (prosjekt `home-tasks-app-18de3`) — Firestore + Google Auth.  
 **Frontend:** Vanilla JS + HTML + CSS, single-page app, tab-navigasjon.  
-**Versjon:** v176s1 (konstant i `app.js`).
+**Versjon:** v176s2 (konstant i `app.js`).
 
 ### Filer
 
