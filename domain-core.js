@@ -374,7 +374,7 @@ export function todayCompletedWorkoutFeedback(input = {}) {
 
   const nextPlanned = input.nextPlanned && typeof input.nextPlanned === 'object' ? input.nextPlanned : null;
   const nextLabel = String(nextPlanned?.label || '').trim();
-  const nextDateLabel = String(nextPlanned?.dateLabel || '').trim();
+  const nextDateLabel = String(nextPlanned?.dateLabel || '').trim().replace(/[.!?]+$/g, '');
   const nextPlanSentence = nextLabel
     ? `Neste planlagte økt er ${nextLabel}${nextDateLabel ? ` ${nextDateLabel}` : ''}.`
     : 'Det ligger ingen ny planlagt økt i kalenderen ennå.';
@@ -1155,6 +1155,7 @@ export function structuredIntensityLabel(value) {
 
 export function normalizeTemplate(template = {}) {
   const source = template && typeof template === 'object' && !Array.isArray(template) ? template : {};
+  const roleClassificationVersion = Number(source.roleClassificationVersion) === 2 ? 2 : undefined;
   return {
     ...source,
     id: String(source.id || ''),
@@ -1162,6 +1163,7 @@ export function normalizeTemplate(template = {}) {
     type: String(source.type || 'Annet'),
     intensity: String(source.intensity || ''),
     role: String(source.role || ''),
+    ...(roleClassificationVersion ? { roleClassificationVersion } : {}),
     purpose: String(source.purpose || ''),
     load: String(source.load || ''),
     recommendedWhen: asArray(source.recommendedWhen),
