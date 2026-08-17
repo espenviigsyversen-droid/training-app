@@ -140,7 +140,8 @@ planRef: {
   weekIndex,
   slotId,
   role,
-  materializedAt
+  materializedAt,
+  prescriptionSnapshot: { templateId, templateSnapshot, role, intensity, structure, targetDurationSeconds, targetDistanceKm }
 },
 userModified: false,
 userModifiedFields: [],
@@ -157,9 +158,10 @@ Tre endringstyper holdes atskilt:
 ```js
 scheduleAdjustment: {
   originalDate,
-  currentDate,
-  changedAt,
-  reason: "illness" | "calendar" | "other" | ""
+  adjustedDate,
+  adjustedAt,
+  reason: "user_reschedule" | "shift_following" | "illness" | "calendar" | "other",
+  state: "rescheduled" | "rescheduled_out"
 },
 metadataRevision: {
   source: "manual_template_refresh",
@@ -171,7 +173,9 @@ userModified: true,
 userModifiedFields: ["templateId", "targetDurationSeconds"]
 ```
 
-- `scheduleAdjustment` bevarer en bevisst flytting uten å frede hele økten. Materialiseringen kjenner fortsatt slotens identitet og skal ikke umiddelbart flytte den tilbake. Ved en senere planrevisjon vises «Behold valgt dato» eller «Følg planens dato» i diffen.
+- `scheduleAdjustment` bevarer en bevisst flytting uten å frede øktens innhold. En materialisering eller planjustering kan aldri flytte den stille tilbake. Ved en senere planrevisjon vises «Behold valgt dato» eller «Følg planens dato» i diffen.
+- Flyttingen har ingen vilkårlig tidsutløp. Den gjelder til brukeren velger planens dato, økten fullføres/slettes/frikobles, eller en planrevisjon løser den eksplisitt. Siden bare inneværende og neste uke materialiseres, kan en gammel flytting ikke binde hele fremtidsplanen.
+- Flyttes økten ut av blokkuken, beholdes samme `planRef.slotId` og tilstanden blir `rescheduled_out`. Det opprettes aldri en stille erstatningsøkt i den opprinnelige uken. Planens slotevaluering følger `planRef`, mens belastnings- og sikkerhetsberegninger bruker den faktiske datoen.
 - `metadataRevision` er en uttrykkelig korreksjon av lagrede fakta. Den setter aldri `userModified`, selv om kildemalen byttes i korrigeringsdialogen. Hvis korrigert rolle ikke samsvarer med `planRef.role`, vises dette som en reell konflikt i neste preview; metadataen overskrives ikke stille.
 - `userModified` settes bare ved en uttrykkelig endring av planens treningsintensjon. Flagget er reversibelt gjennom «Tilbakestill til plan».
 
@@ -189,11 +193,11 @@ Deterministisk handlingstabell:
 | Registrer/rediger varighet, distanse, puls, RPE, følelse, smerte eller fullføringsnotat | Nei | Resultatdata | Målt gjennomføring skal aldri tolkes som planoverstyring. |
 | Slett planlagt økt | Ikke relevant | Økten fjernes etter bekreftelse | Skal håndteres som eksplisitt slot-avvik i planpreview/evaluering. |
 
-«Tilbakestill til plan» viser feltvis diff mot gjeldende planrevisjon, gjenoppretter bare plan-eide intensjonsfelt og nullstiller `userModified`/`userModifiedFields` etter bekreftelse. Egne notater og resultatdata røres aldri. Finnes ikke den opprinnelige planen eller sloten lenger, kan økten i stedet frikobles som løs økt; appen skal ikke gjette en gammel planintensjon.
+«Tilbakestill til plan» viser feltvis diff mot den materialiserte `planRef.prescriptionSnapshot`, gjenoppretter bare plan-eide intensjonsfelt og nullstiller `userModified`/`userModifiedFields` etter bekreftelse. Egne notater, `scheduleAdjustment`, `metadataRevision` og resultatdata røres aldri. Mangler reseptsnapshotet, deaktiveres handlingen; appen skal ikke gjette en gammel planintensjon.
 
 Ved fullføring kopieres `planRef` og alle tre endringssporene til historikken. En plan kan aldri mutere en fullført økt.
 
-**Implementeringsport før runde 4:** v176s setter foreløpig `userModified` ved «Oppdater fra mal», har ingen reset-handling og kopierer ikke planmetadata ved fullføring. Dette er kartlagte runtime-avvik, ikke ønsket kontrakt. Snapshot-korrigeringen skal flyttes til `metadataRevision`, reset-kontrakten skal implementeres, og fullføringskopien skal være testet før blokkmaterialisering aktiveres. Datoflytting setter allerede ikke `userModified`, men mangler fortsatt det separate `scheduleAdjustment`-sporet.
+**Implementeringsport før runde 4:** v176s1 implementerer de tre atskilte sporene, feltvis og reverserbar intensjonsoverstyring, eksplisitt datoflytting samt kopiering av planmetadata ved fullføring. Runde 4 skal materialisere `planRef.prescriptionSnapshot` slik at reset alltid har en deterministisk kilde.
 
 ### 2.6 Historisk effektivt ukesmål
 
@@ -404,7 +408,8 @@ En materialiseringsdiff kan foreslå `create`, `update`, `remove`, `detach`, `ke
 | Planøkt i fortiden | Endres aldri. |
 | Fremtidig, umodifisert planøkt | Kan foreslås oppdatert eller fjernet i preview. |
 | Fremtidig `userModified` planøkt | Beholdes og vises som konflikt; brukeren velger. |
-| Fremtidig økt med `scheduleAdjustment` | Samme slot beholdes på valgt dato. Ved ny planrevisjon velger brukeren mellom valgt dato og planens dato. |
+| Fremtidig økt med `scheduleAdjustment` | Samme slot beholdes på valgt dato. Planen kan foreslå, men aldri stille utføre, flytting tilbake. Ved ny planrevisjon velger brukeren mellom valgt dato og planens dato. |
+| Økt flyttet ut av blokkuken | Behold `planRef.slotId`, marker `rescheduled_out`, ikke opprett erstatning. Slotsporing følger referansen; belastning følger faktisk dato. |
 | Fremtidig økt med `metadataRevision` | Korrigert metadata beholdes når den samsvarer med sloten; avvikende rolle/intensjon vises som konflikt. |
 | Slot fjernes fra planen | Foreslå «Behold som løs økt» eller «Slett planøkten». |
 | Plan avsluttes/kanselleres | Vis konsekvenser; ingen stille sletting. |
@@ -626,6 +631,7 @@ Før sletting vises plan, berørte fremtidige økter, eventuelle brukerendringer
 - `userModified` og `userModifiedFields` bevares.
 - `userModified` settes bare av intensjonshandlingene i tabellen i 2.5 og kan oppheves med feltvis «Tilbakestill til plan».
 - Datoflytting og snapshot-korrigering bruker henholdsvis `scheduleAdjustment` og `metadataRevision`, uten å sette `userModified`.
+- Planjustering kan ikke overstyre `scheduleAdjustment` uten et synlig, eksplisitt valg; `rescheduled_out` skaper ikke en ny økt for samme slot.
 - Fullføring kopierer `planRef` og alle modifikasjonsspor til den fullførte økten uten å endre dem.
 - Utdatert `planRevision` finnes og forhåndsvises.
 - Sletting i pågående avlastningsuke skriver snapshot før planendring.
@@ -731,3 +737,4 @@ Sekundær plankontekst, ukentlig evaluering, blokk-fullført-oppsummering, ende-
 ## 11. Senere utvikling
 
 Når v1 er stabil og brukt i minst én full blokk, kan v2 vurdere flere blokker i en 12-ukers løpsplan, blokkbibliotek, forsiktig forslag til neste blokk og bedre kobling mot mål-løp. Dette er eksplisitt utenfor v1 og skal bygge på faktisk erfaring med opprettelse, konflikter, avlastning og fullført-oppsummering.
+
