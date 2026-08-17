@@ -23,6 +23,285 @@
       --radius: 18px;
 }
 
+/* v176u – skrivefri fireukersblokk-forhåndsvisning */
+.training-plan-preview-card {
+  border-color: #ddd3c9;
+}
+
+.training-plan-entry,
+.training-plan-builder-head,
+.training-plan-week-head,
+.training-plan-diff-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.training-plan-entry p,
+.training-plan-step > p,
+.training-plan-validation p,
+.training-plan-preview-lock p {
+  margin: 5px 0 0;
+  color: var(--warm-gray-3);
+}
+
+.training-plan-builder-head > div > span,
+.training-plan-week-head span,
+.training-plan-diff-head span,
+.training-plan-baseline-grid span,
+.training-plan-mini-weeks span {
+  display: block;
+  color: var(--warm-gray-3);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.training-plan-builder-head h2 {
+  margin: 2px 0 0;
+  font-size: 1.35rem;
+}
+
+.training-plan-close {
+  width: 42px;
+  height: 42px;
+  flex: 0 0 42px;
+  border: 0;
+  border-radius: 14px;
+  background: var(--warm-gray-1);
+  color: var(--text);
+  font-size: 1.5rem;
+  font-weight: 800;
+}
+
+.training-plan-steps {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin: 20px 0;
+}
+
+.training-plan-steps span {
+  display: grid;
+  min-height: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #e8e2dc;
+  color: transparent;
+  font-size: 0;
+}
+
+.training-plan-steps span.active,
+.training-plan-steps span.done {
+  background: var(--primary);
+}
+
+.training-plan-steps span.done { background: var(--success); }
+
+.training-plan-step h3 {
+  margin: 0 0 6px;
+}
+
+.training-plan-step > label,
+.training-plan-role-row label,
+.training-plan-operation > label {
+  display: grid;
+  gap: 5px;
+  margin-top: 14px;
+  color: var(--warm-gray-3);
+  font-size: 0.76rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.training-plan-role-list,
+.training-plan-week-grid,
+.training-plan-slot-list,
+.training-plan-diff {
+  display: grid;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.training-plan-role-row,
+.training-plan-week,
+.training-plan-operation,
+.training-plan-validation,
+.training-plan-preview-lock {
+  padding: 14px;
+  border: 1px solid #ddd3c9;
+  border-radius: 16px;
+  background: #fff;
+}
+
+.training-plan-role-row {
+  display: grid;
+  grid-template-columns: minmax(80px, 0.45fr) minmax(150px, 0.9fr) minmax(180px, 1.2fr);
+  align-items: end;
+  gap: 12px;
+}
+
+.training-plan-role-row label { margin-top: 0; }
+
+.training-plan-baseline-grid,
+.training-plan-mini-weeks {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.training-plan-mini-weeks { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+
+.training-plan-baseline-grid > div,
+.training-plan-mini-weeks > div {
+  padding: 12px;
+  border-radius: 13px;
+  background: var(--warm-gray-1);
+}
+
+.training-plan-baseline-grid strong,
+.training-plan-mini-weeks strong {
+  display: block;
+  margin-top: 4px;
+}
+
+.training-plan-validation {
+  margin-top: 14px;
+  border-color: #d8cec4;
+  background: #faf8f6;
+}
+
+.training-plan-validation.within_guardrail {
+  border-color: #a9ddc0;
+  background: #effaf4;
+}
+
+.training-plan-validation.reduced_by_guardrail {
+  border-color: #efc27c;
+  background: #fff8ec;
+}
+
+.training-plan-week-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.training-plan-week.deload {
+  border-color: #a9ddc0;
+  background: #f5fbf7;
+}
+
+.training-plan-week-head strong,
+.training-plan-diff-head strong {
+  display: block;
+  margin-top: 3px;
+}
+
+.training-plan-week-head small,
+.training-plan-diff-head small {
+  color: var(--warm-gray-3);
+  font-weight: 700;
+  text-align: right;
+}
+
+.training-plan-validation-pill {
+  display: inline-flex;
+  padding: 5px 8px;
+  border-radius: 999px;
+  background: var(--warm-gray-1);
+  color: var(--warm-gray-3);
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.training-plan-validation-pill.within_guardrail { background: #ddf4e7; color: #087a3a; }
+.training-plan-validation-pill.reduced_by_guardrail { background: #fff0d5; color: #9a5a00; }
+
+.training-plan-slot-list > div {
+  display: grid;
+  grid-template-columns: 90px minmax(120px, 0.8fr) minmax(130px, 1fr);
+  gap: 10px;
+  padding-top: 10px;
+  border-top: 1px solid #eee7e1;
+}
+
+.training-plan-slot-list time,
+.training-plan-slot-list span {
+  color: var(--warm-gray-3);
+  font-size: 0.83rem;
+}
+
+.training-plan-deload-target {
+  margin: 12px 0 0;
+  color: #087a3a;
+  font-weight: 700;
+}
+
+.training-plan-diff {
+  padding-top: 18px;
+  border-top: 1px solid #ddd3c9;
+}
+
+.training-plan-operation {
+  display: grid;
+  gap: 10px;
+}
+
+.training-plan-operation.conflict {
+  border-color: #f0b36a;
+  background: #fff9f0;
+}
+
+.training-plan-operation ul {
+  margin: 0;
+  padding-left: 20px;
+  color: var(--warm-gray-3);
+}
+
+.training-plan-preview-lock {
+  margin-top: 16px;
+  border-color: #b8c9eb;
+  background: #f2f6ff;
+}
+
+@media (max-width: 700px) {
+  .training-plan-entry {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .training-plan-role-row,
+  .training-plan-week-grid,
+  .training-plan-baseline-grid,
+  .training-plan-mini-weeks {
+    grid-template-columns: 1fr;
+  }
+
+  .training-plan-role-row { align-items: stretch; }
+
+  .training-plan-slot-list > div {
+    grid-template-columns: 1fr;
+    gap: 2px;
+  }
+
+  .training-plan-week-head,
+  .training-plan-diff-head {
+    align-items: flex-start;
+  }
+
+  .training-plan-week-head small,
+  .training-plan-diff-head small {
+    max-width: 120px;
+  }
+
+  .training-plan-builder .button-row {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+}
+
 /* v176l: Form ved samme innsats */
 .same-effort-list {
   display: grid;
@@ -8255,4 +8534,3 @@
   .snapshot-diff-row { grid-template-columns:1fr 1fr; }
   .snapshot-diff-row > strong { grid-column:1 / -1; }
 }
-
