@@ -195,7 +195,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     } from './domain-template-snapshot-update.js';
     import { createTemplateSnapshotUpdateUi } from './template-snapshot-update-ui.js';
 
-const APP_VERSION = 'v176u1';
+const APP_VERSION = 'v176v';
     const APP_CACHE_NAME = `treningsapp-${APP_VERSION}`;
 
     const firebaseConfig = {
@@ -1207,6 +1207,12 @@ const APP_VERSION = 'v176u1';
       return a.startDate <= b.endDate && a.endDate >= b.startDate;
     }
 
+    function freezeRangesTouch(a, b) {
+      return freezeRangesOverlap(a, b)
+        || addDays(a.endDate, 1) === b.startDate
+        || addDays(b.endDate, 1) === a.startDate;
+    }
+
     function activeContinuityFreezes() {
       return normalizeContinuityFreezes(state.continuityFreezes).filter(item => item.status === 'active');
     }
@@ -1214,6 +1220,27 @@ const APP_VERSION = 'v176u1';
     function activeContinuityFreezeForDate(dateIso) {
       return activeContinuityFreezes().find(item => item.startDate <= dateIso && item.endDate >= dateIso) || null;
     }
+
+    function latestContinuityRecoveryDate() {
+      return normalizeContinuityFreezes(state.continuityFreezes)
+        .filter(item => item.recoveredAt && ['sick', 'injury'].includes(item.reason))
+        .map(item => item.recoveredAt)
+        .sort()
+        .pop() || '';
+    }
+
+    window.resetContinuityFreezeForm = function() {
+      const today = todayISO();
+      document.getElementById('freezeEditId').value = '';
+      document.getElementById('freezeStartDate').value = today;
+      document.getElementById('freezeEndDate').value = today;
+      document.getElementById('freezeReason').value = 'sick';
+      document.getElementById('freezeNote').value = '';
+      document.getElementById('continuityFreezeTitle').textContent = 'Frys kontinuitet';
+      document.getElementById('freezeSaveButton').textContent = 'Lagre fryskort';
+      document.getElementById('freezeCancelEditButton').classList.add('hidden');
+      renderFreezePeriodPreview();
+    };
 
     window.renderFreezePeriodPreview = function() {
       const preview = document.getElementById('freezePeriodPreview');
@@ -1236,15 +1263,20 @@ const APP_VERSION = 'v176u1';
           <h3>Lagrede fryskort</h3>
           ${items.map(item => {
             const active = item.status === 'active';
+            const adjacentSameReason = items.some(other => other.id !== item.id && other.status === 'active' && other.reason === item.reason && freezeRangesTouch(item, other));
             return `
               <div class="freeze-item ${active ? 'active' : 'archived'}">
                 <div>
                   <strong>${escapeHtml(freezeReasonOptionLabel(item.reason))}</strong>
-                  <small>${escapeHtml(formatShortDate(item.startDate))} - ${escapeHtml(formatShortDate(item.endDate))} · ${active ? 'aktiv' : 'arkivert'}</small>
+                  <small>${escapeHtml(formatShortDate(item.startDate))} - ${escapeHtml(formatShortDate(item.endDate))} · ${active ? 'aktiv' : item.status === 'ended' ? 'avsluttet' : 'arkivert'}</small>
                   ${item.note ? `<p>${escapeHtml(item.note)}</p>` : ''}
+                  ${item.recoveredAt ? `<p class="freeze-recovered">Frisk igjen ${escapeHtml(formatShortDate(item.recoveredAt))}</p>` : ''}
+                  ${adjacentSameReason ? '<p class="freeze-merge-hint">Tilstøtende kort med samme årsak finnes. Vurder å forlenge ett kort og arkivere det andre.</p>' : ''}
                   <p class="small-note">Dette beskytter kontinuiteten, men teller ikke som trening.</p>
                 </div>
                 <div class="item-actions">
+                  ${active ? `<button class="btn-soft" onclick="editContinuityFreeze('${escapeHtml(item.id)}')">Rediger</button>` : `<button class="btn-soft" onclick="editContinuityFreeze('${escapeHtml(item.id)}', true)">Rediger historikk</button>`}
+                  ${active && ['sick', 'injury'].includes(item.reason) ? `<button class="btn-soft" onclick="markContinuityFreezeRecovered('${escapeHtml(item.id)}')">Frisk igjen</button>` : ''}
                   ${active ? `<button class="btn-soft" onclick="archiveContinuityFreeze('${escapeHtml(item.id)}')">Arkiver</button>` : ''}
                   <button class="btn-soft danger" onclick="deleteContinuityFreeze('${escapeHtml(item.id)}')">Slett</button>
                 </div>
@@ -1254,18 +1286,24 @@ const APP_VERSION = 'v176u1';
     }
 
     window.openContinuityFreezeModal = function() {
-      const today = todayISO();
-      const start = document.getElementById('freezeStartDate');
-      const end = document.getElementById('freezeEndDate');
-      const reason = document.getElementById('freezeReason');
-      const note = document.getElementById('freezeNote');
-      if (start && !start.value) start.value = today;
-      if (end && !end.value) end.value = today;
-      if (reason && !reason.value) reason.value = 'sick';
-      if (note) note.value = note.value || '';
-      renderFreezePeriodPreview();
+      resetContinuityFreezeForm();
       renderContinuityFreezeList();
       document.getElementById('continuityFreezeModal')?.classList.add('active');
+    };
+
+    window.editContinuityFreeze = function(id, historical = false) {
+      const freeze = normalizeContinuityFreezes(state.continuityFreezes).find(item => item.id === id);
+      if (!freeze) return;
+      if (freeze.status !== 'active' && (!historical || !confirm('Dette fryskortet er avsluttet. Vil du åpne historisk redigering?'))) return;
+      document.getElementById('freezeEditId').value = freeze.id;
+      document.getElementById('freezeStartDate').value = freeze.startDate;
+      document.getElementById('freezeEndDate').value = freeze.endDate;
+      document.getElementById('freezeReason').value = freeze.reason;
+      document.getElementById('freezeNote').value = freeze.note || '';
+      document.getElementById('continuityFreezeTitle').textContent = freeze.status === 'active' ? 'Rediger fryskort' : 'Rediger historisk fryskort';
+      document.getElementById('freezeSaveButton').textContent = 'Lagre endringer';
+      document.getElementById('freezeCancelEditButton').classList.remove('hidden');
+      renderFreezePeriodPreview();
     };
 
     window.closeContinuityFreezeModal = function() {
@@ -1278,6 +1316,8 @@ const APP_VERSION = 'v176u1';
       const endDate = document.getElementById('freezeEndDate')?.value || '';
       const reason = document.getElementById('freezeReason')?.value || 'sick';
       const note = document.getElementById('freezeNote')?.value || '';
+      const editId = document.getElementById('freezeEditId')?.value || '';
+      const existing = editId ? normalizeContinuityFreezes(state.continuityFreezes).find(item => item.id === editId) : null;
       if (!startDate || !endDate) return alert('Velg fra- og til-dato.');
       if (endDate < startDate) return alert('Til-dato må være samme dag eller etter fra-dato.');
       const maxDays = Math.max(1, Math.round(Number(rules?.thresholds?.streakFreeze?.maxDaysPerFreeze) || 14));
@@ -1285,35 +1325,58 @@ const APP_VERSION = 'v176u1';
       if (frozenDays.length > maxDays) return alert(`Et fryskort kan maks dekke ${maxDays} dager i v1.`);
       const monthKey = startDate.slice(0, 7);
       const maxPerMonth = Math.max(1, Math.round(Number(rules?.thresholds?.streakFreeze?.maxActiveFreezesPerMonth) || 2));
-      const sameMonthActive = activeContinuityFreezes().filter(item => item.startDate.slice(0, 7) === monthKey).length;
+      const sameMonthActive = activeContinuityFreezes().filter(item => item.id !== editId && item.startDate.slice(0, 7) === monthKey).length;
       if (sameMonthActive >= maxPerMonth) {
         return alert(`Du har allerede ${maxPerMonth} aktive fryskort denne måneden.`);
       }
       const now = new Date().toISOString();
       const draft = normalizeContinuityFreeze({
-        id: uid('freeze'),
+        id: existing?.id || uid('freeze'),
         startDate,
         endDate,
         reason,
         note,
         source: 'manual',
-        status: 'active',
-        createdAt: now,
+        status: existing?.status || 'active',
+        recoveredAt: existing?.recoveredAt || '',
+        endedAt: existing?.endedAt || '',
+        createdAt: existing?.createdAt || now,
         updatedAt: now
       }, { rules });
       if (!draft) return alert(reason === 'other' ? 'Legg inn et kort notat når årsaken er Annet.' : 'Fryskortet mangler gyldig informasjon.');
-      const overlaps = activeContinuityFreezes().some(item => freezeRangesOverlap(item, draft));
+      const overlaps = activeContinuityFreezes().some(item => item.id !== draft.id && freezeRangesOverlap(item, draft));
       if (overlaps && !confirm('Perioden overlapper et annet aktivt fryskort. Fortsette?')) return;
       await safeStateWrite({
-        apply: () => { state.continuityFreezes = normalizeContinuityFreezes([...(state.continuityFreezes || []), draft]); },
+        apply: () => {
+          const retained = normalizeContinuityFreezes(state.continuityFreezes).filter(item => item.id !== draft.id);
+          state.continuityFreezes = normalizeContinuityFreezes([...retained, draft]);
+        },
         write: () => fsSet('continuityFreezes', draft.id, draft),
         afterApply: () => {
-          document.getElementById('freezeNote').value = '';
-          renderFreezePeriodPreview();
+          resetContinuityFreezeForm();
           renderContinuityFreezeList();
         },
-        successMessage: 'Fryskort lagret',
+        successMessage: existing ? 'Fryskort oppdatert' : 'Fryskort lagret',
         errorMessage: 'Kunne ikke lagre fryskort'
+      });
+    };
+
+    window.markContinuityFreezeRecovered = async function(id) {
+      const freeze = normalizeContinuityFreezes(state.continuityFreezes).find(item => item.id === id);
+      if (!freeze || freeze.status !== 'active') return;
+      const recoveredAt = prompt('Dato frisk igjen (YYYY-MM-DD)', todayISO());
+      if (!recoveredAt) return;
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(recoveredAt) || recoveredAt < freeze.startDate || recoveredAt > todayISO()) return alert('Velg en gyldig dato fra kortets start til i dag.');
+      if (!confirm(`Avslutte fryskortet ${formatShortDate(recoveredAt)} og bruke datoen som startpunkt for comeback?`)) return;
+      const now = new Date().toISOString();
+      const updated = normalizeContinuityFreeze({ ...freeze, endDate: recoveredAt, status: 'ended', recoveredAt, endedAt: now, updatedAt: now }, { rules: getCoachRules() });
+      if (!updated) return alert('Kunne ikke avslutte fryskortet med valgt dato.');
+      await safeStateWrite({
+        apply: () => { state.continuityFreezes = normalizeContinuityFreezes(state.continuityFreezes).map(item => item.id === id ? updated : item); },
+        write: () => fsSet('continuityFreezes', id, updated),
+        afterApply: renderContinuityFreezeList,
+        successMessage: 'Friskmelding registrert',
+        errorMessage: 'Kunne ikke registrere friskmelding'
       });
     };
 
@@ -6384,6 +6447,7 @@ const APP_VERSION = 'v176u1';
       const comeback = comebackProtocol(completedToDate, {
         todayIso: today,
         weeklyTarget: goals.weeklySessionsTarget,
+        recoveryDate: latestContinuityRecoveryDate(),
         rules: activeCoachRules
       });
       const weeklyTargetDecision = weeklyTargetDecisionForWeek(startOfWeek(today), {
