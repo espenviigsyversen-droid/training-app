@@ -1,7 +1,15 @@
 # Treningsapp — progress.md
-Oppdatert: 2026-08-17 (siste runtime-endring: v176u1)
+Oppdatert: 2026-08-27 (siste runtime-endring: v176v)
 
 ---
+
+## v176v – redigerbare fryskort og eksplisitt friskmelding
+
+- Aktive fryskort kan forlenges og få årsak/notat redigert; avsluttede kort krever en særskilt historikkhandling.
+- «Frisk igjen» lagrer dato, avslutter kortet og gir dagens comebackvurdering et eksplisitt anker.
+- Tilstøtende aktive kort med samme årsak flagges som mulig opprydding uten automatisk sammenslåing.
+- Blokkpreviewen forklarer mandagskravet og avviser passert/påbegynt uke. Materialisering er fortsatt sperret.
+- Plandesignet krever comebackbegrenset baseline og kontrollert uke 1 før steg 2 kan åpnes.
 
 ## v176u1 – profilprioritet og presis blokkpreview
 
