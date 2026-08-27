@@ -319,9 +319,10 @@ Når `validationStatus` er `validated`, settes et eget utfall:
 
 ### 3.3 Sykdom, fryskort og comeback
 
-En blokk kan opprettes og forhåndsvises under aktivt fryskort eller comeback, men tilstanden skal vises før volumrammen. Planlegging er tillatt; stille materialisering inn i en beskyttet sykdoms-/skadeperiode er ikke tillatt.
+En blokk kan opprettes og forhåndsvises under aktivt fryskort eller comeback, men tilstanden skal vises før volumrammen. Planlegging er tillatt; materialisering graderes etter hvor mye som kan forsvares uten å gjette.
 
-- Et aktivt fryskort som overlapper blokkstart gir en blokkerende materialiseringsstatus. Brukeren må først registrere «Frisk igjen» eller velge en start etter kortets sluttdato.
+- Uke 1 kan materialiseres under et aktivt sykdoms-/skadefryskort når den er merket `controlled_return` og begrenset av comebackfaktoren. Dette gjør det mulig å planlegge en forsiktig retur før sykdommens sluttdato er kjent.
+- Uke 2 og senere kan ikke materialiseres før «Frisk igjen» er registrert. Previewen skiller eksplisitt mellom «kan legges i kalenderen nå» og «venter på friskmelding».
 - `recoveredAt` på et avsluttet sykdoms- eller skadekort er det eksplisitte comebackankeret. Første blokkstart foreslås som første mandag etter denne datoen.
 - Sykdomsuker ekskluderes fra representativ normalbaseline, men eksklusjonen er ikke positiv evidens. Previewen viser hvor mange uker som er utelatt og hvorfor.
 - Før avbruddet beregnet baseline kan brukes som referanse, men comebackens validerte `weekFactor` setter et øvre tak. Ved 184 minutter og faktor 0,65 er comebackgrunnlaget høyst omtrent 120 minutter, ikke 184.
@@ -329,7 +330,7 @@ En blokk kan opprettes og forhåndsvises under aktivt fryskort eller comeback, m
 - `insufficient_data` er aldri et skjult grønt lys. Når volumvakten mangler grunnlag samtidig som comeback er aktiv, brukes status `restricted_by_comeback`; aggressiv ramp foreslås ikke og kan ikke materialiseres som om den var validert.
 - Aktivt fryskort, comebackstatus, brukt baseline, reduksjonsfaktor og manglende valideringsgrunnlag vises samlet i forhåndsvisningen. Skadesignal og dagsform har alltid prioritet foran blokkens mål.
 
-Dette krever runtime-kobling før steg 2 åpnes: blokkpreviewen må motta samme fryskort- og comebackgrunnlag som Hjem og coachen. Inntil denne koblingen er implementert og testet, er materialisering sperret.
+Runtime-koblingen ble implementert i v176v1: blokkpreviewen mottar samme `comebackProtocol()` som Hjem/coachen, og sykdoms-/skadeuker ekskluderes eksplisitt fra representativ baseline før comebackfaktoren brukes én gang. Selve skrive-/materialiseringssteget er fortsatt sperret og åpnes i en senere, separat runde.
 
 ### 3.4 Rolle-, race- og challenge-policy
 
@@ -635,6 +636,8 @@ Før sletting vises plan, berørte fremtidige økter, eventuelle brukerendringer
 - Normaluke `easy/easy/long_easy` med to fullførte økter viser nøyaktig én manglende rolle. Samme økt kan ikke dekke to slots.
 - Coachens rolledekning er identisk med `roleCoverage()` også når samme rolle forekommer flere ganger.
 - Challenge-mål endres aldri av avlastning.
+- Aktivt sykdomsfryskort og comebackfaktor 0,65 beholder normalbaseline som forklaringsgrunnlag, ekskluderer de dekkede sykdomsukene, gir ett justert comebackgrunnlag og markerer uke 1 som `controlled_return` uten progresjon.
+- Previewen oppgir antall ekskluderte sykdomsuker. Uke 1 kan materialiseres når skrivesteget senere åpnes; uke 2 og videre krever registrert `recoveredAt`.
 - `evaluatePlanWeek()` bruker injiserte vurderinger og muterer ikke input.
 
 ### 7.2 Materialisering og dataintegritet
