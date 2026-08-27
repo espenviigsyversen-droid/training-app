@@ -1649,6 +1649,7 @@ Rekkefølge og porter:
 2. Historisk målfundament leverer `weeklyTargetSnapshots`, `effectiveWeeklyTargetForWeek()` og full state/repository/backup/recovery-kobling. Bygget i v176o.
 3. Ren blokkdomene-logikk leverer kalibrering, volumramme, prospektiv validering, rollepolicy og ukesevaluering. Bygget i v176p.
 4. Controller/persistence leverer planrevisjon, preview/diff, konfliktpolicy og materialisering av bare inneværende/neste uke. Skrivefri preview og `trainingPlans`-datasirkel er levert i v176t. Mobil hurtigflyt og full skrivefri preview er eksponert i v176u; materialisering står eksplisitt sperret til denne preview-porten er verifisert.
+   - v176v1 kobler fryskort og eksisterende comebackprotokoll inn i kjørende preview. Representativ baseline ekskluderer sykdoms-/skadeuker, uke 1 er kontrollert oppstart, og uke 2+ venter på friskmelding. Dette er runtime; materialiseringsskriveren er fortsatt ikke åpnet.
 5. Mobil-først produktflate leverer firestegs opprettelse, Kalender-planoversikt, Hjem-kort og fullført-oppsummering.
 6. Coach-kontekst, ukefullføring, ende-til-ende-test og release avslutter v1.
 
