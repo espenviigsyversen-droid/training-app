@@ -7282,6 +7282,18 @@
       line-height: 1.35;
     }
 
+    .freeze-item .freeze-recovered {
+      color: var(--green);
+      font-weight: 850;
+    }
+
+    .freeze-item .freeze-merge-hint {
+      padding: 7px 9px;
+      border-radius: 10px;
+      background: var(--warm-gray-1);
+      color: var(--black);
+    }
+
     .setup-menu {
       display: grid;
       gap: 8px;
