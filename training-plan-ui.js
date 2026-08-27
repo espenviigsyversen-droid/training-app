@@ -266,7 +266,8 @@ export function createTrainingPlanUi({
         <option value="threshold"${draft.focus === 'threshold' ? ' selected' : ''}>Terskelblokk</option>
       </select>
       <label for="trainingPlanStart">Start mandag</label>
-      <input id="trainingPlanStart" type="date" data-plan-field="startDate" value="${escapeHtml(draft.startDate)}" />
+      <input id="trainingPlanStart" type="date" data-plan-field="startDate" min="${escapeHtml(nextMonday(todayISO()))}" value="${escapeHtml(draft.startDate)}" />
+      <p class="small-note">Blokker følger treningsuken, som starter mandag. Første mulige start er neste mandag; en påbegynt uke tas ikke inn midtveis.</p>
       <p class="small-note">Blokken varer til ${escapeHtml(formatDate(addIsoDays(draft.startDate, 27)))}.</p>
     </div>`;
   }
@@ -426,7 +427,8 @@ export function createTrainingPlanUi({
       if (action === 'restart') { local.draft = initialDraft(); local.choices = {}; local.step = 1; local.error = ''; }
       if (action === 'next') {
         const draft = ensureDraft();
-        if (local.step === 1 && !isMonday(draft.startDate)) local.error = 'Startdatoen må være en mandag.';
+        if (local.step === 1 && !isMonday(draft.startDate)) local.error = 'Blokker følger treningsuken, som starter mandag.';
+        else if (local.step === 1 && draft.startDate < nextMonday(todayISO())) local.error = 'Velg neste mandag eller en senere mandag. En påbegynt uke tas ikke inn midtveis.';
         else {
           local.error = '';
           if (local.step === 3) draft.userConfirmed = true;
