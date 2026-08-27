@@ -184,6 +184,21 @@
   background: #fff8ec;
 }
 
+.training-plan-safety-notice {
+  margin: 14px 0;
+  padding: 14px;
+  border: 1px solid #efc27c;
+  border-radius: 16px;
+  background: #fff8ec;
+}
+
+.training-plan-safety-notice strong { display: block; }
+
+.training-plan-safety-notice p {
+  margin: 6px 0 0;
+  line-height: 1.45;
+}
+
 .training-plan-week-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
@@ -7244,8 +7259,8 @@
     }
 
     .freeze-item {
-      display: flex;
-      justify-content: space-between;
+      display: grid;
+      grid-template-columns: 1fr;
       gap: 10px;
       padding: 12px;
       border: 1px solid var(--warm-gray-2);
@@ -7292,6 +7307,31 @@
       border-radius: 10px;
       background: var(--warm-gray-1);
       color: var(--black);
+    }
+
+    .freeze-item .freeze-primary-actions {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+      width: 100%;
+    }
+
+    .freeze-more-actions {
+      width: 100%;
+    }
+
+    .freeze-more-actions summary {
+      cursor: pointer;
+      color: var(--warm-gray-3);
+      font-weight: 800;
+      text-align: right;
+    }
+
+    .freeze-more-actions > div {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+      margin-top: 8px;
     }
 
     .setup-menu {
@@ -7846,11 +7886,6 @@
         flex: 1;
       }
 
-      .freeze-item {
-        flex-direction: column;
-        align-items: stretch;
-      }
-
       .freeze-item .item-actions {
         width: 100%;
         display: grid;
@@ -7858,6 +7893,10 @@
       }
 
       .freeze-item.archived .item-actions {
+        grid-template-columns: 1fr;
+      }
+
+      .freeze-more-actions > div {
         grid-template-columns: 1fr;
       }
 
