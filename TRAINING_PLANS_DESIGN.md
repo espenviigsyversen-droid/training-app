@@ -317,7 +317,21 @@ Når `validationStatus` er `validated`, settes et eget utfall:
 
 `metric_mismatch` og `insufficient_data` avviser ikke rammen automatisk. Et validert overskridende forslag justeres som beskrevet over. Sikkerhetsadvarsler kan fortsatt stoppe en konkret materialisering. Valideringen kjøres på nytt etter nye fullførte eller importerte økter, ved planredigering, ved ukesevaluering og før hver materialisering. Allerede materialiserte økter endres ikke automatisk.
 
-### 3.3 Rolle-, race- og challenge-policy
+### 3.3 Sykdom, fryskort og comeback
+
+En blokk kan opprettes og forhåndsvises under aktivt fryskort eller comeback, men tilstanden skal vises før volumrammen. Planlegging er tillatt; stille materialisering inn i en beskyttet sykdoms-/skadeperiode er ikke tillatt.
+
+- Et aktivt fryskort som overlapper blokkstart gir en blokkerende materialiseringsstatus. Brukeren må først registrere «Frisk igjen» eller velge en start etter kortets sluttdato.
+- `recoveredAt` på et avsluttet sykdoms- eller skadekort er det eksplisitte comebackankeret. Første blokkstart foreslås som første mandag etter denne datoen.
+- Sykdomsuker ekskluderes fra representativ normalbaseline, men eksklusjonen er ikke positiv evidens. Previewen viser hvor mange uker som er utelatt og hvorfor.
+- Før avbruddet beregnet baseline kan brukes som referanse, men comebackens validerte `weekFactor` setter et øvre tak. Ved 184 minutter og faktor 0,65 er comebackgrunnlaget høyst omtrent 120 minutter, ikke 184.
+- Uke 1 blir `controlled_return`: flat eller redusert oppstartsuke uten automatisk progresjon. Først etter gjennomført uke uten forverrede kroppssignal kan senere belastningsuker vurderes på nytt.
+- `insufficient_data` er aldri et skjult grønt lys. Når volumvakten mangler grunnlag samtidig som comeback er aktiv, brukes status `restricted_by_comeback`; aggressiv ramp foreslås ikke og kan ikke materialiseres som om den var validert.
+- Aktivt fryskort, comebackstatus, brukt baseline, reduksjonsfaktor og manglende valideringsgrunnlag vises samlet i forhåndsvisningen. Skadesignal og dagsform har alltid prioritet foran blokkens mål.
+
+Dette krever runtime-kobling før steg 2 åpnes: blokkpreviewen må motta samme fryskort- og comebackgrunnlag som Hjem og coachen. Inntil denne koblingen er implementert og testet, er materialisering sperret.
+
+### 3.4 Rolle-, race- og challenge-policy
 
 #### Kanoniske roller og deterministisk klassifisering
 
