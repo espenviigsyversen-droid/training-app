@@ -348,16 +348,43 @@ export function periodizedPlanRules(rules = DEFAULT_COACH_RULES) {
 export function derivePeriodizedPlanBaseline(completedItems = [], {
   startDate,
   metric = 'auto',
+  continuityFreezes = [],
   rules = DEFAULT_COACH_RULES
 } = {}) {
   const normalizedStart = validMonday(startDate);
   const config = periodizedPlanRules(rules);
   const rangeEnd = normalizedStart ? addIsoDays(normalizedStart, -1) : '';
   const rangeStart = normalizedStart ? addIsoDays(normalizedStart, -(config.baselineLookbackWeeks * 7)) : '';
+  const illnessFreezes = (Array.isArray(continuityFreezes) ? continuityFreezes : [])
+    .filter(item => plainObject(item)
+      && ['sick', 'injury'].includes(String(item.reason || ''))
+      && ['active', 'ended'].includes(String(item.status || 'active'))
+      && validIsoDate(item.startDate)
+      && validIsoDate(item.endDate));
+  const candidateWeekStarts = Array.from({ length: config.baselineLookbackWeeks }, (_, index) => (
+    normalizedStart ? addIsoDays(normalizedStart, -((config.baselineLookbackWeeks - index) * 7)) : ''
+  )).filter(Boolean);
+  const excludedWeeks = candidateWeekStarts
+    .filter(weekStart => {
+      const weekEnd = addIsoDays(weekStart, 6);
+      return illnessFreezes.some(item => item.startDate <= weekEnd && item.endDate >= weekStart);
+    })
+    .map(weekStart => ({
+      weekStart,
+      weekEnd: addIsoDays(weekStart, 6),
+      reasons: [...new Set(illnessFreezes
+        .filter(item => item.startDate <= addIsoDays(weekStart, 6) && item.endDate >= weekStart)
+        .map(item => item.reason))]
+    }));
+  const excludedWeekStarts = new Set(excludedWeeks.map(item => item.weekStart));
   const eligible = (Array.isArray(completedItems) ? completedItems : [])
     .filter(item => {
       const date = validIsoDate(item?.date);
-      return date && rangeStart && date >= rangeStart && date <= rangeEnd;
+      return date
+        && rangeStart
+        && date >= rangeStart
+        && date <= rangeEnd
+        && !excludedWeekStarts.has(isoWeekStart(date));
     });
   const durationCount = eligible.filter(item => completedDurationSeconds(item) > 0).length;
   const durationCoverage = eligible.length ? durationCount / eligible.length : 0;
@@ -400,10 +427,97 @@ export function derivePeriodizedPlanBaseline(completedItems = [], {
     range: { start: rangeStart, end: rangeEnd },
     itemCount: eligible.length,
     weekCount: usableWeeks.length,
+    excludedWeekCount: excludedWeeks.length,
+    excludedWeeks,
     weeks: usableWeeks.map(week => ({
       ...week,
       durationMinutes: rounded(week.durationMinutes, 1)
     }))
+  };
+}
+
+export function applyPeriodizedComebackSafety({
+  baseline = {},
+  frame = {},
+  comebackState = {},
+  continuityFreezes = [],
+  startDate = ''
+} = {}) {
+  const normalBaselineValue = Math.max(0, finiteNumber(baseline?.baselineValue));
+  const metric = PLAN_METRICS.has(baseline?.metric || frame?.metric)
+    ? (baseline.metric || frame.metric)
+    : 'sessions';
+  const activeFreeze = (Array.isArray(continuityFreezes) ? continuityFreezes : [])
+    .filter(item => plainObject(item)
+      && ['sick', 'injury'].includes(String(item.reason || ''))
+      && String(item.status || 'active') === 'active'
+      && validIsoDate(item.startDate)
+      && validIsoDate(item.endDate))
+    .sort((a, b) => String(b.endDate).localeCompare(String(a.endDate)))[0] || null;
+  const comebackActive = Boolean(comebackState?.active);
+  const active = comebackActive || Boolean(activeFreeze);
+  const rawFactor = comebackActive ? finiteNumber(comebackState?.weekFactor, 1) : 1;
+  const weekFactor = active ? clampNumber(rawFactor, 0.1, 1, 1) : 1;
+  const adjustedBaselineValue = !active
+    ? normalBaselineValue
+    : metric === 'sessions' && finiteNumber(comebackState?.effectiveWeeklyTarget) > 0
+      ? Math.max(1, Math.round(finiteNumber(comebackState.effectiveWeeklyTarget)))
+      : metric === 'sessions'
+        ? Math.max(1, Math.round(normalBaselineValue * weekFactor))
+        : rounded(normalBaselineValue * weekFactor, 1);
+  const weeks = (Array.isArray(frame?.weeks) ? frame.weeks : []).map((week, index) => {
+    if (!active) return { ...week, planningState: 'normal', materializationState: 'available_when_enabled' };
+    const scale = normalBaselineValue > 0 ? adjustedBaselineValue / normalBaselineValue : weekFactor;
+    const scaledMin = metric === 'sessions'
+      ? Math.max(1, Math.round(finiteNumber(week?.targetMin) * scale))
+      : rounded(finiteNumber(week?.targetMin) * scale, 1);
+    const scaledMax = metric === 'sessions'
+      ? Math.max(scaledMin, Math.round(finiteNumber(week?.targetMax) * scale))
+      : Math.max(scaledMin, rounded(finiteNumber(week?.targetMax) * scale, 1));
+    if (index === 0) {
+      const lowerFactor = normalBaselineValue > 0 && finiteNumber(week?.targetMin) > 0
+        ? Math.min(1, finiteNumber(week.targetMin) / normalBaselineValue)
+        : 0.95;
+      const targetMinRaw = adjustedBaselineValue * lowerFactor;
+      const targetMin = metric === 'sessions'
+        ? Math.max(1, Math.min(adjustedBaselineValue, Math.round(targetMinRaw)))
+        : rounded(Math.min(adjustedBaselineValue, targetMinRaw), 1);
+      return {
+        ...week,
+        targetMin,
+        targetMax: adjustedBaselineValue,
+        planningState: 'controlled_return',
+        materializationState: 'available_when_enabled'
+      };
+    }
+    return {
+      ...week,
+      targetMin: scaledMin,
+      targetMax: scaledMax,
+      planningState: 'provisional_after_return',
+      materializationState: comebackState?.recoveryDate ? 'available_when_enabled' : 'awaiting_recovery'
+    };
+  });
+  return {
+    active,
+    status: active ? 'restricted_by_comeback' : 'normal',
+    normalBaselineValue,
+    adjustedBaselineValue,
+    metric,
+    weekFactor,
+    percent: Math.round(weekFactor * 100),
+    comebackState: comebackActive ? { ...comebackState } : null,
+    activeFreeze: activeFreeze ? { ...activeFreeze } : null,
+    recoveryRegistered: Boolean(comebackState?.recoveryDate),
+    excludedWeekCount: Math.max(0, Math.round(finiteNumber(baseline?.excludedWeekCount))),
+    excludedWeeks: Array.isArray(baseline?.excludedWeeks) ? baseline.excludedWeeks.map(item => ({ ...item })) : [],
+    frame: { ...frame, baselineValue: adjustedBaselineValue, weeks },
+    materializationPolicy: {
+      weekOneAllowedWhenEnabled: true,
+      laterWeeksRequireRecovery: true,
+      laterWeeksAllowed: Boolean(comebackState?.recoveryDate)
+    },
+    startDate: validIsoDate(startDate)
   };
 }
 
@@ -742,4 +856,3 @@ export function evaluatePlanWeek({
     effectiveWeeklyTarget: planWeek?.type === 'deload' ? Math.max(1, slots.length) : null
   };
 }
-
