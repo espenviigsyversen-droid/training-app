@@ -206,8 +206,8 @@ async function testAsync(name, fn) {
   });
 
   test('v176s2 keeps rare snapshot actions in the day modal and the week overview compact', () => {
-    assert.ok(app.includes("const APP_VERSION = 'v176v'"));
-    assert.ok(serviceWorker.includes('treningsapp-v176v'));
+    assert.ok(app.includes("const APP_VERSION = 'v176v1'"));
+    assert.ok(serviceWorker.includes('treningsapp-v176v1'));
     ['./domain-template-snapshot-update.js', './template-snapshot-update-ui.js']
       .forEach(file => assert.ok(serviceWorker.includes(file), `${file} is missing from APP_SHELL`));
     assert.ok(index.includes('id="templateSnapshotUpdateModal"'));
@@ -1624,6 +1624,55 @@ async function testAsync(name, fn) {
     assert.ok(styles.includes('@media (max-width: 700px)'), 'plan preview must include mobile layout');
   });
 
+  test('v176v1 excludes sickness weeks once and applies one comeback reduction to a controlled first week', () => {
+    const completed = [
+      { id: 'w1', date: '2026-07-20', durationSeconds: 11040 },
+      { id: 'w2', date: '2026-07-27', durationSeconds: 11040 },
+      { id: 'w3', date: '2026-08-03', durationSeconds: 11040 },
+      { id: 'w4', date: '2026-08-10', durationSeconds: 11040 },
+      { id: 'sick-short-1', date: '2026-08-18', durationSeconds: 1200 },
+      { id: 'sick-short-2', date: '2026-08-25', durationSeconds: 1200 }
+    ];
+    const freezes = [{
+      id: 'sick-1', startDate: '2026-08-17', endDate: '2026-08-29',
+      reason: 'sick', status: 'active', note: 'Syk'
+    }];
+    const baseline = periodizedPlan.derivePeriodizedPlanBaseline(completed, {
+      startDate: '2026-08-31', metric: 'duration', continuityFreezes: freezes, rules: coachRulesJson
+    });
+    assert.strictEqual(baseline.baselineValue, 184);
+    assert.strictEqual(baseline.weekCount, 4);
+    assert.strictEqual(baseline.excludedWeekCount, 2);
+    assert.deepStrictEqual(baseline.excludedWeeks.map(item => item.weekStart), ['2026-08-17', '2026-08-24']);
+
+    const model = trainingPlanUi.buildTrainingPlanPreviewModel({
+      draft: {
+        id: 'return-preview', name: 'Comeback', focus: 'base', startDate: '2026-08-31',
+        slotCount: 3, metric: 'duration', roles: ['easy', 'easy', 'long_easy'], userConfirmed: true
+      },
+      completedItems: completed,
+      continuityFreezes: freezes,
+      comebackState: {
+        active: true, phase: 'awaiting_return', weekFactor: 0.65,
+        effectiveWeeklyTarget: 2, recoveryDate: null
+      },
+      templates: [], rules: coachRulesJson, volumeRamp: { enoughData: false }
+    });
+    assert.strictEqual(model.safety.normalBaselineValue, 184);
+    assert.strictEqual(model.safety.adjustedBaselineValue, 119.6);
+    assert.strictEqual(model.frame.weeks[0].planningState, 'controlled_return');
+    assert.strictEqual(model.frame.weeks[0].targetMax, 119.6);
+    assert.ok(model.frame.weeks[0].targetMin <= model.frame.weeks[0].targetMax);
+    assert.ok(model.frame.weeks.slice(1).every(week => week.planningState === 'provisional_after_return'));
+    assert.ok(model.frame.weeks[1].targetMax < 130, 'future provisional weeks must use the comeback-adjusted frame, not the 184 minute ramp');
+    assert.ok(model.frame.weeks.slice(1).every(week => week.materializationState === 'awaiting_recovery'));
+    assert.strictEqual(model.safety.materializationPolicy.weekOneAllowedWhenEnabled, true);
+    assert.strictEqual(model.safety.materializationPolicy.laterWeeksAllowed, false);
+    assert.strictEqual(model.safety.excludedWeekCount, 2);
+    assert.ok(trainingPlanUiSource.includes('Sykdom pågår – kontrollert oppstart'));
+    assert.ok(trainingPlanUiSource.includes('sykdomsuke'));
+  });
+
   test('v176u1 uses the configured normal week before the optional block standard', () => {
     assert.deepStrictEqual(trainingPlanUi.trainingProfileRolesForPreview({
       weekPlanRoles: ['easy', 'support_threshold', 'long_easy']
@@ -2309,6 +2358,10 @@ async function testAsync(name, fn) {
     assert.ok(index.includes('id="freezeEditId"'), 'freeze form must support explicit editing');
     assert.ok(app.includes('window.markContinuityFreezeRecovered'), 'freeze UI must expose explicit recovery');
     assert.ok(app.includes('latestContinuityRecoveryDate()'), 'current comeback must receive the recovery anchor');
+    assert.ok(app.includes('class="freeze-more-actions"'), 'rare freeze actions should be grouped behind Flere');
+    assert.ok(app.includes('<summary>Flere</summary>'), 'freeze overflow menu should have a visible label');
+    assert.ok(styles.includes('.freeze-item .freeze-primary-actions'), 'primary freeze actions need their own full-width row');
+    assert.ok(styles.includes('.freeze-more-actions > div'), 'archive and delete need a compact overflow layout');
   });
 
   test('setup shows app version from app constants', () => {
@@ -3324,7 +3377,7 @@ async function testAsync(name, fn) {
     assert.ok(workoutHistoryUiSource.includes('heartRateZoneDistributionRows'), 'history does not use production zone rows');
     assert.ok(workoutHistoryUiSource.includes('Tid i pulssoner'), 'completed detail is missing the heart-rate zone section');
     assert.ok(!workoutHistoryUiSource.includes("row.estimated ? 'ca. '"), 'zone duration should not be prefixed with ca.');
-    assert.ok(app.includes("const APP_VERSION = 'v176v'"), 'visible app version must be v176v');
+    assert.ok(app.includes("const APP_VERSION = 'v176v1'"), 'visible app version must be v176v1');
     assert.ok(serviceWorker.includes('treningsapp-v176v'), 'cache version must match v176v');
   });
 
@@ -3420,7 +3473,7 @@ async function testAsync(name, fn) {
     assert.ok(index.includes('id="insightHeartRateComplianceCard"'), 'Insights is missing the compliance card');
     assert.ok(app.includes('heartRateZoneComplianceForItems(last28Days)'), 'coach context does not use the canonical compliance summary');
     assert.ok(app.includes('renderHeartRateZoneComplianceInsight(today)'), 'Insights does not render canonical compliance');
-    assert.ok(app.includes("const APP_VERSION = 'v176v'"), 'visible app version must be v176v');
+    assert.ok(app.includes("const APP_VERSION = 'v176v1'"), 'visible app version must be v176v1');
     assert.ok(serviceWorker.includes('treningsapp-v176v'), 'cache version must match v176v');
   });
 
@@ -3997,7 +4050,7 @@ async function testAsync(name, fn) {
     assert.ok(trainingImportControllerSource.includes("action: duplicate ? 'skip'"), 'duplicates should be skipped by default');
     assert.ok(!trainingImportControllerSource.includes('heartRateZoneDistribution'), 'controller must not synthesize pulse zones');
     assert.ok(styles.includes('.garmin-import-row'), 'Garmin preview styling is missing');
-    assert.ok(app.includes("const APP_VERSION = 'v176v'"));
+    assert.ok(app.includes("const APP_VERSION = 'v176v1'"));
     assert.ok(serviceWorker.includes('treningsapp-v176v'));
   });
 
