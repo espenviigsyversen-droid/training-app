@@ -1,4 +1,5 @@
 import {
+  applyPeriodizedComebackSafety,
   buildFourWeekVolumeFrame,
   derivePeriodizedPlanBaseline,
   normalizePeriodizedTrainingPlan,
@@ -121,6 +122,8 @@ function conflictText(reason) {
 export function buildTrainingPlanPreviewModel({
   draft = {},
   completedItems = [],
+  continuityFreezes = [],
+  comebackState = {},
   templates = [],
   rules,
   volumeRamp = {}
@@ -132,7 +135,12 @@ export function buildTrainingPlanPreviewModel({
     ROLE_OPTIONS.includes(draft.roles?.[index]) ? draft.roles[index] : defaultRoles(focus, slotCount)[index]
   ));
   const requestedMetric = ['auto', 'duration', 'sessions'].includes(draft.metric) ? draft.metric : 'auto';
-  const baseline = derivePeriodizedPlanBaseline(completedItems, { startDate, metric: requestedMetric, rules });
+  const baseline = derivePeriodizedPlanBaseline(completedItems, {
+    startDate,
+    metric: requestedMetric,
+    continuityFreezes,
+    rules
+  });
   const metric = baseline.metric || 'sessions';
   const normalDays = slotDays(slotCount);
   const loadSlots = selectedRoles.map((role, index) => {
@@ -148,7 +156,7 @@ export function buildTrainingPlanPreviewModel({
     templateId: templateForRole(templates, role)?.id || null
   }));
   const slotsByWeek = [loadSlots, loadSlots, loadSlots, deloadSlots];
-  const frame = buildFourWeekVolumeFrame({
+  const normalFrame = buildFourWeekVolumeFrame({
     startDate,
     baselineValue: baseline.baselineValue,
     metric,
@@ -157,8 +165,16 @@ export function buildTrainingPlanPreviewModel({
     customRoles: selectedRoles,
     rules
   });
+  const safety = applyPeriodizedComebackSafety({
+    baseline,
+    frame: normalFrame,
+    comebackState,
+    continuityFreezes,
+    startDate
+  });
+  const frame = safety.frame;
   const validations = frame.weeks.map(week => validateProspectiveVolumeFrame({ frame: week, volumeRamp, rules }));
-  const plan = normalizePeriodizedTrainingPlan({
+  const normalizedPlan = normalizePeriodizedTrainingPlan({
     id: String(draft.id || `preview-${startDate || 'draft'}`),
     name: String(draft.name || 'Fireukersblokk').trim() || 'Fireukersblokk',
     focus,
@@ -168,14 +184,30 @@ export function buildTrainingPlanPreviewModel({
     calibration: {
       lookbackWeeks: baseline.lookbackWeeks,
       metric,
-      baselineValue: baseline.baselineValue,
+      baselineValue: safety.adjustedBaselineValue,
       sourceCoverage: baseline.sourceCoverage,
       calculatedAt: '',
       userConfirmed: Boolean(draft.userConfirmed)
     },
     weeks: frame.weeks
   }, { rules });
-  return { plan, baseline, frame, validations, selectedRoles, loadSlots, deloadSlots };
+  const plan = {
+    ...normalizedPlan,
+    calibration: {
+      ...normalizedPlan.calibration,
+      normalBaselineValue: safety.normalBaselineValue,
+      baselineValue: safety.adjustedBaselineValue,
+      excludedWeekCount: safety.excludedWeekCount
+    },
+    weeks: frame.weeks,
+    safety: {
+      status: safety.status,
+      weekFactor: safety.weekFactor,
+      recoveryRegistered: safety.recoveryRegistered,
+      materializationPolicy: safety.materializationPolicy
+    }
+  };
+  return { plan, baseline, frame, validations, safety, selectedRoles, loadSlots, deloadSlots };
 }
 
 export function createTrainingPlanUi({
@@ -183,6 +215,7 @@ export function createTrainingPlanUi({
   getRules = () => undefined,
   todayISO,
   trainingVolumeRamp,
+  comebackProtocol,
   controller,
   escapeHtml = value => String(value ?? ''),
   formatDate = value => String(value || ''),
@@ -235,16 +268,50 @@ export function createTrainingPlanUi({
     const ramp = typeof trainingVolumeRamp === 'function'
       ? trainingVolumeRamp(state.completed || [], { todayIso: todayISO(), rules: rules() })
       : {};
+    const freezes = Array.isArray(state.continuityFreezes) ? state.continuityFreezes : [];
+    const recoveryDate = freezes
+      .filter(item => item?.recoveredAt && ['sick', 'injury'].includes(String(item.reason || '')))
+      .map(item => String(item.recoveredAt))
+      .sort()
+      .at(-1) || '';
+    const comeback = typeof comebackProtocol === 'function'
+      ? comebackProtocol(state.completed || [], {
+        todayIso: draft.startDate || todayISO(),
+        weeklyTarget: state.settings?.goals?.weeklySessionsTarget,
+        recoveryDate,
+        rules: rules()
+      })
+      : {};
     return {
       ...buildTrainingPlanPreviewModel({
         draft,
         completedItems: state.completed || [],
+        continuityFreezes: freezes,
+        comebackState: comeback,
         templates: state.templates || [],
         rules: rules(),
         volumeRamp: ramp
       }),
-      volumeRamp: ramp
+      volumeRamp: ramp,
+      comeback
     };
+  }
+
+  function safetyNotice(model) {
+    const safety = model?.safety || {};
+    if (!safety.active) return '';
+    const freeze = safety.activeFreeze;
+    const freezeText = freeze
+      ? `Fryskortet gjelder ${formatDate(freeze.startDate)}–${formatDate(freeze.endDate)}${safety.recoveryRegistered ? '.' : ', og «Frisk igjen» er ikke registrert.'}`
+      : 'Et treningsopphold gjør comebackbegrensningen aktiv.';
+    const excluded = safety.excludedWeekCount
+      ? `${safety.excludedWeekCount} sykdomsuke${safety.excludedWeekCount === 1 ? '' : 'r'} er utelatt fra normalgrunnlaget.`
+      : 'Ingen sykdomsuker i baselinevinduet måtte utelates.';
+    return `<div class="training-plan-safety-notice" role="status">
+      <strong>Sykdom pågår – kontrollert oppstart</strong>
+      <p>${escapeHtml(freezeText)} Normalgrunnlaget på ${escapeHtml(formatMetricValue(safety.normalBaselineValue, safety.metric))} er begrenset til ${escapeHtml(formatMetricValue(safety.adjustedBaselineValue, safety.metric))} (${escapeHtml(safety.percent)} %) i uke 1.</p>
+      <p>${escapeHtml(excluded)} Uke 1 kan legges i kalenderen når materialisering åpnes; uke 2 og videre venter på registrert friskmelding.</p>
+    </div>`;
   }
 
   function stepNav() {
@@ -320,6 +387,7 @@ export function createTrainingPlanUi({
     return `<div class="training-plan-step">
       <h3>Volumramme og trygghet</h3>
       <p>Forslaget bruker faktisk historikk. Det gjettes ikke når datagrunnlaget eller metrikken ikke kan sammenlignes.</p>
+      ${safetyNotice(model)}
       <label for="trainingPlanMetric">Metrikk</label>
       <select id="trainingPlanMetric" data-plan-field="metric">
         <option value="auto"${draft.metric === 'auto' ? ' selected' : ''}>Velg fra datadekning</option>
@@ -327,17 +395,19 @@ export function createTrainingPlanUi({
         <option value="sessions"${draft.metric === 'sessions' ? ' selected' : ''}>Antall økter</option>
       </select>
       <div class="training-plan-baseline-grid">
-        <div><span>Utgangspunkt</span><strong>${escapeHtml(formatMetricValue(baseline.baselineValue, baseline.metric))}</strong></div>
+        <div><span>${model.safety.active ? 'Normalgrunnlag' : 'Utgangspunkt'}</span><strong>${escapeHtml(formatMetricValue(baseline.baselineValue, baseline.metric))}</strong></div>
+        ${model.safety.active ? `<div><span>Justert oppstart</span><strong>${escapeHtml(formatMetricValue(model.safety.adjustedBaselineValue, baseline.metric))}</strong></div>` : ''}
         <div><span>Historikk</span><strong>${escapeHtml(`${baseline.weekCount}/${baseline.lookbackWeeks} uker`)}</strong></div>
         <div><span>Datadekning</span><strong>${escapeHtml(`${coverage} %`)}</strong></div>
       </div>
+      ${baseline.excludedWeekCount ? `<p class="small-note">${escapeHtml(baseline.excludedWeekCount)} sykdomsuke${baseline.excludedWeekCount === 1 ? '' : 'r'} er eksplisitt ekskludert fra baseline, slik at fravær og comebackreduksjon ikke telles dobbelt.</p>` : ''}
       <div class="training-plan-validation ${escapeHtml(validation.outcome || validation.validationStatus || '')}">
         <strong>${escapeHtml(validationLabel(validation))}</strong>
         <p>${escapeHtml(validation.message || '')}</p>
         ${model.volumeRamp?.ranges ? `<small>Volumvakt: ${escapeHtml(formatDate(model.volumeRamp.ranges.baselineStart))}–${escapeHtml(formatDate(model.volumeRamp.ranges.recentEnd))} · ${escapeHtml(model.volumeRamp.metric === 'duration' ? 'treningstid' : 'antall økter')}</small>` : ''}
       </div>
       <div class="training-plan-mini-weeks">
-        ${model.frame.weeks.map((week, index) => `<div><span>Uke ${index + 1}${week.type === 'deload' ? ' · avlastning' : ''}</span><strong>${escapeHtml(formatMetricValue(model.validations[index]?.proposedTargetMin ?? week.targetMin, week.metric))}–${escapeHtml(formatMetricValue(model.validations[index]?.proposedTargetMax ?? week.targetMax, week.metric))}</strong></div>`).join('')}
+        ${model.frame.weeks.map((week, index) => `<div><span>Uke ${index + 1}${week.planningState === 'controlled_return' ? ' · kontrollert oppstart' : week.planningState === 'provisional_after_return' ? ' · foreløpig' : week.type === 'deload' ? ' · avlastning' : ''}</span><strong>${escapeHtml(formatMetricValue(model.validations[index]?.proposedTargetMin ?? week.targetMin, week.metric))}–${escapeHtml(formatMetricValue(model.validations[index]?.proposedTargetMax ?? week.targetMax, week.metric))}</strong></div>`).join('')}
       </div>
     </div>`;
   }
@@ -376,14 +446,15 @@ export function createTrainingPlanUi({
     return `<div class="training-plan-step training-plan-full-preview">
       <h3>Sjekk blokkforhåndsvisningen</h3>
       <p>Dette er bare en lokal forhåndsvisning. Ingen plan eller kalenderøkt lagres i dette steget.</p>
+      ${safetyNotice(model)}
       <div class="training-plan-week-grid">
         ${model.plan.weeks.map((week, index) => {
           const validation = model.validations[index] || {};
           const inMaterializationWindow = preview.window?.weekStarts?.includes(week.weekStart);
           return `<section class="training-plan-week ${week.type === 'deload' ? 'deload' : ''}">
             <div class="training-plan-week-head">
-              <div><span>Uke ${week.index} av 4</span><strong>${week.type === 'deload' ? 'Avlastningsuke' : index === 2 ? 'Toppuke' : 'Belastningsuke'}</strong></div>
-              <small>${escapeHtml(inMaterializationWindow ? 'Vises i kalenderdiff' : 'Planlagt fremover')}</small>
+              <div><span>Uke ${week.index} av 4</span><strong>${week.planningState === 'controlled_return' ? 'Kontrollert oppstartsuke' : week.type === 'deload' ? 'Avlastningsuke' : index === 2 ? 'Toppuke · foreløpig' : week.planningState === 'provisional_after_return' ? 'Belastningsuke · foreløpig' : 'Belastningsuke'}</strong></div>
+              <small>${escapeHtml(week.materializationState === 'awaiting_recovery' ? 'Venter på friskmelding' : inMaterializationWindow ? 'Kan materialiseres når steg 2 åpnes' : 'Planlagt fremover')}</small>
             </div>
             <p>${escapeHtml(formatDate(week.weekStart))}–${escapeHtml(formatDate(week.weekEnd))} · ${escapeHtml(formatMetricValue(validation.proposedTargetMin ?? week.targetMin, week.metric))}–${escapeHtml(formatMetricValue(validation.proposedTargetMax ?? week.targetMax, week.metric))}</p>
             <span class="training-plan-validation-pill ${escapeHtml(validation.outcome || validation.validationStatus || '')}">${escapeHtml(validationLabel(validation))}</span>
