@@ -206,8 +206,8 @@ async function testAsync(name, fn) {
   });
 
   test('v176s2 keeps rare snapshot actions in the day modal and the week overview compact', () => {
-    assert.ok(app.includes("const APP_VERSION = 'v176u1'"));
-    assert.ok(serviceWorker.includes('treningsapp-v176u1'));
+    assert.ok(app.includes("const APP_VERSION = 'v176v'"));
+    assert.ok(serviceWorker.includes('treningsapp-v176v'));
     ['./domain-template-snapshot-update.js', './template-snapshot-update-ui.js']
       .forEach(file => assert.ok(serviceWorker.includes(file), `${file} is missing from APP_SHELL`));
     assert.ok(index.includes('id="templateSnapshotUpdateModal"'));
@@ -2285,6 +2285,13 @@ async function testAsync(name, fn) {
     assert.strictEqual(week.frozenDayCount, 7);
     assert.strictEqual(isWeekProtectedByFreeze('2026-07-06', freezes), true);
     assert.strictEqual(isWeekProtectedByFreeze('2026-07-13', freezes), false);
+    const ended = normalizeContinuityFreeze({
+      id: 'freeze-ended', startDate: '2026-08-20', endDate: '2026-08-27', reason: 'sick',
+      status: 'ended', recoveredAt: '2026-08-27', endedAt: '2026-08-27T10:00:00.000Z'
+    });
+    assert.strictEqual(ended.status, 'ended');
+    assert.strictEqual(ended.recoveredAt, '2026-08-27');
+    assert.strictEqual(isDateFrozen('2026-08-27', [ended]), false, 'ended cards must not remain active');
   });
 
   test('continuity freeze UI explains today status and Norwegian date preview', () => {
@@ -2299,6 +2306,9 @@ async function testAsync(name, fn) {
     assert.ok(styles.includes('.freeze-item .item-actions'), 'freeze actions should have dedicated mobile layout');
     assert.ok(styles.includes('grid-template-columns: repeat(2, minmax(0, 1fr));'), 'freeze action buttons should be side-by-side on mobile');
     assert.ok(styles.includes('.freeze-item.archived .item-actions'), 'archived freeze actions should not leave an empty second column');
+    assert.ok(index.includes('id="freezeEditId"'), 'freeze form must support explicit editing');
+    assert.ok(app.includes('window.markContinuityFreezeRecovered'), 'freeze UI must expose explicit recovery');
+    assert.ok(app.includes('latestContinuityRecoveryDate()'), 'current comeback must receive the recovery anchor');
   });
 
   test('setup shows app version from app constants', () => {
@@ -3314,8 +3324,8 @@ async function testAsync(name, fn) {
     assert.ok(workoutHistoryUiSource.includes('heartRateZoneDistributionRows'), 'history does not use production zone rows');
     assert.ok(workoutHistoryUiSource.includes('Tid i pulssoner'), 'completed detail is missing the heart-rate zone section');
     assert.ok(!workoutHistoryUiSource.includes("row.estimated ? 'ca. '"), 'zone duration should not be prefixed with ca.');
-    assert.ok(app.includes("const APP_VERSION = 'v176u1'"), 'visible app version must be v176u1');
-    assert.ok(serviceWorker.includes('treningsapp-v176u1'), 'cache version must match v176u1');
+    assert.ok(app.includes("const APP_VERSION = 'v176v'"), 'visible app version must be v176v');
+    assert.ok(serviceWorker.includes('treningsapp-v176v'), 'cache version must match v176v');
   });
 
   test('v174b evaluates easy and quality sessions without treating zone percentages as a hard truth', () => {
@@ -3410,8 +3420,8 @@ async function testAsync(name, fn) {
     assert.ok(index.includes('id="insightHeartRateComplianceCard"'), 'Insights is missing the compliance card');
     assert.ok(app.includes('heartRateZoneComplianceForItems(last28Days)'), 'coach context does not use the canonical compliance summary');
     assert.ok(app.includes('renderHeartRateZoneComplianceInsight(today)'), 'Insights does not render canonical compliance');
-    assert.ok(app.includes("const APP_VERSION = 'v176u1'"), 'visible app version must be v176u1');
-    assert.ok(serviceWorker.includes('treningsapp-v176u1'), 'cache version must match v176u1');
+    assert.ok(app.includes("const APP_VERSION = 'v176v'"), 'visible app version must be v176v');
+    assert.ok(serviceWorker.includes('treningsapp-v176v'), 'cache version must match v176v');
   });
 
   test('v174c uses the test profile for zones and keeps the golden zone as a separate coach reference', () => {
@@ -3987,8 +3997,8 @@ async function testAsync(name, fn) {
     assert.ok(trainingImportControllerSource.includes("action: duplicate ? 'skip'"), 'duplicates should be skipped by default');
     assert.ok(!trainingImportControllerSource.includes('heartRateZoneDistribution'), 'controller must not synthesize pulse zones');
     assert.ok(styles.includes('.garmin-import-row'), 'Garmin preview styling is missing');
-    assert.ok(app.includes("const APP_VERSION = 'v176u1'"));
-    assert.ok(serviceWorker.includes('treningsapp-v176u1'));
+    assert.ok(app.includes("const APP_VERSION = 'v176v'"));
+    assert.ok(serviceWorker.includes('treningsapp-v176v'));
   });
 
   test('structured interval UI fields and summaries are wired into production files', () => {
@@ -4405,6 +4415,22 @@ async function testAsync(name, fn) {
     assert.strictEqual(returnWeek.daysSinceReturn, 4);
     assert.strictEqual(returnWeek.effectiveWeeklyTarget, 2);
     assert.match(returnWeek.explanation, /retur|opphold/);
+  });
+
+  test('v176v explicit recovery date anchors awaiting return and the first comeback week', () => {
+    const history = [
+      { id: 'before', date: '2026-08-16' }
+    ];
+    const awaiting = comebackProtocol(history, {
+      todayIso: '2026-08-27', recoveryDate: '2026-08-27', weeklyTarget: 3, rules: coachRulesJson
+    });
+    assert.strictEqual(awaiting.phase, 'awaiting_return');
+    assert.strictEqual(awaiting.recoveryDate, '2026-08-27');
+    const returned = comebackProtocol([...history, { id: 'return', date: '2026-08-28' }], {
+      todayIso: '2026-08-29', recoveryDate: '2026-08-27', weeklyTarget: 3, rules: coachRulesJson
+    });
+    assert.strictEqual(returned.phase, 'return_week');
+    assert.strictEqual(returned.daysSinceReturn, 1);
   });
 
   test('comeback protocol remains inactive during normal training rhythm', () => {
