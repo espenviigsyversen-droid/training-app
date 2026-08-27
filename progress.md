@@ -1,5 +1,15 @@
 # Treningsapp — progress.md
-Oppdatert: 2026-08-27 (siste runtime-endring: v176v)
+Oppdatert: 2026-08-27 (siste runtime-endring: v176v1)
+
+---
+
+## v176v1 – sykdomssikker blokkpreview og kompakte fryskort
+
+- Blokkpreviewen bruker nå samme `comebackProtocol()` som Hjem/coachen og viser normalgrunnlag ved siden av comebackbegrenset oppstartsgrunnlag.
+- Sykdoms-/skadeuker dekket av aktive eller avsluttede fryskort ekskluderes eksplisitt fra representativ baseline; antallet vises og comebackfaktoren brukes bare én gang.
+- Uke 1 markeres som kontrollert oppstart uten progresjon. Uke 2–4 er foreløpige og vises som ventende på friskmelding når `recoveredAt` mangler.
+- Fryskort gir notatet full bredde. Rediger/Frisk igjen er primærhandlinger, mens Arkiver/Slett ligger under «Flere».
+- Materialisering er fortsatt sperret; v176v1 legger ikke økter eller planer i Firestore/kalenderen.
 
 ---
 
