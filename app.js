@@ -195,7 +195,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     } from './domain-template-snapshot-update.js';
     import { createTemplateSnapshotUpdateUi } from './template-snapshot-update-ui.js';
 
-const APP_VERSION = 'v176v';
+const APP_VERSION = 'v176v1';
     const APP_CACHE_NAME = `treningsapp-${APP_VERSION}`;
 
     const firebaseConfig = {
@@ -1274,12 +1274,18 @@ const APP_VERSION = 'v176v';
                   ${adjacentSameReason ? '<p class="freeze-merge-hint">Tilstøtende kort med samme årsak finnes. Vurder å forlenge ett kort og arkivere det andre.</p>' : ''}
                   <p class="small-note">Dette beskytter kontinuiteten, men teller ikke som trening.</p>
                 </div>
-                <div class="item-actions">
-                  ${active ? `<button class="btn-soft" onclick="editContinuityFreeze('${escapeHtml(item.id)}')">Rediger</button>` : `<button class="btn-soft" onclick="editContinuityFreeze('${escapeHtml(item.id)}', true)">Rediger historikk</button>`}
+                <div class="item-actions freeze-primary-actions">
+                  ${active ? `<button class="btn-soft" onclick="editContinuityFreeze('${escapeHtml(item.id)}')">Rediger</button>` : ''}
                   ${active && ['sick', 'injury'].includes(item.reason) ? `<button class="btn-soft" onclick="markContinuityFreezeRecovered('${escapeHtml(item.id)}')">Frisk igjen</button>` : ''}
-                  ${active ? `<button class="btn-soft" onclick="archiveContinuityFreeze('${escapeHtml(item.id)}')">Arkiver</button>` : ''}
-                  <button class="btn-soft danger" onclick="deleteContinuityFreeze('${escapeHtml(item.id)}')">Slett</button>
                 </div>
+                <details class="freeze-more-actions">
+                  <summary>Flere</summary>
+                  <div>
+                    ${!active ? `<button class="btn-soft" onclick="editContinuityFreeze('${escapeHtml(item.id)}', true)">Rediger historikk</button>` : ''}
+                    ${active ? `<button class="btn-soft" onclick="archiveContinuityFreeze('${escapeHtml(item.id)}')">Arkiver</button>` : ''}
+                    <button class="btn-soft danger" onclick="deleteContinuityFreeze('${escapeHtml(item.id)}')">Slett</button>
+                  </div>
+                </details>
               </div>`;
           }).join('')}`
         : '<p class="small-note">Ingen fryskort er registrert ennå.</p>';
@@ -3830,6 +3836,7 @@ const APP_VERSION = 'v176v';
           getRules: () => getCoachRules(),
           todayISO,
           trainingVolumeRamp,
+          comebackProtocol,
           controller: trainingPlanController,
           escapeHtml,
           formatDate,
