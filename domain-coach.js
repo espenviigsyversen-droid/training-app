@@ -1122,7 +1122,7 @@ function cleanIsoDate(value) {
 }
 
 function cleanFreezeStatus(value) {
-  return value === 'archived' ? 'archived' : 'active';
+  return value === 'archived' ? 'archived' : value === 'ended' ? 'ended' : 'active';
 }
 
 function cleanFreezeReason(value, rules = getCoachRules()) {
@@ -1153,6 +1153,8 @@ export function normalizeContinuityFreeze(input = {}, options = {}) {
   if (requiredNotes.includes(reason) && !note) return null;
   const source = input.source === 'system_suggested' ? 'system_suggested' : 'manual';
   const status = cleanFreezeStatus(input.status);
+  const recoveredAt = cleanIsoDate(input.recoveredAt);
+  if (recoveredAt && (recoveredAt < startDate || recoveredAt > endDate)) return null;
   return {
     id,
     startDate,
@@ -1161,6 +1163,8 @@ export function normalizeContinuityFreeze(input = {}, options = {}) {
     note,
     source,
     status,
+    recoveredAt,
+    endedAt: String(input.endedAt || '').trim(),
     createdAt: String(input.createdAt || '').trim(),
     updatedAt: String(input.updatedAt || '').trim()
   };
@@ -1339,6 +1343,7 @@ export function comebackProtocol(completedItems = [], options = {}) {
   const longFactor = Math.max(0.1, Math.min(1, Number(config.reducedWeekFactor) || 0.65));
   const shortFactor = Math.max(longFactor, Math.min(1, Number(config.shortBreakWeekFactor) || 0.8));
   const protocolDays = Math.max(1, Math.round(Number(config.protocolDays) || 7));
+  const recoveryDate = cleanIsoDate(options.recoveryDate);
   const dates = [...new Set(
     (Array.isArray(completedItems) ? completedItems : [])
       .map(item => String(item?.date || '').trim())
@@ -1366,7 +1371,16 @@ export function comebackProtocol(completedItems = [], options = {}) {
   let gapDays = null;
   let daysSinceReturn = null;
 
-  if (daysSinceLast >= triggerDays) {
+  const firstAfterRecovery = recoveryDate ? dates.find(date => date >= recoveryDate) || '' : '';
+  const lastBeforeRecovery = recoveryDate ? [...dates].reverse().find(date => date < recoveryDate) || '' : '';
+  if (recoveryDate && recoveryDate <= todayIso && !firstAfterRecovery) {
+    phase = 'awaiting_return';
+    gapDays = lastBeforeRecovery ? daysBetweenIso(lastBeforeRecovery, recoveryDate) : daysSinceLast;
+  } else if (recoveryDate && firstAfterRecovery && daysBetweenIso(firstAfterRecovery, todayIso) < protocolDays) {
+    phase = 'return_week';
+    gapDays = lastBeforeRecovery ? daysBetweenIso(lastBeforeRecovery, firstAfterRecovery) : daysSinceLast;
+    daysSinceReturn = daysBetweenIso(firstAfterRecovery, todayIso);
+  } else if (daysSinceLast >= triggerDays) {
     phase = 'awaiting_return';
     gapDays = daysSinceLast;
   } else {
@@ -1408,5 +1422,6 @@ export function comebackProtocol(completedItems = [], options = {}) {
     weekFactor,
     effectiveWeeklyTarget,
     protocolDays
+    , recoveryDate: recoveryDate || null
   };
 }
