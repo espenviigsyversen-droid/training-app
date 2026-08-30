@@ -713,6 +713,30 @@ export function normalizePeriodizedTrainingPlan(input = {}, { rules = DEFAULT_CO
   if (suppliedWeeks.length && suppliedWeeks.length !== 4) errors.push('exactly_four_weeks_required');
   const requestedStatus = PLAN_STATUSES.has(source.status) ? source.status : 'draft';
   const status = errors.length ? 'draft' : requestedStatus;
+  const materializations = (Array.isArray(source.materializations) ? source.materializations : [])
+    .filter(item => plainObject(item) && String(item.id || '').trim())
+    .map(item => ({
+      id: String(item.id),
+      planRevision: Math.max(1, Math.round(finiteNumber(item.planRevision, 1))),
+      weekStart: validIsoDate(item.weekStart),
+      createdPlannedIds: [...new Set((Array.isArray(item.createdPlannedIds) ? item.createdPlannedIds : []).map(id => String(id || '')).filter(Boolean))],
+      createdAt: String(item.createdAt || ''),
+      undoneAt: String(item.undoneAt || ''),
+      status: item.status === 'undone' ? 'undone' : 'applied'
+    }));
+  const normalizedWeeks = frame.weeks.map((week, index) => {
+    const supplied = plainObject(suppliedWeeks[index]) ? suppliedWeeks[index] : {};
+    return {
+      ...week,
+      planningState: ['normal', 'controlled_return', 'provisional_after_return'].includes(supplied.planningState)
+        ? supplied.planningState
+        : 'normal',
+      materializationState: ['available_when_enabled', 'awaiting_recovery'].includes(supplied.materializationState)
+        ? supplied.materializationState
+        : 'available_when_enabled'
+    };
+  });
+  const safetySource = plainObject(source.safety) ? source.safety : {};
   return {
     id: String(source.id || ''),
     version: PERIODIZED_PLAN_VERSION,
@@ -732,12 +756,25 @@ export function normalizePeriodizedTrainingPlan(input = {}, { rules = DEFAULT_CO
       lookbackWeeks: Math.max(4, Math.round(finiteNumber(calibrationSource.lookbackWeeks, periodizedPlanRules(rules).baselineLookbackWeeks))),
       metric,
       baselineValue,
+      normalBaselineValue: Math.max(0, finiteNumber(calibrationSource.normalBaselineValue, baselineValue)),
+      excludedWeekCount: Math.max(0, Math.round(finiteNumber(calibrationSource.excludedWeekCount))),
       sourceCoverage: clampNumber(calibrationSource.sourceCoverage, 0, 1, 0),
       calculatedAt: String(calibrationSource.calculatedAt || ''),
       userConfirmed: Boolean(calibrationSource.userConfirmed)
     },
     volumeFrame: { metric, factors: frame.factors },
-    weeks: frame.weeks,
+    weeks: normalizedWeeks,
+    safety: {
+      status: String(safetySource.status || 'normal'),
+      weekFactor: clampNumber(safetySource.weekFactor, 0.1, 1, 1),
+      recoveryRegistered: Boolean(safetySource.recoveryRegistered),
+      materializationPolicy: {
+        weekOneAllowedWhenEnabled: safetySource.materializationPolicy?.weekOneAllowedWhenEnabled !== false,
+        laterWeeksRequireRecovery: safetySource.materializationPolicy?.laterWeeksRequireRecovery !== false,
+        laterWeeksAllowed: Boolean(safetySource.materializationPolicy?.laterWeeksAllowed)
+      }
+    },
+    materializations,
     validation: { valid: errors.length === 0, errors },
     canMaterialize: errors.length === 0 && calibrationSource.userConfirmed === true
   };
