@@ -365,14 +365,15 @@ Prioritert backlog for videre utvikling av Treningsapp.
     - Forslaget skal kreve brukerbekreftelse og aldri endre aktivitetstype automatisk.
     - Bruk samme validering ved manuell logging og importforhåndsvisning, uten å blokkere lagring når aktiviteten faktisk er tilsiktet.
 
-52k. **Periodisert treningsplan v1 - Sikker preview levert, materialisering sperret**
+52k. **Periodisert treningsplan v1 - Første uke kan materialiseres kontrollert**
     - Bruk `TRAINING_PLANS_DESIGN.md` som bindende utviklingsgrunnlag for én manuell fireukersblokk med tre belastningsuker og én avlastningsuke.
     - Historisk stabile `weeklyTargetSnapshots` og felles `effectiveWeeklyTargetForWeek()` er levert i v176o før blokkaktivering. Legacy-streak er bevart, og avlastningsmål skilles fra fryskort.
     - Ren blokklogikk er levert i v176p: normalisering, baseline, fireukers rammer, felles regelkilde, prospektiv volumvalidering, rolle-/race-policy, konfliktklassifisering og ukesevaluering.
     - Skrivefri current+next-preview og `trainingPlans` i state/repository/backup/recovery er levert i v176t. Mobil firestegsflyt med faktisk volumvalidering, full blokkoversikt og eksplisitte konfliktvalg er levert i v176u uten lagringsknapp. Materialisering kan ikke kalles før preview-porten er godkjent.
-    - v176v1 kobler aktivt sykdomsfryskort og eksisterende `comebackProtocol()` inn i runtime-previewen. Sykdomsuker ekskluderes fra normalbaseline, uke 1 begrenses som kontrollert oppstart, og senere uker merkes som ventende på friskmelding. Skriving er fortsatt ikke tilgjengelig.
+    - v176v1 kobler aktivt sykdomsfryskort og eksisterende `comebackProtocol()` inn i runtime-previewen. Sykdomsuker ekskluderes fra normalbaseline, uke 1 begrenses som kontrollert oppstart, og senere uker merkes som ventende på friskmelding.
+    - v176w åpner eksplisitt materialisering av bare blokkens uke 1: eksakt dato-/malliste, recovery-snapshot før skriv, komplett planresept, skriveport for innlogging/nett/offline snapshot og avgrenset angre med plan-/revisjons-/operasjonsidentitet. Uke 2+ og current+next er fortsatt sperret til produksjonsverifisering.
     - Valider blokkens øvre volumramme mot `trainingVolumeRamp()` sitt faktiske beregningsgrunnlag. Vis `metric_mismatch` eller `insufficient_data` uten konvertering eller gjetting.
-    - Materialiser bare inneværende og neste uke etter eksplisitt preview. Bevar fullførte, historiske og brukerendrede økter.
+    - Utvid eventuelt fra verifisert uke-1-materialisering til inneværende+neste uke etter ny eksplisitt port. Bevar fullførte, historiske og brukerendrede økter.
     - Bygg mobil-først opprettelsesflyt, Treningsplan-visning under Kalender, kompakt Hjem-kort og blokk-fullført-oppsummering med konkrete tom-, konflikt- og feiltilstander.
     - Aktiv blokk eier rolleprioritet; race forblir synlig kontekst. Challenge-mål reduseres aldri automatisk.
     - 12-ukers løpsplan, flere aktive planer og automatisk neste blokk er utenfor v1.
