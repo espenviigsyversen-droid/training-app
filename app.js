@@ -195,7 +195,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     } from './domain-template-snapshot-update.js';
     import { createTemplateSnapshotUpdateUi } from './template-snapshot-update-ui.js';
 
-const APP_VERSION = 'v176w';
+const APP_VERSION = 'v176w1';
     const APP_CACHE_NAME = `treningsapp-${APP_VERSION}`;
 
     const firebaseConfig = {
@@ -3828,7 +3828,7 @@ const APP_VERSION = 'v176w';
         trainingPlanController = createTrainingPlanController({
           getState: () => state,
           getRules: () => getCoachRules(),
-          buildTemplateSnapshot: templateSnapshotFromTemplate,
+          buildTemplateSnapshot: template => templateSnapshotFromTemplate(template),
           canWrite: () => {
             if (!currentUser?.uid) return { allowed: false, reason: 'Logg inn før du legger blokken i kalenderen.' };
             if (offlineSnapshotMode) return { allowed: false, reason: 'Lagret offline-visning er skrivebeskyttet.' };
@@ -3836,7 +3836,7 @@ const APP_VERSION = 'v176w';
             return { allowed: true, reason: '' };
           },
           commitMaterialization: async command => {
-            if (!currentUser?.uid || !navigator.onLine || offlineSnapshotMode) throw new Error('Materialisering krever innlogging og nett.');
+            if (!currentUser?.uid || !navigator.onLine || offlineSnapshotMode) throw new Error('Du må være innlogget og tilkoblet for å legge uke 1 i kalenderen.');
             const recoverySaved = await saveRecoverySnapshot('before-training-plan-materialization');
             if (!recoverySaved) throw new Error('Kunne ikke opprette gjenopprettingskopi. Ingen økter er skrevet.');
             setSyncStatus('syncing');
@@ -3851,7 +3851,7 @@ const APP_VERSION = 'v176w';
             render();
           },
           commitUndo: async command => {
-            if (!currentUser?.uid || !navigator.onLine || offlineSnapshotMode) throw new Error('Angre krever innlogging og nett.');
+            if (!currentUser?.uid || !navigator.onLine || offlineSnapshotMode) throw new Error('Du må være innlogget og tilkoblet for å fjerne planens økter.');
             const recoverySaved = await saveRecoverySnapshot('before-training-plan-materialization-undo');
             if (!recoverySaved) throw new Error('Kunne ikke opprette gjenopprettingskopi. Ingen økter er slettet.');
             setSyncStatus('syncing');
