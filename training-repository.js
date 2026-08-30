@@ -171,6 +171,53 @@ export function createTrainingRepository({
     return { committedOperations, committedChunks, totalOperations: entries.length };
   }
 
+  async function materializeTrainingPlan({ plan, plannedItems = [] } = {}) {
+    if (!plan?.id) throw new Error('Training plan is missing an id');
+    const items = Array.isArray(plannedItems) ? plannedItems : [];
+    if (items.some(item => !item?.id)) throw new Error('Materialized workout is missing an id');
+    const batch = writeBatch(db);
+    const { id: planId, ...planData } = plan;
+    batch.set(userDocument('trainingPlans', planId), planData);
+    items.forEach(item => {
+      const { id, ...data } = item;
+      batch.set(userDocument('planned', id), data);
+    });
+    await batch.commit();
+    return { plan, plannedItems: items, committedOperations: items.length + 1 };
+  }
+
+  async function undoTrainingPlanMaterialization({
+    plan,
+    planId,
+    planRevision,
+    materializationId,
+    plannedIds = []
+  } = {}) {
+    if (typeof runTransaction !== 'function') throw new Error('Transactional materialization undo is unavailable');
+    if (!plan?.id || plan.id !== planId || !materializationId) throw new Error('Materialization undo is incomplete');
+    const ids = [...new Set((Array.isArray(plannedIds) ? plannedIds : []).map(id => String(id || '')).filter(Boolean))];
+    return runTransaction(db, async transaction => {
+      const refs = ids.map(id => userDocument('planned', id));
+      const snapshots = [];
+      for (const ref of refs) snapshots.push(await transaction.get(ref));
+      snapshots.forEach((snapshot, index) => {
+        if (!snapshot.exists()) return;
+        const current = snapshot.data() || {};
+        const ref = current.planRef || {};
+        const matches = String(ref.planId || '') === String(planId)
+          && Number(ref.planRevision) === Number(planRevision)
+          && String(ref.materializationId || '') === String(materializationId);
+        if (!matches) throw new Error(`Planlagt økt ${ids[index]} tilhører ikke denne materialiseringen`);
+      });
+      snapshots.forEach((snapshot, index) => {
+        if (snapshot.exists()) transaction.delete(refs[index]);
+      });
+      const { id, ...planData } = plan;
+      transaction.set(userDocument('trainingPlans', id), planData);
+      return { plan, removedIds: ids.filter((_, index) => snapshots[index].exists()) };
+    });
+  }
+
   async function load() {
     const snapshots = await Promise.all([
       ...dataCollections.map(name => getDocs(userCollection(name))),
@@ -222,10 +269,11 @@ export function createTrainingRepository({
     remove,
     batchSet,
     importActivities,
+    materializeTrainingPlan,
+    undoTrainingPlanMaterialization,
     replace,
     clearData,
     prepareWeeklyTargetFinalization,
     finalizeWeeklyTargetSnapshot
   };
 }
-
