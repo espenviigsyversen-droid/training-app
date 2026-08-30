@@ -110,7 +110,10 @@ function plannedRecordForSlot(plan, week, slot, template, {
   buildTemplateSnapshot = defaultTemplateSnapshot,
   materialization = {}
 } = {}) {
-  const templateSnapshot = buildTemplateSnapshot(template, slot, plan) || defaultTemplateSnapshot(template);
+  // Snapshot builders receive the template only. App-level helpers use their
+  // second argument for a manual workout name, so passing slot/plan objects
+  // here would persist "[object Object]" as the template name.
+  const templateSnapshot = buildTemplateSnapshot(template) || defaultTemplateSnapshot(template);
   const base = normalizePlanChangeTracking({
     id: id || stablePreviewId(plan.id, slot.slotId),
     templateId: template.id,
@@ -441,14 +444,14 @@ export function buildFirstWeekMaterializationCommand(preview = {}, {
   now = new Date().toISOString()
 } = {}) {
   if (preview?.scope !== 'first_week' || !preview?.writeEnabled || !preview?.ready) {
-    throw new Error('Første uke er ikke klar for materialisering.');
+    throw new Error('Første uke er ikke klar til å legges i kalenderen.');
   }
   const unsupported = (preview.operations || []).filter(operation => !['create', 'keep'].includes(operation.type));
   if (unsupported.length) throw new Error('Steg 2 kan bare opprette manglende økter og beholde eksisterende data.');
   const plan = normalizePeriodizedTrainingPlan(preview.plan);
   const firstWeek = plan.weeks[0];
   if (!firstWeek || preview.operations.some(operation => operation.weekIndex !== 1)) {
-    throw new Error('Steg 2 kan bare materialisere blokkens første uke.');
+    throw new Error('Dette steget kan bare legge blokkens første uke i kalenderen.');
   }
   const id = materializationId || materializationIdFor(plan, now);
   const createdItems = preview.operations
@@ -493,7 +496,7 @@ export function buildUndoMaterializationCommand(planInput = {}, materializationI
 } = {}) {
   const plan = normalizePeriodizedTrainingPlan(planInput);
   const record = (plan.materializations || []).find(item => item.id === materializationId && item.status === 'applied');
-  if (!record) throw new Error('Fant ingen aktiv materialisering å angre.');
+  if (!record) throw new Error('Fant ingen økter fra planen som kan fjernes.');
   const updatedRecord = { ...record, status: 'undone', undoneAt: now };
   return {
     id: record.id,
@@ -516,7 +519,7 @@ export function createTrainingPlanController({
   now = () => new Date().toISOString(),
   createId,
   buildTemplateSnapshot,
-  canWrite = () => ({ allowed: false, reason: 'Materialisering er ikke tilgjengelig.' }),
+  canWrite = () => ({ allowed: false, reason: 'Kalenderlagring er ikke tilgjengelig.' }),
   commitMaterialization,
   commitUndo
 } = {}) {
@@ -541,7 +544,7 @@ export function createTrainingPlanController({
     },
     writeAccess() {
       const access = typeof canWrite === 'function' ? canWrite() : false;
-      return typeof access === 'object' ? access : { allowed: Boolean(access), reason: access ? '' : 'Materialisering er ikke tilgjengelig.' };
+      return typeof access === 'object' ? access : { allowed: Boolean(access), reason: access ? '' : 'Kalenderlagring er ikke tilgjengelig.' };
     },
     prepareMaterialization(plan, { today, choices = {}, materializationId = '', preparedAt = now() } = {}) {
       const preview = this.preview(plan, {
@@ -554,8 +557,8 @@ export function createTrainingPlanController({
     },
     async materialize(plan, options = {}) {
       const access = this.writeAccess();
-      if (!access.allowed) throw new Error(access.reason || 'Materialisering er blokkert.');
-      if (typeof commitMaterialization !== 'function') throw new Error('Skrivekobling for materialisering mangler.');
+      if (!access.allowed) throw new Error(access.reason || 'Uke 1 kan ikke legges i kalenderen.');
+      if (typeof commitMaterialization !== 'function') throw new Error('Kalenderlagring er ikke tilgjengelig.');
       const command = this.prepareMaterialization(plan, options);
       await commitMaterialization(command);
       return command;
