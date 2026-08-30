@@ -1607,6 +1607,86 @@ async function testAsync(name, fn) {
     assert.ok(trainingPlanUiSource.includes('Uke 2–4 opprettes ikke'));
   });
 
+  await testAsync('v176w undo preserves a manual workout added later on the same date', async () => {
+    const stored = new Map();
+    const refFor = (...parts) => ({ key: parts.slice(1).join('/') });
+    const firestore = {
+      collection: (...parts) => ({ parts }),
+      doc: refFor,
+      writeBatch: () => {
+        const operations = [];
+        return {
+          set: (ref, data) => operations.push({ type: 'set', ref, data }),
+          delete: ref => operations.push({ type: 'delete', ref }),
+          commit: async () => operations.forEach(operation => {
+            if (operation.type === 'set') stored.set(operation.ref.key, operation.data);
+            else stored.delete(operation.ref.key);
+          })
+        };
+      },
+      runTransaction: async (_db, callback) => {
+        const operations = [];
+        const result = await callback({
+          get: async ref => ({
+            exists: () => stored.has(ref.key),
+            data: () => stored.get(ref.key)
+          }),
+          set: (ref, data) => operations.push({ type: 'set', ref, data }),
+          delete: ref => operations.push({ type: 'delete', ref })
+        });
+        operations.forEach(operation => {
+          if (operation.type === 'set') stored.set(operation.ref.key, operation.data);
+          else stored.delete(operation.ref.key);
+        });
+        return result;
+      }
+    };
+    const repository = createTrainingRepository({
+      db: { id: 'db' },
+      getCurrentUser: () => ({ uid: 'user-1' }),
+      firestore,
+      normalizeState: value => value,
+      defaultSettings: () => ({})
+    });
+    const templates = [
+      { id: 'easy', name: 'Easy Run', type: 'Løping', intensity: 'Rolig', role: 'easy' },
+      { id: 'threshold', name: 'Støtteterskel', type: 'Løping', intensity: 'Terskel', role: 'support_threshold' },
+      { id: 'long', name: 'Rolig langtur', type: 'Løping', intensity: 'Rolig', role: 'long_easy' }
+    ];
+    const plan = {
+      id: 'same-date-undo', status: 'draft', focus: 'base', startDate: '2026-08-31', planRevision: 1,
+      calibration: { metric: 'duration', baselineValue: 120, normalBaselineValue: 184, sourceCoverage: 1, userConfirmed: true },
+      weeks: [
+        { slots: [
+          { slotId: 'w1-s1', preferredDay: 2, role: 'easy', templateId: 'easy' },
+          { slotId: 'w1-s2', preferredDay: 4, role: 'support_threshold', templateId: 'threshold' },
+          { slotId: 'w1-s3', preferredDay: 7, role: 'long_easy', templateId: 'long' }
+        ] },
+        { slots: [] }, { slots: [] }, { slots: [] }
+      ]
+    };
+    const preview = trainingPlanController.buildTrainingPlanMaterializationPreview({
+      plan, templates, today: '2026-08-30', now: '2026-08-30T12:00:00.000Z', scope: 'first_week'
+    });
+    const command = trainingPlanController.buildFirstWeekMaterializationCommand(preview, {
+      materializationId: 'materialization-same-date', now: '2026-08-30T12:00:00.000Z'
+    });
+    await repository.materializeTrainingPlan(command);
+    const manualKey = 'users/user-1/planned/manual-same-date';
+    stored.set(manualKey, {
+      templateId: 'easy', date: command.plannedItems[0].date, status: 'planned', notes: 'Manuell økt', userModified: false
+    });
+    const undo = trainingPlanController.buildUndoMaterializationCommand(command.plan, command.id, {
+      now: '2026-08-30T12:05:00.000Z'
+    });
+    const result = await repository.undoTrainingPlanMaterialization({ ...undo, materializationId: undo.id });
+    assert.deepStrictEqual(new Set(result.removedIds), new Set(command.plannedItems.map(item => item.id)));
+    command.plannedItems.forEach(item => assert.strictEqual(stored.has(`users/user-1/planned/${item.id}`), false));
+    assert.strictEqual(stored.has(manualKey), true);
+    assert.strictEqual(stored.get(manualKey).date, command.plannedItems[0].date);
+    assert.strictEqual(stored.has('users/user-1/trainingPlans/same-date-undo'), true);
+  });
+
   test('v176t preview is idempotent and preserves user notes while updating only an outdated plan prescription', () => {
     const template = { id: 'easy', name: 'Easy Run', type: 'Løping', intensity: 'Rolig', role: 'easy' };
     const plan = {
