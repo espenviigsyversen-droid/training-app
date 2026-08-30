@@ -228,7 +228,11 @@ export function createTrainingPlanUi({
     step: 1,
     error: '',
     choices: {},
-    draft: null
+    draft: null,
+    confirmation: null,
+    undoConfirmation: null,
+    busy: false,
+    success: ''
   };
 
   function initialDraft() {
@@ -252,6 +256,22 @@ export function createTrainingPlanUi({
   function ensureDraft() {
     if (!local.draft) local.draft = initialDraft();
     return local.draft;
+  }
+
+  function draftFromPlan(plan = {}) {
+    const firstSlots = Array.isArray(plan.weeks?.[0]?.slots) ? plan.weeks[0].slots : [];
+    return {
+      id: plan.id,
+      name: plan.name,
+      focus: plan.focus,
+      startDate: plan.startDate,
+      slotCount: Math.max(1, firstSlots.length || 3),
+      rolePreset: 'custom',
+      roles: firstSlots.map(slot => slot.role),
+      templateIds: firstSlots.map(slot => slot.templateId || ''),
+      metric: plan.calibration?.metric || 'auto',
+      userConfirmed: true
+    };
   }
 
   function host() {
@@ -282,8 +302,7 @@ export function createTrainingPlanUi({
         rules: rules()
       })
       : {};
-    return {
-      ...buildTrainingPlanPreviewModel({
+    const model = buildTrainingPlanPreviewModel({
         draft,
         completedItems: state.completed || [],
         continuityFreezes: freezes,
@@ -291,7 +310,18 @@ export function createTrainingPlanUi({
         templates: state.templates || [],
         rules: rules(),
         volumeRamp: ramp
-      }),
+      });
+    const storedPlan = (state.trainingPlans || []).find(item => item.id === model.plan.id);
+    if (storedPlan) {
+      model.plan = {
+        ...model.plan,
+        status: storedPlan.status,
+        activatedAt: storedPlan.activatedAt,
+        materializations: storedPlan.materializations || []
+      };
+    }
+    return {
+      ...model,
       volumeRamp: ramp,
       comeback
     };
@@ -441,11 +471,17 @@ export function createTrainingPlanUi({
   }
 
   function stepFour(model) {
-    const preview = controller.preview(model.plan, { today: todayISO(), choices: local.choices });
+    const preview = controller.preview(model.plan, { today: todayISO(), choices: local.choices, scope: 'first_week' });
     const templates = getState()?.templates || [];
+    const access = typeof controller.writeAccess === 'function'
+      ? controller.writeAccess()
+      : { allowed: false, reason: 'Materialisering er ikke koblet til.' };
+    const confirmation = local.confirmation;
+    const undoConfirmation = local.undoConfirmation;
+    const activeMaterialization = (model.plan.materializations || []).find(item => item.status === 'applied');
     return `<div class="training-plan-step training-plan-full-preview">
       <h3>Sjekk blokkforhåndsvisningen</h3>
-      <p>Dette er bare en lokal forhåndsvisning. Ingen plan eller kalenderøkt lagres i dette steget.</p>
+      <p>Ingen plan eller kalenderøkt lagres før du har sett den konkrete uke-1-listen og bekreftet skrivingen.</p>
       ${safetyNotice(model)}
       <div class="training-plan-week-grid">
         ${model.plan.weeks.map((week, index) => {
@@ -454,7 +490,7 @@ export function createTrainingPlanUi({
           return `<section class="training-plan-week ${week.type === 'deload' ? 'deload' : ''}">
             <div class="training-plan-week-head">
               <div><span>Uke ${week.index} av 4</span><strong>${week.planningState === 'controlled_return' ? 'Kontrollert oppstartsuke' : week.type === 'deload' ? 'Avlastningsuke' : index === 2 ? 'Toppuke · foreløpig' : week.planningState === 'provisional_after_return' ? 'Belastningsuke · foreløpig' : 'Belastningsuke'}</strong></div>
-              <small>${escapeHtml(week.materializationState === 'awaiting_recovery' ? 'Venter på friskmelding' : inMaterializationWindow ? 'Kan materialiseres når steg 2 åpnes' : 'Planlagt fremover')}</small>
+              <small>${escapeHtml(week.materializationState === 'awaiting_recovery' ? 'Venter på friskmelding' : inMaterializationWindow ? 'Kan materialiseres etter bekreftelse' : 'Planlagt fremover')}</small>
             </div>
             <p>${escapeHtml(formatDate(week.weekStart))}–${escapeHtml(formatDate(week.weekEnd))} · ${escapeHtml(formatMetricValue(validation.proposedTargetMin ?? week.targetMin, week.metric))}–${escapeHtml(formatMetricValue(validation.proposedTargetMax ?? week.targetMax, week.metric))}</p>
             <span class="training-plan-validation-pill ${escapeHtml(validation.outcome || validation.validationStatus || '')}">${escapeHtml(validationLabel(validation))}</span>
@@ -469,33 +505,117 @@ export function createTrainingPlanUi({
         }).join('')}
       </div>
       <section class="training-plan-diff">
-        <div class="training-plan-diff-head"><div><span>Kalenderdiff</span><strong>Inneværende og neste uke</strong></div><small>${escapeHtml(preview.summary?.requiresChoice || 0)} valg gjenstår</small></div>
+        <div class="training-plan-diff-head"><div><span>Kalenderdiff</span><strong>Kun blokkens uke 1</strong></div><small>${escapeHtml(preview.summary?.requiresChoice || 0)} valg gjenstår</small></div>
         ${preview.operations.length ? preview.operations.map(operation => `<div class="training-plan-operation ${escapeHtml(operation.type)}">
           <div><span>${escapeHtml(operationLabel(operation))} </span><strong>${escapeHtml(formatDate(operation.date))} · ${escapeHtml(roleLabels[operation.role] || DEFAULT_ROLE_LABELS[operation.role] || operation.role)}</strong><p>${escapeHtml(operation.type === 'conflict' ? conflictText(operation.reason) : operation.reason === 'slot_missing' ? 'Denne planplassen ville blitt opprettet nå.' : 'Eksisterende data beholdes eller vises som differanse.')}</p></div>
           ${operation.blockingItems?.length ? `<ul>${operation.blockingItems.map(item => `<li>${escapeHtml(item.templateSnapshot?.name || item.name || 'Eksisterende økt')} · ${escapeHtml(formatDate(item.date))}</li>`).join('')}</ul>` : ''}
           ${conflictChoice(operation)}
         </div>`).join('') : '<p class="small-note">Ingen uker ligger i materialiseringsvinduet ennå.</p>'}
       </section>
-      <div class="training-plan-preview-lock"><strong>Forhåndsvisning uten skriving</strong><p>Lagring er med hensikt ikke tilgjengelig før du har vurdert denne flyten i produksjon.</p></div>
+      ${confirmation ? `<section class="training-plan-materialization-confirm" role="status">
+        <strong>Bekreft uke 1 før skriving</strong>
+        <p>Recovery-snapshot tas før første Firestore-skriving. Bare disse øktene opprettes:</p>
+        <ul>${confirmation.plannedItems.map(item => `<li><strong>${escapeHtml(formatDate(item.date))}</strong> · ${escapeHtml(item.templateSnapshot?.name || 'Øktmal')} · ${escapeHtml(roleLabels[item.templateSnapshot?.role] || DEFAULT_ROLE_LABELS[item.templateSnapshot?.role] || item.templateSnapshot?.role || '')}</li>`).join('')}</ul>
+        ${model.safety?.active ? '<p><strong>Kontrollert oppstart:</strong> Uke 1 kan opprettes under aktivt sykdomsfryskort. Uke 2–4 opprettes ikke og venter på friskmelding.</p>' : '<p>Uke 2–4 opprettes ikke i denne runden.</p>'}
+        <div class="button-row"><button class="btn-primary" data-plan-action="confirm-materialization"${local.busy ? ' disabled' : ''}>${local.busy ? 'Lagrer…' : 'Bekreft og legg inn uke 1'}</button><button class="btn-soft" data-plan-action="cancel-materialization"${local.busy ? ' disabled' : ''}>Avbryt</button></div>
+      </section>` : ''}
+      ${undoConfirmation ? `<section class="training-plan-materialization-confirm warning" role="alert">
+        <strong>Angre denne materialiseringen?</strong>
+        <p>Bare økter med samme planRef, planRevision og materialiserings-ID kan fjernes:</p>
+        <ul>${undoConfirmation.items.map(item => `<li>${escapeHtml(formatDate(item.date))} · ${escapeHtml(item.templateSnapshot?.name || 'Planøkt')}</li>`).join('')}</ul>
+        <div class="button-row"><button class="btn-primary" data-plan-action="confirm-undo"${local.busy ? ' disabled' : ''}>${local.busy ? 'Angrer…' : 'Angre materialisering'}</button><button class="btn-soft" data-plan-action="cancel-undo"${local.busy ? ' disabled' : ''}>Behold øktene</button></div>
+      </section>` : ''}
+      ${local.success ? `<div class="success-box">${escapeHtml(local.success)}</div>` : ''}
+      <div class="training-plan-preview-lock ${access.allowed ? 'write-ready' : ''}"><strong>${activeMaterialization ? 'Uke 1 er materialisert' : access.allowed ? 'Uke 1 er klar for eksplisitt bekreftelse' : 'Materialisering er blokkert'}</strong><p>${escapeHtml(activeMaterialization ? 'Bare øktene fra denne materialiseringen kan fjernes med Angre materialisering.' : access.allowed ? 'Ingen økter skrives før du åpner bekreftelsen og godkjenner den konkrete listen.' : access.reason)}</p></div>
     </div>`;
   }
 
   function controls() {
     if (local.step === 1) return '<div class="button-row"><button class="btn-primary" data-plan-action="next">Neste: ukerytme</button><button class="btn-soft" data-plan-action="close">Lukk</button></div>';
-    if (local.step === 4) return '<div class="button-row"><button class="btn-soft" data-plan-action="back">Tilbake</button><button class="btn-soft" data-plan-action="restart">Start på nytt</button></div>';
+    if (local.step === 4) {
+      const model = currentModel();
+      const preview = controller.preview(model.plan, { today: todayISO(), choices: local.choices, scope: 'first_week' });
+      const access = typeof controller.writeAccess === 'function' ? controller.writeAccess() : { allowed: false };
+      const activeMaterialization = (model.plan.materializations || []).find(item => item.status === 'applied');
+      return `<div class="button-row">
+        ${!activeMaterialization && !local.confirmation ? `<button class="btn-primary" data-plan-action="prepare-materialization"${!preview.ready || !access.allowed || local.busy ? ' disabled' : ''}>Forbered uke 1</button>` : activeMaterialization && !local.undoConfirmation ? `<button class="btn-soft" data-plan-action="prepare-undo"${!access.allowed || local.busy ? ' disabled' : ''}>Angre materialisering</button>` : ''}
+        <button class="btn-soft" data-plan-action="back">Tilbake</button><button class="btn-soft" data-plan-action="restart">Start på nytt</button>
+      </div>`;
+    }
     return `<div class="button-row"><button class="btn-primary" data-plan-action="next">${local.step === 2 ? 'Neste: volumramme' : 'Vis full forhåndsvisning'}</button><button class="btn-soft" data-plan-action="back">Tilbake</button></div>`;
   }
 
   function bind(container) {
     if (container.dataset.planUiBound === 'true') return;
     container.dataset.planUiBound = 'true';
-    container.addEventListener('click', event => {
+    container.addEventListener('click', async event => {
       const action = event.target.closest('[data-plan-action]')?.dataset.planAction;
       if (!action) return;
       if (action === 'open') { local.open = true; local.step = 1; local.error = ''; }
+      if (action === 'open-materialized-plan') {
+        const planId = event.target.closest('[data-plan-id]')?.dataset.planId || '';
+        const storedPlan = (getState()?.trainingPlans || []).find(item => item.id === planId);
+        if (storedPlan) {
+          local.draft = draftFromPlan(storedPlan);
+          local.open = true;
+          local.step = 4;
+          local.error = '';
+          local.success = '';
+        }
+      }
       if (action === 'close') { local.open = false; local.error = ''; }
       if (action === 'back') { local.step = Math.max(1, local.step - 1); local.error = ''; }
-      if (action === 'restart') { local.draft = initialDraft(); local.choices = {}; local.step = 1; local.error = ''; }
+      if (action === 'restart') { local.draft = initialDraft(); local.choices = {}; local.confirmation = null; local.undoConfirmation = null; local.success = ''; local.step = 1; local.error = ''; }
+      if (action === 'prepare-materialization') {
+        try {
+          const model = currentModel();
+          local.confirmation = controller.prepareMaterialization(model.plan, { today: todayISO(), choices: local.choices });
+          local.undoConfirmation = null;
+          local.error = '';
+        } catch (error) { local.error = error?.message || 'Kunne ikke forberede materialiseringen.'; }
+      }
+      if (action === 'cancel-materialization') local.confirmation = null;
+      if (action === 'confirm-materialization' && local.confirmation && !local.busy) {
+        local.busy = true; local.error = ''; render();
+        try {
+          const model = currentModel();
+          const result = await controller.materialize(model.plan, {
+            today: todayISO(), choices: local.choices,
+            materializationId: local.confirmation.id,
+            preparedAt: local.confirmation.record.createdAt
+          });
+          local.draft = { ...ensureDraft(), id: result.plan.id };
+          local.confirmation = null;
+          local.success = `${result.plannedItems.length} planøkt${result.plannedItems.length === 1 ? '' : 'er'} i uke 1 er lagt i kalenderen.`;
+        } catch (error) { local.error = error?.message || 'Materialiseringen mislyktes. Ingen nye økter skal være skrevet.'; }
+        finally { local.busy = false; }
+      }
+      if (action === 'prepare-undo') {
+        try {
+          const model = currentModel();
+          const storedPlan = (getState()?.trainingPlans || []).find(item => item.id === model.plan.id) || model.plan;
+          const record = [...(storedPlan.materializations || [])].reverse().find(item => item.status === 'applied');
+          if (!record) throw new Error('Fant ingen materialisering å angre.');
+          local.undoConfirmation = {
+            sourcePlan: storedPlan,
+            command: controller.prepareUndo(storedPlan, record.id),
+            items: (getState()?.planned || []).filter(item => record.createdPlannedIds.includes(item.id))
+          };
+          local.confirmation = null;
+          local.error = '';
+        } catch (error) { local.error = error?.message || 'Kunne ikke forberede angrehandlingen.'; }
+      }
+      if (action === 'cancel-undo') local.undoConfirmation = null;
+      if (action === 'confirm-undo' && local.undoConfirmation && !local.busy) {
+        local.busy = true; local.error = ''; render();
+        try {
+          const command = local.undoConfirmation.command;
+          await controller.undo(local.undoConfirmation.sourcePlan, command.id, { undoneAt: command.record.undoneAt });
+          local.undoConfirmation = null;
+          local.success = 'Materialiseringen er angret. Bare øktene fra denne operasjonen ble fjernet.';
+        } catch (error) { local.error = error?.message || 'Kunne ikke angre materialiseringen.'; }
+        finally { local.busy = false; }
+      }
       if (action === 'next') {
         const draft = ensureDraft();
         if (local.step === 1 && !isMonday(draft.startDate)) local.error = 'Blokker følger treningsuken, som starter mandag.';
@@ -547,7 +667,9 @@ export function createTrainingPlanUi({
     if (!container) return;
     bind(container);
     if (!local.open) {
-      container.innerHTML = `<div class="training-plan-entry"><div><h2 class="section-title">Fireukersblokk</h2><p>Lag en skrivefri forhåndsvisning av base, terskel og avlastning før noe kan havne i kalenderen.</p></div><button class="btn-primary" data-plan-action="open">Lag forhåndsvisning</button></div>`;
+      const activePlans = (getState()?.trainingPlans || []).filter(plan => (plan.materializations || []).some(item => item.status === 'applied'));
+      container.innerHTML = `<div class="training-plan-entry"><div><h2 class="section-title">Fireukersblokk</h2><p>Forhåndsvis fire uker, og legg bare blokkens første uke i kalenderen etter eksplisitt bekreftelse.</p></div><button class="btn-primary" data-plan-action="open">Lag forhåndsvisning</button></div>
+        ${activePlans.map(plan => `<div class="training-plan-saved"><div><strong>${escapeHtml(plan.name)}</strong><span>Uke 1 er materialisert · ${escapeHtml(formatDate(plan.startDate))}</span></div><button class="btn-soft" data-plan-action="open-materialized-plan" data-plan-id="${escapeHtml(plan.id)}">Se og angre</button></div>`).join('')}`;
       return;
     }
     const model = currentModel();
