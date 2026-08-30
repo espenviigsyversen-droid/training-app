@@ -1,5 +1,20 @@
 # Treningsapp — progress.md
-Oppdatert: 2026-08-30 (siste runtime-endring: v176w)
+Oppdatert: 2026-08-30 (siste runtime-endring: v176w1)
+
+---
+
+## v176w1 – korrekt malsnapshot, permanent plan-ID og klart språk
+
+**Implementert i runtime:**
+
+- Snapshotbyggeren mottar nå bare kildemalen. Et slot-objekt kan ikke lenger bli tolket som manuelt navn og lagret som `[object Object]`.
+- Både øktens `templateSnapshot` og `planRef.prescriptionSnapshot.templateSnapshot` bevarer navn og øvrige malfelt. Produksjonskontrakten testes felt for felt.
+- Nye planutkast får permanent `plan-…`-ID før de kan lagres; eksisterende angrede planer med eldre `preview-…`-ID forblir lesbare.
+- Planflaten bruker «lagt i kalenderen», «fjern planens økter» og vanlig sikkerhetskopi-språk. Firestore-, snapshot- og planRef-begreper vises ikke i beslutningsdialogene.
+
+**Fortsatt bare design / ikke implementert i runtime:**
+
+- Uke 2–4 og current+next er fortsatt sperret. Comebackfaktoren er ikke endret i denne rettingen; den kommer fortsatt direkte fra eksisterende `comebackProtocol()`.
 
 ---
 
