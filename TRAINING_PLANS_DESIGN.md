@@ -413,7 +413,7 @@ En challenge har eget mål og egen periode gjennom `challengeProgress()` og er u
 
 ## 4. Materialisering, diff og konfliktpolicy
 
-Bare inneværende og neste uke materialiseres som `planned`. Senere uker forblir en planramme. Alle skriver krever forhåndsvisning og eksplisitt bekreftelse.
+V1-kontrakten tillater på sikt bare inneværende og neste uke som `planned`; senere uker forblir en planramme. Første åpne skrivesteg i v176w er bevisst snevrere og materialiserer bare blokkens uke 1. Utvidelse til current+next krever en ny verifiseringsport. Alle skriver krever forhåndsvisning og eksplisitt bekreftelse.
 
 En materialiseringsdiff kan foreslå `create`, `update`, `remove`, `detach`, `keep` eller `conflict`. Ingen handling mot en aktiv intensjonsoverstyring (`userModified: true`) utføres uten et separat valg. `scheduleAdjustment` og `metadataRevision` skal vises i preview, men gjør ikke økten permanent urørlig.
 
@@ -432,7 +432,9 @@ En materialiseringsdiff kan foreslå `create`, `update`, `remove`, `detach`, `ke
 | Ny plan treffer eksisterende manuell økt | Blokker den sloten; krev annen dato eller «Hopp over». Ingen adopsjon i v1. |
 | Plan slettes i pågående uke | Frys effektivt ukesmål først, og vis verdien i bekreftelsen. |
 
-Maks fire slots per uke betyr normalt høyst åtte økter i materialiseringsvinduet. Batcher skal likevel bruke repositoryets etablerte chunking og lokal recovery-snapshot før første skriv.
+I v176w vises dato, mal og rolle for hver uke-1-økt før bekreftelse. Lokal recovery-snapshot tas før første skriv. «Angre materialisering» sletter bare dokument-ID-ene som den konkrete operasjonen opprettet, og repositoryet verifiserer samtidig `planRef.planId`, `planRevision` og `materializationId`. Uten innlogging, nett eller ved offline snapshot-visning kan ingen materialisering starte.
+
+Maks fire slots per uke betyr i v176w høyst fire opprettelser. Når vinduet senere eventuelt utvides til to uker, er øvre normalgrense åtte. Batcher skal fortsatt bruke repositoryets etablerte sikre skrivemønster og recovery-snapshot før første skriv.
 
 ## 5. Coach-kontrakt
 
@@ -731,6 +733,8 @@ Planlagring, `planRevision`, planreferanser, preview/diff, konfliktpolicy, curre
 **Preview-port levert i v176t:** `trainingPlans` inngår i hele datasirkelen, og `training-plan-controller.js` bygger current+next-diff fra produksjonsmodulen. Controllerens materialiseringshandling kaster eksplisitt feil og previewen merkes `writeEnabled: false` inntil konflikt- og endringsvernet er verifisert. Ingen økt opprettes eller endres i dette delsteget.
 
 **Preview-UI levert i v176u, steg 1:** `training-plan-ui.js` eksponerer hurtigflyt, faktisk historisk volumvalidering, alle fire uker, slot-basert avlastningsmål og eksplisitte konfliktvalg. Utkast og valg lever bare i minnet. UI-et kan bare kalle controllerens `preview()`; lagring og materialisering er fortsatt utilgjengelig.
+
+**Materialiseringsport levert i v176w, steg 2:** Runtime kan lagre planrammen og opprette nøyaktig blokkens uke 1 etter en egen feltlig bekreftelse. Hver opprettet økt får komplett `planRef.prescriptionSnapshot`, planrevisjon og materialiserings-ID. Recovery-snapshot tas før skriving, og en avgrenset angreoperasjon kan bare fjerne øktene fra samme materialisering. Autentisering, nett og fravær av offline snapshot er harde skrivekrav. Uke 2 og senere materialiseres ikke i denne runden; current+next er fortsatt designmål og åpnes først etter produksjonsverifisering av schedule adjustment, intensjonsoverstyring og fullført planslot.
 
 ### Runde 5 – Mobil-først produktflate
 
