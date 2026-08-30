@@ -195,7 +195,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     } from './domain-template-snapshot-update.js';
     import { createTemplateSnapshotUpdateUi } from './template-snapshot-update-ui.js';
 
-const APP_VERSION = 'v176v1';
+const APP_VERSION = 'v176w';
     const APP_CACHE_NAME = `treningsapp-${APP_VERSION}`;
 
     const firebaseConfig = {
@@ -3827,7 +3827,48 @@ const APP_VERSION = 'v176v1';
       if (!trainingPlanController) {
         trainingPlanController = createTrainingPlanController({
           getState: () => state,
-          getRules: () => getCoachRules()
+          getRules: () => getCoachRules(),
+          buildTemplateSnapshot: templateSnapshotFromTemplate,
+          canWrite: () => {
+            if (!currentUser?.uid) return { allowed: false, reason: 'Logg inn før du legger blokken i kalenderen.' };
+            if (offlineSnapshotMode) return { allowed: false, reason: 'Lagret offline-visning er skrivebeskyttet.' };
+            if (!navigator.onLine) return { allowed: false, reason: 'Koble til nett før du legger blokken i kalenderen.' };
+            return { allowed: true, reason: '' };
+          },
+          commitMaterialization: async command => {
+            if (!currentUser?.uid || !navigator.onLine || offlineSnapshotMode) throw new Error('Materialisering krever innlogging og nett.');
+            const recoverySaved = await saveRecoverySnapshot('before-training-plan-materialization');
+            if (!recoverySaved) throw new Error('Kunne ikke opprette gjenopprettingskopi. Ingen økter er skrevet.');
+            setSyncStatus('syncing');
+            await trainingRepository.materializeTrainingPlan(command);
+            state = normalizeAppState({
+              ...state,
+              planned: [...state.planned.filter(item => !command.plannedItems.some(created => created.id === item.id)), ...command.plannedItems],
+              trainingPlans: [...state.trainingPlans.filter(item => item.id !== command.plan.id), command.plan]
+            });
+            await saveLocalStateSnapshot();
+            setSyncStatus('ok');
+            render();
+          },
+          commitUndo: async command => {
+            if (!currentUser?.uid || !navigator.onLine || offlineSnapshotMode) throw new Error('Angre krever innlogging og nett.');
+            const recoverySaved = await saveRecoverySnapshot('before-training-plan-materialization-undo');
+            if (!recoverySaved) throw new Error('Kunne ikke opprette gjenopprettingskopi. Ingen økter er slettet.');
+            setSyncStatus('syncing');
+            const result = await trainingRepository.undoTrainingPlanMaterialization({
+              ...command,
+              materializationId: command.id
+            });
+            const removed = new Set(result.removedIds || []);
+            state = normalizeAppState({
+              ...state,
+              planned: state.planned.filter(item => !removed.has(item.id)),
+              trainingPlans: [...state.trainingPlans.filter(item => item.id !== command.plan.id), command.plan]
+            });
+            await saveLocalStateSnapshot();
+            setSyncStatus('ok');
+            render();
+          }
         });
       }
       if (!trainingPlanUi) {
