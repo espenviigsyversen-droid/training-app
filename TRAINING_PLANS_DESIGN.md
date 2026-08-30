@@ -736,6 +736,8 @@ Planlagring, `planRevision`, planreferanser, preview/diff, konfliktpolicy, curre
 
 **Materialiseringsport levert i v176w, steg 2:** Runtime kan lagre planrammen og opprette nøyaktig blokkens uke 1 etter en egen feltlig bekreftelse. Hver opprettet økt får komplett `planRef.prescriptionSnapshot`, planrevisjon og materialiserings-ID. Recovery-snapshot tas før skriving, og en avgrenset angreoperasjon kan bare fjerne øktene fra samme materialisering. Autentisering, nett og fravær av offline snapshot er harde skrivekrav. Uke 2 og senere materialiseres ikke i denne runden; current+next er fortsatt designmål og åpnes først etter produksjonsverifisering av schedule adjustment, intensjonsoverstyring og fullført planslot.
 
+**Datakvalitetsretting levert i v176w1:** Snapshotbyggerens runtime-kontrakt mottar bare selve malen. Slot- og planobjekter kan derfor ikke tolkes som manuelt øktnavn, og både `templateSnapshot` og reseptsnapshot testes felt for felt mot kildemalen. Nye planer får permanent `plan-…`-ID før første kalenderlagring. Brukerflaten sier «lagt i kalenderen» og «fjern planens økter»; `materialisering`, Firestore, recovery-snapshot og interne feltnavn forblir kun tekniske begreper i kode og dokumentasjon.
+
 ### Runde 5 – Mobil-først produktflate
 
 Opprettelsesflyt, Kalender-visning, Hjem-kort, tom-/konflikt-/feiltilstander og progressiv forklaring. Kan utvikles bak deaktivert feature-flag til runde 4 er verifisert.
