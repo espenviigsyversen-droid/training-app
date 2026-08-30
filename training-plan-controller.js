@@ -74,7 +74,8 @@ function defaultTemplateSnapshot(template = {}) {
   }, { roleClassificationVersion: 2 });
 }
 
-function materializationWeeks(plan, today) {
+function materializationWeeks(plan, today, scope = 'current_next') {
+  if (scope === 'first_week') return plan.weeks.slice(0, 1);
   const currentWeekStart = isoWeekStart(today);
   const nextWeekStart = addIsoDays(currentWeekStart, 7);
   const selected = new Set([currentWeekStart, nextWeekStart].filter(Boolean));
@@ -89,7 +90,7 @@ function templateForSlot(slot, templates) {
   return (Array.isArray(templates) ? templates : []).find(template => String(template?.id || '') === String(slot?.templateId || '')) || null;
 }
 
-function planRefFor(plan, week, slot, prescriptionSnapshot) {
+function planRefFor(plan, week, slot, prescriptionSnapshot, materialization = {}) {
   return {
     planId: plan.id,
     planRevision: plan.planRevision,
@@ -97,14 +98,17 @@ function planRefFor(plan, week, slot, prescriptionSnapshot) {
     weekIndex: week.index,
     slotId: slot.slotId,
     prescribedDate: slot.date,
-    prescriptionSnapshot: cloneValue(prescriptionSnapshot)
+    prescriptionSnapshot: cloneValue(prescriptionSnapshot),
+    materializedAt: String(materialization.materializedAt || ''),
+    materializationId: String(materialization.materializationId || '')
   };
 }
 
 function plannedRecordForSlot(plan, week, slot, template, {
   id,
   now,
-  buildTemplateSnapshot = defaultTemplateSnapshot
+  buildTemplateSnapshot = defaultTemplateSnapshot,
+  materialization = {}
 } = {}) {
   const templateSnapshot = buildTemplateSnapshot(template, slot, plan) || defaultTemplateSnapshot(template);
   const base = normalizePlanChangeTracking({
@@ -131,7 +135,7 @@ function plannedRecordForSlot(plan, week, slot, template, {
   });
   return {
     ...base,
-    planRef: planRefFor(plan, week, slot, prescriptionSnapshot)
+    planRef: planRefFor(plan, week, slot, prescriptionSnapshot, materialization)
   };
 }
 
@@ -196,11 +200,23 @@ function conflictOperation(reason, plan, week, slot, {
 
 function resolvedExistingOperation({ plan, week, slot, existing, expected, selectedAction }) {
   const tracked = normalizePlanChangeTracking(existing);
+  const planningState = tracked.planRef?.planningState || expected.planRef?.planningState || '';
+  const planExpected = tracked.planRef
+    ? {
+        ...expected,
+        planRef: {
+          ...expected.planRef,
+          materializedAt: tracked.planRef.materializedAt || expected.planRef?.materializedAt || '',
+          materializationId: tracked.planRef.materializationId || expected.planRef?.materializationId || '',
+          ...(planningState ? { planningState } : {})
+        }
+      }
+    : expected;
   if (tracked.scheduleAdjustment) {
     if (!selectedAction) {
       return conflictOperation('schedule_adjustment', plan, week, slot, {
         before: tracked,
-        after: expected,
+        after: planExpected,
         allowedActions: ['keep_adjusted', 'use_plan_date']
       });
     }
@@ -208,7 +224,7 @@ function resolvedExistingOperation({ plan, week, slot, existing, expected, selec
       return { ...operationBase('keep', 'schedule_adjustment_respected', plan, week, slot, tracked, tracked), selectedAction };
     }
     if (selectedAction === 'use_plan_date') {
-      const next = { ...tracked, date: slot.date, scheduleAdjustment: null, planRef: expected.planRef, updatedAt: expected.updatedAt };
+      const next = { ...tracked, date: slot.date, scheduleAdjustment: null, planRef: planExpected.planRef, updatedAt: planExpected.updatedAt };
       return { ...operationBase('update', 'schedule_adjustment_explicitly_reset', plan, week, slot, tracked, next), selectedAction };
     }
   }
@@ -216,7 +232,7 @@ function resolvedExistingOperation({ plan, week, slot, existing, expected, selec
     if (!selectedAction) {
       return conflictOperation('user_intent_override', plan, week, slot, {
         before: tracked,
-        after: expected,
+        after: planExpected,
         allowedActions: ['keep_user_intent', 'restore_plan_intent']
       });
     }
@@ -224,33 +240,33 @@ function resolvedExistingOperation({ plan, week, slot, existing, expected, selec
       return { ...operationBase('keep', 'user_intent_respected', plan, week, slot, tracked, tracked), selectedAction };
     }
     if (selectedAction === 'restore_plan_intent') {
-      return { ...operationBase('update', 'plan_intent_explicitly_restored', plan, week, slot, tracked, expected), selectedAction };
+      return { ...operationBase('update', 'plan_intent_explicitly_restored', plan, week, slot, tracked, planExpected), selectedAction };
     }
   }
-  if (tracked.metadataRevision && !metadataMatchesSlot(tracked, slot, expected)) {
+  if (tracked.metadataRevision && !metadataMatchesSlot(tracked, slot, planExpected)) {
     if (selectedAction === 'keep_corrected_metadata') {
       return { ...operationBase('keep', 'metadata_revision_respected', plan, week, slot, tracked, tracked), selectedAction };
     }
     if (selectedAction === 'use_plan_metadata') {
-      return { ...operationBase('update', 'plan_metadata_explicitly_restored', plan, week, slot, tracked, expected), selectedAction };
+      return { ...operationBase('update', 'plan_metadata_explicitly_restored', plan, week, slot, tracked, planExpected), selectedAction };
     }
     return conflictOperation('metadata_revision_mismatch', plan, week, slot, {
       before: tracked,
-      after: expected,
+      after: planExpected,
       allowedActions: ['keep_corrected_metadata', 'use_plan_metadata'],
       selectedAction
     });
   }
   const next = tracked.metadataRevision
-    ? { ...tracked, planRef: expected.planRef, updatedAt: expected.updatedAt }
+    ? { ...tracked, planRef: planExpected.planRef, updatedAt: planExpected.updatedAt }
     : {
         ...tracked,
-        templateId: expected.templateId,
-        templateSnapshot: expected.templateSnapshot,
-        date: expected.date,
-        status: tracked.status || expected.status,
-        planRef: expected.planRef,
-        updatedAt: expected.updatedAt
+        templateId: planExpected.templateId,
+        templateSnapshot: planExpected.templateSnapshot,
+        date: planExpected.date,
+        status: tracked.status || planExpected.status,
+        planRef: planExpected.planRef,
+        updatedAt: planExpected.updatedAt
       };
   if (comparableRecord(tracked) === comparableRecord(next)) return operationBase('keep', 'already_materialized', plan, week, slot, tracked, tracked);
   return operationBase('update', tracked.metadataRevision ? 'metadata_revision_preserved' : 'plan_revision_changed', plan, week, slot, tracked, next);
@@ -266,7 +282,9 @@ export function buildTrainingPlanMaterializationPreview({
   rules,
   now = new Date().toISOString(),
   createId,
-  buildTemplateSnapshot = defaultTemplateSnapshot
+  buildTemplateSnapshot = defaultTemplateSnapshot,
+  scope = 'current_next',
+  materialization = {}
 } = {}) {
   const plan = normalizePeriodizedTrainingPlan(inputPlan, { rules });
   const normalizedToday = validIsoDate(today);
@@ -277,7 +295,7 @@ export function buildTrainingPlanMaterializationPreview({
   if (!plan.canMaterialize || plan.status === 'cancelled' || plan.status === 'completed') {
     return { ready: false, errors: ['plan_not_materializable'], plan, window: null, operations, summary: {} };
   }
-  const weeks = materializationWeeks(plan, normalizedToday);
+  const weeks = materializationWeeks(plan, normalizedToday, scope);
   const window = {
     currentWeekStart: isoWeekStart(normalizedToday),
     nextWeekStart: addIsoDays(isoWeekStart(normalizedToday), 7),
@@ -299,7 +317,7 @@ export function buildTrainingPlanMaterializationPreview({
         return;
       }
       const id = typeof createId === 'function' ? createId(plan, week, slot) : stablePreviewId(plan.id, slot.slotId);
-      const expected = plannedRecordForSlot(plan, week, slot, template, { id, now, buildTemplateSnapshot });
+      const expected = plannedRecordForSlot(plan, week, slot, template, { id, now, buildTemplateSnapshot, materialization });
       const existingCompleted = completed.find(item => samePlanSlot(item, plan, slot));
       if (existingCompleted) {
         operations.push(operationBase('keep', 'completed_never_changes', plan, week, slot, existingCompleted, existingCompleted));
@@ -338,7 +356,7 @@ export function buildTrainingPlanMaterializationPreview({
             : blockingItems;
           if (withinWeek && !alternateBlocking.length) {
             const alternateSlot = { ...slot, date: alternateDate };
-            const alternateExpected = plannedRecordForSlot(plan, week, alternateSlot, template, { id, now, buildTemplateSnapshot });
+            const alternateExpected = plannedRecordForSlot(plan, week, alternateSlot, template, { id, now, buildTemplateSnapshot, materialization });
             operations.push({
               ...operationBase('create', 'manual_conflict_rescheduled', plan, week, alternateSlot, null, alternateExpected),
               selectedAction
@@ -408,7 +426,87 @@ export function buildTrainingPlanMaterializationPreview({
     window,
     operations,
     summary,
-    writeEnabled: false
+    scope,
+    writeEnabled: scope === 'first_week' && summary.requiresChoice === 0
+  };
+}
+
+function materializationIdFor(plan, now) {
+  const stamp = String(now || '').replace(/[^0-9]/g, '').slice(0, 17) || 'now';
+  return `materialization-${String(plan?.id || 'plan').replace(/[^a-zA-Z0-9_-]/g, '-')}-${plan?.planRevision || 1}-${stamp}`;
+}
+
+export function buildFirstWeekMaterializationCommand(preview = {}, {
+  materializationId = '',
+  now = new Date().toISOString()
+} = {}) {
+  if (preview?.scope !== 'first_week' || !preview?.writeEnabled || !preview?.ready) {
+    throw new Error('Første uke er ikke klar for materialisering.');
+  }
+  const unsupported = (preview.operations || []).filter(operation => !['create', 'keep'].includes(operation.type));
+  if (unsupported.length) throw new Error('Steg 2 kan bare opprette manglende økter og beholde eksisterende data.');
+  const plan = normalizePeriodizedTrainingPlan(preview.plan);
+  const firstWeek = plan.weeks[0];
+  if (!firstWeek || preview.operations.some(operation => operation.weekIndex !== 1)) {
+    throw new Error('Steg 2 kan bare materialisere blokkens første uke.');
+  }
+  const id = materializationId || materializationIdFor(plan, now);
+  const createdItems = preview.operations
+    .filter(operation => operation.type === 'create')
+    .map(operation => ({
+      ...cloneValue(operation.after),
+      planRef: {
+        ...cloneValue(operation.after?.planRef),
+        materializedAt: now,
+        materializationId: id,
+        planningState: firstWeek.planningState || 'normal'
+      }
+    }));
+  const record = {
+    id,
+    planRevision: plan.planRevision,
+    weekStart: firstWeek.weekStart,
+    createdPlannedIds: createdItems.map(item => item.id),
+    createdAt: now,
+    undoneAt: '',
+    status: 'applied'
+  };
+  const savedPlan = normalizePeriodizedTrainingPlan({
+    ...plan,
+    status: 'active',
+    activatedAt: plan.activatedAt || now,
+    updatedAt: now,
+    materializations: [...(plan.materializations || []).filter(item => item.id !== id), record]
+  });
+  return {
+    id,
+    type: 'materialize_first_week',
+    plan: savedPlan,
+    plannedItems: createdItems,
+    keptOperations: preview.operations.filter(operation => operation.type === 'keep').map(cloneValue),
+    record
+  };
+}
+
+export function buildUndoMaterializationCommand(planInput = {}, materializationId = '', {
+  now = new Date().toISOString()
+} = {}) {
+  const plan = normalizePeriodizedTrainingPlan(planInput);
+  const record = (plan.materializations || []).find(item => item.id === materializationId && item.status === 'applied');
+  if (!record) throw new Error('Fant ingen aktiv materialisering å angre.');
+  const updatedRecord = { ...record, status: 'undone', undoneAt: now };
+  return {
+    id: record.id,
+    type: 'undo_materialization',
+    plan: normalizePeriodizedTrainingPlan({
+      ...plan,
+      updatedAt: now,
+      materializations: plan.materializations.map(item => item.id === record.id ? updatedRecord : item)
+    }),
+    planId: plan.id,
+    planRevision: record.planRevision,
+    plannedIds: [...record.createdPlannedIds],
+    record: updatedRecord
   };
 }
 
@@ -417,11 +515,14 @@ export function createTrainingPlanController({
   getRules = () => undefined,
   now = () => new Date().toISOString(),
   createId,
-  buildTemplateSnapshot
+  buildTemplateSnapshot,
+  canWrite = () => ({ allowed: false, reason: 'Materialisering er ikke tilgjengelig.' }),
+  commitMaterialization,
+  commitUndo
 } = {}) {
   if (typeof getState !== 'function') throw new Error('Training plan controller requires getState');
   return {
-    preview(plan, { today, choices = {} } = {}) {
+    preview(plan, { today, choices = {}, scope = 'current_next', materialization = {} } = {}) {
       const state = getState() || {};
       return buildTrainingPlanMaterializationPreview({
         plan,
@@ -433,12 +534,42 @@ export function createTrainingPlanController({
         rules: getRules(),
         now: now(),
         createId,
-        buildTemplateSnapshot
+        buildTemplateSnapshot,
+        scope,
+        materialization
       });
     },
-    materialize() {
-      throw new Error('Materialisering er sperret til forhåndsvisningen er verifisert.');
+    writeAccess() {
+      const access = typeof canWrite === 'function' ? canWrite() : false;
+      return typeof access === 'object' ? access : { allowed: Boolean(access), reason: access ? '' : 'Materialisering er ikke tilgjengelig.' };
+    },
+    prepareMaterialization(plan, { today, choices = {}, materializationId = '', preparedAt = now() } = {}) {
+      const preview = this.preview(plan, {
+        today,
+        choices,
+        scope: 'first_week',
+        materialization: { materializationId, materializedAt: preparedAt }
+      });
+      return buildFirstWeekMaterializationCommand(preview, { materializationId, now: preparedAt });
+    },
+    async materialize(plan, options = {}) {
+      const access = this.writeAccess();
+      if (!access.allowed) throw new Error(access.reason || 'Materialisering er blokkert.');
+      if (typeof commitMaterialization !== 'function') throw new Error('Skrivekobling for materialisering mangler.');
+      const command = this.prepareMaterialization(plan, options);
+      await commitMaterialization(command);
+      return command;
+    },
+    prepareUndo(plan, materializationId, options = {}) {
+      return buildUndoMaterializationCommand(plan, materializationId, { now: options.undoneAt || now() });
+    },
+    async undo(plan, materializationId, options = {}) {
+      const access = this.writeAccess();
+      if (!access.allowed) throw new Error(access.reason || 'Angre er blokkert.');
+      if (typeof commitUndo !== 'function') throw new Error('Skrivekobling for angre mangler.');
+      const command = this.prepareUndo(plan, materializationId, options);
+      await commitUndo(command);
+      return command;
     }
   };
 }
-
