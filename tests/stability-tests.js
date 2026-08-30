@@ -206,8 +206,8 @@ async function testAsync(name, fn) {
   });
 
   test('v176s2 keeps rare snapshot actions in the day modal and the week overview compact', () => {
-    assert.ok(app.includes("const APP_VERSION = 'v176v1'"));
-    assert.ok(serviceWorker.includes('treningsapp-v176v1'));
+    assert.ok(app.includes("const APP_VERSION = 'v176w'"));
+    assert.ok(serviceWorker.includes('treningsapp-v176w'));
     ['./domain-template-snapshot-update.js', './template-snapshot-update-ui.js']
       .forEach(file => assert.ok(serviceWorker.includes(file), `${file} is missing from APP_SHELL`));
     assert.ok(index.includes('id="templateSnapshotUpdateModal"'));
@@ -1527,13 +1527,84 @@ async function testAsync(name, fn) {
     assert.strictEqual(completionTracking.planRef.planId, 'base-3');
   });
 
-  test('v176t controller is read-only until preview is verified', () => {
+  test('v176w controller blocks materialization without an authenticated online write gate', async () => {
     const state = { planned: [], completed: [], templates: [] };
     const before = JSON.stringify(state);
     const controller = trainingPlanController.createTrainingPlanController({ getState: () => state });
-    assert.throws(() => controller.materialize(), /sperret/);
+    await assert.rejects(controller.materialize({}, { today: '2026-08-17' }), /ikke tilgjengelig/);
     assert.strictEqual(JSON.stringify(state), before);
-    assert.ok(trainingPlanControllerSource.includes('writeEnabled: false'));
+    assert.strictEqual(controller.writeAccess().allowed, false);
+  });
+
+  test('v176w materializes only week one after exact confirmation and supports exact undo', async () => {
+    const templates = [
+      { id: 'easy', name: 'Easy Run', type: 'Løping', intensity: 'Rolig', role: 'easy' },
+      { id: 'long', name: 'Rolig langtur', type: 'Løping', intensity: 'Rolig', role: 'long_easy' }
+    ];
+    const weeks = [0, 1, 2, 3].map((weekIndex) => ({
+      planningState: weekIndex === 0 ? 'controlled_return' : 'provisional_after_return',
+      materializationState: weekIndex === 0 ? 'available_when_enabled' : 'awaiting_recovery',
+      slots: [
+        { slotId: `w${weekIndex + 1}-s1`, preferredDay: 2, role: 'easy', templateId: 'easy' },
+        { slotId: `w${weekIndex + 1}-s2`, preferredDay: 4, role: 'easy', templateId: 'easy' },
+        { slotId: `w${weekIndex + 1}-s3`, preferredDay: 7, role: 'long_easy', templateId: 'long' }
+      ]
+    }));
+    const plan = {
+      id: 'return-block', status: 'draft', name: 'Comeback', focus: 'base', startDate: '2026-08-31', planRevision: 1,
+      calibration: { metric: 'duration', baselineValue: 120, normalBaselineValue: 184, sourceCoverage: 1, userConfirmed: true },
+      safety: { status: 'restricted_by_comeback', weekFactor: 0.65, recoveryRegistered: false,
+        materializationPolicy: { weekOneAllowedWhenEnabled: true, laterWeeksRequireRecovery: true, laterWeeksAllowed: false } },
+      weeks
+    };
+    const committed = [];
+    const undone = [];
+    const controller = trainingPlanController.createTrainingPlanController({
+      getState: () => ({ planned: [], completed: [], templates }),
+      canWrite: () => ({ allowed: true }),
+      now: () => '2026-08-27T12:00:00.000Z',
+      commitMaterialization: async command => { committed.push(command); },
+      commitUndo: async command => { undone.push(command); }
+    });
+    const preview = controller.preview(plan, { today: '2026-08-27', scope: 'first_week' });
+    assert.deepStrictEqual(preview.window.weekStarts, ['2026-08-31']);
+    assert.strictEqual(preview.operations.length, 3);
+    assert.strictEqual(preview.writeEnabled, true);
+    const prepared = controller.prepareMaterialization(plan, { today: '2026-08-27' });
+    assert.strictEqual(prepared.plannedItems.length, 3);
+    assert.ok(prepared.plannedItems.every(item => item.planRef.weekIndex === 1));
+    assert.ok(prepared.plannedItems.every(item => item.planRef.planningState === 'controlled_return'));
+    assert.ok(prepared.plannedItems.every(item => item.planRef.prescriptionSnapshot.templateSnapshot));
+    assert.strictEqual(prepared.plan.materializations[0].createdPlannedIds.length, 3);
+    const result = await controller.materialize(plan, {
+      today: '2026-08-27', materializationId: prepared.id, preparedAt: prepared.record.createdAt
+    });
+    assert.strictEqual(committed.length, 1);
+    assert.deepStrictEqual(committed[0].plannedItems.map(item => item.id), result.plannedItems.map(item => item.id));
+    const afterMaterialization = trainingPlanController.buildTrainingPlanMaterializationPreview({
+      plan: result.plan,
+      plannedItems: result.plannedItems,
+      templates,
+      today: '2026-08-27',
+      now: '2026-08-27T12:01:00.000Z',
+      scope: 'first_week'
+    });
+    assert.ok(afterMaterialization.operations.every(item => item.type === 'keep' && item.reason === 'already_materialized'),
+      JSON.stringify(afterMaterialization.operations.map(item => ({ type: item.type, reason: item.reason, diff: item.diff }))));
+    const undo = await controller.undo(result.plan, result.id, { undoneAt: '2026-08-27T12:05:00.000Z' });
+    assert.strictEqual(undone.length, 1);
+    assert.deepStrictEqual(undo.plannedIds, result.plannedItems.map(item => item.id));
+    assert.strictEqual(undo.plan.materializations[0].status, 'undone');
+  });
+
+  test('v176w runtime wiring takes recovery before plan writes and repository undo verifies exact plan identity', () => {
+    assert.ok(app.includes("saveRecoverySnapshot('before-training-plan-materialization')"));
+    assert.ok(app.indexOf("saveRecoverySnapshot('before-training-plan-materialization')") < app.indexOf('trainingRepository.materializeTrainingPlan(command)'));
+    assert.ok(repositorySource.includes("String(ref.planId || '') === String(planId)"));
+    assert.ok(repositorySource.includes('Number(ref.planRevision) === Number(planRevision)'));
+    assert.ok(repositorySource.includes("String(ref.materializationId || '') === String(materializationId)"));
+    assert.ok(trainingPlanUiSource.includes('Kun blokkens uke 1'));
+    assert.ok(trainingPlanUiSource.includes('Uke 2–4 opprettes ikke'));
   });
 
   test('v176t preview is idempotent and preserves user notes while updating only an outdated plan prescription', () => {
@@ -1619,7 +1690,8 @@ async function testAsync(name, fn) {
     assert.ok(index.includes('id="trainingPlanPreview"'));
     assert.ok(app.includes('createTrainingPlanUi'));
     assert.ok(serviceWorker.includes('./training-plan-ui.js'));
-    assert.ok(!trainingPlanUiSource.includes('.materialize('), 'preview UI must have no materialization call');
+    assert.ok(trainingPlanUiSource.includes('prepare-materialization'), 'week-one write must require a separate preparation step');
+    assert.ok(trainingPlanUiSource.includes('confirm-materialization'), 'week-one write must require explicit confirmation');
     assert.ok(!trainingPlanUiSource.includes('data-plan-action="confirm"'), 'preview UI must expose no confirm action');
     assert.ok(styles.includes('@media (max-width: 700px)'), 'plan preview must include mobile layout');
   });
@@ -3377,8 +3449,8 @@ async function testAsync(name, fn) {
     assert.ok(workoutHistoryUiSource.includes('heartRateZoneDistributionRows'), 'history does not use production zone rows');
     assert.ok(workoutHistoryUiSource.includes('Tid i pulssoner'), 'completed detail is missing the heart-rate zone section');
     assert.ok(!workoutHistoryUiSource.includes("row.estimated ? 'ca. '"), 'zone duration should not be prefixed with ca.');
-    assert.ok(app.includes("const APP_VERSION = 'v176v1'"), 'visible app version must be v176v1');
-    assert.ok(serviceWorker.includes('treningsapp-v176v'), 'cache version must match v176v');
+    assert.ok(app.includes("const APP_VERSION = 'v176w'"), 'visible app version must be v176w');
+    assert.ok(serviceWorker.includes('treningsapp-v176w'), 'cache version must match v176w');
   });
 
   test('v174b evaluates easy and quality sessions without treating zone percentages as a hard truth', () => {
@@ -3473,8 +3545,8 @@ async function testAsync(name, fn) {
     assert.ok(index.includes('id="insightHeartRateComplianceCard"'), 'Insights is missing the compliance card');
     assert.ok(app.includes('heartRateZoneComplianceForItems(last28Days)'), 'coach context does not use the canonical compliance summary');
     assert.ok(app.includes('renderHeartRateZoneComplianceInsight(today)'), 'Insights does not render canonical compliance');
-    assert.ok(app.includes("const APP_VERSION = 'v176v1'"), 'visible app version must be v176v1');
-    assert.ok(serviceWorker.includes('treningsapp-v176v'), 'cache version must match v176v');
+    assert.ok(app.includes("const APP_VERSION = 'v176w'"), 'visible app version must be v176w');
+    assert.ok(serviceWorker.includes('treningsapp-v176w'), 'cache version must match v176w');
   });
 
   test('v174c uses the test profile for zones and keeps the golden zone as a separate coach reference', () => {
@@ -4050,8 +4122,8 @@ async function testAsync(name, fn) {
     assert.ok(trainingImportControllerSource.includes("action: duplicate ? 'skip'"), 'duplicates should be skipped by default');
     assert.ok(!trainingImportControllerSource.includes('heartRateZoneDistribution'), 'controller must not synthesize pulse zones');
     assert.ok(styles.includes('.garmin-import-row'), 'Garmin preview styling is missing');
-    assert.ok(app.includes("const APP_VERSION = 'v176v1'"));
-    assert.ok(serviceWorker.includes('treningsapp-v176v'));
+    assert.ok(app.includes("const APP_VERSION = 'v176w'"));
+    assert.ok(serviceWorker.includes('treningsapp-v176w'));
   });
 
   test('structured interval UI fields and summaries are wired into production files', () => {
