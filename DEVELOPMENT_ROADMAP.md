@@ -1651,6 +1651,7 @@ Rekkefølge og porter:
 4. Controller/persistence leverer planrevisjon, preview/diff, konfliktpolicy og materialisering av bare inneværende/neste uke. Skrivefri preview og `trainingPlans`-datasirkel er levert i v176t. Mobil hurtigflyt og full skrivefri preview er eksponert i v176u; materialisering står eksplisitt sperret til denne preview-porten er verifisert.
    - v176v1 kobler fryskort og eksisterende comebackprotokoll inn i kjørende preview. Representativ baseline ekskluderer sykdoms-/skadeuker, uke 1 er kontrollert oppstart, og uke 2+ venter på friskmelding. Dette er runtime; materialiseringsskriveren er fortsatt ikke åpnet.
    - v176w åpner en avgrenset runtime-port for bare blokkens uke 1. Eksakt opprettelsesliste bekreftes før skriving, recovery-snapshot tas først, og angre fjerner bare dokumenter med samme plan, revisjon og materialiserings-ID. Current+next og uke 2+ er fortsatt ikke implementert og krever produksjonsverifisering av de tre endringstilstandene.
+   - v176w1 retter snapshotargumentkontrakten etter første produksjonstest, tester reseptsnapshotets faktiske innhold, bruker permanent plan-ID og holder tekniske lagringsbegreper ute av brukerflaten. Ingen utvidelse til uke 2+ inngår.
 5. Mobil-først produktflate leverer firestegs opprettelse, Kalender-planoversikt, Hjem-kort og fullført-oppsummering.
 6. Coach-kontekst, ukefullføring, ende-til-ende-test og release avslutter v1.
 
