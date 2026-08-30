@@ -206,8 +206,8 @@ async function testAsync(name, fn) {
   });
 
   test('v176s2 keeps rare snapshot actions in the day modal and the week overview compact', () => {
-    assert.ok(app.includes("const APP_VERSION = 'v176w'"));
-    assert.ok(serviceWorker.includes('treningsapp-v176w'));
+    assert.ok(app.includes("const APP_VERSION = 'v176w1'"));
+    assert.ok(serviceWorker.includes('treningsapp-v176w1'));
     ['./domain-template-snapshot-update.js', './template-snapshot-update-ui.js']
       .forEach(file => assert.ok(serviceWorker.includes(file), `${file} is missing from APP_SHELL`));
     assert.ok(index.includes('id="templateSnapshotUpdateModal"'));
@@ -1605,6 +1605,72 @@ async function testAsync(name, fn) {
     assert.ok(repositorySource.includes("String(ref.materializationId || '') === String(materializationId)"));
     assert.ok(trainingPlanUiSource.includes('Kun blokkens uke 1'));
     assert.ok(trainingPlanUiSource.includes('Uke 2–4 opprettes ikke'));
+  });
+
+  test('v176w1 preserves every template field in planned and prescribed snapshots', () => {
+    const template = {
+      id: 'easy-rich',
+      name: 'Easy Run',
+      type: 'Løping',
+      intensity: 'Rolig',
+      role: 'easy',
+      purpose: 'Aerob base',
+      load: 'Lav',
+      structure: '10 min rolig + 30 min jevnt',
+      sourceUrl: 'https://example.com/easy',
+      recommendedWhen: ['normal'],
+      avoidWhen: ['pain'],
+      structuredWorkout: { version: 1, intervals: [] },
+      exercisePlan: { version: 1, blocks: [] }
+    };
+    const plan = {
+      id: 'plan-snapshot-content', status: 'draft', focus: 'base', startDate: '2026-08-31', planRevision: 1,
+      calibration: { metric: 'duration', baselineValue: 120, sourceCoverage: 1, userConfirmed: true },
+      weeks: [
+        { slots: [{ slotId: 'w1-s1', preferredDay: 2, role: 'easy', templateId: template.id }] },
+        { slots: [] }, { slots: [] }, { slots: [] }
+      ]
+    };
+    let builderArguments = 0;
+    const preview = trainingPlanController.buildTrainingPlanMaterializationPreview({
+      plan,
+      templates: [template],
+      today: '2026-08-30',
+      scope: 'first_week',
+      buildTemplateSnapshot: (...args) => {
+        builderArguments = args.length;
+        return { ...args[0], roleClassificationVersion: 2 };
+      }
+    });
+    const snapshot = preview.operations[0].after.templateSnapshot;
+    const prescribed = preview.operations[0].after.planRef.prescriptionSnapshot.templateSnapshot;
+    const expected = { ...template, roleClassificationVersion: 2 };
+    assert.strictEqual(builderArguments, 1, 'snapshot builder must receive the template only');
+    assert.strictEqual(snapshot.name, template.name);
+    assert.strictEqual(prescribed.name, template.name);
+    assert.deepStrictEqual(snapshot, expected);
+    assert.deepStrictEqual(prescribed, expected);
+    assert.ok(app.includes('buildTemplateSnapshot: template => templateSnapshotFromTemplate(template)'));
+  });
+
+  test('v176w1 gives persisted plans permanent ids and keeps technical storage terms out of plan UI copy', () => {
+    const model = trainingPlanUi.buildTrainingPlanPreviewModel({
+      draft: {
+        name: 'Baseblokk', focus: 'base', startDate: '2026-08-31', slotCount: 1,
+        metric: 'duration', roles: ['easy'], userConfirmed: true
+      },
+      completedItems: [], templates: [], volumeRamp: {}
+    });
+    assert.ok(model.plan.id.startsWith('plan-'));
+    assert.ok(!model.plan.id.startsWith('preview-'));
+    [
+      'Recovery-snapshot tas før første Firestore-skriving',
+      'Angre materialisering',
+      'Uke 1 er materialisert',
+      'samme planRef, planRevision og materialiserings-ID'
+    ].forEach(text => assert.ok(!trainingPlanUiSource.includes(text), `technical UI copy remains: ${text}`));
+    assert.ok(trainingPlanUiSource.includes('Alt annet i kalenderen står urørt.'));
+    assert.ok(trainingPlanUiSource.includes('Uke 1 er lagt i kalenderen'));
   });
 
   await testAsync('v176w undo preserves a manual workout added later on the same date', async () => {
@@ -3529,8 +3595,8 @@ async function testAsync(name, fn) {
     assert.ok(workoutHistoryUiSource.includes('heartRateZoneDistributionRows'), 'history does not use production zone rows');
     assert.ok(workoutHistoryUiSource.includes('Tid i pulssoner'), 'completed detail is missing the heart-rate zone section');
     assert.ok(!workoutHistoryUiSource.includes("row.estimated ? 'ca. '"), 'zone duration should not be prefixed with ca.');
-    assert.ok(app.includes("const APP_VERSION = 'v176w'"), 'visible app version must be v176w');
-    assert.ok(serviceWorker.includes('treningsapp-v176w'), 'cache version must match v176w');
+    assert.ok(app.includes("const APP_VERSION = 'v176w1'"), 'visible app version must be v176w1');
+    assert.ok(serviceWorker.includes('treningsapp-v176w1'), 'cache version must match v176w1');
   });
 
   test('v174b evaluates easy and quality sessions without treating zone percentages as a hard truth', () => {
@@ -3625,8 +3691,8 @@ async function testAsync(name, fn) {
     assert.ok(index.includes('id="insightHeartRateComplianceCard"'), 'Insights is missing the compliance card');
     assert.ok(app.includes('heartRateZoneComplianceForItems(last28Days)'), 'coach context does not use the canonical compliance summary');
     assert.ok(app.includes('renderHeartRateZoneComplianceInsight(today)'), 'Insights does not render canonical compliance');
-    assert.ok(app.includes("const APP_VERSION = 'v176w'"), 'visible app version must be v176w');
-    assert.ok(serviceWorker.includes('treningsapp-v176w'), 'cache version must match v176w');
+    assert.ok(app.includes("const APP_VERSION = 'v176w1'"), 'visible app version must be v176w1');
+    assert.ok(serviceWorker.includes('treningsapp-v176w1'), 'cache version must match v176w1');
   });
 
   test('v174c uses the test profile for zones and keeps the golden zone as a separate coach reference', () => {
@@ -4202,8 +4268,8 @@ async function testAsync(name, fn) {
     assert.ok(trainingImportControllerSource.includes("action: duplicate ? 'skip'"), 'duplicates should be skipped by default');
     assert.ok(!trainingImportControllerSource.includes('heartRateZoneDistribution'), 'controller must not synthesize pulse zones');
     assert.ok(styles.includes('.garmin-import-row'), 'Garmin preview styling is missing');
-    assert.ok(app.includes("const APP_VERSION = 'v176w'"));
-    assert.ok(serviceWorker.includes('treningsapp-v176w'));
+    assert.ok(app.includes("const APP_VERSION = 'v176w1'"));
+    assert.ok(serviceWorker.includes('treningsapp-v176w1'));
   });
 
   test('structured interval UI fields and summaries are wired into production files', () => {
