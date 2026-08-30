@@ -116,7 +116,7 @@ function conflictText(reason) {
     schedule_adjustment: 'Du har flyttet denne økten tidligere.',
     user_intent_override: 'Du har endret treningsintensjonen for denne økten.',
     metadata_revision_mismatch: 'Korrigert metadata avviker fra planplassen.'
-  }[reason] || 'Planplassen må avklares før den senere kan materialiseres.';
+  }[reason] || 'Planplassen må avklares før den kan legges i kalenderen.';
 }
 
 export function buildTrainingPlanPreviewModel({
@@ -175,7 +175,7 @@ export function buildTrainingPlanPreviewModel({
   const frame = safety.frame;
   const validations = frame.weeks.map(week => validateProspectiveVolumeFrame({ frame: week, volumeRamp, rules }));
   const normalizedPlan = normalizePeriodizedTrainingPlan({
-    id: String(draft.id || `preview-${startDate || 'draft'}`),
+    id: String(draft.id || `plan-${startDate || 'draft'}`),
     name: String(draft.name || 'Fireukersblokk').trim() || 'Fireukersblokk',
     focus,
     status: 'draft',
@@ -240,7 +240,7 @@ export function createTrainingPlanUi({
     const target = Math.max(1, Math.min(4, Math.round(asNumber(state.settings?.goals?.weeklySessionsTarget, 3))));
     const focus = 'base';
     return {
-      id: `preview-${Date.now()}`,
+      id: `plan-${Date.now()}`,
       name: 'Baseblokk',
       focus,
       startDate: nextMonday(todayISO()),
@@ -340,7 +340,7 @@ export function createTrainingPlanUi({
     return `<div class="training-plan-safety-notice" role="status">
       <strong>Sykdom pågår – kontrollert oppstart</strong>
       <p>${escapeHtml(freezeText)} Normalgrunnlaget på ${escapeHtml(formatMetricValue(safety.normalBaselineValue, safety.metric))} er begrenset til ${escapeHtml(formatMetricValue(safety.adjustedBaselineValue, safety.metric))} (${escapeHtml(safety.percent)} %) i uke 1.</p>
-      <p>${escapeHtml(excluded)} Uke 1 kan legges i kalenderen når materialisering åpnes; uke 2 og videre venter på registrert friskmelding.</p>
+      <p>${escapeHtml(excluded)} Uke 1 kan legges i kalenderen nå; uke 2 og videre venter på registrert friskmelding.</p>
     </div>`;
   }
 
@@ -475,7 +475,7 @@ export function createTrainingPlanUi({
     const templates = getState()?.templates || [];
     const access = typeof controller.writeAccess === 'function'
       ? controller.writeAccess()
-      : { allowed: false, reason: 'Materialisering er ikke koblet til.' };
+      : { allowed: false, reason: 'Kalenderlagring er ikke tilgjengelig.' };
     const confirmation = local.confirmation;
     const undoConfirmation = local.undoConfirmation;
     const activeMaterialization = (model.plan.materializations || []).find(item => item.status === 'applied');
@@ -490,7 +490,7 @@ export function createTrainingPlanUi({
           return `<section class="training-plan-week ${week.type === 'deload' ? 'deload' : ''}">
             <div class="training-plan-week-head">
               <div><span>Uke ${week.index} av 4</span><strong>${week.planningState === 'controlled_return' ? 'Kontrollert oppstartsuke' : week.type === 'deload' ? 'Avlastningsuke' : index === 2 ? 'Toppuke · foreløpig' : week.planningState === 'provisional_after_return' ? 'Belastningsuke · foreløpig' : 'Belastningsuke'}</strong></div>
-              <small>${escapeHtml(week.materializationState === 'awaiting_recovery' ? 'Venter på friskmelding' : inMaterializationWindow ? 'Kan materialiseres etter bekreftelse' : 'Planlagt fremover')}</small>
+              <small>${escapeHtml(week.materializationState === 'awaiting_recovery' ? 'Venter på friskmelding' : inMaterializationWindow ? 'Kan legges i kalenderen etter bekreftelse' : 'Planlagt fremover')}</small>
             </div>
             <p>${escapeHtml(formatDate(week.weekStart))}–${escapeHtml(formatDate(week.weekEnd))} · ${escapeHtml(formatMetricValue(validation.proposedTargetMin ?? week.targetMin, week.metric))}–${escapeHtml(formatMetricValue(validation.proposedTargetMax ?? week.targetMax, week.metric))}</p>
             <span class="training-plan-validation-pill ${escapeHtml(validation.outcome || validation.validationStatus || '')}">${escapeHtml(validationLabel(validation))}</span>
@@ -510,23 +510,23 @@ export function createTrainingPlanUi({
           <div><span>${escapeHtml(operationLabel(operation))} </span><strong>${escapeHtml(formatDate(operation.date))} · ${escapeHtml(roleLabels[operation.role] || DEFAULT_ROLE_LABELS[operation.role] || operation.role)}</strong><p>${escapeHtml(operation.type === 'conflict' ? conflictText(operation.reason) : operation.reason === 'slot_missing' ? 'Denne planplassen ville blitt opprettet nå.' : 'Eksisterende data beholdes eller vises som differanse.')}</p></div>
           ${operation.blockingItems?.length ? `<ul>${operation.blockingItems.map(item => `<li>${escapeHtml(item.templateSnapshot?.name || item.name || 'Eksisterende økt')} · ${escapeHtml(formatDate(item.date))}</li>`).join('')}</ul>` : ''}
           ${conflictChoice(operation)}
-        </div>`).join('') : '<p class="small-note">Ingen uker ligger i materialiseringsvinduet ennå.</p>'}
+        </div>`).join('') : '<p class="small-note">Ingen uker kan legges i kalenderen ennå.</p>'}
       </section>
       ${confirmation ? `<section class="training-plan-materialization-confirm" role="status">
-        <strong>Bekreft uke 1 før skriving</strong>
-        <p>Recovery-snapshot tas før første Firestore-skriving. Bare disse øktene opprettes:</p>
+        <strong>Bekreft uke 1</strong>
+        <p>Appen lager først en sikkerhetskopi. Bare disse øktene legges i kalenderen:</p>
         <ul>${confirmation.plannedItems.map(item => `<li><strong>${escapeHtml(formatDate(item.date))}</strong> · ${escapeHtml(item.templateSnapshot?.name || 'Øktmal')} · ${escapeHtml(roleLabels[item.templateSnapshot?.role] || DEFAULT_ROLE_LABELS[item.templateSnapshot?.role] || item.templateSnapshot?.role || '')}</li>`).join('')}</ul>
         ${model.safety?.active ? '<p><strong>Kontrollert oppstart:</strong> Uke 1 kan opprettes under aktivt sykdomsfryskort. Uke 2–4 opprettes ikke og venter på friskmelding.</p>' : '<p>Uke 2–4 opprettes ikke i denne runden.</p>'}
         <div class="button-row"><button class="btn-primary" data-plan-action="confirm-materialization"${local.busy ? ' disabled' : ''}>${local.busy ? 'Lagrer…' : 'Bekreft og legg inn uke 1'}</button><button class="btn-soft" data-plan-action="cancel-materialization"${local.busy ? ' disabled' : ''}>Avbryt</button></div>
       </section>` : ''}
       ${undoConfirmation ? `<section class="training-plan-materialization-confirm warning" role="alert">
-        <strong>Angre denne materialiseringen?</strong>
-        <p>Bare økter med samme planRef, planRevision og materialiserings-ID kan fjernes:</p>
+        <strong>Fjern planens uke 1 fra kalenderen?</strong>
+        <p>Bare de ${escapeHtml(undoConfirmation.items.length)} øktene denne planen la inn kan fjernes. Alt annet i kalenderen står urørt.</p>
         <ul>${undoConfirmation.items.map(item => `<li>${escapeHtml(formatDate(item.date))} · ${escapeHtml(item.templateSnapshot?.name || 'Planøkt')}</li>`).join('')}</ul>
-        <div class="button-row"><button class="btn-primary" data-plan-action="confirm-undo"${local.busy ? ' disabled' : ''}>${local.busy ? 'Angrer…' : 'Angre materialisering'}</button><button class="btn-soft" data-plan-action="cancel-undo"${local.busy ? ' disabled' : ''}>Behold øktene</button></div>
+        <div class="button-row"><button class="btn-primary" data-plan-action="confirm-undo"${local.busy ? ' disabled' : ''}>${local.busy ? 'Fjerner…' : 'Fjern planens økter'}</button><button class="btn-soft" data-plan-action="cancel-undo"${local.busy ? ' disabled' : ''}>Behold øktene</button></div>
       </section>` : ''}
       ${local.success ? `<div class="success-box">${escapeHtml(local.success)}</div>` : ''}
-      <div class="training-plan-preview-lock ${access.allowed ? 'write-ready' : ''}"><strong>${activeMaterialization ? 'Uke 1 er materialisert' : access.allowed ? 'Uke 1 er klar for eksplisitt bekreftelse' : 'Materialisering er blokkert'}</strong><p>${escapeHtml(activeMaterialization ? 'Bare øktene fra denne materialiseringen kan fjernes med Angre materialisering.' : access.allowed ? 'Ingen økter skrives før du åpner bekreftelsen og godkjenner den konkrete listen.' : access.reason)}</p></div>
+      <div class="training-plan-preview-lock ${access.allowed ? 'write-ready' : ''}"><strong>${activeMaterialization ? 'Uke 1 er lagt i kalenderen' : access.allowed ? 'Uke 1 er klar for bekreftelse' : 'Uke 1 kan ikke legges i kalenderen'}</strong><p>${escapeHtml(activeMaterialization ? 'Du kan fjerne bare øktene denne planen la inn. Alt annet blir stående.' : access.allowed ? 'Ingen økter legges inn før du har kontrollert og godkjent den konkrete listen.' : access.reason)}</p></div>
     </div>`;
   }
 
@@ -538,7 +538,7 @@ export function createTrainingPlanUi({
       const access = typeof controller.writeAccess === 'function' ? controller.writeAccess() : { allowed: false };
       const activeMaterialization = (model.plan.materializations || []).find(item => item.status === 'applied');
       return `<div class="button-row">
-        ${!activeMaterialization && !local.confirmation ? `<button class="btn-primary" data-plan-action="prepare-materialization"${!preview.ready || !access.allowed || local.busy ? ' disabled' : ''}>Forbered uke 1</button>` : activeMaterialization && !local.undoConfirmation ? `<button class="btn-soft" data-plan-action="prepare-undo"${!access.allowed || local.busy ? ' disabled' : ''}>Angre materialisering</button>` : ''}
+        ${!activeMaterialization && !local.confirmation ? `<button class="btn-primary" data-plan-action="prepare-materialization"${!preview.ready || !access.allowed || local.busy ? ' disabled' : ''}>Se øktene som legges inn</button>` : activeMaterialization && !local.undoConfirmation ? `<button class="btn-soft" data-plan-action="prepare-undo"${!access.allowed || local.busy ? ' disabled' : ''}>Fjern uke 1 fra kalenderen</button>` : ''}
         <button class="btn-soft" data-plan-action="back">Tilbake</button><button class="btn-soft" data-plan-action="restart">Start på nytt</button>
       </div>`;
     }
@@ -572,7 +572,7 @@ export function createTrainingPlanUi({
           local.confirmation = controller.prepareMaterialization(model.plan, { today: todayISO(), choices: local.choices });
           local.undoConfirmation = null;
           local.error = '';
-        } catch (error) { local.error = error?.message || 'Kunne ikke forberede materialiseringen.'; }
+        } catch (error) { local.error = error?.message || 'Kunne ikke forberede kalenderlagringen.'; }
       }
       if (action === 'cancel-materialization') local.confirmation = null;
       if (action === 'confirm-materialization' && local.confirmation && !local.busy) {
@@ -587,7 +587,7 @@ export function createTrainingPlanUi({
           local.draft = { ...ensureDraft(), id: result.plan.id };
           local.confirmation = null;
           local.success = `${result.plannedItems.length} planøkt${result.plannedItems.length === 1 ? '' : 'er'} i uke 1 er lagt i kalenderen.`;
-        } catch (error) { local.error = error?.message || 'Materialiseringen mislyktes. Ingen nye økter skal være skrevet.'; }
+        } catch (error) { local.error = error?.message || 'Uke 1 ble ikke lagt i kalenderen. Kontroller kalenderen før du prøver igjen.'; }
         finally { local.busy = false; }
       }
       if (action === 'prepare-undo') {
@@ -595,7 +595,7 @@ export function createTrainingPlanUi({
           const model = currentModel();
           const storedPlan = (getState()?.trainingPlans || []).find(item => item.id === model.plan.id) || model.plan;
           const record = [...(storedPlan.materializations || [])].reverse().find(item => item.status === 'applied');
-          if (!record) throw new Error('Fant ingen materialisering å angre.');
+          if (!record) throw new Error('Fant ingen økter fra planen som kan fjernes.');
           local.undoConfirmation = {
             sourcePlan: storedPlan,
             command: controller.prepareUndo(storedPlan, record.id),
@@ -612,8 +612,8 @@ export function createTrainingPlanUi({
           const command = local.undoConfirmation.command;
           await controller.undo(local.undoConfirmation.sourcePlan, command.id, { undoneAt: command.record.undoneAt });
           local.undoConfirmation = null;
-          local.success = 'Materialiseringen er angret. Bare øktene fra denne operasjonen ble fjernet.';
-        } catch (error) { local.error = error?.message || 'Kunne ikke angre materialiseringen.'; }
+          local.success = 'Planens økter er fjernet. Alt annet i kalenderen står urørt.';
+        } catch (error) { local.error = error?.message || 'Kunne ikke fjerne planens økter.'; }
         finally { local.busy = false; }
       }
       if (action === 'next') {
@@ -669,7 +669,7 @@ export function createTrainingPlanUi({
     if (!local.open) {
       const activePlans = (getState()?.trainingPlans || []).filter(plan => (plan.materializations || []).some(item => item.status === 'applied'));
       container.innerHTML = `<div class="training-plan-entry"><div><h2 class="section-title">Fireukersblokk</h2><p>Forhåndsvis fire uker, og legg bare blokkens første uke i kalenderen etter eksplisitt bekreftelse.</p></div><button class="btn-primary" data-plan-action="open">Lag forhåndsvisning</button></div>
-        ${activePlans.map(plan => `<div class="training-plan-saved"><div><strong>${escapeHtml(plan.name)}</strong><span>Uke 1 er materialisert · ${escapeHtml(formatDate(plan.startDate))}</span></div><button class="btn-soft" data-plan-action="open-materialized-plan" data-plan-id="${escapeHtml(plan.id)}">Se og angre</button></div>`).join('')}`;
+        ${activePlans.map(plan => `<div class="training-plan-saved"><div><strong>${escapeHtml(plan.name)}</strong><span>Uke 1 lagt i kalenderen · ${escapeHtml(formatDate(plan.startDate))}</span></div><button class="btn-soft" data-plan-action="open-materialized-plan" data-plan-id="${escapeHtml(plan.id)}">Se eller fjern</button></div>`).join('')}`;
       return;
     }
     const model = currentModel();
