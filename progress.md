@@ -1,5 +1,23 @@
 # Treningsapp — progress.md
-Oppdatert: 2026-08-27 (siste runtime-endring: v176v1)
+Oppdatert: 2026-08-30 (siste runtime-endring: v176w)
+
+---
+
+## v176w – eksplisitt materialisering og eksakt angre for blokkens uke 1
+
+**Implementert i runtime:**
+
+- Firestegsflyten viser en egen bekreftelse med nøyaktig dato, mal og rolle før bare blokkens uke 1 skrives.
+- Skriving krever innlogging, nett og ordinær synkronisert visning; offline snapshot kan aldri materialisere.
+- Lokal recovery-snapshot tas før repositoryet lagrer planrammen og de nye kalenderøktene atomisk.
+- Materialiserte økter får komplett `planRef.prescriptionSnapshot`, `planRevision`, planleggingstilstand og materialiserings-ID, slik at snapshotoppdatering, planreset og fullføring kan beholde sporingen.
+- «Angre materialisering» viser de eksakte øktene og sletter bare dokumenter som matcher plan-ID, revisjon og materialiserings-ID. Previewen er idempotent etter skriving.
+- Mobilflyten og angrebekreftelsen er kontrollert uten horisontal overflow ved 390 px-klassen.
+
+**Fortsatt bare design / ikke implementert i runtime:**
+
+- Uke 2–4 opprettes ikke. Utvidelse til current+next er fortsatt sperret til ekte verifisering av `scheduleAdjustment`, `userModified` og fullført planslot.
+- Coach-kontekst, automatisk ukefullføring, Kalender-planoversikt, Hjem-kort og blokk-fullført-oppsummering gjenstår i senere runder.
 
 ---
 
