@@ -193,8 +193,8 @@ export function createTrainingRepository({
     materializationId,
     plannedIds = []
   } = {}) {
-    if (typeof runTransaction !== 'function') throw new Error('Transactional materialization undo is unavailable');
-    if (!plan?.id || plan.id !== planId || !materializationId) throw new Error('Materialization undo is incomplete');
+    if (typeof runTransaction !== 'function') throw new Error('Planens økter kan ikke fjernes trygt akkurat nå.');
+    if (!plan?.id || plan.id !== planId || !materializationId) throw new Error('Mangler opplysninger for å fjerne planens økter trygt.');
     const ids = [...new Set((Array.isArray(plannedIds) ? plannedIds : []).map(id => String(id || '')).filter(Boolean))];
     return runTransaction(db, async transaction => {
       const refs = ids.map(id => userDocument('planned', id));
@@ -207,7 +207,7 @@ export function createTrainingRepository({
         const matches = String(ref.planId || '') === String(planId)
           && Number(ref.planRevision) === Number(planRevision)
           && String(ref.materializationId || '') === String(materializationId);
-        if (!matches) throw new Error(`Planlagt økt ${ids[index]} tilhører ikke denne materialiseringen`);
+        if (!matches) throw new Error('En av øktene er endret siden planen la den inn. Ingen økter ble fjernet.');
       });
       snapshots.forEach((snapshot, index) => {
         if (snapshot.exists()) transaction.delete(refs[index]);
