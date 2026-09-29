@@ -1,5 +1,13 @@
 # Treningsapp — progress.md
-Oppdatert: 2026-08-30 (siste runtime-endring: v176w1)
+Oppdatert: 2026-09-29 (siste runtime-endring: v176w2)
+
+---
+
+## v176w2 – fryskortbeskyttelse fryses med historisk ukemål
+
+**Implementert i runtime:** `weeklyTargetSnapshots` lagrer nå både ukemål og fryskortbeskyttelse med kort-ID, dekkede dager og årsak. Sju eldre `final`-uker utfylles én gang ved serverbekreftet synk; transaksjonen endrer aldri historisk ukemål. Kontinuitet, Hjem og AI-context leser samme historiske beskyttelse. Mens utfylling venter, vises ikke et misvisende streaktall. Lang fryskortperiode ved redigering eller «Frisk igjen» krever synlig bekreftelse. Beskyttede og delvise prikker har ulik farge.
+
+**Fortsatt bare design / ikke implementert i runtime:** Garmin-rolleopprydding, avslutningsflyt for gammel blokk og ny comeback-semantikk er ikke endret her. Mål-score bruker fortsatt sitt eget 7/28-dagers aktivitetsgrunnlag og er ikke en streakberegning.
 
 ---
 

@@ -139,6 +139,14 @@ For v1 bør en uke regnes som “beskyttet” hvis fryskortet dekker nok av uken
 
 ## Policy / Regler
 
+### Historisk beskyttelse (v176w2)
+
+Et avsluttet fryskort er fortsatt bevis for en tidligere uke. Ukesmålets `final`-snapshot lagrer derfor også `freezeProtected` og `freezeProtection` med kort-ID-er, antall dekkede dager, årsaker, kilde og tidspunkt. For avsluttede uker leser kontinuitet, Hjem og AI-context den frosne beskyttelsen; endring, arkivering eller sletting av kortet kan ikke endre en allerede ferdigstilt uke. Inneværende uke bruker fortsatt levende data. Et nådd ukesmål teller som trening, ikke som brukt fryskort.
+
+De sju eldre `final`-snapshotene fra v176o mangler beskyttelsesfeltet. Ved første autentiserte serversynk leses snapshotene og fryskortene fra server, beskyttelsen utledes én gang også fra kort med status `ended`, og bare de manglende feltene tilføyes transaksjonelt. `normalTarget`, `effectiveTarget`, `winningReason` og opprinnelig `finalizedAt` beholdes. Frem til dette lykkes viser UI at historikken oppdateres i stedet for et misvisende streaktall. Offline eller serverfeil gir ingen permanent utfylling.
+
+Den foreslåtte 14-dagersgrensen er i v176w2 en **bekreftelsesgrense**, ikke et absolutt bortfall av beskyttelse. Både redigering og «Frisk igjen» viser gammel og ny varighet når den nye perioden går over grensen, og krever eksplisitt bekreftelse. En sammenhengende sykdomsperiode beholdes som ett kort; appen oppretter ikke kunstige ekstrakort bare for å omgå grensen. Dette endrer ikke betydningen av `recoveredAt` i comeback-protokollen.
+
 Foreslåtte policy-felter i `coach-rules.json` når v148 bygges:
 
 ```js

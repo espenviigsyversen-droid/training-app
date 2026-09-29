@@ -22,7 +22,7 @@ users/{uid}/
 └── settings/preferences
 ```
 
-`weeklyTargetSnapshots/{weekStart}` fryser det effektive øktmålet for hver avsluttet uke fra og med `settings.preferences.weeklyTargetSnapshotPolicy.effectiveFrom`. Uker før denne datoen bruker den gamle logikken og det ordinære `goals.weeklySessionsTarget`, slik at eksisterende streak ikke endres. Snapshotet skrives ved første autentiserte synkronisering etter at uken er avsluttet, før historisk kontinuitet renderes eller nye treningsdata skrives. Et nådd redusert mål teller som ordinær trening; et kontinuitetsfryskort vurderes bare når målet ikke er nådd.
+`weeklyTargetSnapshots/{weekStart}` fryser det effektive øktmålet og fryskortbeskyttelsen for hver avsluttet uke fra og med `settings.preferences.weeklyTargetSnapshotPolicy.effectiveFrom`. Uker før denne datoen bruker den gamle målberegningen. `freezeProtected` er boolsk; `freezeProtection` lagrer kort-ID-er, antall dekkede dager, årsaker, kilde og tidspunkt. Beskyttelsen fra et avsluttet kort er historisk bevis og kan ikke falle bort når kortet senere arkiveres eller slettes. Nye snapshots skrives ved første autentiserte serversynk etter ukeslutt. Eldre `final`-snapshots uten fryskortfelt utfylles én gang fra serverbekreftede kort i en transaksjon som bevarer mål og tidligere snapshotfelt. Ingen utfylling skjer offline; historisk streak vises som ventende inntil den er bekreftet. Et nådd redusert mål teller som ordinær trening; et kontinuitetsfryskort brukes bare når målet ikke er nådd.
 
 `trainingPlans/{planId}` lagrer normaliserte fireukersblokker og revisjoner. Samlingen er med i samme backup-, replace-, lokal snapshot- og recovery-sirkel som øvrige treningsdata. v176t innfører samlingen og en skrivefri materialiseringspreview; ingen kalenderøkt kan opprettes fra controlleren før preview-porten er verifisert.
 
@@ -113,4 +113,3 @@ Dette er ikke en erstatning for manuell eksport, men et ekstra sikkerhetsnett.
 - Endringer i dataformat uten bakoverkompatibel normalisering
 - Offline-visning som forveksles med redigerbar sync-modus
 - `localStorage` kan nå kvoten når komplett state-snapshot vokser. Firestore/IndexedDB fortsetter, men den egne fallback-snapshoten kan bli utdatert; dette er registrert som eget backlogpunkt.
-

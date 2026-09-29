@@ -206,8 +206,8 @@ async function testAsync(name, fn) {
   });
 
   test('v176s2 keeps rare snapshot actions in the day modal and the week overview compact', () => {
-    assert.ok(app.includes("const APP_VERSION = 'v176w1'"));
-    assert.ok(serviceWorker.includes('treningsapp-v176w1'));
+    assert.ok(app.includes("const APP_VERSION = 'v176w2'"));
+    assert.ok(serviceWorker.includes('treningsapp-v176w2'));
     ['./domain-template-snapshot-update.js', './template-snapshot-update-ui.js']
       .forEach(file => assert.ok(serviceWorker.includes(file), `${file} is missing from APP_SHELL`));
     assert.ok(index.includes('id="templateSnapshotUpdateModal"'));
@@ -1225,6 +1225,75 @@ async function testAsync(name, fn) {
     assert.strictEqual(protectedWeek.protectedByFreeze, true);
   });
 
+  test('v176w2 freezes protection separately from the weekly target and ignores later card status changes', () => {
+    const ended = {
+      id: 'freeze-sick', startDate: '2026-08-17', endDate: '2026-09-29',
+      reason: 'sick', status: 'ended', recoveredAt: '2026-09-29'
+    };
+    const activeEvidence = coach.continuityFreezeProtectionEvidence('2026-09-14', [{ ...ended, status: 'active', recoveredAt: '' }]);
+    const evidence = coach.continuityFreezeProtectionEvidence('2026-09-14', [ended]);
+    assert.deepStrictEqual(evidence, activeEvidence, 'ending a card must not remove historical protection');
+    assert.deepStrictEqual(evidence, {
+      protected: true, freezeIds: ['freeze-sick'], coveredDays: 7, reasons: ['sick']
+    });
+    assert.strictEqual(coach.continuityFreezeProtectionEvidence('2026-09-14', [{ ...ended, status: 'archived' }]).protected, false);
+    const legacy = periodizedPlan.normalizeWeeklyTargetSnapshot({
+      id: '2026-09-14', weekStart: '2026-09-14', normalTarget: 3,
+      effectiveTarget: 3, status: 'final'
+    });
+    assert.strictEqual(legacy.freezeProtected, null);
+    const frozen = periodizedPlan.withWeeklyFreezeProtection(legacy, evidence, {
+      capturedAt: '2026-09-29T10:00:00.000Z'
+    });
+    assert.strictEqual(frozen.freezeProtected, true);
+    assert.strictEqual(frozen.effectiveTarget, 3);
+    assert.deepStrictEqual(frozen.freezeProtection.freezeIds, ['freeze-sick']);
+    assert.strictEqual(frozen.freezeProtection.coveredDays, 7);
+    assert.deepStrictEqual(frozen.freezeProtection.reasons, ['sick']);
+    const throughBackupNormalizer = normalizeAppState({ weeklyTargetSnapshots: [frozen] }).weeklyTargetSnapshots[0];
+    assert.strictEqual(throughBackupNormalizer.freezeProtected, true);
+    assert.deepStrictEqual(throughBackupNormalizer.freezeProtection.freezeIds, ['freeze-sick']);
+    const afterArchive = periodizedPlan.freezeProtectionForWeek({
+      weekStart: '2026-09-14', currentWeekStart: '2026-09-28',
+      snapshotEffectiveFrom: '2026-08-10', snapshots: [frozen],
+      liveProtection: coach.continuityFreezeProtectionEvidence('2026-09-14', [{ ...ended, status: 'archived' }]).protected
+    });
+    const afterDelete = periodizedPlan.freezeProtectionForWeek({
+      weekStart: '2026-09-14', currentWeekStart: '2026-09-28',
+      snapshotEffectiveFrom: '2026-08-10', snapshots: [frozen], liveProtection: false
+    });
+    assert.strictEqual(afterArchive, true);
+    assert.strictEqual(afterDelete, true);
+    assert.strictEqual(periodizedPlan.weeklyContinuityOutcome({ sessions: 2, target: frozen.effectiveTarget, freezeProtected: afterDelete }).countsAsContinuity, true);
+    assert.strictEqual(coach.continuityFreezeDays([{
+      ...ended, status: 'active', endDate: '2026-08-29', recoveredAt: ''
+    }], '2026-08-17', '2026-08-29').length, 13);
+    assert.strictEqual(coach.continuityFreezeDays([{
+      ...ended, status: 'active', recoveredAt: ''
+    }], '2026-08-17', '2026-09-29').length, 44);
+    assert.ok(app.includes('Dette forlenger fryskortet fra ${previousDays} til ${nextDays} dager.'));
+    assert.ok(app.includes('return freezeWeekSummaryForDisplay(weekStart).protected;'));
+    assert.ok(app.includes('const freezeWeek = freezeWeekSummaryForDisplay(weekStart);'));
+    assert.ok(app.includes('const currentFreeze = freezeWeekSummaryForDisplay(weekStart);'));
+  });
+
+  test('v176w2 backfills seven final weeks without changing their effective targets', () => {
+    const starts = ['2026-08-10', '2026-08-17', '2026-08-24', '2026-08-31', '2026-09-07', '2026-09-14', '2026-09-21'];
+    const targets = [3, 2, 2, 2, 2, 3, 2];
+    const freeze = { id: 'sick-august', startDate: '2026-08-17', endDate: '2026-09-29', reason: 'sick', status: 'ended' };
+    const snapshots = starts.map((weekStart, index) => {
+      const old = periodizedPlan.normalizeWeeklyTargetSnapshot({
+        id: weekStart, weekStart, normalTarget: 3, effectiveTarget: targets[index], status: 'final'
+      });
+      return periodizedPlan.withWeeklyFreezeProtection(old, coach.continuityFreezeProtectionEvidence(weekStart, [freeze]));
+    });
+    assert.deepStrictEqual(snapshots.map(item => item.effectiveTarget), targets);
+    assert.deepStrictEqual(snapshots.map(item => item.freezeProtected), [false, true, true, true, true, true, true]);
+    assert.strictEqual(snapshots[0].freezeProtection.coveredDays, 0);
+    assert.strictEqual(snapshots[1].freezeProtection.coveredDays, 7);
+    assert.strictEqual(periodizedPlan.withWeeklyFreezeProtection(snapshots[1], { protected: false }).freezeProtected, true);
+  });
+
   test('v176o weekly target snapshots are normalized through state, backup and repository wiring', () => {
     const normalized = normalizeAppState({
       weeklyTargetSnapshots: [{
@@ -1977,6 +2046,69 @@ async function testAsync(name, fn) {
     ]);
     assert.strictEqual(concurrent.filter(result => result.created).length, 1);
     assert.strictEqual(writes, 1);
+  });
+
+  await testAsync('v176w2 legacy protection backfill is transactional, idempotent and target-preserving', async () => {
+    const stored = new Map([['users/user-1/weeklyTargetSnapshots/2026-09-14', {
+      status: 'final', normalTarget: 3, effectiveTarget: 3, finalizedAt: '2026-09-21T08:00:00.000Z'
+    }]]);
+    let writes = 0;
+    let transactionQueue = Promise.resolve();
+    const firestore = {
+      collection: (...parts) => ({ parts }),
+      doc: (...parts) => ({ parts, key: parts.slice(1).join('/') }),
+      getDoc: async () => ({ exists: () => false }), getDocs: async () => ({ docs: [] }),
+      setDoc: async () => {}, deleteDoc: async () => {},
+      writeBatch: () => ({ set: () => {}, delete: () => {}, commit: async () => {} }),
+      runTransaction: (_db, callback) => {
+        const run = transactionQueue.then(() => callback({
+          get: async ref => {
+            const data = stored.get(ref.key);
+            return { id: ref.parts.at(-1), exists: () => Boolean(data), data: () => data };
+          },
+          set: (ref, data) => { stored.set(ref.key, data); writes += 1; }
+        }));
+        transactionQueue = run.catch(() => {});
+        return run;
+      }
+    };
+    const repository = createTrainingRepository({
+      db: { id: 'db' }, getCurrentUser: () => ({ uid: 'user-1' }), firestore,
+      normalizeState: value => value, defaultSettings: () => ({})
+    });
+    const protection = {
+      id: '2026-09-14', freezeProtected: true,
+      freezeProtection: { freezeIds: ['sick-august'], coveredDays: 7, reasons: ['sick'] }
+    };
+    const results = await Promise.all([
+      repository.backfillWeeklyFreezeProtection(protection),
+      repository.backfillWeeklyFreezeProtection({ ...protection, freezeProtected: false })
+    ]);
+    assert.strictEqual(results.filter(item => item.updated).length, 1);
+    assert.strictEqual(writes, 1);
+    const saved = stored.get('users/user-1/weeklyTargetSnapshots/2026-09-14');
+    assert.strictEqual(saved.effectiveTarget, 3);
+    assert.strictEqual(saved.normalTarget, 3);
+    assert.strictEqual(saved.finalizedAt, '2026-09-21T08:00:00.000Z');
+    assert.strictEqual(saved.freezeProtected, true);
+  });
+
+  await testAsync('v176w2 does not backfill protection without server-confirmed freeze data', async () => {
+    let writes = 0;
+    const repository = createTrainingRepository({
+      db: { id: 'db' }, getCurrentUser: () => ({ uid: 'user-1' }),
+      normalizeState: value => value, defaultSettings: () => ({}),
+      firestore: {
+        collection: (...parts) => ({ parts }), doc: (...parts) => ({ parts }),
+        getDoc: async () => ({ exists: () => false }), getDocs: async () => ({ docs: [] }),
+        getDocsFromServer: async () => { throw new Error('server unavailable'); },
+        waitForPendingWrites: async () => {}, setDoc: async () => {}, deleteDoc: async () => {},
+        writeBatch: () => ({ set: () => {}, delete: () => {}, commit: async () => {} }),
+        runTransaction: async () => { writes += 1; }
+      }
+    });
+    await assert.rejects(repository.prepareWeeklyFreezeBackfill(), /server unavailable/);
+    assert.strictEqual(writes, 0);
   });
 
   await testAsync('v176o1 server failure prevents final snapshot writes', async () => {
@@ -3595,8 +3727,8 @@ async function testAsync(name, fn) {
     assert.ok(workoutHistoryUiSource.includes('heartRateZoneDistributionRows'), 'history does not use production zone rows');
     assert.ok(workoutHistoryUiSource.includes('Tid i pulssoner'), 'completed detail is missing the heart-rate zone section');
     assert.ok(!workoutHistoryUiSource.includes("row.estimated ? 'ca. '"), 'zone duration should not be prefixed with ca.');
-    assert.ok(app.includes("const APP_VERSION = 'v176w1'"), 'visible app version must be v176w1');
-    assert.ok(serviceWorker.includes('treningsapp-v176w1'), 'cache version must match v176w1');
+    assert.ok(app.includes("const APP_VERSION = 'v176w2'"), 'visible app version must be v176w2');
+    assert.ok(serviceWorker.includes('treningsapp-v176w2'), 'cache version must match v176w2');
   });
 
   test('v174b evaluates easy and quality sessions without treating zone percentages as a hard truth', () => {
@@ -3691,8 +3823,8 @@ async function testAsync(name, fn) {
     assert.ok(index.includes('id="insightHeartRateComplianceCard"'), 'Insights is missing the compliance card');
     assert.ok(app.includes('heartRateZoneComplianceForItems(last28Days)'), 'coach context does not use the canonical compliance summary');
     assert.ok(app.includes('renderHeartRateZoneComplianceInsight(today)'), 'Insights does not render canonical compliance');
-    assert.ok(app.includes("const APP_VERSION = 'v176w1'"), 'visible app version must be v176w1');
-    assert.ok(serviceWorker.includes('treningsapp-v176w1'), 'cache version must match v176w1');
+    assert.ok(app.includes("const APP_VERSION = 'v176w2'"), 'visible app version must be v176w2');
+    assert.ok(serviceWorker.includes('treningsapp-v176w2'), 'cache version must match v176w2');
   });
 
   test('v174c uses the test profile for zones and keeps the golden zone as a separate coach reference', () => {
@@ -4268,8 +4400,8 @@ async function testAsync(name, fn) {
     assert.ok(trainingImportControllerSource.includes("action: duplicate ? 'skip'"), 'duplicates should be skipped by default');
     assert.ok(!trainingImportControllerSource.includes('heartRateZoneDistribution'), 'controller must not synthesize pulse zones');
     assert.ok(styles.includes('.garmin-import-row'), 'Garmin preview styling is missing');
-    assert.ok(app.includes("const APP_VERSION = 'v176w1'"));
-    assert.ok(serviceWorker.includes('treningsapp-v176w1'));
+    assert.ok(app.includes("const APP_VERSION = 'v176w2'"));
+    assert.ok(serviceWorker.includes('treningsapp-v176w2'));
   });
 
   test('structured interval UI fields and summaries are wired into production files', () => {

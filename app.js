@@ -47,11 +47,10 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       coachDecisionBasis,
       continuityFreezeDays,
       continuityFreezeReasonLabel,
-      continuityFreezeWeekSummary,
+      continuityFreezeProtectionEvidence,
       comebackProtocol,
       homeHeroState,
       isDateFrozen,
-      isWeekProtectedByFreeze,
       normalizeContinuityFreeze,
       normalizeContinuityFreezes,
       todayDecision,
@@ -158,11 +157,13 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     import {
       buildWeeklyTargetSnapshot,
       effectiveWeeklyTargetForWeek,
+      freezeProtectionForWeek,
       missingWeeklyTargetSnapshotWeeks,
       normalizeWeeklyTargetCandidates,
       normalizeWeeklyTargetSnapshotPolicy,
       normalizeWeeklyTargetSnapshots,
       upsertOpenWeeklyTargetCandidate,
+      withWeeklyFreezeProtection,
       weeklyTargetComebackReadWindow,
       weeklyContinuityOutcome
     } from './domain-periodized-training-plan.js';
@@ -195,7 +196,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     } from './domain-template-snapshot-update.js';
     import { createTemplateSnapshotUpdateUi } from './template-snapshot-update-ui.js';
 
-const APP_VERSION = 'v176w1';
+const APP_VERSION = 'v176w2';
     const APP_CACHE_NAME = `treningsapp-${APP_VERSION}`;
 
     const firebaseConfig = {
@@ -871,6 +872,12 @@ const APP_VERSION = 'v176w1';
       return weeklyTargetDecisionForWeek(weekStart, options).target;
     }
 
+    function missingWeeklyFreezeProtection(today = todayISO()) {
+      const currentWeekStart = startOfWeek(today);
+      return normalizeWeeklyTargetSnapshots(state.weeklyTargetSnapshots)
+        .filter(item => item.weekStart < currentWeekStart && item.freezeProtected === null);
+    }
+
     function weeklyTargetFoundationNeedsSync(today = todayISO()) {
       const policy = weeklyTargetSnapshotPolicy();
       if (!policy.effectiveFrom) return true;
@@ -878,7 +885,7 @@ const APP_VERSION = 'v176w1';
         snapshotEffectiveFrom: policy.effectiveFrom,
         currentWeekStart: startOfWeek(today),
         snapshots: state.weeklyTargetSnapshots
-      }).length > 0;
+      }).length > 0 || missingWeeklyFreezeProtection(today).length > 0;
     }
 
     function readWeeklyTargetCandidates() {
@@ -915,6 +922,10 @@ const APP_VERSION = 'v176w1';
 
     function weeklyTargetFoundationMessage() {
       if (!weeklyTargetFoundationNeedsSync(todayISO())) return '';
+      const history = missingWeeklyFreezeProtection().length > 0;
+      if (history) return weeklyTargetFoundationStatus.state === 'syncing'
+        ? 'Historisk kontinuitet oppdateres fra lagrede fryskort.'
+        : 'Historisk kontinuitet venter på synkronisering.';
       if (weeklyTargetFoundationStatus.state === 'syncing') return 'Forrige ukesmål: venter på synkronisering.';
       if (weeklyTargetFoundationStatus.state === 'waiting') return 'Forrige ukesmål venter på serverbekreftelse.';
       return '';
@@ -945,51 +956,72 @@ const APP_VERSION = 'v176w1';
           currentWeekStart,
           snapshots: state.weeklyTargetSnapshots
         });
-        if (!missingWeeks.length) {
+        const missingProtection = missingWeeklyFreezeProtection(today);
+        if (!missingWeeks.length && !missingProtection.length) {
           weeklyTargetFoundationStatus = { state: 'idle', pendingWeeks: 0 };
           return { changed: settingsChanged, policy, snapshots: [] };
         }
-        weeklyTargetFoundationStatus = { state: 'syncing', pendingWeeks: missingWeeks.length };
-        const readWindow = weeklyTargetComebackReadWindow(getCoachRules());
-        const firstWeekEnd = addDays(missingWeeks[0], 6);
-        const lastWeekEnd = addDays(missingWeeks[missingWeeks.length - 1], 6);
-        const completedStart = addDays(firstWeekEnd, -(readWindow.lookbackDays - 1));
-        const basis = await trainingRepository.prepareWeeklyTargetFinalization({
-          completedStart,
-          completedEnd: lastWeekEnd
-        });
-        const serverPolicy = normalizeWeeklyTargetSnapshotPolicy(basis.settings?.weeklyTargetSnapshotPolicy);
-        if (!serverPolicy.effectiveFrom || serverPolicy.effectiveFrom !== policy.effectiveFrom) {
-          throw new Error('Server-confirmed weekly target policy differs from local state');
-        }
+        weeklyTargetFoundationStatus = { state: 'syncing', pendingWeeks: missingWeeks.length + missingProtection.length };
         const candidates = readWeeklyTargetCandidates();
-        const serverNormalTarget = normalizeGoals(basis.settings?.goals).weeklySessionsTarget;
-        const finalizedAt = new Date().toISOString();
         const finalizedSnapshots = [];
-        for (const weekStart of missingWeeks) {
-          const weekEnd = addDays(weekStart, 6);
-          const candidate = candidates.find(item => item.weekStart === weekStart);
-          const normalTarget = candidate?.normalTarget || serverNormalTarget;
-          const completedToWeekEnd = basis.completed.filter(item => item.date && item.date <= weekEnd);
-          const comeback = comebackProtocol(completedToWeekEnd, {
-            todayIso: weekEnd,
-            weeklyTarget: normalTarget,
-            rules: getCoachRules()
+        let foundationChanged = settingsChanged;
+        if (missingProtection.length) {
+          const basis = await trainingRepository.prepareWeeklyFreezeBackfill();
+          const serverSnapshots = normalizeWeeklyTargetSnapshots(basis.snapshots);
+          for (const existing of serverSnapshots.filter(item => item.weekStart < currentWeekStart && item.freezeProtected === null)) {
+            const evidence = continuityFreezeProtectionEvidence(existing.weekStart, basis.freezes, { rules: getCoachRules() });
+            const amended = withWeeklyFreezeProtection(existing, evidence, {
+              capturedAt: new Date().toISOString(), source: 'legacy_backfill'
+            });
+            const result = await trainingRepository.backfillWeeklyFreezeProtection(amended);
+            if (result?.snapshot) finalizedSnapshots.push(result.snapshot);
+          }
+          state.weeklyTargetSnapshots = normalizeWeeklyTargetSnapshots([
+            ...(state.weeklyTargetSnapshots || []), ...serverSnapshots, ...finalizedSnapshots
+          ]);
+          foundationChanged = true;
+        }
+        if (missingWeeks.length) {
+          const readWindow = weeklyTargetComebackReadWindow(getCoachRules());
+          const firstWeekEnd = addDays(missingWeeks[0], 6);
+          const lastWeekEnd = addDays(missingWeeks[missingWeeks.length - 1], 6);
+          const completedStart = addDays(firstWeekEnd, -(readWindow.lookbackDays - 1));
+          const basis = await trainingRepository.prepareWeeklyTargetFinalization({
+            completedStart,
+            completedEnd: lastWeekEnd
           });
-          const snapshot = buildWeeklyTargetSnapshot({
-            weekStart,
-            normalTarget,
-            snapshotEffectiveFrom: policy.effectiveFrom,
-            comebackReduction: comeback.active ? {
-              active: true,
-              target: comeback.effectiveWeeklyTarget,
-              phase: comeback.phase
-            } : null,
-            finalizedAt
-          });
-          if (!snapshot) continue;
-          const result = await trainingRepository.finalizeWeeklyTargetSnapshot(snapshot);
-          if (result?.snapshot) finalizedSnapshots.push(result.snapshot);
+          const serverPolicy = normalizeWeeklyTargetSnapshotPolicy(basis.settings?.weeklyTargetSnapshotPolicy);
+          if (!serverPolicy.effectiveFrom || serverPolicy.effectiveFrom !== policy.effectiveFrom) {
+            throw new Error('Server-confirmed weekly target policy differs from local state');
+          }
+          const serverNormalTarget = normalizeGoals(basis.settings?.goals).weeklySessionsTarget;
+          const finalizedAt = new Date().toISOString();
+          for (const weekStart of missingWeeks) {
+            const weekEnd = addDays(weekStart, 6);
+            const candidate = candidates.find(item => item.weekStart === weekStart);
+            const normalTarget = candidate?.normalTarget || serverNormalTarget;
+            const completedToWeekEnd = basis.completed.filter(item => item.date && item.date <= weekEnd);
+            const comeback = comebackProtocol(completedToWeekEnd, {
+              todayIso: weekEnd,
+              weeklyTarget: normalTarget,
+              rules: getCoachRules()
+            });
+            const snapshot = buildWeeklyTargetSnapshot({
+              weekStart,
+              normalTarget,
+              snapshotEffectiveFrom: policy.effectiveFrom,
+              comebackReduction: comeback.active ? {
+                active: true,
+                target: comeback.effectiveWeeklyTarget,
+                phase: comeback.phase
+              } : null,
+              freezeProtection: continuityFreezeProtectionEvidence(weekStart, basis.freezes, { rules: getCoachRules() }),
+              finalizedAt
+            });
+            if (!snapshot) continue;
+            const result = await trainingRepository.finalizeWeeklyTargetSnapshot(snapshot);
+            if (result?.snapshot) finalizedSnapshots.push(result.snapshot);
+          }
         }
 
         if (finalizedSnapshots.length) {
@@ -999,10 +1031,11 @@ const APP_VERSION = 'v176w1';
           ]);
           const finalizedWeeks = new Set(finalizedSnapshots.map(item => item.weekStart || item.id));
           writeWeeklyTargetCandidates(candidates.filter(item => !finalizedWeeks.has(item.weekStart)));
+          foundationChanged = true;
         }
-        if (settingsChanged || finalizedSnapshots.length) await saveLocalStateSnapshot();
+        if (foundationChanged) await saveLocalStateSnapshot();
         weeklyTargetFoundationStatus = { state: 'idle', pendingWeeks: 0 };
-        return { changed: settingsChanged || finalizedSnapshots.length > 0, policy, snapshots: finalizedSnapshots };
+        return { changed: foundationChanged, policy, snapshots: finalizedSnapshots };
       })();
       try {
         return await weeklyTargetFoundationSync;
@@ -1316,6 +1349,32 @@ const APP_VERSION = 'v176w1';
       document.getElementById('continuityFreezeModal')?.classList.remove('active');
     };
 
+    function confirmLongFreezePeriod(startDate, endDate, previous = null, standardMessage = '') {
+      const rules = getCoachRules();
+      const maxDays = Math.max(1, Math.round(Number(rules?.thresholds?.streakFreeze?.maxDaysPerFreeze) || 14));
+      const countDays = (from, to) => continuityFreezeDays([
+        { id: 'period-preview', startDate: from, endDate: to, reason: 'sick', status: 'active' }
+      ], from, to, { rules }).length;
+      const nextDays = countDays(startDate, endDate);
+      if (nextDays <= maxDays) return standardMessage ? confirm(standardMessage) : true;
+      const previousDays = previous ? countDays(previous.startDate, previous.endDate) : 0;
+      const action = previousDays && nextDays > previousDays
+        ? `Dette forlenger fryskortet fra ${previousDays} til ${nextDays} dager.`
+        : previousDays
+        ? `Dette endrer fryskortet fra ${previousDays} til ${nextDays} dager.`
+        : `Dette fryskortet dekker ${nextDays} dager.`;
+      return confirm(`${action} Den vanlige grensen er ${maxDays} dager. En lengre sykdoms- eller skadeperiode kan likevel beskyttes når du bekrefter den bevisst. Fortsette?`);
+    }
+
+    async function historicalFreezeProtectionReady() {
+      if (!missingWeeklyFreezeProtection().length) return true;
+      try { await ensureWeeklyTargetFoundation(); }
+      catch (err) { console.warn('Historisk fryskortbeskyttelse venter på synkronisering:', err); }
+      if (!missingWeeklyFreezeProtection().length) return true;
+      alert('Historisk kontinuitet må synkroniseres før fryskortet kan endres. Prøv igjen når du er på nett.');
+      return false;
+    }
+
     window.saveContinuityFreeze = async function() {
       const rules = getCoachRules();
       const startDate = document.getElementById('freezeStartDate')?.value || '';
@@ -1326,9 +1385,7 @@ const APP_VERSION = 'v176w1';
       const existing = editId ? normalizeContinuityFreezes(state.continuityFreezes).find(item => item.id === editId) : null;
       if (!startDate || !endDate) return alert('Velg fra- og til-dato.');
       if (endDate < startDate) return alert('Til-dato må være samme dag eller etter fra-dato.');
-      const maxDays = Math.max(1, Math.round(Number(rules?.thresholds?.streakFreeze?.maxDaysPerFreeze) || 14));
-      const frozenDays = continuityFreezeDays([{ id: 'draft', startDate, endDate, reason, note, status: 'active' }], startDate, endDate, { rules });
-      if (frozenDays.length > maxDays) return alert(`Et fryskort kan maks dekke ${maxDays} dager i v1.`);
+      if (!confirmLongFreezePeriod(startDate, endDate, existing)) return;
       const monthKey = startDate.slice(0, 7);
       const maxPerMonth = Math.max(1, Math.round(Number(rules?.thresholds?.streakFreeze?.maxActiveFreezesPerMonth) || 2));
       const sameMonthActive = activeContinuityFreezes().filter(item => item.id !== editId && item.startDate.slice(0, 7) === monthKey).length;
@@ -1352,6 +1409,7 @@ const APP_VERSION = 'v176w1';
       if (!draft) return alert(reason === 'other' ? 'Legg inn et kort notat når årsaken er Annet.' : 'Fryskortet mangler gyldig informasjon.');
       const overlaps = activeContinuityFreezes().some(item => item.id !== draft.id && freezeRangesOverlap(item, draft));
       if (overlaps && !confirm('Perioden overlapper et annet aktivt fryskort. Fortsette?')) return;
+      if (!await historicalFreezeProtectionReady()) return;
       await safeStateWrite({
         apply: () => {
           const retained = normalizeContinuityFreezes(state.continuityFreezes).filter(item => item.id !== draft.id);
@@ -1373,10 +1431,14 @@ const APP_VERSION = 'v176w1';
       const recoveredAt = prompt('Dato frisk igjen (YYYY-MM-DD)', todayISO());
       if (!recoveredAt) return;
       if (!/^\d{4}-\d{2}-\d{2}$/.test(recoveredAt) || recoveredAt < freeze.startDate || recoveredAt > todayISO()) return alert('Velg en gyldig dato fra kortets start til i dag.');
-      if (!confirm(`Avslutte fryskortet ${formatShortDate(recoveredAt)} og bruke datoen som startpunkt for comeback?`)) return;
+      if (!confirmLongFreezePeriod(
+        freeze.startDate, recoveredAt, freeze,
+        `Avslutte fryskortet ${formatShortDate(recoveredAt)} og bruke datoen som startpunkt for comeback?`
+      )) return;
       const now = new Date().toISOString();
       const updated = normalizeContinuityFreeze({ ...freeze, endDate: recoveredAt, status: 'ended', recoveredAt, endedAt: now, updatedAt: now }, { rules: getCoachRules() });
       if (!updated) return alert('Kunne ikke avslutte fryskortet med valgt dato.');
+      if (!await historicalFreezeProtectionReady()) return;
       await safeStateWrite({
         apply: () => { state.continuityFreezes = normalizeContinuityFreezes(state.continuityFreezes).map(item => item.id === id ? updated : item); },
         write: () => fsSet('continuityFreezes', id, updated),
@@ -1389,7 +1451,8 @@ const APP_VERSION = 'v176w1';
     window.archiveContinuityFreeze = async function(id) {
       const freeze = normalizeContinuityFreezes(state.continuityFreezes).find(item => item.id === id);
       if (!freeze) return;
-      if (!confirm('Arkivere dette fryskortet? Da beskytter det ikke lenger kontinuiteten.')) return;
+      if (!confirm('Arkivere dette fryskortet? Historiske, ferdigstilte uker beholder beskyttelsen sin.')) return;
+      if (!await historicalFreezeProtectionReady()) return;
       const updated = { ...freeze, status: 'archived', updatedAt: new Date().toISOString() };
       await safeStateWrite({
         apply: () => { state.continuityFreezes = normalizeContinuityFreezes(state.continuityFreezes).map(item => item.id === id ? updated : item); },
@@ -1403,7 +1466,8 @@ const APP_VERSION = 'v176w1';
     window.deleteContinuityFreeze = async function(id) {
       const freeze = normalizeContinuityFreezes(state.continuityFreezes).find(item => item.id === id);
       if (!freeze) return;
-      if (!confirm('Slette dette fryskortet permanent?')) return;
+      if (!confirm('Slette dette fryskortet permanent? Historiske, ferdigstilte uker beholder beskyttelsen sin.')) return;
+      if (!await historicalFreezeProtectionReady()) return;
       await safeStateWrite({
         apply: () => { state.continuityFreezes = normalizeContinuityFreezes(state.continuityFreezes).filter(item => item.id !== id); },
         write: () => fsDelete('continuityFreezes', id),
@@ -5198,9 +5262,10 @@ const APP_VERSION = 'v176w1';
       if (!el) return;
       const target = Math.max(1, Number(ctx.effectiveWeeklyTarget || ctx.goals?.weeklySessionsTarget || 1));
       const streak = calculateWeeklyStreak(weekStart, target);
+      const streakPending = missingWeeklyFreezeProtection().length > 0;
       const remaining = Math.max(0, target - (weekSummary.sessions || 0));
       const weeks = buildContinuityWeeks(weekStart);
-      const currentFreeze = continuityFreezeWeekSummary(weekStart, state.continuityFreezes, { rules: getCoachRules() });
+      const currentFreeze = freezeWeekSummaryForDisplay(weekStart);
       const todayFreeze = activeContinuityFreezeForDate(ctx.today || todayISO());
       const chips = weeks.map((week, index) => {
         const sessions = week.summary.sessions || 0;
@@ -5232,7 +5297,7 @@ const APP_VERSION = 'v176w1';
           <span>Kontinuitet</span>
           <button class="btn-soft btn-icon" onclick="openContinuityFreezeModal()" aria-label="Frys periode">+</button>
         </div>
-        <div class="home-continuity-main"><strong>${streak}</strong><span>uker på rad</span></div>
+        <div class="home-continuity-main"><strong>${streakPending ? '…' : streak}</strong><span>${streakPending ? 'oppdaterer historikk' : 'uker på rad'}</span></div>
         <div class="home-continuity-strip">${chips}</div>
         ${freezeStatusHtml}
         <p class="dashboard-mini-note">${escapeHtml([note, foundationMessage].filter(Boolean).join(' '))}</p>`;
@@ -5362,7 +5427,7 @@ const APP_VERSION = 'v176w1';
 
       const coachCtx = buildCoachContext();
       const effectiveGoals = { ...goals, weeklySessionsTarget: coachCtx.effectiveWeeklyTarget };
-      const freezeSummary = continuityFreezeWeekSummary(weekStart, state.continuityFreezes, { rules: getCoachRules() });
+      const freezeSummary = freezeWeekSummaryForDisplay(weekStart);
       renderHomeWeekStatus(today, weekStart, weekSummary, weekItems, effectiveGoals, profile, freezeSummary);
       const todayDecisionResult = buildTodayDecision(coachCtx, primaryItems, todayItems);
       renderHomeHero(coachCtx, primaryItems, todayItems, todayDecisionResult);
@@ -6025,8 +6090,31 @@ const APP_VERSION = 'v176w1';
       return weeks;
     }
 
+    function freezeWeekSummaryForDisplay(weekStart) {
+      const snapshot = normalizeWeeklyTargetSnapshots(state.weeklyTargetSnapshots).find(item => item.weekStart === weekStart);
+      const finalizedProtection = snapshot && snapshot.freezeProtected !== null;
+      const evidence = finalizedProtection
+        ? snapshot.freezeProtection
+        : continuityFreezeProtectionEvidence(weekStart, state.continuityFreezes, { rules: getCoachRules() });
+      const protectedWeek = freezeProtectionForWeek({
+        weekStart,
+        currentWeekStart: startOfWeek(todayISO()),
+        snapshotEffectiveFrom: weeklyTargetSnapshotPolicy().effectiveFrom,
+        snapshots: state.weeklyTargetSnapshots,
+        liveProtection: evidence.protected
+      });
+      const reasons = evidence.reasons || [];
+      return {
+        protected: protectedWeek,
+        frozenDayCount: evidence.coveredDays || 0,
+        freezeIds: evidence.freezeIds || [],
+        reasons,
+        reasonLabels: reasons.map(continuityFreezeReasonLabel)
+      };
+    }
+
     function weekProtectedByFreeze(weekStart) {
-      return isWeekProtectedByFreeze(weekStart, state.continuityFreezes, { rules: getCoachRules() });
+      return freezeWeekSummaryForDisplay(weekStart).protected;
     }
 
     function weekMeetsContinuityTarget(week, weeklyTarget = weeklyTargetForWeek(week.start)) {
@@ -6060,15 +6148,16 @@ const APP_VERSION = 'v176w1';
     function renderContinuity(weekSummary, goals, weekStart) {
       const target = goals.weeklySessionsTarget;
       const streak = calculateWeeklyStreak(weekStart, target);
+      const streakPending = missingWeeklyFreezeProtection().length > 0;
       const remaining = Math.max(0, target - weekSummary.sessions);
-      const freezeSummary = continuityFreezeWeekSummary(weekStart, state.continuityFreezes, { rules: getCoachRules() });
+      const freezeSummary = freezeWeekSummaryForDisplay(weekStart);
       const currentStatus = weekSummary.sessions >= target
         ? 'I mål'
         : freezeSummary.protected
         ? 'Beskyttet'
         : `${weekSummary.sessions}/${target}`;
 
-      document.getElementById('insightStreakWeeks').textContent = streak;
+      document.getElementById('insightStreakWeeks').textContent = streakPending ? '…' : streak;
       document.getElementById('insightCurrentWeekStatus').textContent = currentStatus;
 
       const weeks = buildContinuityWeeks(weekStart);
@@ -6648,7 +6737,7 @@ const APP_VERSION = 'v176w1';
         || (milestones || []).find(item => item.status !== 'done')
         || null;
       const weekStart = startOfWeek(ctx.today);
-      const freezeWeek = continuityFreezeWeekSummary(weekStart, state.continuityFreezes, { rules: getCoachRules() });
+      const freezeWeek = freezeWeekSummaryForDisplay(weekStart);
       const todayFreeze = activeContinuityFreezeForDate(ctx.today);
       const pbSummary = personalBestSummary(completedRaceItems(), state.raceResults);
       const latestPb = (pbSummary.entries || [])

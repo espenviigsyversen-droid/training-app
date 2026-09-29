@@ -120,8 +120,45 @@ export function normalizeWeeklyTargetSnapshot(input = {}) {
     effectiveTarget,
     reductions: { plan, comeback },
     winningReason,
-    finalizedAt: String(source.finalizedAt || '')
+    finalizedAt: String(source.finalizedAt || ''),
+    freezeProtected: typeof source.freezeProtected === 'boolean' ? source.freezeProtected : null,
+    freezeProtection: normalizeFreezeProtection(source.freezeProtection)
   };
+}
+
+function normalizeFreezeProtection(value = {}) {
+  const source = value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+  return {
+    freezeIds: [...new Set((Array.isArray(source.freezeIds) ? source.freezeIds : []).map(id => String(id || '').trim()).filter(Boolean))],
+    coveredDays: Math.max(0, Math.min(7, Math.round(Number(source.coveredDays) || 0))),
+    reasons: [...new Set((Array.isArray(source.reasons) ? source.reasons : []).map(reason => String(reason || '').trim()).filter(Boolean))],
+    capturedAt: String(source.capturedAt || ''),
+    source: source.source === 'legacy_backfill' ? 'legacy_backfill' : 'finalization'
+  };
+}
+
+export function withWeeklyFreezeProtection(snapshot, evidence = {}, { capturedAt = '', source = 'legacy_backfill' } = {}) {
+  const normalized = normalizeWeeklyTargetSnapshot(snapshot);
+  if (!normalized || normalized.freezeProtected !== null) return normalized;
+  return normalizeWeeklyTargetSnapshot({
+    ...normalized,
+    freezeProtected: Boolean(evidence.protected),
+    freezeProtection: {
+      freezeIds: evidence.freezeIds,
+      coveredDays: evidence.coveredDays,
+      reasons: evidence.reasons,
+      capturedAt,
+      source
+    }
+  });
+}
+
+export function freezeProtectionForWeek({ weekStart, currentWeekStart, snapshotEffectiveFrom = '', snapshots = [], liveProtection = false } = {}) {
+  if (validIsoDate(snapshotEffectiveFrom) && validIsoDate(weekStart) && weekStart < snapshotEffectiveFrom) return Boolean(liveProtection);
+  const snapshot = normalizeWeeklyTargetSnapshots(snapshots).find(item => item.weekStart === weekStart);
+  if (snapshot && snapshot.freezeProtected !== null) return snapshot.freezeProtected;
+  if (snapshot || (validIsoDate(weekStart) && validIsoDate(currentWeekStart) && weekStart < currentWeekStart)) return false;
+  return Boolean(liveProtection);
 }
 
 export function normalizeWeeklyTargetSnapshots(items = []) {
@@ -201,6 +238,7 @@ export function buildWeeklyTargetSnapshot({
   snapshotEffectiveFrom,
   planReduction = null,
   comebackReduction = null,
+  freezeProtection = null,
   finalizedAt = ''
 } = {}) {
   const decision = effectiveWeeklyTargetForWeek({
@@ -212,7 +250,7 @@ export function buildWeeklyTargetSnapshot({
     comebackReduction
   });
   if (!validIsoDate(weekStart) || decision.isLegacy) return null;
-  return normalizeWeeklyTargetSnapshot({
+  const snapshot = normalizeWeeklyTargetSnapshot({
     id: weekStart,
     weekStart,
     weekEnd: addIsoDays(weekStart, 6),
@@ -222,6 +260,7 @@ export function buildWeeklyTargetSnapshot({
     winningReason: decision.source,
     finalizedAt
   });
+  return freezeProtection ? withWeeklyFreezeProtection(snapshot, freezeProtection, { capturedAt: finalizedAt, source: 'finalization' }) : snapshot;
 }
 
 export function missingWeeklyTargetSnapshotWeeks({

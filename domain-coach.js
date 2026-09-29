@@ -1232,6 +1232,33 @@ export function continuityFreezeWeekSummary(weekStartIso, freezes = [], options 
   };
 }
 
+// A closed sickness period is still evidence for a historical protected week.
+// Archived cards are excluded until the week's protection is finalized.
+export function continuityFreezeProtectionEvidence(weekStartIso, freezes = [], options = {}) {
+  const weekStart = cleanIsoDate(weekStartIso);
+  if (!weekStart) return { protected: false, freezeIds: [], coveredDays: 0, reasons: [] };
+  const rules = options.rules && typeof options.rules === 'object' ? options.rules : getCoachRules();
+  const weekEnd = addDays(weekStart, 6);
+  const relevant = normalizeContinuityFreezes(freezes, { rules })
+    .filter(item => item.status !== 'archived' && item.startDate <= weekEnd && item.endDate >= weekStart);
+  const days = new Set();
+  relevant.forEach(item => {
+    let cursor = item.startDate > weekStart ? item.startDate : weekStart;
+    const end = item.endDate < weekEnd ? item.endDate : weekEnd;
+    while (cursor <= end) {
+      days.add(cursor);
+      cursor = addDays(cursor, 1);
+    }
+  });
+  const threshold = Math.max(1, Math.round(Number(rules?.thresholds?.streakFreeze?.protectedWeekCoverageDays) || 3));
+  return {
+    protected: days.size >= threshold,
+    freezeIds: relevant.map(item => item.id),
+    coveredDays: days.size,
+    reasons: [...new Set(relevant.map(item => item.reason))]
+  };
+}
+
 export function isWeekProtectedByFreeze(weekStartIso, freezes = [], options = {}) {
   return continuityFreezeWeekSummary(weekStartIso, freezes, options).protected;
 }

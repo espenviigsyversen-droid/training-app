@@ -100,10 +100,11 @@ export function createTrainingRepository({
       orderBy('date', 'desc'),
       limit(1)
     );
-    const [settingsSnapshot, rangeSnapshot, predecessorSnapshot] = await Promise.all([
+    const [settingsSnapshot, rangeSnapshot, predecessorSnapshot, freezeSnapshot] = await Promise.all([
       getDocFromServer(userDocument('settings', 'preferences')),
       getDocsFromServer(rangeQuery),
-      getDocsFromServer(predecessorQuery)
+      getDocsFromServer(predecessorQuery),
+      getDocsFromServer(userCollection('continuityFreezes'))
     ]);
     if (!settingsSnapshot.exists()) throw new Error('Server-confirmed settings are missing');
     const completedById = new Map();
@@ -112,8 +113,39 @@ export function createTrainingRepository({
     });
     return {
       settings: settingsSnapshot.data(),
-      completed: [...completedById.values()].sort((a, b) => String(a.date || '').localeCompare(String(b.date || '')))
+      completed: [...completedById.values()].sort((a, b) => String(a.date || '').localeCompare(String(b.date || ''))),
+      freezes: freezeSnapshot.docs.map(item => ({ id: item.id, ...item.data() }))
     };
+  }
+
+  async function prepareWeeklyFreezeBackfill() {
+    if (typeof waitForPendingWrites !== 'function' || typeof getDocsFromServer !== 'function') {
+      throw new Error('Server-confirmed freeze protection backfill is unavailable');
+    }
+    await waitForPendingWrites(db);
+    const [snapshotDocs, freezeDocs] = await Promise.all([
+      getDocsFromServer(userCollection('weeklyTargetSnapshots')),
+      getDocsFromServer(userCollection('continuityFreezes'))
+    ]);
+    return {
+      snapshots: snapshotDocs.docs.map(item => ({ id: item.id, ...item.data() })),
+      freezes: freezeDocs.docs.map(item => ({ id: item.id, ...item.data() }))
+    };
+  }
+
+  async function backfillWeeklyFreezeProtection(snapshot) {
+    if (typeof runTransaction !== 'function') throw new Error('Transactional freeze protection backfill is unavailable');
+    if (!snapshot?.id || typeof snapshot.freezeProtected !== 'boolean') throw new Error('Freeze protection snapshot is incomplete');
+    const snapshotRef = userDocument('weeklyTargetSnapshots', snapshot.id);
+    return runTransaction(db, async transaction => {
+      const existing = await transaction.get(snapshotRef);
+      if (!existing.exists() || existing.data()?.status !== 'final') return { updated: false, snapshot: null };
+      const data = existing.data();
+      if (typeof data.freezeProtected === 'boolean') return { updated: false, snapshot: { id: snapshot.id, ...data } };
+      const protection = snapshot.freezeProtection || {};
+      transaction.set(snapshotRef, { ...data, freezeProtected: snapshot.freezeProtected, freezeProtection: protection });
+      return { updated: true, snapshot: { id: snapshot.id, ...data, freezeProtected: snapshot.freezeProtected, freezeProtection: protection } };
+    });
   }
 
   async function finalizeWeeklyTargetSnapshot(snapshot) {
@@ -274,6 +306,8 @@ export function createTrainingRepository({
     replace,
     clearData,
     prepareWeeklyTargetFinalization,
-    finalizeWeeklyTargetSnapshot
+    finalizeWeeklyTargetSnapshot,
+    prepareWeeklyFreezeBackfill,
+    backfillWeeklyFreezeProtection
   };
 }
