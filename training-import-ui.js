@@ -3,6 +3,7 @@ import {
   buildGarminImportCommit,
   createGarminImportPreview
 } from './training-import-controller.js';
+import { WORKOUT_ROLE_LABELS } from './app-state.js';
 
 function escapeHtml(value) {
   return String(value ?? '')
@@ -99,7 +100,57 @@ function conflictHtml(row) {
     </fieldset>`;
 }
 
-function rowHtml(row, index) {
+function roleChoiceHtml(row, index, templates = []) {
+  if (row.duplicate || row.action !== 'create') return '';
+  const selectedTemplate = templates.find(item => item.id === row.selectedTemplateId);
+  const draft = row.candidate.completedDraft;
+  const templateFields = selectedTemplate ? [
+    ['Mal-ID', 'Ingen', selectedTemplate.id],
+    ['Malsnapshot-navn', draft.manualName || 'Garmin-økt', selectedTemplate.name || 'Navnløs mal'],
+    ['Aktivitetstype', draft.activityType || 'Ikke angitt', selectedTemplate.type || 'Ikke angitt'],
+    ['Rolle', row.selectedRole ? WORKOUT_ROLE_LABELS[row.selectedRole] : 'Ikke valgt', WORKOUT_ROLE_LABELS[selectedTemplate.role] || 'Ikke angitt'],
+    ['Intensitet', 'Ikke angitt', selectedTemplate.intensity || 'Ikke angitt'],
+    ['Formål', 'Ikke angitt', selectedTemplate.purpose || 'Ikke angitt'],
+    ['Belastning', 'Ikke angitt', selectedTemplate.load || 'Ikke angitt'],
+    ['Anbefalt når', 'Ingen', (selectedTemplate.recommendedWhen || []).join(', ') || 'Ingen'],
+    ['Unngå når', 'Ingen', (selectedTemplate.avoidWhen || []).join(', ') || 'Ingen'],
+    ['Struktur', 'Ingen', selectedTemplate.structure || 'Ingen'],
+    ['Øktlenke', 'Ingen', selectedTemplate.sourceUrl || 'Ingen'],
+    ['Strukturert intervall', 'Ingen', selectedTemplate.structuredWorkout ? JSON.stringify(selectedTemplate.structuredWorkout) : 'Ingen'],
+    ['Øvelsesplan', 'Ingen', selectedTemplate.exercisePlan ? JSON.stringify(selectedTemplate.exercisePlan) : 'Ingen']
+  ] : [];
+  return `<div class="garmin-role-choice">
+    <p class="small-note">${escapeHtml([
+      draft.activityType || 'Aktivitetstype mangler',
+      durationLabel(draft.durationSeconds),
+      draft.distanceKm ? `${draft.distanceKm} km` : 'distanse ikke registrert',
+      draft.avgHeartRate ? `snittpuls ${draft.avgHeartRate} bpm` : 'snittpuls ikke registrert'
+    ].join(' · '))}</p>
+    <label>Hvilken rolle hadde økten? (valgfritt)
+      <select data-garmin-role="workout-role" data-index="${index}">
+        <option value=""${!row.selectedRole ? ' selected' : ''}>Velg rolle eller bestem senere</option>
+        ${Object.entries(WORKOUT_ROLE_LABELS).map(([role, label]) => `<option value="${escapeHtml(role)}"${row.selectedRole === role ? ' selected' : ''}>${escapeHtml(label)}</option>`).join('')}
+      </select>
+    </label>
+    <p class="small-note">Tomt valg lagres som «Bestem senere». Økten teller fortsatt i volum og belastning.</p>
+    <label>Knytt til mal (valgfritt, separat valg)
+      <select data-garmin-role="template" data-index="${index}">
+        <option value="">Ingen mal</option>
+        ${templates.map(item => `<option value="${escapeHtml(item.id)}"${row.selectedTemplateId === item.id ? ' selected' : ''}>${escapeHtml(item.name || 'Navnløs mal')}</option>`).join('')}
+      </select>
+    </label>
+    ${selectedTemplate ? `<div class="garmin-template-link-preview">
+      <strong>Bekreft malkoblingen separat</strong>
+      <p class="small-note">Dette sier at økten fulgte malen, ikke bare at den hadde en rolle.</p>
+      <p class="small-note">Garmin-navnet på økten beholdes; feltene nedenfor lagres i malsnapshotet.</p>
+      <div class="garmin-template-diff">${templateFields.map(([label, before, after]) => `<div><strong>${escapeHtml(label)}</strong><span>${escapeHtml(before)} → ${escapeHtml(after)}</span></div>`).join('')}</div>
+      ${row.selectedRole && selectedTemplate.role && row.selectedRole !== selectedTemplate.role ? '<p class="small-note garmin-template-warning">Valgt rolle og malens rolle er ulike. Velg en samsvarende rolle eller fjern malkoblingen.</p>' : ''}
+      <label class="checkbox-row"><input type="checkbox" data-garmin-role="confirm-template" data-index="${index}"${row.confirmTemplateLink ? ' checked' : ''}> Jeg bekrefter denne malkoblingen</label>
+    </div>` : ''}
+  </div>`;
+}
+
+function rowHtml(row, index, templates = []) {
   row.index = index;
   const draft = row.candidate.completedDraft;
   const match = selectedMatch(row);
@@ -118,7 +169,7 @@ function rowHtml(row, index) {
         ? 'Hoppes over'
         : 'Klar';
   return `
-    <details class="garmin-import-row ${stateClass}"${row.action === 'review' ? ' open' : ''}>
+    <details class="garmin-import-row ${stateClass}"${row.action === 'review' || row.keepOpen ? ' open' : ''}>
       <summary>
         <span><strong>${escapeHtml(draft.manualName || draft.activityType || 'Garmin-økt')}</strong><small>${escapeHtml(draft.date)} · ${escapeHtml(meta)}</small></span>
         <span class="garmin-import-chip">${escapeHtml(chip)}</span>
@@ -130,6 +181,7 @@ function rowHtml(row, index) {
         <label>Handling
           <select data-garmin-role="action" data-index="${index}"${row.duplicate ? ' disabled' : ''}>${actionOptions(row)}</select>
         </label>
+        ${roleChoiceHtml(row, index, templates)}
         ${conflictHtml(row)}
       </div>
     </details>`;
@@ -173,7 +225,7 @@ export function createTrainingImportUi({
     result.innerHTML = `
       <div class="garmin-import-result" role="status">
         <strong>Import fullført</strong>
-        <span>${escapeHtml(stats.imported)} nye · ${escapeHtml(stats.enriched)} beriket · ${escapeHtml(stats.linked)} koblet til plan · ${escapeHtml(stats.duplicates)} duplikater · ${escapeHtml(stats.skipped)} hoppet over · ${escapeHtml(stats.rejected)} avvist</span>
+        <span>${escapeHtml(stats.imported)} nye · ${escapeHtml(stats.enriched)} beriket · ${escapeHtml(stats.linked)} koblet til plan · ${escapeHtml(stats.duplicates)} duplikater · ${escapeHtml(stats.skipped)} hoppet over · ${escapeHtml(stats.rejected)} avvist${stats.roleSummary ? ` · ${escapeHtml(stats.roleSummary.confirmed)} roller valgt · ${escapeHtml(stats.roleSummary.unclassified)} til senere` : ''}</span>
       </div>`;
   }
 
@@ -198,17 +250,20 @@ export function createTrainingImportUi({
         <div><strong>${preview.rejectedRows.length}</strong><span>avvist</span></div>
       </div>
       ${preview.rejectedRows.length ? `<details class="garmin-rejected"><summary>Vis avviste rader</summary>${preview.rejectedRows.map(item => `<p>Rad ${escapeHtml(item.rowNumber)}: ${escapeHtml(item.reason)}</p>`).join('')}</details>` : ''}`;
-    list.innerHTML = preview.rows.map(rowHtml).join('');
+    list.innerHTML = preview.rows.map((row, index) => rowHtml(row, index, getState().templates || [])).join('');
     actions.classList.remove('hidden');
     const commitButton = element('garminImportCommitBtn');
     if (commitButton) {
       const writable = canWrite();
       const actionable = counts.create + counts.enrich + counts.link;
-      commitButton.disabled = busy || counts.review > 0 || !writable || actionable === 0;
+      const pendingTemplateLinks = preview.rows.filter(row => row.action === 'create' && row.selectedTemplateId && !row.confirmTemplateLink).length;
+      commitButton.disabled = busy || counts.review > 0 || pendingTemplateLinks > 0 || !writable || actionable === 0;
       commitButton.textContent = busy
         ? 'Importerer ...'
         : counts.review
           ? `Velg handling for ${counts.review}`
+          : pendingTemplateLinks
+            ? `Bekreft ${pendingTemplateLinks} malkobling${pendingTemplateLinks === 1 ? '' : 'er'}`
           : actionable === 0
             ? 'Ingen nye aktiviteter'
             : 'Bekreft og importer';
@@ -256,6 +311,7 @@ export function createTrainingImportUi({
     const index = Number(event.target.dataset.index);
     const row = preview.rows[index];
     if (!row) return;
+    row.keepOpen = true;
     const role = event.target.dataset.garminRole;
     if (role === 'target') {
       row.selectedTargetKey = event.target.value;
@@ -264,6 +320,13 @@ export function createTrainingImportUi({
     } else if (role === 'action') {
       row.action = event.target.value;
       row.overwriteFields = [];
+    } else if (role === 'workout-role') {
+      row.selectedRole = event.target.value;
+    } else if (role === 'template') {
+      row.selectedTemplateId = event.target.value;
+      row.confirmTemplateLink = false;
+    } else if (role === 'confirm-template') {
+      row.confirmTemplateLink = event.target.checked;
     } else if (role === 'overwrite') {
       const fields = new Set(row.overwriteFields || []);
       if (event.target.checked) fields.add(event.target.value);
@@ -284,7 +347,10 @@ export function createTrainingImportUi({
     }
     let plan;
     try {
-      plan = buildGarminImportCommit(preview, { createId, now: now(), resolveTemplate });
+      plan = buildGarminImportCommit(preview, {
+        createId, now: now(), resolveTemplate,
+        resolveTemplateById: id => (getState().templates || []).find(item => item.id === id)
+      });
     } catch (err) {
       setStatus(err?.message || 'Kontroller valgene før import.', 'error');
       return;
@@ -293,14 +359,14 @@ export function createTrainingImportUi({
       setStatus('Ingen aktiviteter er valgt for import.', 'error');
       return;
     }
-    const message = `Importere ${plan.stats.imported} nye, berike ${plan.stats.enriched} og koble ${plan.stats.linked} planlagte økter? En lokal gjenopprettingskopi opprettes først.`;
+    const message = `Importere ${plan.stats.imported} nye, berike ${plan.stats.enriched} og koble ${plan.stats.linked} planlagte økter? ${plan.roleSummary.confirmed} roller er valgt; ${plan.roleSummary.unclassified} kan bestemmes senere. En lokal gjenopprettingskopi opprettes først.`;
     if (!confirmImport(message)) return;
     busy = true;
     renderPreview();
     setStatus('Oppretter sikkerhetskopi og lagrer valgte aktiviteter ...');
     try {
       const result = await commitImport(plan);
-      renderResult(result?.stats || plan.stats);
+      renderResult({ ...(result?.stats || plan.stats), roleSummary: plan.roleSummary });
       prepare(sourceText);
       setStatus('Import fullført. Den samme filen vil nå gjenkjennes som allerede importert.', 'success');
     } catch (err) {

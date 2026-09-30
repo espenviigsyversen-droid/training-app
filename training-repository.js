@@ -1,3 +1,5 @@
+import { confirmWorkoutRole } from './domain-training-plan.js';
+
 export const TRAINING_DATA_COLLECTIONS = [
   'exercises',
   'templates',
@@ -203,6 +205,23 @@ export function createTrainingRepository({
     return { committedOperations, committedChunks, totalOperations: entries.length };
   }
 
+  async function confirmImportedWorkoutRole({ id, role, reviewedAt } = {}) {
+    if (!id || typeof runTransaction !== 'function') throw new Error('Rolleendringen krever en tilgjengelig transaksjon.');
+    const completedRef = userDocument('completed', id);
+    return runTransaction(db, async transaction => {
+      const snapshot = await transaction.get(completedRef);
+      if (!snapshot.exists()) throw new Error('Økten finnes ikke lenger. Last inn historikken på nytt.');
+      const existing = snapshot.data() || {};
+      if (existing.roleSource !== 'unclassified' || existing.templateSnapshot?.role !== 'other') {
+        throw new Error('Øktens rolle er endret på en annen enhet. Last inn historikken på nytt.');
+      }
+      const updated = confirmWorkoutRole({ ...existing, id }, role, reviewedAt);
+      const { id: _id, ...data } = updated;
+      transaction.set(completedRef, data);
+      return updated;
+    });
+  }
+
   async function materializeTrainingPlan({ plan, plannedItems = [] } = {}) {
     if (!plan?.id) throw new Error('Training plan is missing an id');
     const items = Array.isArray(plannedItems) ? plannedItems : [];
@@ -301,6 +320,7 @@ export function createTrainingRepository({
     remove,
     batchSet,
     importActivities,
+    confirmImportedWorkoutRole,
     materializeTrainingPlan,
     undoTrainingPlanMaterialization,
     replace,

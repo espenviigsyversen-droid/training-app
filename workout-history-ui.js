@@ -6,6 +6,7 @@ import {
 } from './domain-heart-rate-zones.js';
 import { buildWorkoutCoachAssessment } from './domain-workout-assessment.js';
 import { activitySettingForCompleted, activitySettingLabel } from './domain-activity.js';
+import { garminRoleReviewSummary } from './domain-training-plan.js';
 
 function normalizedText(value) {
   return String(value || '').trim().toLowerCase();
@@ -201,7 +202,9 @@ export function createWorkoutHistoryUi({
   uniqueValues,
   aiAssessmentState,
   todayISO,
-  roleLabel = value => value || 'Ikke angitt'
+  roleLabel = value => value || 'Ikke angitt',
+  roleOptions = [],
+  getCoachRules = () => ({})
 }) {
   function element(id) {
     return documentRef.getElementById(id);
@@ -357,6 +360,12 @@ export function createWorkoutHistoryUi({
     const snapshotUpdatedLabel = completed.templateSnapshotUpdatedAt
       ? new Date(completed.templateSnapshotUpdatedAt).toLocaleString('nb-NO')
       : '';
+    const roleSourceLabel = {
+      template: 'Fra frosset mal',
+      user_confirmed: 'Valgt av deg',
+      inferred: 'Utledet av regel',
+      unclassified: 'Ikke valgt ennå'
+    }[completed.roleSource] || 'Opphav ikke dokumentert (eldre økt)';
     return `
       <div class="detail-hero">
         <div class="detail-hero-heading">
@@ -376,7 +385,9 @@ export function createWorkoutHistoryUi({
       </div>
       ${detailSection('Tid og bevegelse', detailDataGrid(activityDetails.timing))}
       ${detailSection('Klassifisering', [
-        detailLine('Rolle', roleLabel(template.role)),
+        detailLine('Rolle', completed.roleSource === 'unclassified' ? 'Uklassifisert' : roleLabel(template.role)),
+        detailLine('Opphav', roleSourceLabel),
+        detailLine('Rolle valgt', completed.roleReviewedAt ? new Date(completed.roleReviewedAt).toLocaleString('nb-NO') : ''),
         detailLine('Malsnapshot oppdatert', snapshotUpdatedLabel)
       ].join(''))}
       ${detailSection('Belastning', `
@@ -543,9 +554,49 @@ export function createWorkoutHistoryUi({
     }
   }
 
+  function roleReviewItem(item) {
+    const template = completedTemplate(item);
+    const metrics = [
+      template.type || 'Aktivitetstype mangler',
+      completedDurationLabel(item) || 'varighet mangler',
+      item.distanceKm ? `${item.distanceKm} km` : 'distanse mangler',
+      item.avgHeartRate ? `snittpuls ${item.avgHeartRate} bpm` : 'snittpuls mangler'
+    ].join(' · ');
+    return `<div class="role-review-item">
+      <strong>${escapeHtml(template.name || item.manualName || 'Garmin-økt')}</strong>
+      <small>${formatDate(item.date)} · ${escapeHtml(metrics)}</small>
+      <label>Rolle
+        <select aria-label="Rolle for ${escapeHtml(template.name || 'økt')}">
+          <option value="" selected>Velg rolle</option>
+          ${roleOptions.map(([role, label]) => `<option value="${escapeHtml(role)}">${escapeHtml(label)}</option>`).join('')}
+        </select>
+      </label>
+      <button type="button" class="btn-soft" data-completed-id="${escapeHtml(item.id)}" onclick="confirmImportedRole(this)">Lagre rolle</button>
+    </div>`;
+  }
+
+  function renderRoleReview() {
+    const target = element('historyRoleReview');
+    if (!target) return;
+    const summary = garminRoleReviewSummary(getState().completed, todayISO(), getCoachRules());
+    target.innerHTML = `<div class="role-review-entry">
+      <details${summary.current.length ? ' open' : ''}>
+        <summary>${summary.current.length} økt${summary.current.length === 1 ? '' : 'er'} mangler rolle som kan påvirke vurderinger nå</summary>
+        ${summary.current.length ? `<p class="small-note">Velg rolle uten å knytte økten til en mal. Økten teller allerede i volum og belastning.</p>${summary.current.map(roleReviewItem).join('')}` : '<p class="small-note">Ingen nye økter trenger rollevalg nå.</p>'}
+      </details>
+      ${summary.older.length ? `<details class="role-review-older"><summary>Eldre økter uten rolle · ${summary.older.length}</summary>
+        <p class="small-note">Du trenger ikke rette disse for ukens plan eller dagens langtursgrunnlag. Lar du dem stå, skjer ingenting kritisk. En senere retting kan endre historiske visninger og «Form ved samme innsats».</p>
+        ${summary.older.map(roleReviewItem).join('')}
+      </details>` : ''}
+      ${summary.previousImports.length ? `<p class="small-note role-review-legacy">${summary.previousImports.length} tidligere importerte økter kan gjennomgås når neste runde er klar.</p>` : ''}
+      ${summary.legacyWithoutSnapshot.length ? `<p class="small-note role-review-legacy">${summary.legacyWithoutSnapshot.length} eldre økter uten malsnapshot holdes i en egen gruppe til senere gjennomgang.</p>` : ''}
+    </div>`;
+  }
+
   function renderList() {
     const items = filtered();
     renderSummary(items);
+    renderRoleReview();
     const list = element('historyList');
     if (list) list.innerHTML = items.length ? items.map(row).join('') : '<div class="empty">Ingen økter matcher filtrene.</div>';
     return items;

@@ -1,5 +1,13 @@
 # Treningsapp — progress.md
-Oppdatert: 2026-09-29 (siste runtime-endring: v176w2)
+Oppdatert: 2026-09-30 (siste runtime-endring: v176x)
+
+---
+
+## v176x – manuelt rollevalg ved Garmin-import
+
+**Implementert i runtime:** Nye umatchede Garmin-økter får tomt, manuelt rollevalg. «Bestem senere» lagrer `roleSource: unclassified` og kan rettes fra Logg uten å koble til mal. Bekreftet rolle lagres som `user_confirmed`; faktisk valgt mal krever separat bekreftelse og lagres som `template`. Logg teller bare nye, relevante uklassifiserte økter som kan rettes nå; tidligere importer vises som rolig notis. Vinduet utledes fra lengste aktive regelvindu. Øktdetaljen viser rollens opphav. Rolle-retting tar lokal recovery-kopi og transaksjonen avviser økter som er endret på annen enhet. APP_VERSION og CACHE_NAME er v176x.
+
+**Fortsatt bare design / ikke implementert i runtime:** Opprydding av tidligere Garmin-importerte økter, individuell bulk-diff, konsekvensvisning for langtursgrensen og eventuelle rolleforslag. `coach-rules.json` og `domain-coach-rules.js` er ikke endret.
 
 ---
 

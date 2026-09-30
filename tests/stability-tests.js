@@ -206,8 +206,8 @@ async function testAsync(name, fn) {
   });
 
   test('v176s2 keeps rare snapshot actions in the day modal and the week overview compact', () => {
-    assert.ok(app.includes("const APP_VERSION = 'v176w2'"));
-    assert.ok(serviceWorker.includes('treningsapp-v176w2'));
+    assert.ok(app.includes("const APP_VERSION = 'v176x'"));
+    assert.ok(serviceWorker.includes('treningsapp-v176x'));
     ['./domain-template-snapshot-update.js', './template-snapshot-update-ui.js']
       .forEach(file => assert.ok(serviceWorker.includes(file), `${file} is missing from APP_SHELL`));
     assert.ok(index.includes('id="templateSnapshotUpdateModal"'));
@@ -3727,8 +3727,8 @@ async function testAsync(name, fn) {
     assert.ok(workoutHistoryUiSource.includes('heartRateZoneDistributionRows'), 'history does not use production zone rows');
     assert.ok(workoutHistoryUiSource.includes('Tid i pulssoner'), 'completed detail is missing the heart-rate zone section');
     assert.ok(!workoutHistoryUiSource.includes("row.estimated ? 'ca. '"), 'zone duration should not be prefixed with ca.');
-    assert.ok(app.includes("const APP_VERSION = 'v176w2'"), 'visible app version must be v176w2');
-    assert.ok(serviceWorker.includes('treningsapp-v176w2'), 'cache version must match v176w2');
+    assert.ok(app.includes("const APP_VERSION = 'v176x'"), 'visible app version must be v176x');
+    assert.ok(serviceWorker.includes('treningsapp-v176x'), 'cache version must match v176x');
   });
 
   test('v174b evaluates easy and quality sessions without treating zone percentages as a hard truth', () => {
@@ -3823,8 +3823,8 @@ async function testAsync(name, fn) {
     assert.ok(index.includes('id="insightHeartRateComplianceCard"'), 'Insights is missing the compliance card');
     assert.ok(app.includes('heartRateZoneComplianceForItems(last28Days)'), 'coach context does not use the canonical compliance summary');
     assert.ok(app.includes('renderHeartRateZoneComplianceInsight(today)'), 'Insights does not render canonical compliance');
-    assert.ok(app.includes("const APP_VERSION = 'v176w2'"), 'visible app version must be v176w2');
-    assert.ok(serviceWorker.includes('treningsapp-v176w2'), 'cache version must match v176w2');
+    assert.ok(app.includes("const APP_VERSION = 'v176x'"), 'visible app version must be v176x');
+    assert.ok(serviceWorker.includes('treningsapp-v176x'), 'cache version must match v176x');
   });
 
   test('v174c uses the test profile for zones and keeps the golden zone as a separate coach reference', () => {
@@ -4058,7 +4058,8 @@ async function testAsync(name, fn) {
     ].join('\n');
     const completed = [{
       id: 'existing-run', date: '2026-08-04', manualName: 'Mitt navn', durationSeconds: 3000,
-      distanceKm: '', notes: 'Manuelt notat', rpe: 4, templateSnapshot: { name: 'Rolig løp', type: 'Løping' },
+      distanceKm: '', notes: 'Manuelt notat', rpe: 4, roleSource: 'user_confirmed',
+      templateSnapshot: { name: 'Rolig løp', type: 'Løping', role: 'easy' },
       externalData: { otherProvider: { id: 'keep' } }
     }];
     const planned = [{
@@ -4087,11 +4088,14 @@ async function testAsync(name, fn) {
     assert.strictEqual(enriched.distanceKm, 6.44, 'empty objective fields should be enriched');
     assert.strictEqual(enriched.notes, 'Manuelt notat');
     assert.strictEqual(enriched.rpe, 4);
+    assert.strictEqual(enriched.templateSnapshot.role, 'easy');
+    assert.strictEqual(enriched.roleSource, 'user_confirmed');
     assert.strictEqual(enriched.externalData.otherProvider.id, 'keep');
     assert.strictEqual(enriched.externalData.garmin.importedAt, '2026-08-05T12:00:00.000Z');
     const linked = plan.completedItems.find(item => item.plannedWorkoutId === 'planned-strength');
     assert.strictEqual(linked.templateSnapshot.name, 'Planlagt styrke');
     assert.strictEqual(linked.templateSnapshot.role, 'strength');
+    assert.strictEqual(linked.roleSource, 'template');
     assert.strictEqual(plan.plannedItems[0].status, 'done');
     assert.strictEqual(plan.plannedItems[0].completedWorkoutId, linked.id);
     const created = plan.completedItems.find(item => item.manualName === 'Gåtur');
@@ -4113,6 +4117,118 @@ async function testAsync(name, fn) {
     assert.throws(() => buildGarminImportCommit(preview, { createId: () => 'id' }), /mangler valgt handling/);
     preview.rows.forEach(row => { row.action = 'enrich'; });
     assert.throws(() => buildGarminImportCommit(preview, { createId: () => 'id' }), /samme økt/);
+  });
+
+  test('v176x unmatched Garmin import has no guessed role and keeps role separate from a template', () => {
+    const csv = [
+      'Activity Type,Date,Title,Time,Distance,Avg HR',
+      'Running,2026-09-29 08:00:00,Oppegård Running,00:34:00,5.1,157'
+    ].join('\n');
+    const preview = createGarminImportPreview(csv);
+    const row = preview.rows[0];
+    row.action = 'create';
+    assert.strictEqual(row.selectedRole, '');
+    const args = { createId: () => 'new-run', now: '2026-09-30T10:00:00.000Z' };
+    const unclassified = buildGarminImportCommit(preview, args).completedItems[0];
+    assert.strictEqual(unclassified.templateSnapshot.role, 'other');
+    assert.strictEqual(unclassified.roleSource, 'unclassified');
+    assert.strictEqual(unclassified.templateId, '');
+    assert.strictEqual(unclassified.avgHeartRate, 157);
+    assert.strictEqual(unclassified.durationSeconds, 2040);
+    row.selectedRole = 'easy';
+    const chosen = buildGarminImportCommit(preview, args).completedItems[0];
+    assert.strictEqual(chosen.templateSnapshot.role, 'easy');
+    assert.strictEqual(chosen.roleSource, 'user_confirmed');
+    assert.strictEqual(chosen.templateId, '', 'a role does not claim the Easy Run template');
+    row.selectedRole = '';
+    row.selectedTemplateId = 'easy-template';
+    const template = { id: 'easy-template', name: 'Easy Run', type: 'Løping', role: 'easy', intensity: 'Rolig' };
+    const templateArgs = { ...args, resolveTemplateById: () => template };
+    assert.throws(() => buildGarminImportCommit(preview, templateArgs), /bekreftes/);
+    row.confirmTemplateLink = true;
+    const linked = buildGarminImportCommit(preview, templateArgs).completedItems[0];
+    assert.strictEqual(linked.templateId, 'easy-template');
+    assert.strictEqual(linked.templateSnapshot.name, 'Easy Run');
+    assert.strictEqual(linked.roleSource, 'template');
+    row.selectedRole = 'support_threshold';
+    assert.throws(() => buildGarminImportCommit(preview, templateArgs), /ulike/);
+  });
+
+  test('v176x Logg count uses the longest validated rule window and excludes old imports from actionable count', () => {
+    const create = (id, date, roleSource = 'unclassified') => ({
+      id, date, source: 'garmin_csv', templateId: '', roleSource,
+      templateSnapshot: { name: id, type: 'Løping', role: 'other', roleClassificationVersion: 2 }
+    });
+    const items = [create('new-current', '2026-08-03'), create('new-older', '2026-08-02'),
+      { ...create('old-import', '2026-09-29'), roleSource: undefined },
+      { ...create('legacy', '2026-09-29'), templateSnapshot: null }];
+    const summary = planner.garminRoleReviewSummary(items, '2026-09-30', coachRulesJson);
+    assert.strictEqual(summary.relevantFrom, '2026-08-03');
+    assert.deepStrictEqual(summary.current.map(item => item.id), ['new-current']);
+    assert.deepStrictEqual(summary.older.map(item => item.id), ['new-older']);
+    assert.deepStrictEqual(summary.previousImports.map(item => item.id), ['old-import']);
+    assert.deepStrictEqual(summary.legacyWithoutSnapshot.map(item => item.id), ['legacy']);
+    const longerIntensity = structuredClone(coachRulesJson);
+    longerIntensity.thresholds.intensityBalance.windowDays = 90;
+    assert.strictEqual(planner.garminRoleReviewSummary(items, '2026-09-30', longerIntensity).relevantFrom, '2026-07-03');
+    const longerLongRun = structuredClone(coachRulesJson);
+    longerLongRun.thresholds.workoutRoles.longEasy.lookbackWeeks = 10;
+    assert.strictEqual(planner.garminRoleReviewSummary(items, '2026-09-30', longerLongRun).relevantFrom, '2026-07-20');
+  });
+
+  test('v176x explicit role correction preserves measurements and legacy classification', () => {
+    const source = { id: 'garmin-run', roleSource: 'unclassified', templateId: '',
+      templateSnapshot: { name: 'Oppegård Running', type: 'Løping', role: 'other', roleClassificationVersion: 2 },
+      durationSeconds: 2040, distanceKm: 5.1, avgHeartRate: 157, notes: 'Behold', externalData: { garmin: { fingerprint: 'abc' } } };
+    const updated = planner.confirmWorkoutRole(source, 'easy', '2026-09-30T10:00:00.000Z');
+    assert.strictEqual(updated.templateSnapshot.role, 'easy');
+    assert.strictEqual(updated.roleSource, 'user_confirmed');
+    assert.strictEqual(updated.templateId, '');
+    assert.strictEqual(updated.durationSeconds, 2040);
+    assert.strictEqual(updated.distanceKm, 5.1);
+    assert.strictEqual(updated.avgHeartRate, 157);
+    assert.strictEqual(updated.notes, 'Behold');
+    assert.deepStrictEqual(updated.externalData, source.externalData);
+    assert.strictEqual(source.templateSnapshot.role, 'other');
+    assert.throws(() => planner.confirmWorkoutRole(source, 'not-a-role'), /gyldig rolle/);
+    const normalizedLegacy = appStateDomain.normalizeCompletedItems([{ id: 'legacy', templateSnapshot: { name: 'Easy', type: 'Løping', role: 'recovery' } }])[0];
+    assert.strictEqual(normalizedLegacy.templateSnapshot.role, 'recovery');
+    assert.strictEqual(normalizedLegacy.roleSource, undefined);
+    assert.strictEqual(appStateDomain.normalizeCompletedItems([updated])[0].roleSource, 'user_confirmed');
+  });
+
+  test('v176x role UI exposes actionable Logg review without a suggestion engine', () => {
+    assert.ok(index.includes('id="historyRoleReview"'));
+    assert.ok(workoutHistoryUiSource.includes('garminRoleReviewSummary'));
+    assert.ok(workoutHistoryUiSource.includes('confirmImportedRole(this)'));
+    assert.ok(trainingImportUiSource.includes('Velg rolle eller bestem senere'));
+    assert.ok(trainingImportUiSource.includes('data-garmin-role="confirm-template"'));
+    assert.ok(!trainingImportUiSource.includes('suggestedRole'));
+    assert.ok(app.includes("saveRecoverySnapshot('before-garmin-role-confirmation')"));
+    assert.ok(styles.includes('.role-review-item'));
+  });
+
+  await testAsync('v176x role correction transaction refuses a stale or already classified workout', async () => {
+    let stored = { roleSource: 'unclassified', templateSnapshot: { name: 'Running', type: 'Løping', role: 'other' },
+      durationSeconds: 2040, notes: 'Behold' };
+    const firestore = {
+      doc: (...parts) => ({ parts }),
+      runTransaction: async (_db, work) => work({
+        get: async () => ({ exists: () => true, data: () => stored }),
+        set: (_ref, data) => { stored = data; }
+      })
+    };
+    const repository = createTrainingRepository({
+      db: {}, getCurrentUser: () => ({ uid: 'user' }), firestore,
+      normalizeState: value => value, defaultSettings: () => ({})
+    });
+    const updated = await repository.confirmImportedWorkoutRole({
+      id: 'run-1', role: 'easy', reviewedAt: '2026-09-30T10:00:00.000Z'
+    });
+    assert.strictEqual(updated.templateSnapshot.role, 'easy');
+    assert.strictEqual(stored.notes, 'Behold');
+    assert.strictEqual(stored.durationSeconds, 2040);
+    await assert.rejects(repository.confirmImportedWorkoutRole({ id: 'run-1', role: 'other' }), /endret på en annen enhet/);
   });
 
   test('v176b app-state whitelists Garmin provenance and keeps other providers', () => {
@@ -4400,8 +4516,8 @@ async function testAsync(name, fn) {
     assert.ok(trainingImportControllerSource.includes("action: duplicate ? 'skip'"), 'duplicates should be skipped by default');
     assert.ok(!trainingImportControllerSource.includes('heartRateZoneDistribution'), 'controller must not synthesize pulse zones');
     assert.ok(styles.includes('.garmin-import-row'), 'Garmin preview styling is missing');
-    assert.ok(app.includes("const APP_VERSION = 'v176w2'"));
-    assert.ok(serviceWorker.includes('treningsapp-v176w2'));
+    assert.ok(app.includes("const APP_VERSION = 'v176x'"));
+    assert.ok(serviceWorker.includes('treningsapp-v176x'));
   });
 
   test('structured interval UI fields and summaries are wired into production files', () => {

@@ -19,6 +19,7 @@ import {
   normalizeWeeklyTargetSnapshots
 } from './domain-periodized-training-plan.js';
 import { normalizePlanChangeTracking } from './domain-template-snapshot-update.js';
+import { normalizeWorkoutRoleSource } from './domain-training-plan.js';
 
 export const WORKOUT_ROLE_LABELS = {
   main_threshold: 'Hovedterskel',
@@ -336,6 +337,12 @@ export function normalizeCompletedItems(items = []) {
             raceResult: normalizeRaceResult(item.raceResult),
             heartRateZoneDistribution: normalizeHeartRateZoneDistribution(item.heartRateZoneDistribution)
           };
+          const roleSource = normalizeWorkoutRoleSource(item.roleSource);
+          if (roleSource) normalized.roleSource = roleSource;
+          else delete normalized.roleSource;
+          if (typeof item.roleReviewedAt === 'string' && /^\d{4}-\d{2}-\d{2}T/.test(item.roleReviewedAt)) {
+            normalized.roleReviewedAt = item.roleReviewedAt.slice(0, 40);
+          } else delete normalized.roleReviewedAt;
           const externalData = normalizeExternalData(item.externalData);
           if (externalData) normalized.externalData = externalData;
           else delete normalized.externalData;
@@ -388,4 +395,3 @@ export function normalizeAppState(input = {}) {
     settings: normalizeSettings(input.settings)
   };
 }
-

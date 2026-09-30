@@ -196,7 +196,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     } from './domain-template-snapshot-update.js';
     import { createTemplateSnapshotUpdateUi } from './template-snapshot-update-ui.js';
 
-const APP_VERSION = 'v176w2';
+const APP_VERSION = 'v176x';
     const APP_CACHE_NAME = `treningsapp-${APP_VERSION}`;
 
     const firebaseConfig = {
@@ -3453,11 +3453,54 @@ const APP_VERSION = 'v176w2';
             return { assessment, stale: isAiWorkoutAssessmentStale(assessment, fingerprint) };
           },
           roleLabel: value => WORKOUT_ROLE_LABELS[value] || value || 'Ikke angitt',
+          roleOptions: Object.entries(WORKOUT_ROLE_LABELS),
+          getCoachRules,
           todayISO
         });
       }
       return workoutHistoryUi;
     }
+
+    window.confirmImportedRole = async function(button) {
+      if (!currentUser || offlineSnapshotMode || !navigator.onLine) {
+        showToast('Rollevalg krever innlogging, nett og normal synkronisering.', 'error');
+        return;
+      }
+      const id = button?.dataset?.completedId;
+      const current = state.completed.find(item => item.id === id);
+      const role = button?.closest('.role-review-item')?.querySelector('select')?.value || '';
+      if (!current || current.roleSource !== 'unclassified' || !WORKOUT_ROLE_LABELS[role]) {
+        showToast('Velg en gyldig rolle for en uklassifisert økt.', 'error');
+        return;
+      }
+      const name = completedTemplate(current).name || 'Økten';
+      if (!window.confirm(`${name}: Rolle endres fra Uklassifisert til ${WORKOUT_ROLE_LABELS[role]}. Ingen mal, målinger eller notater endres. Lagre?`)) return;
+      button.disabled = true;
+      const recoverySaved = await saveRecoverySnapshot('before-garmin-role-confirmation');
+      if (!recoverySaved) {
+        button.disabled = false;
+        showToast('Kunne ikke opprette gjenopprettingskopi. Rollevalget er ikke lagret.', 'error');
+        return;
+      }
+      try {
+        setSyncStatus('syncing');
+        const updated = await trainingRepository.confirmImportedWorkoutRole({
+          id, role, reviewedAt: new Date().toISOString()
+        });
+        state.completed = state.completed.map(item => item.id === id ? updated : item);
+        state = normalizeAppState(state);
+        setSyncStatus('ok');
+        render();
+        try { await saveLocalStateSnapshot(); }
+        catch (snapshotError) { console.warn('Role saved remotely, but local snapshot was not updated:', snapshotError); }
+        showToast('Rollen er lagret uten malkobling.');
+      } catch (err) {
+        console.error('Could not confirm imported role:', err);
+        setSyncStatus(navigator.onLine ? 'error' : 'offline');
+        showToast(err?.message || 'Kunne ikke lagre rollen.', 'error');
+        button.disabled = false;
+      }
+    };
 
     window.openWorkoutDetail = function(completedId) {
       const completed = state.completed.find(c => c.id === completedId);

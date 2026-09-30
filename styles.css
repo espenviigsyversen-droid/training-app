@@ -2530,6 +2530,30 @@
 
     .garmin-import-row-body > p { margin: 0; }
 
+    .garmin-role-choice,
+    .garmin-template-link-preview {
+      display: grid;
+      gap: 8px;
+      min-width: 0;
+      padding: 11px;
+      border: 1px solid var(--warm-gray-2);
+      border-radius: 11px;
+      background: rgba(238,233,227,0.28);
+    }
+
+    .garmin-role-choice > p,
+    .garmin-template-link-preview > p { margin: 0; }
+
+    .garmin-role-choice select { width: 100%; min-width: 0; }
+
+    .garmin-template-link-preview { background: #fff; }
+
+    .garmin-template-diff { display: grid; gap: 5px; }
+    .garmin-template-diff > div { display: grid; grid-template-columns: minmax(100px, 0.4fr) minmax(0, 1fr); gap: 8px; font-size: 0.76rem; }
+    .garmin-template-diff span { overflow-wrap: anywhere; }
+    .garmin-template-warning { color: var(--red); font-weight: 800; }
+    @media (max-width: 420px) { .garmin-template-diff > div { grid-template-columns: 1fr; gap: 2px; } }
+
     .garmin-conflicts {
       display: grid;
       gap: 8px;
@@ -3128,6 +3152,45 @@
 
     .history-filter-toggle-row {
       margin-bottom: 10px;
+    }
+
+    #historyRoleReview { margin: 8px 0 14px; }
+
+    .role-review-entry {
+      padding: 11px 13px;
+      border: 1px solid var(--warm-gray-2);
+      border-radius: 13px;
+      background: rgba(238,233,227,0.24);
+    }
+
+    .role-review-entry summary { cursor: pointer; font-weight: 850; }
+    .role-review-entry .small-note { margin: 8px 0; }
+    .role-review-older { margin-top: 12px; border-top: 1px solid var(--warm-gray-2); padding-top: 10px; }
+    .role-review-legacy { color: var(--warm-gray-3); }
+
+    .role-review-item {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 6px 10px;
+      align-items: end;
+      margin-top: 9px;
+      padding: 10px;
+      border: 1px solid var(--warm-gray-2);
+      border-radius: 10px;
+      background: #fff;
+    }
+
+    .role-review-item > strong,
+    .role-review-item > small { grid-column: 1 / -1; overflow-wrap: anywhere; }
+    .role-review-item > small { color: var(--warm-gray-3); }
+    .role-review-item label { min-width: 0; }
+    .role-review-item select { width: 100%; min-width: 0; }
+
+    @media (max-width: 420px) {
+      .role-review-item { grid-template-columns: 1fr; }
+      .role-review-item > strong,
+      .role-review-item > small { grid-column: auto; }
+      .role-review-item button { width: 100%; }
     }
 
     .history-filter-toggle {

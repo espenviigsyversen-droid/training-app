@@ -4,7 +4,7 @@ import {
   parseGarminActivitiesCsv,
   suggestGarminMatches
 } from './garmin-csv-import.js';
-import { inferredWorkoutRole } from './domain-training-plan.js';
+import { canonicalWorkoutRole, inferredWorkoutRole } from './domain-training-plan.js';
 
 export const GARMIN_IMPORT_MAX_FILE_BYTES = 5 * 1024 * 1024;
 export const GARMIN_IMPORT_MAX_ROWS = 2000;
@@ -146,6 +146,9 @@ export function createGarminImportPreview(csvText, {
       matches,
       selectedTargetKey,
       action: duplicate ? 'skip' : 'review',
+      selectedRole: '',
+      selectedTemplateId: '',
+      confirmTemplateLink: false,
       overwriteFields: []
     };
   });
@@ -164,7 +167,7 @@ function selectedMatch(row) {
   return row.matches.find(match => match.key === row.selectedTargetKey) || null;
 }
 
-function cleanTemplateSnapshot(template, fallbackName, fallbackType, workoutContext = {}) {
+function cleanTemplateSnapshot(template, fallbackName, fallbackType, workoutContext = {}, inferMissingRole = false) {
   const source = plainObject(template);
   const snapshot = {
     id: String(source.id || ''),
@@ -175,29 +178,52 @@ function cleanTemplateSnapshot(template, fallbackName, fallbackType, workoutCont
     roleClassificationVersion: 2,
     purpose: String(source.purpose || '').slice(0, 80),
     load: String(source.load || '').slice(0, 40),
+    recommendedWhen: Array.isArray(source.recommendedWhen) ? [...source.recommendedWhen] : [],
+    avoidWhen: Array.isArray(source.avoidWhen) ? [...source.avoidWhen] : [],
     structure: String(source.structure || '').slice(0, 4000),
     sourceUrl: String(source.sourceUrl || '').slice(0, 500),
     structuredWorkout: source.structuredWorkout || null,
     exercisePlan: source.exercisePlan || null
   };
-  snapshot.role = snapshot.role || inferredWorkoutRole(snapshot, { item: workoutContext });
+  snapshot.role = snapshot.role || (inferMissingRole ? inferredWorkoutRole(snapshot, { item: workoutContext }) : 'other');
   return snapshot;
 }
 
-function materializeCompleted(candidate, { id, now, planned = null, resolveTemplate } = {}) {
+function materializeCompleted(candidate, {
+  id, now, planned = null, resolveTemplate, selectedRole = '', selectedTemplateId = '',
+  confirmTemplateLink = false, resolveTemplateById
+} = {}) {
   const draft = plainObject(candidate?.completedDraft);
-  const linkedTemplate = planned ? resolvedTemplate(planned, resolveTemplate) : null;
+  const linkedTemplate = planned ? resolvedTemplate(planned, resolveTemplate)
+    : selectedTemplateId && confirmTemplateLink && typeof resolveTemplateById === 'function'
+      ? plainObject(resolveTemplateById(selectedTemplateId)) : null;
+  if (selectedTemplateId && !planned && (!confirmTemplateLink || !linkedTemplate?.id || linkedTemplate.id !== selectedTemplateId)) {
+    throw new Error('Malkoblingen må vises og bekreftes før import.');
+  }
+  const chosenRole = canonicalWorkoutRole(selectedRole);
+  if (selectedRole && !chosenRole) throw new Error('Ugyldig rollevalg ved Garmin-import.');
+  if (!planned && linkedTemplate?.role && chosenRole && chosenRole !== canonicalWorkoutRole(linkedTemplate.role)) {
+    throw new Error('Valgt rolle og malens rolle er ulike. Velg en samsvarende rolle eller importer uten malkobling.');
+  }
   const templateSnapshot = cleanTemplateSnapshot(
     linkedTemplate,
     draft.manualName || draft.activityType,
     draft.activityType,
-    draft
+    draft,
+    Boolean(planned)
   );
+  if (!planned && chosenRole) templateSnapshot.role = chosenRole;
+  const roleSource = planned
+    ? (linkedTemplate?.role ? 'template' : 'inferred')
+    : chosenRole ? 'user_confirmed' : linkedTemplate?.role ? 'template' : 'unclassified';
+  if (roleSource === 'unclassified') templateSnapshot.role = 'other';
   const withProvenance = mergeGarminIntoCompleted({}, candidate, { importedAt: now });
   const completed = {
     id,
-    templateId: planned?.templateId || '',
+    templateId: planned?.templateId || (confirmTemplateLink ? selectedTemplateId : ''),
     templateSnapshot,
+    roleSource,
+    ...(roleSource === 'user_confirmed' ? { roleReviewedAt: now } : {}),
     plannedWorkoutId: planned?.id || '',
     date: draft.date || '',
     manualName: planned ? '' : String(draft.manualName || '').slice(0, 160),
@@ -220,7 +246,8 @@ function materializeCompleted(candidate, { id, now, planned = null, resolveTempl
 export function buildGarminImportCommit(preview, {
   createId,
   now = new Date().toISOString(),
-  resolveTemplate
+  resolveTemplate,
+  resolveTemplateById
 } = {}) {
   if (!preview || !Array.isArray(preview.rows)) throw new Error('Importforhåndsvisningen mangler.');
   if (typeof createId !== 'function') throw new Error('Importen mangler en trygg ID-generator.');
@@ -243,7 +270,11 @@ export function buildGarminImportCommit(preview, {
     }
     if (row.action === 'create') {
       completedItems.push(materializeCompleted(row.candidate, {
-        id: createId('completed'), now, resolveTemplate
+        id: createId('completed'), now, resolveTemplate,
+        selectedRole: row.selectedRole || '',
+        selectedTemplateId: row.selectedTemplateId || '',
+        confirmTemplateLink: row.confirmTemplateLink === true,
+        resolveTemplateById
       }));
       stats.imported += 1;
       return;
@@ -287,6 +318,10 @@ export function buildGarminImportCommit(preview, {
     plannedItems,
     rejectedRows: [...(preview.rejectedRows || [])],
     stats: { ...stats, rejected: preview.rejectedRows?.length || 0 },
+    roleSummary: {
+      confirmed: completedItems.filter(item => item.roleSource === 'user_confirmed').length,
+      unclassified: completedItems.filter(item => item.roleSource === 'unclassified').length
+    },
     operationCount: completedItems.length + plannedItems.length
   };
 }

@@ -87,6 +87,66 @@ export function workoutRoleRules(rules = DEFAULT_COACH_RULES) {
   };
 }
 
+export function canonicalWorkoutRole(value) {
+  const role = String(value || '').trim().toLowerCase();
+  return CANONICAL_WORKOUT_ROLES.has(role) ? role : '';
+}
+
+export function normalizeWorkoutRoleSource(value) {
+  const source = String(value || '').trim();
+  return ['template', 'user_confirmed', 'inferred', 'unclassified'].includes(source) ? source : '';
+}
+
+export function confirmWorkoutRole(item = {}, role, reviewedAt = '') {
+  const selectedRole = canonicalWorkoutRole(role);
+  if (!selectedRole) throw new Error('Velg en gyldig rolle.');
+  return {
+    ...item,
+    templateSnapshot: {
+      ...(item.templateSnapshot || {}),
+      role: selectedRole,
+      roleClassificationVersion: 2
+    },
+    roleSource: 'user_confirmed',
+    roleReviewedAt: String(reviewedAt || ''),
+    updatedAt: String(reviewedAt || item.updatedAt || '')
+  };
+}
+
+export function garminRoleReviewSummary(completedItems = [], today, rules = DEFAULT_COACH_RULES) {
+  const currentWeekStart = weekStartIso(today);
+  if (!currentWeekStart) return { relevantFrom: '', windowDays: 0, current: [], older: [], previousImports: [], legacyWithoutSnapshot: [] };
+  const elapsedWeekDays = Math.round((Date.parse(`${today}T12:00:00Z`) - Date.parse(`${currentWeekStart}T12:00:00Z`)) / 86400000) + 1;
+  const longEasyDays = workoutRoleRules(rules).lookbackWeeks * 7 + elapsedWeekDays;
+  const rawIntensityDays = Number(rules?.thresholds?.intensityBalance?.windowDays);
+  const fallbackIntensityDays = DEFAULT_COACH_RULES.thresholds.intensityBalance.windowDays;
+  const intensityDays = Number.isInteger(rawIntensityDays) && rawIntensityDays >= 1 && rawIntensityDays <= 365
+    ? rawIntensityDays : fallbackIntensityDays;
+  // Derive the single longest active window from the rule source; do not hardcode eight weeks.
+  // If a future rule outgrows the long-run window, this max expands the actionable period automatically.
+  const windowDays = Math.max(longEasyDays, intensityDays, elapsedWeekDays);
+  const relevantFrom = addIsoDays(today, 1 - windowDays);
+  const current = [];
+  const older = [];
+  const previousImports = [];
+  const legacyWithoutSnapshot = [];
+  (Array.isArray(completedItems) ? completedItems : []).forEach(item => {
+    if (!item || !isoDate(item.date) || item.date > today) return;
+    if (!item.templateSnapshot) {
+      legacyWithoutSnapshot.push(item);
+      return;
+    }
+    if (item.roleSource === 'unclassified') {
+      (item.date >= relevantFrom ? current : older).push(item);
+    } else if (!item.roleSource && !item.templateId
+      && (item.source === 'garmin_csv' || item.externalData?.garmin)
+      && canonicalWorkoutRole(item.templateSnapshot.role) === 'other') {
+      previousImports.push(item);
+    }
+  });
+  return { relevantFrom, windowDays, current, older, previousImports, legacyWithoutSnapshot };
+}
+
 function explicitReferenceRole(template = {}) {
   const role = String(template.role || '').trim().toLowerCase();
   return CANONICAL_WORKOUT_ROLES.has(role) ? role : '';
