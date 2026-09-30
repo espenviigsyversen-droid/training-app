@@ -297,7 +297,7 @@ Valideringen skiller mellom om kontrollen kunne kjøres og hva den konkluderte m
 
 - `validationStatus: validated`: vakt og blokk bruker samme metrikk og det finnes nok data.
 - `validationStatus: metric_mismatch`: vaktens valgte metrikk avviker fra blokkrammen. Ingen konvertering utføres.
-- `validationStatus: insufficient_data`: volumvakten mangler nok nyere eller tidligere økter.
+- `validationStatus: insufficient_data`: volumvakten mangler nok nyere eller tidligere økter, eller sykdomseksklusjon har tømt den representative baselinen. Sistnevnte går foran `metric_mismatch`; en metrikkavvisning alene ville skjult at selve normalgrunnlaget mangler.
 
 Når `validationStatus` er `validated`, settes et eget utfall:
 
@@ -333,6 +333,10 @@ En blokk kan opprettes og forhåndsvises under aktivt fryskort eller comeback, m
 - Aktivt fryskort, comebackstatus, brukt baseline, reduksjonsfaktor og manglende valideringsgrunnlag vises samlet i forhåndsvisningen. Skadesignal og dagsform har alltid prioritet foran blokkens mål.
 
 Runtime-koblingen for volum ble implementert i v176v1, og skriveflyten for bare uke 1 ble senere åpnet. Fra v176y passerer også automatisk foreslåtte roller og maler i oppstartsuken den felles comeback-porten: de blir rolige, mens brukerens uttrykkelige valg beholdes med konfliktvarsel og ikke presenteres som råd. Eksisterende planøkter endres ikke stille. Blokkpreviewen mottar samme fryskortforankrede `comebackProtocol()` som Hjem/coachen, og sykdoms-/skadeuker ekskluderes eksplisitt fra representativ baseline før comebackfaktoren brukes én gang.
+
+Fra v176y1 er volumramme og planplasser to eksplisitt navngitte størrelser i forhåndsvisningen. Når rammen måles i økter under comeback, eller `comebackProtocol()` har et redusert øktmål, kan en uke aldri ha flere planplasser enn sitt tak. Brukervalgt hardere innhold prioriteres ved reduksjon av planplasser, men vises som konflikt og aldri som råd; utelatte planplasser navngis i forhåndsvisningen. `effectiveWeeklyTarget` og `slotCap` på kontrollert oppstartsuke bevares ved normalisering. Skrivekjeden nekter også materialisering dersom allerede utførte/manuelt planlagte økter i innlastet state pluss nye planøkter ville overstige comebackmålet. Dette er ikke en global transaksjonell teller: en samtidig ny økt på en annen enhet etter siste synk er en restrisiko til en senere serverkoordinert kalenderpolicy finnes.
+
+Hvis sykdomsukene etterlater færre enn minimum antall representative uker, vises normalgrunnlag som «Ikke beregnbart» og valideringen som `insufficient_data`. Kjent redusert øktmål kan fortsatt brukes som et forsiktig tak for uke 1, men ingen prosent utledes av null. Uke 2–3 får samme foreløpige tak uten påstått progresjon; avlastningsuken får høyst ett færre økt. Ved varighetsmetrikk uten baseline kan minutter ikke utledes fra et øktmål: rammen vises som ikke beregnbar og materialisering er sperret til brukeren velger øktmetrikk eller datagrunnlaget er tilstrekkelig.
 
 ### 3.4 Rolle-, race- og challenge-policy
 

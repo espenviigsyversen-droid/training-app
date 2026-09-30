@@ -206,8 +206,8 @@ async function testAsync(name, fn) {
   });
 
   test('v176s2 keeps rare snapshot actions in the day modal and the week overview compact', () => {
-    assert.ok(app.includes("const APP_VERSION = 'v176y'"));
-    assert.ok(serviceWorker.includes('treningsapp-v176y'));
+    assert.ok(app.includes("const APP_VERSION = 'v176y1'"));
+    assert.ok(serviceWorker.includes('treningsapp-v176y1'));
     ['./domain-template-snapshot-update.js', './template-snapshot-update-ui.js']
       .forEach(file => assert.ok(serviceWorker.includes(file), `${file} is missing from APP_SHELL`));
     assert.ok(index.includes('id="templateSnapshotUpdateModal"'));
@@ -3728,8 +3728,8 @@ async function testAsync(name, fn) {
     assert.ok(workoutHistoryUiSource.includes('heartRateZoneDistributionRows'), 'history does not use production zone rows');
     assert.ok(workoutHistoryUiSource.includes('Tid i pulssoner'), 'completed detail is missing the heart-rate zone section');
     assert.ok(!workoutHistoryUiSource.includes("row.estimated ? 'ca. '"), 'zone duration should not be prefixed with ca.');
-    assert.ok(app.includes("const APP_VERSION = 'v176y'"), 'visible app version must be v176y');
-    assert.ok(serviceWorker.includes('treningsapp-v176y'), 'cache version must match v176y');
+    assert.ok(app.includes("const APP_VERSION = 'v176y1'"), 'visible app version must be v176y1');
+    assert.ok(serviceWorker.includes('treningsapp-v176y1'), 'cache version must match v176y1');
   });
 
   test('v174b evaluates easy and quality sessions without treating zone percentages as a hard truth', () => {
@@ -3824,8 +3824,8 @@ async function testAsync(name, fn) {
     assert.ok(index.includes('id="insightHeartRateComplianceCard"'), 'Insights is missing the compliance card');
     assert.ok(app.includes('heartRateZoneComplianceForItems(last28Days)'), 'coach context does not use the canonical compliance summary');
     assert.ok(app.includes('renderHeartRateZoneComplianceInsight(today)'), 'Insights does not render canonical compliance');
-    assert.ok(app.includes("const APP_VERSION = 'v176y'"), 'visible app version must be v176y');
-    assert.ok(serviceWorker.includes('treningsapp-v176y'), 'cache version must match v176y');
+    assert.ok(app.includes("const APP_VERSION = 'v176y1'"), 'visible app version must be v176y1');
+    assert.ok(serviceWorker.includes('treningsapp-v176y1'), 'cache version must match v176y1');
   });
 
   test('v174c uses the test profile for zones and keeps the golden zone as a separate coach reference', () => {
@@ -4533,8 +4533,8 @@ async function testAsync(name, fn) {
     assert.ok(trainingImportControllerSource.includes("action: duplicate ? 'skip'"), 'duplicates should be skipped by default');
     assert.ok(!trainingImportControllerSource.includes('heartRateZoneDistribution'), 'controller must not synthesize pulse zones');
     assert.ok(styles.includes('.garmin-import-row'), 'Garmin preview styling is missing');
-    assert.ok(app.includes("const APP_VERSION = 'v176y'"));
-    assert.ok(serviceWorker.includes('treningsapp-v176y'));
+    assert.ok(app.includes("const APP_VERSION = 'v176y1'"));
+    assert.ok(serviceWorker.includes('treningsapp-v176y1'));
   });
 
   test('structured interval UI fields and summaries are wired into production files', () => {
@@ -5092,7 +5092,7 @@ async function testAsync(name, fn) {
     };
     const automatic = trainingPlanUi.buildTrainingPlanPreviewModel({
       ...input,
-      draft: { id: 'auto', startDate: '2026-10-05', focus: 'base', slotCount: 3, metric: 'duration', rolePreset: 'profile', roles: ['easy', 'support_threshold', 'long_easy'] }
+      draft: { id: 'auto', startDate: '2026-10-05', focus: 'base', slotCount: 3, metric: 'duration', rolePreset: 'block', roles: ['easy', 'support_threshold', 'long_easy'] }
     });
     assert.deepStrictEqual(automatic.plan.weeks[0].slots.map(slot => slot.role), ['easy', 'easy', 'easy']);
     assert.ok(automatic.plan.weeks[0].slots.every(slot => slot.templateId === 'easy'));
@@ -5109,6 +5109,79 @@ async function testAsync(name, fn) {
     });
     assert.deepStrictEqual(partial.plan.weeks[0].slots.map(slot => slot.role), ['easy', 'support_threshold', 'easy']);
     assert.strictEqual(partial.safety.manualConflicts.length, 1);
+  });
+
+  test('v176y1 empty illness baseline uses an honest comeback ceiling and never writes above it', () => {
+    const selected = periodizedPlan.capPeriodizedReturnSlots(
+      [{ slotId: 'easy-1' }, { slotId: 'manual-hard' }, { slotId: 'easy-2' }], 2, [false, true, false]
+    );
+    assert.deepStrictEqual(selected.slots.map(slot => slot.slotId), ['easy-1', 'manual-hard']);
+    assert.deepStrictEqual(selected.omitted.map(slot => slot.slotId), ['easy-2']);
+    const templates = [
+      { id: 'easy', name: 'Easy Run', role: 'easy', intensity: 'Rolig', load: 'low', type: 'Løping' },
+      { id: 'hard', name: 'Støtteterskel', role: 'support_threshold', intensity: 'Terskel', load: 'moderate', type: 'Løping' }
+    ];
+    const common = {
+      completedItems: [{ id: 'before-illness', date: '2026-08-16', durationSeconds: 3600 }],
+      continuityFreezes: [{ id: 'ill-1', reason: 'sick', status: 'ended', startDate: '2026-08-24', endDate: '2026-10-04', recoveredAt: '2026-10-03' }],
+      comebackState: { active: true, phase: 'return_week', weekFactor: 0.65, effectiveWeeklyTarget: 2, recoveryDate: '2026-10-03' },
+      templates, rules: coachRulesJson,
+      volumeRamp: { enoughData: true, metric: 'duration', baselineWeekly: { seconds: 12000 } }
+    };
+    const draft = {
+      id: 'return-empty-baseline', startDate: '2026-10-05', focus: 'base', slotCount: 3,
+      metric: 'sessions', rolePreset: 'block', roles: ['easy', 'easy', 'long_easy'], userConfirmed: true
+    };
+    const model = trainingPlanUi.buildTrainingPlanPreviewModel({ ...common, draft });
+    assert.strictEqual(model.baseline.baselineValue, 0);
+    assert.strictEqual(model.baseline.weekCount, 0);
+    assert.strictEqual(model.baseline.excludedWeekCount, 6);
+    assert.strictEqual(model.safety.baselineReliable, false);
+    assert.deepStrictEqual(model.plan.weeks.map(week => week.targetMax), [2, 2, 2, 1]);
+    assert.deepStrictEqual(model.plan.weeks.map(week => week.slots.length), [2, 2, 2, 1]);
+    assert.ok(model.plan.weeks.every(week => week.slots.length <= week.targetMax));
+    assert.ok(model.validations.every(item => item.validationStatus === 'insufficient_data'));
+    assert.match(model.validations[0].message, /ikke nok representative uker/i);
+    assert.ok(trainingPlanUiSource.includes('Representativt normalgrunnlag mangler'));
+    assert.ok(trainingPlanUiSource.includes('Volumramme'));
+    const preview = trainingPlanController.buildTrainingPlanMaterializationPreview({
+      plan: model.plan, templates, today: '2026-10-04', scope: 'first_week'
+    });
+    assert.strictEqual(preview.summary.create, 2);
+    assert.strictEqual(preview.ready, true);
+    assert.strictEqual(trainingPlanController.buildFirstWeekMaterializationCommand(preview).plannedItems.length, 2);
+    assert.strictEqual(preview.plan.weeks[0].targetMax, 2, 'normalization must preserve the adjusted return frame');
+    assert.strictEqual(preview.plan.weeks[0].effectiveWeeklyTarget, 2);
+    const withManualWorkout = trainingPlanController.buildTrainingPlanMaterializationPreview({
+      plan: model.plan, templates, today: '2026-10-04', scope: 'first_week',
+      plannedItems: [{ id: 'user-1', date: '2026-10-07', status: 'planned', templateId: 'hard' }]
+    });
+    assert.strictEqual(withManualWorkout.ready, false);
+    assert.deepStrictEqual(withManualWorkout.errors, ['return_weekly_target_exceeded']);
+    assert.throws(() => trainingPlanController.buildFirstWeekMaterializationCommand(withManualWorkout));
+    const explicit = trainingPlanUi.buildTrainingPlanPreviewModel({
+      ...common,
+      draft: { ...draft, rolePreset: 'profile', profileChoiceConfirmed: true, roles: ['easy', 'support_threshold', 'long_easy'], templateIds: ['easy', 'hard', ''] }
+    });
+    assert.deepStrictEqual(explicit.plan.weeks[0].slots.map(slot => slot.role), ['easy', 'support_threshold']);
+    assert.strictEqual(explicit.safety.manualConflicts.length, 1);
+    const staleProfile = trainingPlanUi.buildTrainingPlanPreviewModel({
+      ...common,
+      draft: { ...draft, rolePreset: 'profile', profileChoiceConfirmed: false, roles: ['easy', 'support_threshold', 'long_easy'] }
+    });
+    assert.deepStrictEqual(staleProfile.plan.weeks[0].slots.map(slot => slot.role), ['easy', 'easy']);
+    assert.strictEqual(staleProfile.safety.manualConflicts.length, 0);
+    assert.ok(trainingPlanUiSource.includes('anbefalt under comeback'));
+    assert.ok(app.includes('Planlagt · konflikt'));
+    assert.ok(app.includes('Bytt til rolig'));
+    const unknownDuration = trainingPlanUi.buildTrainingPlanPreviewModel({
+      ...common, draft: { ...draft, metric: 'duration' }
+    });
+    assert.strictEqual(unknownDuration.baseline.enoughData, false);
+    assert.strictEqual(unknownDuration.safety.adjustedBaselineValue, 0);
+    assert.strictEqual(unknownDuration.plan.canMaterialize, false);
+    assert.strictEqual(unknownDuration.validations[0].validationStatus, 'insufficient_data');
+    assert.ok(trainingPlanUiSource.includes('Minuttrammen kan ikke beregnes'));
   });
 
   test('v176y automatic advice exits through the shared policy boundary', () => {

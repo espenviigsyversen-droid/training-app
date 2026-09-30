@@ -422,15 +422,26 @@ export function buildTrainingPlanMaterializationPreview({
   }, {});
   summary.requiresChoice = operations.filter(operation => operation.requiresChoice).length;
   summary.total = operations.length;
+  const firstWeek = weeks.find(week => week.index === 1);
+  const returnCap = firstWeek?.planningState === 'controlled_return'
+    ? Number(firstWeek.effectiveWeeklyTarget || firstWeek.slotCap || 0) : 0;
+  const existingInFirstWeek = returnCap ? [
+    ...planned.filter(item => item.status !== 'cancelled' && item.date >= firstWeek.weekStart && item.date <= firstWeek.weekEnd),
+    ...completed.filter(item => item.date >= firstWeek.weekStart && item.date <= firstWeek.weekEnd)
+  ].length : 0;
+  const projectedWeekSessions = existingInFirstWeek + operations.filter(operation => operation.type === 'create' && operation.weekIndex === 1).length;
+  const overReturnCap = returnCap > 0 && projectedWeekSessions > returnCap;
   return {
-    ready: summary.requiresChoice === 0,
-    errors: [],
+    ready: summary.requiresChoice === 0 && !overReturnCap,
+    errors: overReturnCap ? ['return_weekly_target_exceeded'] : [],
+    returnCap: returnCap || null,
+    projectedWeekSessions,
     plan,
     window,
     operations,
     summary,
     scope,
-    writeEnabled: scope === 'first_week' && summary.requiresChoice === 0
+    writeEnabled: scope === 'first_week' && summary.requiresChoice === 0 && !overReturnCap
   };
 }
 
@@ -452,6 +463,11 @@ export function buildFirstWeekMaterializationCommand(preview = {}, {
   const firstWeek = plan.weeks[0];
   if (!firstWeek || preview.operations.some(operation => operation.weekIndex !== 1)) {
     throw new Error('Dette steget kan bare legge blokkens første uke i kalenderen.');
+  }
+  const returnCap = firstWeek.planningState === 'controlled_return'
+    ? Number(firstWeek.effectiveWeeklyTarget || firstWeek.slotCap || 0) : 0;
+  if (returnCap && (firstWeek.slots.length > returnCap || preview.projectedWeekSessions > returnCap)) {
+    throw new Error('Uke 1 har flere økter enn det reduserte comebackmålet tillater. Juster planplassene først.');
   }
   const id = materializationId || materializationIdFor(plan, now);
   const createdItems = preview.operations

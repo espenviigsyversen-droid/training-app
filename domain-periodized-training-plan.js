@@ -485,6 +485,19 @@ export function derivePeriodizedPlanBaseline(completedItems = [], {
   };
 }
 
+export function capPeriodizedReturnSlots(slots = [], cap = 0, explicit = []) {
+  const source = Array.isArray(slots) ? slots : [];
+  const ceiling = Math.max(0, Math.round(finiteNumber(cap)));
+  if (!ceiling || source.length <= ceiling) return { slots: source, omitted: [] };
+  const priority = source.map((_, index) => index)
+    .sort((a, b) => Number(Boolean(explicit[b])) - Number(Boolean(explicit[a])) || a - b);
+  const keep = new Set(priority.slice(0, ceiling));
+  return {
+    slots: source.filter((_, index) => keep.has(index)),
+    omitted: source.filter((_, index) => !keep.has(index))
+  };
+}
+
 export function applyPeriodizedComebackSafety({
   baseline = {},
   frame = {},
@@ -505,10 +518,16 @@ export function applyPeriodizedComebackSafety({
     .sort((a, b) => String(b.endDate).localeCompare(String(a.endDate)))[0] || null;
   const comebackActive = Boolean(comebackState?.active);
   const active = comebackActive || Boolean(activeFreeze);
+  const baselineReliable = Boolean(baseline?.enoughData && normalBaselineValue > 0);
   const rawFactor = comebackActive ? finiteNumber(comebackState?.weekFactor, 1) : 1;
   const weekFactor = active ? clampNumber(rawFactor, 0.1, 1, 1) : 1;
+  const returnSlotCap = active && finiteNumber(comebackState?.effectiveWeeklyTarget) > 0
+    ? Math.max(1, Math.round(finiteNumber(comebackState.effectiveWeeklyTarget)))
+    : 0;
   const adjustedBaselineValue = !active
     ? normalBaselineValue
+    : !baselineReliable && metric === 'duration'
+      ? 0
     : metric === 'sessions' && finiteNumber(comebackState?.effectiveWeeklyTarget) > 0
       ? Math.max(1, Math.round(finiteNumber(comebackState.effectiveWeeklyTarget)))
       : metric === 'sessions'
@@ -516,6 +535,17 @@ export function applyPeriodizedComebackSafety({
         : rounded(normalBaselineValue * weekFactor, 1);
   const weeks = (Array.isArray(frame?.weeks) ? frame.weeks : []).map((week, index) => {
     if (!active) return { ...week, planningState: 'normal', materializationState: 'available_when_enabled' };
+    // Without a representative baseline, the known comeback target is a ceiling,
+    // not evidence for a four-week progression.
+    if (!baselineReliable && metric === 'sessions' && returnSlotCap) {
+      const ceiling = index === 3 ? Math.max(1, returnSlotCap - 1) : returnSlotCap;
+      return {
+        ...week, targetMin: ceiling, targetMax: ceiling,
+        effectiveWeeklyTarget: ceiling, slotCap: ceiling,
+        planningState: index === 0 ? 'controlled_return' : 'provisional_after_return',
+        materializationState: index === 0 || comebackState?.recoveryDate ? 'available_when_enabled' : 'awaiting_recovery'
+      };
+    }
     const scale = normalBaselineValue > 0 ? adjustedBaselineValue / normalBaselineValue : weekFactor;
     const scaledMin = metric === 'sessions'
       ? Math.max(1, Math.round(finiteNumber(week?.targetMin) * scale))
@@ -535,6 +565,8 @@ export function applyPeriodizedComebackSafety({
         ...week,
         targetMin,
         targetMax: adjustedBaselineValue,
+        effectiveWeeklyTarget: returnSlotCap || null,
+        slotCap: returnSlotCap || null,
         planningState: 'controlled_return',
         materializationState: 'available_when_enabled'
       };
@@ -543,6 +575,7 @@ export function applyPeriodizedComebackSafety({
       ...week,
       targetMin: scaledMin,
       targetMax: scaledMax,
+      slotCap: metric === 'sessions' ? Math.min(returnSlotCap || Infinity, scaledMax) : returnSlotCap || null,
       planningState: 'provisional_after_return',
       materializationState: comebackState?.recoveryDate ? 'available_when_enabled' : 'awaiting_recovery'
     };
@@ -554,6 +587,8 @@ export function applyPeriodizedComebackSafety({
     adjustedBaselineValue,
     metric,
     weekFactor,
+    baselineReliable,
+    returnSlotCap,
     percent: Math.round(weekFactor * 100),
     comebackState: comebackActive ? { ...comebackState } : null,
     activeFreeze: activeFreeze ? { ...activeFreeze } : null,
@@ -669,7 +704,7 @@ export function buildFourWeekVolumeFrame({
   };
 }
 
-export function validateProspectiveVolumeFrame({ frame = {}, volumeRamp = {}, rules = DEFAULT_COACH_RULES, override = false } = {}) {
+export function validateProspectiveVolumeFrame({ frame = {}, volumeRamp = {}, rules = DEFAULT_COACH_RULES, override = false, baselineEnoughData = true } = {}) {
   const metric = PLAN_METRICS.has(frame?.metric) ? frame.metric : '';
   const config = periodizedPlanRules(rules);
   const originalMin = Math.max(0, finiteNumber(frame?.targetMin));
@@ -684,6 +719,14 @@ export function validateProspectiveVolumeFrame({ frame = {}, volumeRamp = {}, ru
     overrideAvailable: false,
     overrideApplied: false
   };
+  if (!baselineEnoughData) {
+    return {
+      ...base,
+      validationStatus: 'insufficient_data',
+      outcome: null,
+      message: 'Sykdomsukene er holdt utenfor, men det finnes ikke nok representative uker igjen til å utlede et normalgrunnlag. Uke 1 bruker bare comebackmålet som tak; uke 2–4 viser ingen beregnet progresjon.'
+    };
+  }
   if (!volumeRamp?.enoughData) {
     return {
       ...base,
@@ -775,8 +818,15 @@ export function normalizePeriodizedTrainingPlan(input = {}, { rules = DEFAULT_CO
     }));
   const normalizedWeeks = frame.weeks.map((week, index) => {
     const supplied = plainObject(suppliedWeeks[index]) ? suppliedWeeks[index] : {};
+    const suppliedMin = supplied.targetMin == null ? week.targetMin : finiteNumber(supplied.targetMin, week.targetMin);
+    const suppliedMax = supplied.targetMax == null ? week.targetMax : finiteNumber(supplied.targetMax, week.targetMax);
     return {
       ...week,
+      targetMin: Math.max(0, suppliedMin),
+      targetMax: Math.max(0, suppliedMax, suppliedMin),
+      effectiveWeeklyTarget: finiteNumber(supplied.effectiveWeeklyTarget) > 0
+        ? Math.round(finiteNumber(supplied.effectiveWeeklyTarget)) : week.effectiveWeeklyTarget,
+      slotCap: finiteNumber(supplied.slotCap) > 0 ? Math.round(finiteNumber(supplied.slotCap)) : null,
       planningState: ['normal', 'controlled_return', 'provisional_after_return'].includes(supplied.planningState)
         ? supplied.planningState
         : 'normal',

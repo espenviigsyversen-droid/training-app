@@ -1,6 +1,7 @@
 import {
   applyPeriodizedComebackSafety,
   buildFourWeekVolumeFrame,
+  capPeriodizedReturnSlots,
   derivePeriodizedPlanBaseline,
   normalizePeriodizedTrainingPlan,
   periodizedRolePolicy,
@@ -176,7 +177,7 @@ export function buildTrainingPlanPreviewModel({
   const firstWeekPolicy = applyAutomaticTrainingSafety('plan_slots', {
     safety: { ...comebackState, active: safety.active, activeFreeze: Boolean(safety.activeFreeze && !safety.recoveryRegistered) },
     slots: safety.frame.weeks[0]?.slots || [], templates,
-    explicitRoles: draft.roleOverrides || (draft.rolePreset === 'custom'),
+    explicitRoles: safety.active && draft.rolePreset === 'profile' && draft.profileChoiceConfirmed ? true : draft.roleOverrides || (draft.rolePreset === 'custom'),
     explicitTemplates: draft.templateOverrides || []
   });
   if (safety.frame.weeks[0]) {
@@ -186,8 +187,27 @@ export function buildTrainingPlanPreviewModel({
     };
   }
   safety.manualConflicts = firstWeekPolicy.conflicts;
+  safety.omittedSlots = [];
+  if (safety.active) safety.frame.weeks = safety.frame.weeks.map((week, index) => {
+    const explicit = index === 0
+      ? week.slots.map((_, slotIndex) => Boolean((draft.rolePreset === 'profile' && draft.profileChoiceConfirmed)
+        || draft.roleOverrides?.[slotIndex] || draft.templateOverrides?.[slotIndex]))
+      : [];
+    const capped = capPeriodizedReturnSlots(week.slots, week.slotCap, explicit);
+    safety.omittedSlots.push(capped.omitted.map(slot => ({ weekIndex: index + 1, role: slot.role, date: slot.date })));
+    return {
+      ...week, slots: capped.slots,
+      priorityRoles: [...new Set(capped.slots.map(slot => slot.role))],
+      effectiveWeeklyTarget: week.type === 'deload' ? capped.slots.length : week.effectiveWeeklyTarget
+    };
+  });
+  if (safety.active && safety.frame.weeks[0]) {
+    const keptIds = new Set(safety.frame.weeks[0].slots.map(slot => slot.slotId || slot.id));
+    safety.manualConflicts = safety.manualConflicts.filter(id => firstWeekPolicy.slots.some((slot, index) =>
+      (slot.id || index) === id && keptIds.has(slot.slotId || slot.id)));
+  }
   const frame = safety.frame;
-  const validations = frame.weeks.map(week => validateProspectiveVolumeFrame({ frame: week, volumeRamp, rules }));
+  const validations = frame.weeks.map(week => validateProspectiveVolumeFrame({ frame: week, volumeRamp, rules, baselineEnoughData: baseline.enoughData }));
   const normalizedPlan = normalizePeriodizedTrainingPlan({
     id: String(draft.id || `plan-${startDate || 'draft'}`),
     name: String(draft.name || 'Fireukersblokk').trim() || 'Fireukersblokk',
@@ -253,14 +273,25 @@ export function createTrainingPlanUi({
     const state = getState() || {};
     const target = Math.max(1, Math.min(4, Math.round(asNumber(state.settings?.goals?.weeklySessionsTarget, 3))));
     const focus = 'base';
+    const startDate = nextMonday(todayISO());
+    const freezes = Array.isArray(state.continuityFreezes) ? state.continuityFreezes : [];
+    const recoveryDate = freezes.filter(item => item?.recoveredAt && ['sick', 'injury'].includes(String(item.reason || '')))
+      .map(item => String(item.recoveredAt)).sort().at(-1) || '';
+    const comeback = typeof comebackProtocol === 'function'
+      ? comebackProtocol(state.completed || [], {
+        todayIso: startDate, weeklyTarget: target, recoveryDate, continuityFreezes: freezes, rules: rules()
+      }) : {};
+    const protectedStart = Boolean(comeback.active || freezes.some(item => item?.status === 'active'
+      && ['sick', 'injury'].includes(String(item.reason || '')) && item.startDate <= startDate && item.endDate >= startDate));
     return {
       id: `plan-${Date.now()}`,
       name: 'Baseblokk',
       focus,
-      startDate: nextMonday(todayISO()),
+      startDate,
       slotCount: target,
-      rolePreset: 'profile',
-      roles: trainingProfileRolesForPreview(state.settings?.trainingProfile, target, focus),
+      rolePreset: protectedStart ? 'block' : 'profile',
+      profileChoiceConfirmed: false,
+      roles: protectedStart ? defaultRoles(focus, target) : trainingProfileRolesForPreview(state.settings?.trainingProfile, target, focus),
       roleOverrides: [],
       templateIds: [],
       templateOverrides: [],
@@ -358,8 +389,13 @@ export function createTrainingPlanUi({
       : 'Ingen sykdomsuker i baselinevinduet måtte utelates.';
     return `<div class="training-plan-safety-notice" role="status">
       <strong>${safety.recoveryRegistered ? 'Kontrollert retur etter friskmelding' : 'Sykdom pågår – kontrollert oppstart'}</strong>
-      <p>${escapeHtml(freezeText)} Normalgrunnlaget på ${escapeHtml(formatMetricValue(safety.normalBaselineValue, safety.metric))} er begrenset til ${escapeHtml(formatMetricValue(safety.adjustedBaselineValue, safety.metric))} (${escapeHtml(safety.percent)} %) i uke 1.</p>
+      <p>${escapeHtml(freezeText)} ${safety.baselineReliable
+        ? `Normalgrunnlaget på ${formatMetricValue(safety.normalBaselineValue, safety.metric)} er begrenset til ${formatMetricValue(safety.adjustedBaselineValue, safety.metric)} (${safety.percent} %) i uke 1.`
+        : safety.metric === 'sessions'
+          ? `Representativt normalgrunnlag mangler. Uke 1 har et forsiktig tak på ${formatMetricValue(safety.adjustedBaselineValue, safety.metric)} fra comebackmålet, ikke en prosentberegning fra historikken.`
+          : 'Representativt normalgrunnlag mangler. Minuttrammen kan ikke beregnes. Velg antall økter for en kontrollert oppstart uten å gjette treningstid.'}</p>
       <p>${escapeHtml(excluded)} ${safety.recoveryRegistered ? 'Uke 1 er kontrollert oppstart; senere uker vurderes fortløpende.' : 'Uke 1 kan legges i kalenderen nå; uke 2 og videre venter på registrert friskmelding.'}</p>
+      ${safety.omittedSlots?.some(items => items.length) ? `<p>Øktantallet er tilpasset det reduserte ukesmålet. Disse planplassene er utelatt i forhåndsvisningen, ikke flyttet eller lagret:</p><ul>${safety.omittedSlots.flat().map(slot => `<li>Uke ${escapeHtml(slot.weekIndex)} · ${escapeHtml(roleLabels[slot.role] || DEFAULT_ROLE_LABELS[slot.role] || slot.role)} · ${escapeHtml(formatDate(slot.date))}</li>`).join('')}</ul>` : ''}
       ${safety.manualConflicts?.length ? `<p><strong>${escapeHtml(safety.manualConflicts.length)} økt${safety.manualConflicts.length === 1 ? '' : 'er'} er valgt av deg med høyere intensitet.</strong> De beholdes, men strider mot kontrollert oppstart og er ikke et råd fra appen.</p>` : ''}
     </div>`;
   }
@@ -405,8 +441,8 @@ export function createTrainingPlanUi({
       ${model.safety?.active ? '<p class="small-note"><strong>Kontrollert retur:</strong> Profilroller beskriver normaluka. Automatiske forslag i uke 1 blir rolige; velger du selv en hardere rolle eller mal, beholdes den med et synlig konfliktvarsel.</p>' : ''}
       <label for="trainingPlanRolePreset">Utgangspunkt for roller</label>
       <select id="trainingPlanRolePreset" data-plan-field="rolePreset">
-        <option value="profile"${draft.rolePreset === 'profile' ? ' selected' : ''}>Min treningsprofil (anbefalt)</option>
-        <option value="block"${draft.rolePreset === 'block' ? ' selected' : ''}>Blokkstandard</option>
+        <option value="profile"${draft.rolePreset === 'profile' ? ' selected' : ''}>Min treningsprofil${model.safety?.active ? draft.profileChoiceConfirmed ? ' (eget valg under comeback)' : ' (blir rolig i uke 1)' : ' (anbefalt)'}</option>
+        <option value="block"${draft.rolePreset === 'block' ? ' selected' : ''}>Blokkstandard${model.safety?.active ? ' (anbefalt under comeback)' : ''}</option>
         ${draft.rolePreset === 'custom' ? '<option value="custom" selected>Tilpasset av meg</option>' : ''}
       </select>
       <label for="trainingPlanSlotCount">Økter i belastningsukene</label>
@@ -424,9 +460,12 @@ export function createTrainingPlanUi({
           <label>Øktmal
             <select data-plan-template="${index}">${templateOptions(role, draft.templateIds[index], state.templates || [])}</select>
           </label>
+          ${model.safety?.active && !['easy', 'recovery', 'mobility'].includes(role)
+            && ((draft.rolePreset === 'profile' && draft.profileChoiceConfirmed) || draft.roleOverrides?.[index] || draft.templateOverrides?.[index])
+            ? '<small class="small-note">Høyere intensitet strider mot kontrollert retur. Dette er ditt valg, ikke et råd fra appen.</small>' : ''}
         </div>`).join('')}
       </div>
-      <p class="small-note">Treningsprofilen brukes som standard. Blokkstandarden er et synlig alternativ og foreslår Rolig baseøkt, Rolig baseøkt og Rolig langtur. Avlastningsuken får én færre planplass.</p>
+      <p class="small-note">${model.safety?.active ? 'Blokkstandarden brukes som rolig utgangspunkt under comeback. Treningsprofilen er et synlig eget valg.' : 'Treningsprofilen brukes som standard. Blokkstandarden er et synlig alternativ.'} Blokkstandarden foreslår Rolig baseøkt, Rolig baseøkt og Rolig langtur. Avlastningsuken får én færre planplass.</p>
     </div>`;
   }
 
@@ -446,8 +485,8 @@ export function createTrainingPlanUi({
         <option value="sessions"${draft.metric === 'sessions' ? ' selected' : ''}>Antall økter</option>
       </select>
       <div class="training-plan-baseline-grid">
-        <div><span>${model.safety.active ? 'Normalgrunnlag' : 'Utgangspunkt'}</span><strong>${escapeHtml(formatMetricValue(baseline.baselineValue, baseline.metric))}</strong></div>
-        ${model.safety.active ? `<div><span>Justert oppstart</span><strong>${escapeHtml(formatMetricValue(model.safety.adjustedBaselineValue, baseline.metric))}</strong></div>` : ''}
+        <div><span>${model.safety.active ? 'Normalgrunnlag' : 'Utgangspunkt'}</span><strong>${baseline.enoughData ? escapeHtml(formatMetricValue(baseline.baselineValue, baseline.metric)) : 'Ikke beregnbart'}</strong></div>
+        ${model.safety.active ? `<div><span>Justert oppstart</span><strong>${model.safety.baselineReliable || baseline.metric === 'sessions' ? escapeHtml(formatMetricValue(model.safety.adjustedBaselineValue, baseline.metric)) : 'Ikke beregnbart'}</strong></div>` : ''}
         <div><span>Historikk</span><strong>${escapeHtml(`${baseline.weekCount}/${baseline.lookbackWeeks} uker`)}</strong></div>
         <div><span>Datadekning</span><strong>${escapeHtml(`${coverage} %`)}</strong></div>
       </div>
@@ -458,7 +497,7 @@ export function createTrainingPlanUi({
         ${model.volumeRamp?.ranges ? `<small>Volumvakt: ${escapeHtml(formatDate(model.volumeRamp.ranges.baselineStart))}–${escapeHtml(formatDate(model.volumeRamp.ranges.recentEnd))} · ${escapeHtml(model.volumeRamp.metric === 'duration' ? 'treningstid' : 'antall økter')}</small>` : ''}
       </div>
       <div class="training-plan-mini-weeks">
-        ${model.frame.weeks.map((week, index) => `<div><span>Uke ${index + 1}${week.planningState === 'controlled_return' ? ' · kontrollert oppstart' : week.planningState === 'provisional_after_return' ? ' · foreløpig' : week.type === 'deload' ? ' · avlastning' : ''}</span><strong>${escapeHtml(formatMetricValue(model.validations[index]?.proposedTargetMin ?? week.targetMin, week.metric))}–${escapeHtml(formatMetricValue(model.validations[index]?.proposedTargetMax ?? week.targetMax, week.metric))}</strong></div>`).join('')}
+        ${model.frame.weeks.map((week, index) => `<div><span>Uke ${index + 1}${week.planningState === 'controlled_return' ? ' · kontrollert oppstart' : week.planningState === 'provisional_after_return' ? ' · foreløpig' : week.type === 'deload' ? ' · avlastning' : ''}</span><strong>${!baseline.enoughData && week.metric === 'duration' ? 'Ikke beregnbart' : `${escapeHtml(formatMetricValue(model.validations[index]?.proposedTargetMin ?? week.targetMin, week.metric))}–${escapeHtml(formatMetricValue(model.validations[index]?.proposedTargetMax ?? week.targetMax, week.metric))}`}</strong></div>`).join('')}
       </div>
     </div>`;
   }
@@ -504,6 +543,7 @@ export function createTrainingPlanUi({
       <h3>Sjekk blokkforhåndsvisningen</h3>
       <p>Ingen plan eller kalenderøkt lagres før du har sett den konkrete uke-1-listen og bekreftet skrivingen.</p>
       ${safetyNotice(model)}
+      ${preview.errors?.includes('return_weekly_target_exceeded') ? `<div class="training-plan-validation insufficient_data" role="alert"><strong>For mange økter i oppstartsuken</strong><p>${escapeHtml(preview.projectedWeekSessions)} utførte eller planlagte økter ville ligge i uke 1, mens comebackmålet er ${escapeHtml(preview.returnCap)}. Eksisterende økter beholdes. Reduser planplassene eller avklar kalenderen før du legger inn blokken.</p></div>` : ''}
       <div class="training-plan-week-grid">
         ${model.plan.weeks.map((week, index) => {
           const validation = model.validations[index] || {};
@@ -513,7 +553,7 @@ export function createTrainingPlanUi({
               <div><span>Uke ${week.index} av 4</span><strong>${week.planningState === 'controlled_return' ? 'Kontrollert oppstartsuke' : week.type === 'deload' ? 'Avlastningsuke' : index === 2 ? 'Toppuke · foreløpig' : week.planningState === 'provisional_after_return' ? 'Belastningsuke · foreløpig' : 'Belastningsuke'}</strong></div>
               <small>${escapeHtml(week.materializationState === 'awaiting_recovery' ? 'Venter på friskmelding' : inMaterializationWindow ? 'Kan legges i kalenderen etter bekreftelse' : 'Planlagt fremover')}</small>
             </div>
-            <p>${escapeHtml(formatDate(week.weekStart))}–${escapeHtml(formatDate(week.weekEnd))} · ${escapeHtml(formatMetricValue(validation.proposedTargetMin ?? week.targetMin, week.metric))}–${escapeHtml(formatMetricValue(validation.proposedTargetMax ?? week.targetMax, week.metric))}</p>
+            <p>${escapeHtml(formatDate(week.weekStart))}–${escapeHtml(formatDate(week.weekEnd))} · Volumramme ${!model.baseline.enoughData && week.metric === 'duration' ? 'ikke beregnbar' : `${escapeHtml(formatMetricValue(validation.proposedTargetMin ?? week.targetMin, week.metric))}–${escapeHtml(formatMetricValue(validation.proposedTargetMax ?? week.targetMax, week.metric))}`} · ${escapeHtml(week.slots.length)} planplasser</p>
             <span class="training-plan-validation-pill ${escapeHtml(validation.outcome || validation.validationStatus || '')}">${escapeHtml(validationLabel(validation))}</span>
             <div class="training-plan-slot-list">
               ${week.slots.map(slot => {
@@ -667,6 +707,7 @@ export function createTrainingPlanUi({
       if (field) {
         const value = field === 'slotCount' ? Math.max(1, Math.min(4, Math.round(asNumber(event.target.value, 3)))) : event.target.value;
         draft[field] = value;
+        if (field === 'rolePreset') draft.profileChoiceConfirmed = value === 'profile';
         if (field === 'rolePreset' || field === 'focus' || field === 'slotCount') {
           const state = getState() || {};
           draft.roles = draft.rolePreset === 'profile'

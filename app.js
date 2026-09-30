@@ -199,7 +199,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     } from './domain-template-snapshot-update.js';
     import { createTemplateSnapshotUpdateUi } from './template-snapshot-update-ui.js';
 
-const APP_VERSION = 'v176y';
+const APP_VERSION = 'v176y1';
     const APP_CACHE_NAME = `treningsapp-${APP_VERSION}`;
 
     const firebaseConfig = {
@@ -4737,6 +4737,7 @@ const APP_VERSION = 'v176y';
 
     function roleStatusMeta(item, safety = {}) {
       if (item.completed) return formatDate(item.completed.date);
+      if (item.planned && safety.active && plannedComebackConflict(item.planned)) return `${formatDate(item.planned.date)} · konflikt med kontrollert retur`;
       if (item.planned) return formatDate(item.planned.date);
       if (safety.active && !['easy', 'recovery', 'mobility'].includes(item.role)) return 'Profilrolle · ikke råd under comeback';
       return item.required ? 'Bør dekkes' : 'Bonus';
@@ -4748,11 +4749,12 @@ const APP_VERSION = 'v176y';
           ${coverage.map(item => {
             const clickable = item.status === 'missing' && item.required
               && !(safety.active && !['easy', 'recovery', 'mobility'].includes(item.role));
+            const returnConflict = Boolean(item.planned && safety.active && plannedComebackConflict(item.planned));
             return `
-            <div class="week-role-chip ${item.status}${clickable ? ' clickable' : ''}"
+            <div class="week-role-chip ${item.status}${returnConflict ? ' conflict' : ''}${clickable ? ' clickable' : ''}"
               ${clickable ? `onclick="planForRole('${item.role}')" title="Trykk for å planlegge ${escapeHtml(WORKOUT_ROLE_LABELS[item.role] || '')}"` : ''}>
               <span>${escapeHtml(WORKOUT_ROLE_LABELS[item.role] || 'Økt')}</span>
-              <strong>${escapeHtml(roleStatusLabel(item.status))}${clickable ? ' →' : ''}</strong>
+              <strong>${escapeHtml(returnConflict ? 'Planlagt · konflikt' : roleStatusLabel(item.status))}${clickable ? ' →' : ''}</strong>
               <small>${escapeHtml(roleStatusMeta(item, safety))}</small>
             </div>`;
           }).join('')}
@@ -4824,6 +4826,7 @@ const APP_VERSION = 'v176y';
             ${chips ? `<div class="week-plan-chip-row">${chips}</div>` : ''}
             ${item.notes ? `<small class="week-plan-reason">${escapeHtml(item.notes)}</small>` : ''}
             ${conflict ? `<small class="week-plan-reason">${item.planRef ? 'Planøkt' : 'Din planlagte økt'} beholdes, men høyere intensitet strider mot kontrollert retur. Dette er ikke et råd om å gjennomføre den.</small>` : ''}
+            ${conflict && !automaticTrainingSafety(item.date).activeFreeze ? `<button class="btn-soft" onclick="swapHeroPlannedWorkout('${item.id}', 'swap_easy')">Bytt til rolig</button>` : ''}
           </div>
           <button class="btn-soft week-plan-open" onclick="openCalendarDayModal('${item.date}')">Åpne</button>
         </div>`;
@@ -4879,6 +4882,7 @@ const APP_VERSION = 'v176y';
       const completedCount = weekSummary.sessions;
       const plannedCount = plannedThisWeek.length;
       const remainingAfterPlanned = Math.max(0, goals.weeklySessionsTarget - completedCount - plannedCount);
+      const comebackPlanConflicts = currentSafety.active ? plannedThisWeek.filter(plannedComebackConflict) : [];
       const status = weeklyTrainingStatus(weekItems, weekSummary, goals, profile);
       const rolePlan = normalWeekRoles(profile, goals);
       const currentRoleCoverage = roleCoverage(rolePlan, weekItems, plannedThisWeek);
@@ -4945,7 +4949,7 @@ const APP_VERSION = 'v176y';
         : suggestedItems.length
         ? `${suggestedItems.length} forslag for resten av uka`
         : remainingAfterPlanned <= 0
-          ? 'Uka er dekket'
+          ? comebackPlanConflicts.length ? 'Ukesmålet er planlagt, men en økt strider mot kontrollert retur' : 'Uka er dekket'
           : 'Planlegg manuelt';
       const nextActionLine = nextSafety.activeFreeze
         ? 'Venter på friskmelding'

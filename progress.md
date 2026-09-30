@@ -1,5 +1,13 @@
 # Treningsapp — progress.md
-Oppdatert: 2026-09-30 (siste runtime-endring: v176y)
+Oppdatert: 2026-09-30 (siste runtime-endring: v176y1)
+
+---
+
+## v176y1 – ærlig comebackgrunnlag og økttak i blokkforhåndsvisningen
+
+**Implementert i runtime:** Planplasser begrenses av comebackens reduserte øktmål, og materialisering kontrollerer også allerede planlagte og fullførte økter i uke 1. Manglende representativ baseline gir `insufficient_data`; øktbasert oppstart bruker kjent comebackmål som tak uten prosentregning fra null, mens varighetsramme uten baseline ikke kan materialiseres. Blokkstandard er anbefalt under comeback, og eksplisitt valgt kvalitet får konfliktvarsel ved plassraden. Ukeplanen markerer planlagt kvalitetsøkt som konflikt selv om den teller mot ukesmålet, og tilbyr bytte til rolig økt i stedet for en ekstra økt. APP_VERSION og CACHE_NAME er v176y1.
+
+**Bare beskrevet i design / ikke implementert:** UI-runden B, D og E samt C-dokumentasjonen av ukebegreper og portinvariant venter. Ingen current+next-materialisering er åpnet.
 
 ---
 
