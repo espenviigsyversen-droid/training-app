@@ -206,8 +206,8 @@ async function testAsync(name, fn) {
   });
 
   test('v176s2 keeps rare snapshot actions in the day modal and the week overview compact', () => {
-    assert.ok(app.includes("const APP_VERSION = 'v176x2'"));
-    assert.ok(serviceWorker.includes('treningsapp-v176x2'));
+    assert.ok(app.includes("const APP_VERSION = 'v176x3'"));
+    assert.ok(serviceWorker.includes('treningsapp-v176x3'));
     ['./domain-template-snapshot-update.js', './template-snapshot-update-ui.js']
       .forEach(file => assert.ok(serviceWorker.includes(file), `${file} is missing from APP_SHELL`));
     assert.ok(index.includes('id="templateSnapshotUpdateModal"'));
@@ -3728,8 +3728,8 @@ async function testAsync(name, fn) {
     assert.ok(workoutHistoryUiSource.includes('heartRateZoneDistributionRows'), 'history does not use production zone rows');
     assert.ok(workoutHistoryUiSource.includes('Tid i pulssoner'), 'completed detail is missing the heart-rate zone section');
     assert.ok(!workoutHistoryUiSource.includes("row.estimated ? 'ca. '"), 'zone duration should not be prefixed with ca.');
-    assert.ok(app.includes("const APP_VERSION = 'v176x2'"), 'visible app version must be v176x2');
-    assert.ok(serviceWorker.includes('treningsapp-v176x2'), 'cache version must match v176x2');
+    assert.ok(app.includes("const APP_VERSION = 'v176x3'"), 'visible app version must be v176x3');
+    assert.ok(serviceWorker.includes('treningsapp-v176x3'), 'cache version must match v176x3');
   });
 
   test('v174b evaluates easy and quality sessions without treating zone percentages as a hard truth', () => {
@@ -3824,8 +3824,8 @@ async function testAsync(name, fn) {
     assert.ok(index.includes('id="insightHeartRateComplianceCard"'), 'Insights is missing the compliance card');
     assert.ok(app.includes('heartRateZoneComplianceForItems(last28Days)'), 'coach context does not use the canonical compliance summary');
     assert.ok(app.includes('renderHeartRateZoneComplianceInsight(today)'), 'Insights does not render canonical compliance');
-    assert.ok(app.includes("const APP_VERSION = 'v176x2'"), 'visible app version must be v176x2');
-    assert.ok(serviceWorker.includes('treningsapp-v176x2'), 'cache version must match v176x2');
+    assert.ok(app.includes("const APP_VERSION = 'v176x3'"), 'visible app version must be v176x3');
+    assert.ok(serviceWorker.includes('treningsapp-v176x3'), 'cache version must match v176x3');
   });
 
   test('v174c uses the test profile for zones and keeps the golden zone as a separate coach reference', () => {
@@ -4533,8 +4533,8 @@ async function testAsync(name, fn) {
     assert.ok(trainingImportControllerSource.includes("action: duplicate ? 'skip'"), 'duplicates should be skipped by default');
     assert.ok(!trainingImportControllerSource.includes('heartRateZoneDistribution'), 'controller must not synthesize pulse zones');
     assert.ok(styles.includes('.garmin-import-row'), 'Garmin preview styling is missing');
-    assert.ok(app.includes("const APP_VERSION = 'v176x2'"));
-    assert.ok(serviceWorker.includes('treningsapp-v176x2'));
+    assert.ok(app.includes("const APP_VERSION = 'v176x3'"));
+    assert.ok(serviceWorker.includes('treningsapp-v176x3'));
   });
 
   test('structured interval UI fields and summaries are wired into production files', () => {
@@ -4904,7 +4904,7 @@ async function testAsync(name, fn) {
     assert.ok(app.includes("intensityBalance14.verdict === 'too_hard'"), 'coach note should use canonical verdict');
     assert.ok(app.includes('intensity: ctx.intensityBalance14 ?'), 'coach basis should render canonical balance');
     assert.ok(app.includes('const balance = canonicalBalanceForCompleted(items30, today)'), 'Bakken patterns should use canonical balance');
-    assert.ok(app.includes('intensityBalanceCard(windowItems, profile, last28Summary, balance)'), 'insight intensity card should use canonical balance');
+    assert.ok(app.includes('intensityBalanceCard(windowItems, profile, last28Summary, balance, executionSignal)'), 'insight intensity card should use canonical balance');
     assert.ok(!app.includes('goldenZoneViolations'), 'legacy all-workout golden-zone violation count should be removed');
   });
 
@@ -5702,6 +5702,81 @@ async function testAsync(name, fn) {
     assert.deepStrictEqual(dates, ['2026-05-25', '2026-05-31']);
     assert.ok(!dates.includes('2026-05-27'));
     assert.ok(!dates.includes('2026-05-29'));
+  });
+
+  test('v176x3 protected weeks count for continuity but not as trained goals', () => {
+    const weeks = [
+      { sessions: 1, target: 2, freezeProtected: true },
+      { sessions: 0, target: 2, freezeProtected: true },
+      { sessions: 2, target: 2, freezeProtected: false },
+      { sessions: 1, target: 2, freezeProtected: false }
+    ];
+    const summary = periodizedPlan.weeklyContinuitySummary(weeks);
+    assert.deepStrictEqual(summary.outcomes.map(week => week.countsAsContinuity), [true, true, true, false]);
+    assert.strictEqual(summary.metCount, 1);
+    assert.strictEqual(summary.protectedCount, 2);
+    assert.strictEqual(summary.continuityCount, 3);
+    assert.ok(app.includes('weeklyContinuitySummary(recentWeeks.map'));
+    assert.ok(app.includes('freezeProtected: weekProtectedByFreeze(w.start)'));
+    assert.ok(app.includes('freezeProtected: weekProtectedByFreeze(week.start)'));
+  });
+
+  test('v176x3 home signal follows consecutive assessed easy workouts without inventing an intensity percentage', () => {
+    const snapshot = heartRateZoneSetSnapshot(normalizeHeartRateZoneSet({
+      id: 'v176x3-zones',
+      zones: [
+        { minBpm: 110, maxBpm: 130 }, { minBpm: 130, maxBpm: 156 },
+        { minBpm: 156, maxBpm: 166 }, { minBpm: 166, maxBpm: 174 },
+        { minBpm: 174, maxBpm: 183 }
+      ]
+    }));
+    const zones = values => ({
+      zones: values.map((percent, index) => ({ zoneId: `z${index + 1}`, percent })),
+      zoneSetSnapshot: snapshot
+    });
+    const easy = (id, date, distribution) => ({
+      id, date, template: { name: 'Easy Run', type: 'Løping', intensity: 'Rolig', role: 'easy' },
+      heartRateZoneDistribution: distribution
+    });
+    const hard = zones([0, 34, 25, 41, 0]);
+    const aligned = zones([10, 85, 5, 0, 0]);
+    const first = easy('first', '2026-09-25', hard);
+    const second = easy('second', '2026-09-27', hard);
+    const quality = { id: 'quality', date: '2026-09-26', template: { name: 'Terskel', intensity: 'Terskel' }, heartRateZoneDistribution: hard };
+    const signal = heartRateZoneDomain.consecutiveAbovePlanEasyWorkouts([first, quality, second]);
+    assert.deepStrictEqual(signal, { active: true, count: 2 });
+    assert.deepStrictEqual(heartRateZoneDomain.consecutiveAbovePlanEasyWorkouts([first]), { active: false, count: 1 });
+    assert.deepStrictEqual(heartRateZoneDomain.consecutiveAbovePlanEasyWorkouts([
+      first, second, easy('next', '2026-09-29', aligned)
+    ]), { active: false, count: 0 });
+    assert.deepStrictEqual(heartRateZoneDomain.consecutiveAbovePlanEasyWorkouts([
+      first, second, easy('unknown', '2026-09-29', null)
+    ]), { active: false, count: 0 });
+    assert.ok(app.includes('easyExecutionSignal14 = consecutiveAbovePlanEasyWorkouts(last14Days'));
+    assert.ok(app.includes('Rolig/baseøkter på rad') || app.includes('rolige/baseøkter på rad'));
+    assert.ok(app.includes("execution?.active ? 'Rollefordeling' : balance.label"));
+    assert.ok(app.includes("ctx.easyExecutionSignal14?.active ? 'Rollefordeling'"));
+    assert.ok(app.includes("executionSignal?.active ? 'Rollefordeling' : balance.label"));
+  });
+
+  test('v176x3 workout headline follows above-plan compliance while pain stays first', () => {
+    const common = {
+      completed: { rpe: 3, bodyStatus: { painBefore: 0, painAfter: 0 } },
+      template: { name: 'Easy Run', intensity: 'Rolig', role: 'easy' },
+      loadAssessment: { level: 'moderate' }
+    };
+    assert.strictEqual(buildWorkoutCoachAssessment({ ...common, zoneCompliance: { status: 'above_plan' } }).headline,
+      'Rolig økt hardere enn planlagt');
+    for (const status of ['aligned', 'mostly_aligned', 'below_plan']) {
+      assert.strictEqual(buildWorkoutCoachAssessment({ ...common, zoneCompliance: { status } }).headline,
+        'Kontrollert treningsbelastning');
+    }
+    assert.strictEqual(buildWorkoutCoachAssessment({
+      ...common,
+      completed: { ...common.completed, bodyStatus: { painBefore: 0, painAfter: 5 } },
+      zoneCompliance: { status: 'above_plan' }
+    }).headline, 'Kroppssignal krever oppfølging');
+    assert.ok(workoutHistoryUiSource.includes("'Malsnapshot oppdatert fra mal'"));
   });
 
   if (process.exitCode) process.exit(process.exitCode);

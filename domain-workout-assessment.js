@@ -63,6 +63,9 @@ export function buildWorkoutCoachAssessment({
   if (easyIntent && easyShare !== null && easyShare >= 85 && numberValue(completed.rpe) <= 4) {
     headline = 'Kontrollert rolig økt';
   }
+  if (easyIntent && zoneCompliance?.status === 'above_plan') {
+    headline = 'Rolig økt hardere enn planlagt';
+  }
 
   let planFit = zoneCompliance?.summary || '';
   if (!planFit) {

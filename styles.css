@@ -2243,6 +2243,16 @@
       min-width: 2px;
     }
 
+    .hero-execution-signal {
+      margin: 2px 0 0;
+      padding: 8px 10px;
+      border-radius: 10px;
+      background: var(--status-yellow-bg);
+      color: #6f4400;
+      font-size: 0.78rem;
+      line-height: 1.4;
+    }
+
     .hero-completed-mini {
       border: 1px solid var(--warm-gray-2);
       border-radius: 14px;
@@ -5427,6 +5437,11 @@
       background: #fffaf0;
     }
 
+    .week-row.protected {
+      border-color: rgba(99,102,241,0.28);
+      background: rgba(99,102,241,0.05);
+    }
+
     .week-row.empty { background: var(--warm-gray-1); }
 
     .week-row-top {
@@ -5467,6 +5482,11 @@
     .week-status.partial {
       background: var(--status-yellow-bg);
       color: #8a5400;
+    }
+
+    .week-status.protected {
+      background: rgba(99,102,241,0.14);
+      color: #4947a5;
     }
 
     .week-row-metrics {

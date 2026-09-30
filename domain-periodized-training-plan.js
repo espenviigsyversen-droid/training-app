@@ -298,6 +298,16 @@ export function weeklyContinuityOutcome({ sessions = 0, target = 1, freezeProtec
   };
 }
 
+export function weeklyContinuitySummary(weeks = []) {
+  const outcomes = (Array.isArray(weeks) ? weeks : []).map(weeklyContinuityOutcome);
+  return {
+    outcomes,
+    metCount: outcomes.filter(week => week.meetsTarget).length,
+    protectedCount: outcomes.filter(week => week.protectedByFreeze).length,
+    continuityCount: outcomes.filter(week => week.countsAsContinuity).length
+  };
+}
+
 const PERIODIZED_PLAN_VERSION = 1;
 const PLAN_STATUSES = new Set(['draft', 'active', 'completed', 'cancelled']);
 const PLAN_FOCUSES = new Set(['base', 'threshold', 'custom']);

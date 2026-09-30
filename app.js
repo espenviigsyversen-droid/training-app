@@ -132,6 +132,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     import {
       activeHeartRateZoneSet,
       assessHeartRateZoneCompliance,
+      consecutiveAbovePlanEasyWorkouts,
       heartRateReferenceContext,
       heartRateZoneComplianceSummary,
       normalizeHeartRateZoneDistribution,
@@ -166,7 +167,8 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       upsertOpenWeeklyTargetCandidate,
       withWeeklyFreezeProtection,
       weeklyTargetComebackReadWindow,
-      weeklyContinuityOutcome
+      weeklyContinuityOutcome,
+      weeklyContinuitySummary
     } from './domain-periodized-training-plan.js';
     import {
       buildVolumeTrendWindow,
@@ -197,7 +199,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     } from './domain-template-snapshot-update.js';
     import { createTemplateSnapshotUpdateUi } from './template-snapshot-update-ui.js';
 
-const APP_VERSION = 'v176x2';
+const APP_VERSION = 'v176x3';
     const APP_CACHE_NAME = `treningsapp-${APP_VERSION}`;
 
     const firebaseConfig = {
@@ -4984,7 +4986,8 @@ const APP_VERSION = 'v176x2';
       const lowPct = balance.easyShare;
       const hardPct = balance.hardShare;
       const status = balance.status;
-      const label = balance.label;
+      const execution = ctx.easyExecutionSignal14;
+      const label = execution?.active ? 'Rollefordeling' : balance.label;
       return `
         <div class="hero-intensity-top">
           <span>Intensitetsbalanse · ${balance.windowDays} dager</span>
@@ -4994,10 +4997,11 @@ const APP_VERSION = 'v176x2';
           ${display.showDistribution ? `<div class="easy" style="width:${lowPct}%;"></div><div class="hard" style="width:${hardPct}%;"></div>` : ''}
         </div>
         <div class="hero-intensity-labels">
-          ${display.showDistribution
-            ? `<span>Rolig/base ${lowPct}%</span><span>Hard ${hardPct}%</span>`
-            : `<span>${escapeHtml(display.summary)}</span>`}
-        </div>`;
+           ${display.showDistribution
+             ? `<span>Rolig/base ${lowPct}%</span><span>Hard ${hardPct}%</span>`
+             : `<span>${escapeHtml(display.summary)}</span>`}
+        </div>
+        ${execution?.active ? `<p class="hero-execution-signal">${execution.count} rolige/baseøkter på rad ble gjennomført hardere enn planlagt. Sjekk soneetterlevelsen før neste økt.</p>` : ''}`;
     }
 
     function heroWorkoutDetailHtml(primaryItems = [], completedToday = null) {
@@ -5791,8 +5795,10 @@ const APP_VERSION = 'v176x2';
         },
         loadTrend,
         intensity: ctx.intensityBalance14 ? {
-          label: ctx.intensityBalance14.label,
-          detail: ctx.intensityBalance14.explanation,
+          label: ctx.easyExecutionSignal14?.active ? 'Rollefordeling' : ctx.intensityBalance14.label,
+          detail: ctx.easyExecutionSignal14?.active
+            ? `${ctx.intensityBalance14.explanation} ${ctx.easyExecutionSignal14.count} rolige/baseøkter på rad ble gjennomført hardere enn planlagt.`
+            : ctx.intensityBalance14.explanation,
           status: ctx.intensityBalance14.status
         } : null,
         race: ctx.racePlan?.phaseLabel || ctx.goalScore?.percent ? {
@@ -6505,7 +6511,7 @@ const APP_VERSION = 'v176x2';
       return `4 uker: ${low}% rolig · ${high}% moderat · ${anaerobic}% hard`;
     }
 
-    function intensityBalanceCard(items, profile, contextSummary, balance) {
+    function intensityBalanceCard(items, profile, contextSummary, balance, executionSignal = null) {
       const display = intensityBalanceDisplay(balance);
       const summary = summarizeTrainingEffects(items);
       const categories = Object.values(summary.categories);
@@ -6532,8 +6538,9 @@ const APP_VERSION = 'v176x2';
             <span>Siste ${balance.windowDays} dager</span>
             <span>${escapeHtml(registered)}</span>
           </div>
-          <strong class="intensity-verdict">${escapeHtml(balance.label)}</strong>
+          <strong class="intensity-verdict">${escapeHtml(executionSignal?.active ? 'Rollefordeling' : balance.label)}</strong>
           <p class="intensity-coach-line">${escapeHtml(balance.explanation)}</p>
+          ${executionSignal?.active ? `<p class="hero-execution-signal">${executionSignal.count} rolige/baseøkter på rad ble gjennomført hardere enn planlagt. Se soneetterlevelse nedenfor.</p>` : ''}
           <div class="intensity-stack" aria-label="${escapeHtml(display.showDistribution ? balance.explanation : display.summary)}">${display.showDistribution ? stack : ''}</div>
           ${display.showDistribution
             ? `<div class="intensity-quick-grid">${intensityCategoryRows(summary)}</div>`
@@ -6551,9 +6558,14 @@ const APP_VERSION = 'v176x2';
       const last28Items = state.completed.filter(c => c.date >= last28Start && c.date <= today);
       const last28Summary = summarizeTrainingEffects(last28Items);
       const balance = canonicalBalanceForCompleted(windowItems, today, windowDays);
+      const executionSignal = consecutiveAbovePlanEasyWorkouts(windowItems, {
+        resolveTemplate: completedTemplate,
+        profile: normalizePersonProfile(state.settings.personProfile),
+        rules: getCoachRules()
+      });
       document.getElementById('insightIntensityProfile').textContent = intensityProfileText(profile);
       const evidence = intensityBalanceInsightEvidence(balance, { from: windowStart, to: today });
-      document.getElementById('insightIntensityBalance').innerHTML = intensityBalanceCard(windowItems, profile, last28Summary, balance)
+      document.getElementById('insightIntensityBalance').innerHTML = intensityBalanceCard(windowItems, profile, last28Summary, balance, executionSignal)
         + insightEvidenceDisclosureHtml(evidence, { escapeHtml, formatDate });
       document.getElementById('insightIntensityNote').textContent = '';
     }
@@ -6607,6 +6619,11 @@ const APP_VERSION = 'v176x2';
       const load7 = loadBreakdown(last7Days);
       const intensityBalance14 = canonicalBalanceForCompleted(last14Days, today);
       const heartRateCompliance14 = heartRateComplianceForCompleted(last14Days, today);
+      const easyExecutionSignal14 = consecutiveAbovePlanEasyWorkouts(last14Days, {
+        resolveTemplate: completedTemplate,
+        profile: personProfile,
+        rules: getCoachRules()
+      });
       const heartRateZoneCompliance28 = heartRateZoneComplianceForItems(last28Days);
 
       const bodySignals14 = {
@@ -6690,6 +6707,7 @@ const APP_VERSION = 'v176x2';
         volumeRamp, comeback, weeklyTargetDecision, effectiveWeeklyTarget,
         latestHrv, latestRestingHr,
         goldenZone, heartRateZoneProfile, heartRateCompliance14, heartRateZoneCompliance28, intensityBalance14,
+        easyExecutionSignal14,
         weekPlanRoles, completedRoles, missingRoles, roleCoverage: coachRoleCoverage,
         activeChallenge, nextPlanned, tomorrowPlanned,
         hardCount7, hardCount14, easyCount14,
@@ -7173,15 +7191,18 @@ const APP_VERSION = 'v176x2';
       // 4. Ukentlig konsistens siste 4 uker
       const recentWeeks = recentWeekSummaries(weekStart, 4);
       const currentTarget = Math.max(1, Number(currentWeeklyTarget) || goals.weeklySessionsTarget);
-      const metGoal = recentWeeks.filter(w => w.summary.sessions >= (
-        w.start === weekStart
+      const consistency = weeklyContinuitySummary(recentWeeks.map(w => ({
+        sessions: w.summary.sessions,
+        target: w.start === weekStart
           ? currentTarget
-          : weeklyTargetForWeek(w.start, { normalTarget: goals.weeklySessionsTarget })
-      )).length;
+          : weeklyTargetForWeek(w.start, { normalTarget: goals.weeklySessionsTarget }),
+        freezeProtected: weekProtectedByFreeze(w.start)
+      })));
       const total = recentWeeks.length;
       if (total >= 2) {
-        const status = metGoal >= 3 ? 'green' : metGoal >= 2 ? 'yellow' : 'red';
-        patterns.push({ status, label: 'Ukentlig konsistens', detail: `${metGoal} av ${total} uker nådde ukesmålet som gjaldt den uken` });
+        const status = consistency.continuityCount >= 3 ? 'green' : consistency.continuityCount >= 2 ? 'yellow' : 'red';
+        const detail = `${consistency.metCount} av ${total} uker nådde øktmålet; ${consistency.protectedCount} ${consistency.protectedCount === 1 ? 'uke var' : 'uker var'} beskyttet av fryskort. ${consistency.continuityCount} av ${total} teller for kontinuiteten.`;
+        patterns.push({ status, label: 'Ukentlig konsistens', detail });
       }
 
       return patterns;
@@ -7408,7 +7429,12 @@ const APP_VERSION = 'v176x2';
         const percent = Math.max(0, Math.min(100, (week.summary.sessions / Math.max(1, target)) * 100));
         const isCurrent = index === weeks.length - 1;
         const isPrevious = index === weeks.length - 2;
-        const status = week.summary.sessions >= target ? 'done' : week.summary.sessions > 0 ? 'partial' : 'empty';
+        const outcome = weeklyContinuityOutcome({
+          sessions: week.summary.sessions,
+          target,
+          freezeProtected: weekProtectedByFreeze(week.start)
+        });
+        const status = outcome.meetsTarget ? 'done' : outcome.protectedByFreeze ? 'protected' : week.summary.sessions > 0 ? 'partial' : 'empty';
         const title = isCurrent ? 'Denne uken' : isPrevious ? 'Forrige uke' : formatWeekRange(week.start, week.end);
         const range = isCurrent || isPrevious ? formatWeekRange(week.start, week.end) : '';
         return `
@@ -7418,7 +7444,7 @@ const APP_VERSION = 'v176x2';
                 <strong>${escapeHtml(title)}</strong>
                 ${range ? `<span>${escapeHtml(range)}</span>` : ''}
               </div>
-              <span class="week-status ${status}">${week.summary.sessions >= target ? 'I mål' : `${week.summary.sessions}/${target}`}</span>
+              <span class="week-status ${status}">${outcome.meetsTarget ? 'I mål' : outcome.protectedByFreeze ? 'Beskyttet' : `${week.summary.sessions}/${target}`}</span>
             </div>
             <div class="week-row-metrics">
               <span>${week.summary.sessions} økt${week.summary.sessions === 1 ? '' : 'er'}</span>

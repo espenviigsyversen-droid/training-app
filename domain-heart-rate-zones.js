@@ -499,3 +499,36 @@ export function heartRateZoneComplianceSummary(items = [], {
       : 'Ikke nok vurderbare økter med sonefordeling ennå.'
   };
 }
+
+export function consecutiveAbovePlanEasyWorkouts(items = [], {
+  resolveTemplate = item => item?.template || item?.templateSnapshot || {},
+  profile = {},
+  rules
+} = {}) {
+  const easyWorkouts = (Array.isArray(items) ? items : [])
+    .map(item => {
+      const template = resolveTemplate(item);
+      const intensityContext = classifyWorkoutIntensityContext({ completed: item, template, profile, rules });
+      return { item, template, intensityContext };
+    })
+    .filter(({ intensityContext }) => (intensityContext.baseIntent || intensityContext.recoveryIntent)
+      && !intensityContext.qualityIntent && !intensityContext.raceIntent)
+    .sort((a, b) => String(b.item.date || '').localeCompare(String(a.item.date || ''))
+      || String(b.item.startTime || '').localeCompare(String(a.item.startTime || ''))
+      || String(b.item.id || '').localeCompare(String(a.item.id || '')));
+  let count = 0;
+  for (const { item, template, intensityContext } of easyWorkouts) {
+    const assessment = assessHeartRateZoneCompliance({
+      distribution: item.heartRateZoneDistribution,
+      completed: item,
+      template,
+      profile,
+      rules,
+      intensityContext
+    });
+    // An easy workout without usable zone data breaks the sequence; it is not silently skipped.
+    if (assessment.status !== 'above_plan') break;
+    count += 1;
+  }
+  return { active: count >= 2, count };
+}

@@ -365,7 +365,10 @@ export function createWorkoutHistoryUi({
       user_confirmed: 'Valgt av deg',
       inferred: 'Utledet av regel',
       unclassified: 'Ikke valgt ennå'
-    }[completed.roleSource] || 'Opphav ikke dokumentert (eldre økt)';
+    }[completed.roleSource] || (completed.templateSnapshotUpdateSource === 'manual_template_refresh'
+      && completed.templateId
+      ? 'Malsnapshot oppdatert fra mal'
+      : 'Opphav ikke dokumentert (eldre økt)');
     return `
       <div class="detail-hero">
         <div class="detail-hero-heading">

@@ -1,5 +1,13 @@
 # Treningsapp — progress.md
-Oppdatert: 2026-09-30 (siste runtime-endring: v176x2)
+Oppdatert: 2026-09-30 (siste runtime-endring: v176x3)
+
+---
+
+## v176x3 – felles kontinuitetsutfall og synlig soneetterlevelse på Hjem
+
+**Implementert i runtime:** Bakken-kortets ukekonsistens bruker nå samme frosne fryskortvern og kontinuitetsutfall som streaken. Teksten skiller uker som faktisk nådde øktmålet fra uker som var beskyttet; fireukersvisningen viser også «Beskyttet». Hjem og Innsikt viser et separat utførelsessignal etter minst to påfølgende rolige/baseøkter med `above_plan`, uten å endre den kanoniske intensitetsbalansen eller beregne ny prosent. Når signalet er aktivt, merkes balansebrikken «Rollefordeling» i stedet for «Balansert». Coach-overskriften følger `above_plan` for rolige økter, med kroppssignaler fortsatt øverst. Eldre økter med eksplisitt maloppdatering får mer presist opphav i detaljvisningen. Ingen snapshots eller øktdata skrives om. APP_VERSION og CACHE_NAME er v176x3.
+
+**Bare vurdert / ikke implementert i runtime:** Bakken-rolig-taket og forholdet til aktiv labsonemodell er ikke endret. Garmin-rolleopprydding og avslutningsflyt for gammel plan venter fortsatt.
 
 ---
 
