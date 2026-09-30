@@ -6,6 +6,7 @@ import {
   periodizedRolePolicy,
   validateProspectiveVolumeFrame
 } from './domain-periodized-training-plan.js';
+import { applyAutomaticTrainingSafety } from './domain-training-plan.js';
 
 const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const ROLE_OPTIONS = ['easy', 'long_easy', 'main_threshold', 'support_threshold', 'recovery', 'x_workout', 'strength', 'mobility', 'technique'];
@@ -172,6 +173,19 @@ export function buildTrainingPlanPreviewModel({
     continuityFreezes,
     startDate
   });
+  const firstWeekPolicy = applyAutomaticTrainingSafety('plan_slots', {
+    safety: { ...comebackState, active: safety.active, activeFreeze: Boolean(safety.activeFreeze && !safety.recoveryRegistered) },
+    slots: safety.frame.weeks[0]?.slots || [], templates,
+    explicitRoles: draft.roleOverrides || (draft.rolePreset === 'custom'),
+    explicitTemplates: draft.templateOverrides || []
+  });
+  if (safety.frame.weeks[0]) {
+    safety.frame.weeks[0] = {
+      ...safety.frame.weeks[0], slots: firstWeekPolicy.slots,
+      priorityRoles: [...new Set(firstWeekPolicy.slots.map(slot => slot.role))]
+    };
+  }
+  safety.manualConflicts = firstWeekPolicy.conflicts;
   const frame = safety.frame;
   const validations = frame.weeks.map(week => validateProspectiveVolumeFrame({ frame: week, volumeRamp, rules }));
   const normalizedPlan = normalizePeriodizedTrainingPlan({
@@ -247,7 +261,9 @@ export function createTrainingPlanUi({
       slotCount: target,
       rolePreset: 'profile',
       roles: trainingProfileRolesForPreview(state.settings?.trainingProfile, target, focus),
+      roleOverrides: [],
       templateIds: [],
+      templateOverrides: [],
       metric: 'auto',
       userConfirmed: false
     };
@@ -268,7 +284,9 @@ export function createTrainingPlanUi({
       slotCount: Math.max(1, firstSlots.length || 3),
       rolePreset: 'custom',
       roles: firstSlots.map(slot => slot.role),
+      roleOverrides: firstSlots.map(() => true),
       templateIds: firstSlots.map(slot => slot.templateId || ''),
+      templateOverrides: firstSlots.map(() => true),
       metric: plan.calibration?.metric || 'auto',
       userConfirmed: true
     };
@@ -299,6 +317,7 @@ export function createTrainingPlanUi({
         todayIso: draft.startDate || todayISO(),
         weeklyTarget: state.settings?.goals?.weeklySessionsTarget,
         recoveryDate,
+        continuityFreezes: freezes,
         rules: rules()
       })
       : {};
@@ -338,9 +357,10 @@ export function createTrainingPlanUi({
       ? `${safety.excludedWeekCount} sykdomsuke${safety.excludedWeekCount === 1 ? '' : 'r'} er utelatt fra normalgrunnlaget.`
       : 'Ingen sykdomsuker i baselinevinduet måtte utelates.';
     return `<div class="training-plan-safety-notice" role="status">
-      <strong>Sykdom pågår – kontrollert oppstart</strong>
+      <strong>${safety.recoveryRegistered ? 'Kontrollert retur etter friskmelding' : 'Sykdom pågår – kontrollert oppstart'}</strong>
       <p>${escapeHtml(freezeText)} Normalgrunnlaget på ${escapeHtml(formatMetricValue(safety.normalBaselineValue, safety.metric))} er begrenset til ${escapeHtml(formatMetricValue(safety.adjustedBaselineValue, safety.metric))} (${escapeHtml(safety.percent)} %) i uke 1.</p>
-      <p>${escapeHtml(excluded)} Uke 1 kan legges i kalenderen nå; uke 2 og videre venter på registrert friskmelding.</p>
+      <p>${escapeHtml(excluded)} ${safety.recoveryRegistered ? 'Uke 1 er kontrollert oppstart; senere uker vurderes fortløpende.' : 'Uke 1 kan legges i kalenderen nå; uke 2 og videre venter på registrert friskmelding.'}</p>
+      ${safety.manualConflicts?.length ? `<p><strong>${escapeHtml(safety.manualConflicts.length)} økt${safety.manualConflicts.length === 1 ? '' : 'er'} er valgt av deg med høyere intensitet.</strong> De beholdes, men strider mot kontrollert oppstart og er ikke et råd fra appen.</p>` : ''}
     </div>`;
   }
 
@@ -375,13 +395,14 @@ export function createTrainingPlanUi({
     return matching.map(template => `<option value="${escapeHtml(template.id)}"${String(template.id) === String(selectedId || matching[0]?.id) ? ' selected' : ''}>${escapeHtml(template.name || 'Uten navn')}</option>`).join('');
   }
 
-  function stepTwo() {
+  function stepTwo(model = {}) {
     const state = getState() || {};
     const draft = ensureDraft();
     const roles = Array.from({ length: draft.slotCount }, (_, index) => draft.roles[index] || defaultRoles(draft.focus, draft.slotCount)[index]);
     return `<div class="training-plan-step">
       <h3>Hva skal få fast plass?</h3>
       <p>Rollene gir blokken retning. Du velger konkrete maler for den skrivefrie forhåndsvisningen.</p>
+      ${model.safety?.active ? '<p class="small-note"><strong>Kontrollert retur:</strong> Profilroller beskriver normaluka. Automatiske forslag i uke 1 blir rolige; velger du selv en hardere rolle eller mal, beholdes den med et synlig konfliktvarsel.</p>' : ''}
       <label for="trainingPlanRolePreset">Utgangspunkt for roller</label>
       <select id="trainingPlanRolePreset" data-plan-field="rolePreset">
         <option value="profile"${draft.rolePreset === 'profile' ? ' selected' : ''}>Min treningsprofil (anbefalt)</option>
@@ -517,6 +538,7 @@ export function createTrainingPlanUi({
         <p>Appen lager først en sikkerhetskopi. Bare disse øktene legges i kalenderen:</p>
         <ul>${confirmation.plannedItems.map(item => `<li><strong>${escapeHtml(formatDate(item.date))}</strong> · ${escapeHtml(item.templateSnapshot?.name || 'Øktmal')} · ${escapeHtml(roleLabels[item.templateSnapshot?.role] || DEFAULT_ROLE_LABELS[item.templateSnapshot?.role] || item.templateSnapshot?.role || '')}</li>`).join('')}</ul>
         ${model.safety?.active ? '<p><strong>Kontrollert oppstart:</strong> Uke 1 kan opprettes under aktivt sykdomsfryskort. Uke 2–4 opprettes ikke og venter på friskmelding.</p>' : '<p>Uke 2–4 opprettes ikke i denne runden.</p>'}
+        ${model.safety?.manualConflicts?.length ? '<p><strong>Konflikt med kontrollert retur:</strong> Du har selv valgt en økt med høyere intensitet. Den beholdes, men appen anbefaler ikke å gjennomføre den nå.</p>' : ''}
         <div class="button-row"><button class="btn-primary" data-plan-action="confirm-materialization"${local.busy ? ' disabled' : ''}>${local.busy ? 'Lagrer…' : 'Bekreft og legg inn uke 1'}</button><button class="btn-soft" data-plan-action="cancel-materialization"${local.busy ? ' disabled' : ''}>Avbryt</button></div>
       </section>` : ''}
       ${undoConfirmation ? `<section class="training-plan-materialization-confirm warning" role="alert">
@@ -579,6 +601,17 @@ export function createTrainingPlanUi({
         local.busy = true; local.error = ''; render();
         try {
           const model = currentModel();
+          const refreshed = controller.prepareMaterialization(model.plan, {
+            today: todayISO(), choices: local.choices,
+            materializationId: local.confirmation.id,
+            preparedAt: local.confirmation.record.createdAt
+          });
+          const prescriptionKey = command => (command.plannedItems || [])
+            .map(item => [item.date, item.templateId, item.templateSnapshot?.role].join('|')).sort().join(';');
+          if (prescriptionKey(refreshed) !== prescriptionKey(local.confirmation)) {
+            local.confirmation = null;
+            throw new Error('Forslaget er endret etter at du åpnet bekreftelsen. Se gjennom den oppdaterte listen før du legger inn øktene.');
+          }
           const result = await controller.materialize(model.plan, {
             today: todayISO(), choices: local.choices,
             materializationId: local.confirmation.id,
@@ -640,6 +673,8 @@ export function createTrainingPlanUi({
             ? trainingProfileRolesForPreview(state.settings?.trainingProfile, draft.slotCount, draft.focus)
             : defaultRoles(draft.focus, draft.slotCount);
           draft.templateIds = [];
+          draft.templateOverrides = [];
+          draft.roleOverrides = [];
         }
         draft.userConfirmed = false;
       }
@@ -647,9 +682,16 @@ export function createTrainingPlanUi({
         const index = Number(event.target.dataset.planRole);
         draft.roles[index] = event.target.value;
         draft.rolePreset = 'custom';
+        draft.roleOverrides = draft.roleOverrides || [];
+        draft.roleOverrides[index] = true;
         draft.templateIds[index] = '';
       }
-      if (event.target.dataset.planTemplate !== undefined) draft.templateIds[Number(event.target.dataset.planTemplate)] = event.target.value;
+      if (event.target.dataset.planTemplate !== undefined) {
+        const index = Number(event.target.dataset.planTemplate);
+        draft.templateIds[index] = event.target.value;
+        draft.templateOverrides = draft.templateOverrides || [];
+        draft.templateOverrides[index] = true;
+      }
       if (event.target.dataset.planConflictAction) {
         const slotId = event.target.dataset.planConflictAction;
         local.choices[slotId] = { ...(local.choices[slotId] || {}), action: event.target.value, date: '' };
@@ -673,7 +715,7 @@ export function createTrainingPlanUi({
       return;
     }
     const model = currentModel();
-    const content = local.step === 1 ? stepOne() : local.step === 2 ? stepTwo() : local.step === 3 ? stepThree(model) : stepFour(model);
+    const content = local.step === 1 ? stepOne() : local.step === 2 ? stepTwo(model) : local.step === 3 ? stepThree(model) : stepFour(model);
     container.innerHTML = `<div class="training-plan-builder"><div class="training-plan-builder-head"><div><span>Kun forhåndsvisning</span><h2>${escapeHtml(ensureDraft().name || 'Fireukersblokk')}</h2></div><button class="training-plan-close" data-plan-action="close" aria-label="Lukk">×</button></div>${stepNav()}${local.error ? `<div class="error-box">${escapeHtml(local.error)}</div>` : ''}${content}${controls()}</div>`;
   }
 

@@ -580,6 +580,107 @@ export function assembleWeekPlanSuggestions(suggestions, dates, templates = [], 
   }).filter(item => item.date);
 }
 
+const RETURN_SAFE_ROLES = new Set(['easy', 'recovery', 'mobility']);
+const RETURN_SAFE_INTENSITIES = new Set(['rolig', 'restitusjon', 'mobilitet']);
+
+function returnSafeTemplate(template = {}) {
+  return RETURN_SAFE_ROLES.has(String(template.role || ''))
+    && RETURN_SAFE_INTENSITIES.has(String(template.intensity || '').toLowerCase())
+    && !['moderate', 'high'].includes(String(template.load || '').toLowerCase())
+    && !['threshold', 'race', 'vo2_max', 'speed', 'interval'].includes(String(template.purpose || '').toLowerCase());
+}
+
+function returnSuggestion() {
+  return {
+    ...suggestionForWorkoutRole('easy'),
+    title: 'Rolig returøkt',
+    detail: 'Hold økten kort og rolig. Utsett terskel, testløp og annen kvalitet til returperioden er over.',
+    note: 'Foreslått fordi sykdoms- eller skadekortet fortsatt begrenser belastningen.',
+    roles: ['easy'], intensities: ['Rolig'], purposes: ['base'], loads: ['low'],
+    keywords: ['easy run', 'rolig base', 'rolig løp']
+  };
+}
+
+// All automatic advice leaves its generator through this single policy boundary.
+// User-selected and already-saved sessions are not rewritten here.
+export function applyAutomaticTrainingSafety(kind, payload = {}) {
+  const safety = payload.safety || {};
+  const protectedNow = Boolean(safety.active || safety.activeFreeze);
+  const awaitingRecovery = Boolean(safety.activeFreeze || (protectedNow && safety.phase === 'awaiting_return' && safety.source === 'continuity_freeze'));
+  if (kind === 'suggestion') {
+    const suggestion = !protectedNow ? payload.suggestion : awaitingRecovery ? null : returnSuggestion();
+    const candidates = protectedNow ? (payload.templates || []).filter(item => item.role === 'easy' && returnSafeTemplate(item)) : (payload.templates || []);
+    return {
+      suggestion,
+      template: suggestion ? findSuggestedTemplate(candidates, suggestion, [], payload.options || {}) : null,
+      suppressed: protectedNow && !suggestion
+    };
+  }
+  if (kind === 'week_suggestions') {
+    const suggestions = !protectedNow ? payload.suggestions || [] : awaitingRecovery ? []
+      : (payload.suggestions || []).map(() => returnSuggestion());
+    const candidates = protectedNow ? (payload.templates || []).filter(item => item.role === 'easy' && returnSafeTemplate(item)) : (payload.templates || []);
+    return assembleWeekPlanSuggestions(suggestions, payload.dates || [], candidates, payload.options || {});
+  }
+  if (kind === 'plan_slots') {
+    const slots = payload.slots || [];
+    if (!protectedNow) return { slots, conflicts: [] };
+    const candidates = (payload.templates || []).filter(item => item.role === 'easy' && returnSafeTemplate(item));
+    const conflicts = [];
+    return {
+      slots: slots.map((slot, index) => {
+        const selectedTemplate = (payload.templates || []).find(item => item.id === slot.templateId);
+        if (payload.explicitRoles === true || payload.explicitRoles?.[index] || payload.explicitTemplates?.[index]) {
+          if (!RETURN_SAFE_ROLES.has(slot.role) || (selectedTemplate && !returnSafeTemplate(selectedTemplate))) conflicts.push(slot.id || index);
+          return slot;
+        }
+        const template = findSuggestedTemplate(candidates, returnSuggestion());
+        return { ...slot, role: 'easy', templateId: template?.id || null };
+      }),
+      conflicts
+    };
+  }
+  if (kind === 'race_test') {
+    if (!protectedNow || !payload.recommendation?.shouldTest) return payload.recommendation;
+    return {
+      ...payload.recommendation, shouldTest: false, status: 'hold', distanceKm: null,
+      label: awaitingRecovery ? 'Testløp venter til friskmelding' : 'Testløp venter til etter returuken',
+      intensity: 'Rolig oppstart',
+      timing: awaitingRecovery ? 'Etter friskmelding og kontrollert retur' : 'Etter returperioden',
+      reason: 'Et kontrollert testløp er fortsatt en testinnsats. Sykdom og kontrollert retur går foran testmålet.'
+    };
+  }
+  if (kind === 'race_milestones') {
+    if (!protectedNow) return payload.milestones || [];
+    return (payload.milestones || []).map(item => ['short-test', 'long-test'].includes(item.id) && item.status !== 'done'
+      ? { ...item, status: 'blocked', detail: 'Testinnsats venter til sykdom og kontrollert retur er over. Bygg rolig kontinuitet først.' }
+      : item);
+  }
+  if (kind === 'race_plan') {
+    if (!protectedNow) return payload.plan;
+    return {
+      ...payload.plan,
+      focus: 'Sykdom og kontrollert retur går foran løpsspesifikk kvalitet. Bygg rolig rytme først.',
+      nextTest: 'Utsettes til etter kontrollert retur',
+      nextStep: 'Prioriter friskmelding og rolig, kontrollert trening før testinnsats.',
+      risk: 'Risiko: sykdom eller kontrollert retur begrenser kvalitet og testløp akkurat nå.'
+    };
+  }
+  if (kind === 'race_summary') {
+    if (!protectedNow || !payload.summary?.hasGoal) return payload.summary;
+    return {
+      ...payload.summary,
+      action: 'Sykdom og kontrollert retur går foran terskel og testløp. Start med rolig rytme når du er frisk.',
+      motivation: 'Målet står ved lag. Akkurat nå er trygg tilbakekomst viktigere enn å måle formen.',
+      score: payload.summary.score ? {
+        ...payload.summary.score,
+        nextImprovement: 'Friskmelding og kontrollert retur kommer før ny test eller kvalitetsøkt.'
+      } : payload.summary.score
+    };
+  }
+  throw new Error(`Unknown automatic training safety kind: ${kind}`);
+}
+
 export function nextWeekPlanSummary(planned, suggested, goals, status, bodyState) {
   const target = Math.max(1, Number(goals.weeklySessionsTarget) || 3);
   if (planned.length >= target) return `Neste uke er allerede dekket med ${planned.length} planlagte økter.`;

@@ -76,8 +76,10 @@ export function todayDecision(input = {}) {
   if (comeback?.active) {
     return {
       level: 'yellow',
-      title: comeback.phase === 'awaiting_return' ? 'Start comebacken rolig' : 'Bygg deg gradvis tilbake',
-      action: hasPlannedToday
+      title: comeback.activeFreeze ? 'Sykdom eller skade pågår' : comeback.phase === 'awaiting_return' ? 'Start comebacken rolig' : 'Bygg deg gradvis tilbake',
+      action: comeback.activeFreeze
+        ? 'Ingen ny økt anbefales før du er frisk igjen. En eksisterende planlagt økt bør vurderes på nytt.'
+        : hasPlannedToday
         ? 'Gjør dagens økt roligere og kortere enn en normal treningsdag.'
         : 'Velg en lett, gjennomførbar økt og la responsen styre neste steg.',
       reason: comeback.explanation || 'Et opphold tilsier redusert forventning denne uken.'
@@ -431,9 +433,11 @@ export function coachDecisionEngine(input = {}) {
       id: 'comeback',
       severity: 'yellow',
       title: comeback.label || 'Comeback krever lavere terskel',
-      recommendation: 'Gjør økten lettere/kortere og bygg rytme før kvalitet.',
+      recommendation: comeback.activeFreeze
+        ? 'Ingen ny økt anbefales før friskmelding. Vurder allerede planlagte økter på nytt.'
+        : 'Gjør økten lettere/kortere og bygg rytme før kvalitet.',
       summary: comeback.explanation || 'Et opphold tilsier redusert forventning denne uken.',
-      blockedActions: plannedQuality ? ['hard_quality', 'race_test'] : ['aggressive_progression'],
+      blockedActions: ['hard_quality', 'race_test', 'aggressive_progression'],
       allowedActions: ['easy', 'shortened_plan', 'mobility'],
       guardrails: ['Ikke anbefal å ta igjen tapt trening i comeback-perioden.']
     });
@@ -972,12 +976,15 @@ export function homeHeroState(input = {}) {
   if (hasNextPlanned && quality && conflictReasons.length) {
     const redConflict = readiness === 'red' || decision.level === 'red' || injuryStatus === 'worse' || injuryStatus === 'high';
     const loadOnlyConflict = (hasLoadConflict || hasComebackConflict || hasVolumeConflict) && !hasReadinessConflict && !hasInjuryConflict;
+    const sickNow = Boolean(comeback?.activeFreeze);
     return {
       state: 'conflict',
       level: redConflict ? 'red' : 'yellow',
-      kicker: loadOnlyConflict ? 'Belastning og plan krasjer litt' : 'Dagsform og plan krasjer litt',
-      title: loadOnlyConflict ? 'Belastningen tilsier lettere økt' : 'Dagsform tilsier lettere økt',
-      body: plannedLabel
+      kicker: sickNow ? 'Sykdom og plan krasjer' : loadOnlyConflict ? 'Belastning og plan krasjer litt' : 'Dagsform og plan krasjer litt',
+      title: sickNow ? 'Sykdom går foran planlagt kvalitet' : loadOnlyConflict ? 'Belastningen tilsier lettere økt' : 'Dagsform tilsier lettere økt',
+      body: sickNow
+        ? `Planlagt ${plannedLabel || 'hard økt'} beholdes, men er ikke et råd om å trene mens fryskortet er aktivt. Vurder å flytte den.`
+        : plannedLabel
         ? `${hasPlannedToday ? 'Planlagt' : 'Neste'} ${plannedLabel} ser hard ut. Bytt til rolig alternativ?`
         : 'Planen ser hard ut. Bytt til rolig alternativ?',
       reason: conflictReasons.join(' · '),
@@ -991,10 +998,11 @@ export function homeHeroState(input = {}) {
     return {
       state: 'comeback',
       level: 'neutral',
-      kicker: 'Velkommen tilbake',
-      title: comeback?.phase === 'return_week' ? 'Fortsett comebacken kontrollert' : 'Start kontrollert',
+      kicker: comeback?.activeFreeze ? 'Sykdom eller skade pågår' : 'Velkommen tilbake',
+      title: comeback?.activeFreeze ? 'Prioriter å bli frisk' : comeback?.phase === 'return_week' ? 'Fortsett comebacken kontrollert' : 'Start kontrollert',
       body: comeback?.explanation || `Det er ${daysSinceLast} dager siden siste økt. Velg en lett start og bruk kroppen som fasit.`,
-      primaryAction: hasNextPlanned ? 'start_easy' : 'plan'
+      activeFreeze: Boolean(comeback?.activeFreeze),
+      primaryAction: comeback?.activeFreeze ? 'check_readiness' : hasNextPlanned ? 'start_easy' : 'plan'
     };
   }
 
@@ -1371,6 +1379,15 @@ export function comebackProtocol(completedItems = [], options = {}) {
   const shortFactor = Math.max(longFactor, Math.min(1, Number(config.shortBreakWeekFactor) || 0.8));
   const protocolDays = Math.max(1, Math.round(Number(config.protocolDays) || 7));
   const recoveryDate = cleanIsoDate(options.recoveryDate);
+  const freeze = (Array.isArray(options.continuityFreezes) ? options.continuityFreezes : [])
+    .filter(item => ['sick', 'injury'].includes(String(item?.reason || ''))
+      && cleanIsoDate(item?.startDate) && item.startDate <= todayIso)
+    .sort((a, b) => String(b.startDate).localeCompare(String(a.startDate)))[0] || null;
+  const freezeRecoveryDate = cleanIsoDate(freeze?.recoveredAt);
+  const unresolvedFreeze = freeze && (
+    freezeRecoveryDate ? todayIso < freezeRecoveryDate
+      : String(freeze.status || 'active') === 'active'
+  );
   const dates = [...new Set(
     (Array.isArray(completedItems) ? completedItems : [])
       .map(item => String(item?.date || '').trim())
@@ -1390,7 +1407,32 @@ export function comebackProtocol(completedItems = [], options = {}) {
     effectiveWeeklyTarget: weeklyTarget,
     protocolDays
   };
-  if (!todayIso || !dates.length) return inactive;
+  if (!todayIso) return inactive;
+
+  // A sickness/injury card is the source of truth for the interruption. Activity
+  // recorded inside the card remains training load, but never ends the pause.
+  if (freeze && (unresolvedFreeze || (freezeRecoveryDate && freezeRecoveryDate <= todayIso
+    && daysBetweenIso(freezeRecoveryDate, todayIso) < protocolDays))) {
+    const phase = unresolvedFreeze ? 'awaiting_return' : 'return_week';
+    const gapDays = daysBetweenIso(freeze.startDate, freezeRecoveryDate || todayIso) + 1;
+    const daysSinceReturn = phase === 'return_week' ? daysBetweenIso(freezeRecoveryDate, todayIso) : null;
+    const longBreak = gapDays >= longBreakDays;
+    const weekFactor = longBreak ? longFactor : shortFactor;
+    const percent = Math.round(weekFactor * 100);
+    return {
+      active: true, phase, level: 'yellow',
+      label: phase === 'awaiting_return' ? 'Sykdom eller skade pågår' : 'Comeback-uke',
+      explanation: phase === 'awaiting_return'
+        ? `Fryskortet er ikke avsluttet. Start ikke med kvalitet; planlegg kontrollert retur når du er frisk igjen.`
+        : `Du er ${daysSinceReturn + 1}. dag etter friskmelding, etter ${gapDays} dagers sykdom eller skade. Hold uka rundt ${percent} % av normalen.`,
+      gapDays, daysSinceReturn, longBreak, weekFactor,
+      effectiveWeeklyTarget: weeklyTarget ? Math.max(1, Math.round(weeklyTarget * weekFactor)) : 0,
+      protocolDays, recoveryDate: freezeRecoveryDate || null,
+      source: 'continuity_freeze', freezeId: String(freeze.id || ''),
+      activeFreeze: Boolean(unresolvedFreeze)
+    };
+  }
+  if (!dates.length) return inactive;
 
   const latestDate = dates[dates.length - 1];
   const daysSinceLast = daysBetweenIso(latestDate, todayIso);

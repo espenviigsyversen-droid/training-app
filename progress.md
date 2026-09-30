@@ -1,5 +1,13 @@
 # Treningsapp — progress.md
-Oppdatert: 2026-09-30 (siste runtime-endring: v176x3)
+Oppdatert: 2026-09-30 (siste runtime-endring: v176y)
+
+---
+
+## v176y – sykdomsforankret comeback og felles sikkerhetsport for automatiske råd
+
+**Implementert i runtime:** Et aktivt sykdoms-/skadefryskort uten friskmelding holder comebackvernet aktivt uavhengig av registrerte aktiviteter. Etter friskmelding måles returperioden i kalenderdager fra `recoveredAt`, mens kortets varighet bestemmer reduksjonsfaktoren. Ferdigstilling av nye ukesmålssnapshots bruker serverbekreftede fryskort; eksisterende `final`-snapshots endres ikke. Automatiske forslag for Hjem, inneværende/neste uke, malvalg, blokkens første uke og løpstest passerer felles sikkerhetspolicy. Under aktiv sykdom foreslås ingen ny økt; i returperioden blir automatiske øktforslag rolige. Egne og allerede materialiserte hardere planøkter beholdes med konfliktvarsel. Løpstest/delmål utsettes i visningen. APP_VERSION og CACHE_NAME er v176y.
+
+**Bare beskrevet i design / ikke implementert:** Intensitetshierarki og navnejusteringer på Innsikt/Hjem (B), datomerking i samme-innsats-sammenligning (D), Bakken-vinduets fire avsluttede uker (E), og definisjonene av fire ulike ukebegreper (C) hører til senere runder.
 
 ---
 

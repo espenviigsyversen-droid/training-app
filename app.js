@@ -140,8 +140,8 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       normalizeHeartRateZoneSets
     } from './domain-heart-rate-zones.js';
     import {
+      applyAutomaticTrainingSafety,
       applyRaceContextToSuggestionMix,
-      assembleWeekPlanSuggestions,
       bakkenWeekRecipe as bakkenWeekRecipeCore,
       buildWorkoutSuggestion as buildWorkoutSuggestionCore,
       findSuggestedTemplate as findSuggestedTemplateCore,
@@ -199,7 +199,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     } from './domain-template-snapshot-update.js';
     import { createTemplateSnapshotUpdateUi } from './template-snapshot-update-ui.js';
 
-const APP_VERSION = 'v176x3';
+const APP_VERSION = 'v176y';
     const APP_CACHE_NAME = `treningsapp-${APP_VERSION}`;
 
     const firebaseConfig = {
@@ -1007,6 +1007,7 @@ const APP_VERSION = 'v176x3';
             const comeback = comebackProtocol(completedToWeekEnd, {
               todayIso: weekEnd,
               weeklyTarget: normalTarget,
+              continuityFreezes: basis.freezes,
               rules: getCoachRules()
             });
             const snapshot = buildWeeklyTargetSnapshot({
@@ -3735,6 +3736,7 @@ const APP_VERSION = 'v176x3';
 
     function workoutCard(planned, options = {}) {
       const t = plannedTemplate(planned);
+      const comebackConflict = plannedComebackConflict(planned);
       const kind = templateCalendarKind(t);
       const chips = templateCalendarChips(t);
       return `
@@ -3752,6 +3754,7 @@ const APP_VERSION = 'v176x3';
           ${exercisePlanSummaryHtml(t.exercisePlan)}
           ${t.sourceUrl ? `<p><a class="template-source-link" href="${escapeHtml(t.sourceUrl)}" target="_blank" rel="noopener noreferrer">Åpne øktdemonstrasjon</a></p>` : ''}
           ${planned.notes ? `<p class="meta"><strong>Notat:</strong> ${escapeHtml(planned.notes)}</p>` : ''}
+          ${comebackConflict ? `<p class="meta"><strong>Kontrollert retur:</strong> ${planned.planRef ? 'Planøkten' : 'Økten'} beholdes, men høyere intensitet strider mot nåværende sikkerhetsråd. Vurder å flytte eller endre den; appen anbefaler ikke å gjennomføre den nå.</p>` : ''}
           <div class="button-row">
             ${planned.status !== 'done' ? `<button class="btn-success" onclick="openCompleteModal('${planned.id}')">Marker utført</button>` : ''}
             ${planned.status !== 'done' ? `<button class="btn-soft" onclick="openRescheduleModal('${planned.id}')">Endre dato</button>` : ''}
@@ -4569,6 +4572,24 @@ const APP_VERSION = 'v176x3';
       });
     }
 
+    function automaticTrainingSafety(dateIso = todayISO()) {
+      return comebackProtocol(state.completed.filter(item => item.date <= dateIso), {
+        todayIso: dateIso,
+        weeklyTarget: normalizeGoals(state.settings.goals).weeklySessionsTarget,
+        continuityFreezes: state.continuityFreezes,
+        rules: getCoachRules()
+      });
+    }
+
+    function plannedComebackConflict(planned) {
+      const snapshot = plannedTemplate(planned);
+      return applyAutomaticTrainingSafety('plan_slots', {
+        safety: automaticTrainingSafety(planned.date),
+        slots: [{ id: planned.id, role: snapshot.role, templateId: planned.templateId }],
+        templates: [{ ...snapshot, id: planned.templateId }], explicitRoles: true
+      }).conflicts.length > 0;
+    }
+
     function buildWorkoutSuggestion(today, weekSummary, weekItems, last14Days, profile) {
       return buildWorkoutSuggestionCore({
         weekSummary,
@@ -4580,8 +4601,16 @@ const APP_VERSION = 'v176x3';
     }
 
     function renderWorkoutSuggestion(today, weekSummary, weekItems, last14Days, profile) {
-      const suggestion = buildWorkoutSuggestion(today, weekSummary, weekItems, last14Days, profile);
-      const template = findSuggestedTemplate(suggestion);
+      const guarded = applyAutomaticTrainingSafety('suggestion', {
+        safety: automaticTrainingSafety(today),
+        suggestion: buildWorkoutSuggestion(today, weekSummary, weekItems, last14Days, profile),
+        templates: state.templates || [], options: { roleLabels: WORKOUT_ROLE_LABELS }
+      });
+      const { suggestion, template } = guarded;
+      if (!suggestion) {
+        document.getElementById('homeWorkoutSuggestion').innerHTML = '<div class="suggestion-card"><div class="suggestion-kicker">Neste smarte valg</div><h3>Sykdom eller skade pågår</h3><p class="suggestion-main">Ingen ny økt anbefales før du har markert deg frisk igjen. En planlagt økt kan vurderes, men er ikke et råd fra appen.</p></div>';
+        return;
+      }
       const tomorrow = nextAvailableTrainingDate(addDays(today, 1));
       const templateCoachMeta = template
         ? [templatePurposeLabel(template.purpose), templateLoadLabel(template.load)].filter(Boolean).join(' · ')
@@ -4674,8 +4703,9 @@ const APP_VERSION = 'v176x3';
         : weekPlanSuggestionMix(mainSuggestion, remainingAfterPlanned, profile);
       const suggestions = applyRaceContextToSuggestionMix(baseMix, raceContext, remainingAfterPlanned);
       const dates = weekPlanDates(today, weekEnd, plannedThisWeek, suggestions.length);
-      return assembleWeekPlanSuggestions(suggestions, dates, state.templates || [], {
-        roleLabels: WORKOUT_ROLE_LABELS
+      return applyAutomaticTrainingSafety('week_suggestions', {
+        safety: automaticTrainingSafety(today), suggestions, dates,
+        templates: state.templates || [], options: { roleLabels: WORKOUT_ROLE_LABELS }
       });
     }
 
@@ -4690,8 +4720,9 @@ const APP_VERSION = 'v176x3';
         : weekPlanSuggestionMix(mainSuggestion, remaining, profile);
       const suggestions = applyRaceContextToSuggestionMix(baseMix, raceContext, remaining);
       const dates = weekPlanDatesInRange(nextWeekStart, nextWeekEnd, plannedNextWeek, suggestions.length);
-      return assembleWeekPlanSuggestions(suggestions, dates, state.templates || [], {
-        roleLabels: WORKOUT_ROLE_LABELS
+      return applyAutomaticTrainingSafety('week_suggestions', {
+        safety: automaticTrainingSafety(nextWeekStart), suggestions, dates,
+        templates: state.templates || [], options: { roleLabels: WORKOUT_ROLE_LABELS }
       });
     }
 
@@ -4704,23 +4735,25 @@ const APP_VERSION = 'v176x3';
       }[status] || 'Mangler';
     }
 
-    function roleStatusMeta(item) {
+    function roleStatusMeta(item, safety = {}) {
       if (item.completed) return formatDate(item.completed.date);
       if (item.planned) return formatDate(item.planned.date);
+      if (safety.active && !['easy', 'recovery', 'mobility'].includes(item.role)) return 'Profilrolle · ikke råd under comeback';
       return item.required ? 'Bør dekkes' : 'Bonus';
     }
 
-    function weekRoleStatusHtml(coverage) {
+    function weekRoleStatusHtml(coverage, safety = {}) {
       return `
         <div class="week-role-grid">
           ${coverage.map(item => {
-            const clickable = item.status === 'missing' && item.required;
+            const clickable = item.status === 'missing' && item.required
+              && !(safety.active && !['easy', 'recovery', 'mobility'].includes(item.role));
             return `
             <div class="week-role-chip ${item.status}${clickable ? ' clickable' : ''}"
               ${clickable ? `onclick="planForRole('${item.role}')" title="Trykk for å planlegge ${escapeHtml(WORKOUT_ROLE_LABELS[item.role] || '')}"` : ''}>
               <span>${escapeHtml(WORKOUT_ROLE_LABELS[item.role] || 'Økt')}</span>
               <strong>${escapeHtml(roleStatusLabel(item.status))}${clickable ? ' →' : ''}</strong>
-              <small>${escapeHtml(roleStatusMeta(item))}</small>
+              <small>${escapeHtml(roleStatusMeta(item, safety))}</small>
             </div>`;
           }).join('')}
         </div>`;
@@ -4776,6 +4809,7 @@ const APP_VERSION = 'v176x3';
 
     function plannedWeekItem(item) {
       const template = plannedTemplate(item);
+      const conflict = plannedComebackConflict(item);
       const kind = templateCalendarKind(template);
       const chips = templateCalendarChips(template);
       return `
@@ -4789,6 +4823,7 @@ const APP_VERSION = 'v176x3';
             <small class="week-plan-meta">${escapeHtml([template.type, template.intensity].filter(Boolean).join(' · '))}</small>
             ${chips ? `<div class="week-plan-chip-row">${chips}</div>` : ''}
             ${item.notes ? `<small class="week-plan-reason">${escapeHtml(item.notes)}</small>` : ''}
+            ${conflict ? `<small class="week-plan-reason">${item.planRef ? 'Planøkt' : 'Din planlagte økt'} beholdes, men høyere intensitet strider mot kontrollert retur. Dette er ikke et råd om å gjennomføre den.</small>` : ''}
           </div>
           <button class="btn-soft week-plan-open" onclick="openCalendarDayModal('${item.date}')">Åpne</button>
         </div>`;
@@ -4802,8 +4837,14 @@ const APP_VERSION = 'v176x3';
       const last28 = summarizeCompleted(state.completed.filter(item => item.date >= last28Start && item.date <= today));
       const injurySummary = injurySignalSummary(injurySignalEntriesUntil(today, 7));
       const readiness = raceReadinessSummary(goal, completedRaceItems(), state.raceResults, today);
-      const plan = raceGoalPlan(goal, readiness, injurySummary, today);
-      const testRecommendation = raceTestRecommendation({ goal, readiness, plan, injurySummary, last7, last28 }, today);
+      const plan = applyAutomaticTrainingSafety('race_plan', {
+        safety: automaticTrainingSafety(today),
+        plan: raceGoalPlan(goal, readiness, injurySummary, today)
+      });
+      const testRecommendation = applyAutomaticTrainingSafety('race_test', {
+        safety: automaticTrainingSafety(today),
+        recommendation: raceTestRecommendation({ goal, readiness, plan, injurySummary, last7, last28 }, today)
+      });
       return raceWeekPlanContext({ goal, readiness, plan, testRecommendation, injurySummary, last7, last28 }, today);
     }
 
@@ -4827,6 +4868,8 @@ const APP_VERSION = 'v176x3';
       const weekEnd = addDays(weekStart, 6);
       const nextWeekStart = addDays(weekStart, 7);
       const nextWeekEnd = addDays(nextWeekStart, 6);
+      const currentSafety = automaticTrainingSafety(today);
+      const nextSafety = automaticTrainingSafety(nextWeekStart);
       const plannedThisWeek = plannedActive
         .filter(item => item.date >= today && item.date <= weekEnd)
         .sort((a, b) => a.date.localeCompare(b.date));
@@ -4860,16 +4903,26 @@ const APP_VERSION = 'v176x3';
       const nextMainSuggestion = suggestedNextWeek[0]?.suggestion || mainSuggestion;
       const missingCurrentRoles = currentRoleCoverage.filter(item => item.status === 'missing').map(item => WORKOUT_ROLE_LABELS[item.role]).filter(Boolean);
       const missingNextRoles = nextRoleCoverage.filter(item => item.status === 'missing').map(item => WORKOUT_ROLE_LABELS[item.role]).filter(Boolean);
-      const planSummary = completedCount >= goals.weeklySessionsTarget
+      const planSummary = currentSafety.activeFreeze
+        ? 'Sykdoms- eller skadekortet er aktivt. Ingen ny økt anbefales; eksisterende planer beholdes med konfliktvarsel.'
+        : completedCount >= goals.weeklySessionsTarget
         ? 'Ukesmålet er nådd. Eventuelle ekstraøkter bør være bonus og styres av overskudd.'
         : plannedCount
           ? `${completedCount}/${goals.weeklySessionsTarget} utført og ${plannedCount} planlagt. ${remainingAfterPlanned} åpne økt${remainingAfterPlanned === 1 ? '' : 'er'} igjen.`
           : `${completedCount}/${goals.weeklySessionsTarget} utført. Appen foreslår neste steg for å gjøre uka gjennomførbar.`;
-      const roleSummary = missingCurrentRoles.length
+      const roleSummary = currentSafety.active
+        ? 'Normalukens roller vises som profilinformasjon. Kvalitetsroller er ikke råd under kontrollert retur.'
+        : missingCurrentRoles.length
         ? `Mangler i normaluka: ${missingCurrentRoles.join(', ')}.`
         : 'Normaluka er dekket med utførte eller planlagte økter.';
-      const nextSummary = nextWeekPlanSummary(plannedNextWeek, suggestedNextWeek, goals, status, bodyState);
-      const nextRoleSummary = missingNextRoles.length
+      const nextSummary = nextSafety.activeFreeze
+        ? 'Ingen automatisk økt anbefales før friskmelding. Eksisterende planer beholdes, men bør vurderes på nytt.'
+        : nextSafety.active
+        ? 'Neste uke er kontrollert retur. Forslagene er rolige; kvalitet og testløp venter.'
+        : nextWeekPlanSummary(plannedNextWeek, suggestedNextWeek, goals, status, bodyState);
+      const nextRoleSummary = nextSafety.active
+        ? 'Normalukens roller vises som profilinformasjon. Kvalitetsroller er ikke råd under kontrollert retur.'
+        : missingNextRoles.length
         ? `Neste uke mangler foreløpig: ${missingNextRoles.join(', ')}.`
         : 'Neste uke dekker rollene i normaluka.';
       const missingNextRolePlan = nextRoleCoverage.filter(item => item.status === 'missing' && item.required);
@@ -4884,15 +4937,19 @@ const APP_VERSION = 'v176x3';
       const skippedNextRoles = suggestedNextRoleCoverage
         .filter(item => item.status === 'missing')
         .map(item => WORKOUT_ROLE_LABELS[item.role]).filter(Boolean);
-      const skippedRoleNote = skippedNextRoles.length && (bodyState.level === 'cooling' || bodyState.level === 'caution')
+      const skippedRoleNote = !nextSafety.active && skippedNextRoles.length && (bodyState.level === 'cooling' || bodyState.level === 'caution')
         ? `${skippedNextRoles.join(' og ')} er ikke foreslått denne uken fordi coachen starter rolig etter registrert kroppssignal. Trykk på "Mangler →"-chipen for å legge det inn manuelt hvis du føler deg klar.`
         : '';
-      const actionLine = suggestedItems.length
+      const actionLine = currentSafety.activeFreeze
+        ? 'Ingen ny økt anbefalt'
+        : suggestedItems.length
         ? `${suggestedItems.length} forslag for resten av uka`
         : remainingAfterPlanned <= 0
           ? 'Uka er dekket'
           : 'Planlegg manuelt';
-      const nextActionLine = suggestedNextWeek.length
+      const nextActionLine = nextSafety.activeFreeze
+        ? 'Venter på friskmelding'
+        : suggestedNextWeek.length
         ? `${suggestedNextWeek.length} forslag for neste uke`
         : plannedNextWeek.length
           ? 'Neste uke er dekket'
@@ -4908,7 +4965,7 @@ const APP_VERSION = 'v176x3';
           <p>${escapeHtml(planSummary)}</p>
           ${raceWeekPlanContextHtml(raceContext)}
           <p class="week-plan-role-summary">${escapeHtml(roleSummary)}</p>
-          ${weekRoleStatusHtml(currentRoleCoverage)}
+          ${weekRoleStatusHtml(currentRoleCoverage, currentSafety)}
           <div class="week-plan-list">
             ${plannedThisWeek.slice(0, 3).map(plannedWeekItem).join('')}
             ${suggestedItems.map((item, index) => suggestedWeekPlanItem(item.suggestion, item.template, item.date, index)).join('')}
@@ -4927,7 +4984,7 @@ const APP_VERSION = 'v176x3';
           <div class="week-plan-action-line">${escapeHtml(nextActionLine)}</div>
           <p>${escapeHtml(nextSummary)}</p>
           <p class="week-plan-role-summary">${escapeHtml(nextRoleSummary)}</p>
-          ${weekRoleStatusHtml(nextRoleCoverage)}
+          ${weekRoleStatusHtml(nextRoleCoverage, nextSafety)}
           <div class="week-plan-list">
             ${plannedNextWeek.slice(0, 3).map(plannedWeekItem).join('')}
             ${suggestedNextWeek.map((item, index) => suggestedWeekPlanItem(item.suggestion, item.template, item.date, index)).join('')}
@@ -4944,6 +5001,16 @@ const APP_VERSION = 'v176x3';
     }
 
     window.planSuggestedWorkout = function(templateId, dateIso, note = 'Foreslått av coach-assistenten. Juster etter dagsform.') {
+      const template = state.templates.find(item => item.id === templateId);
+      const safety = automaticTrainingSafety(dateIso || todayISO());
+      const guarded = applyAutomaticTrainingSafety('plan_slots', {
+        safety, slots: [{ role: template?.role, templateId }], templates: state.templates || [], explicitRoles: true
+      });
+      if (safety.activeFreeze || guarded.conflicts.length) {
+        alert('Dette forslaget er ikke lenger i tråd med kontrollert retur. Se oppdatert råd før du planlegger.');
+        render();
+        return;
+      }
       openPlan(dateIso || addDays(todayISO(), 1));
       document.getElementById('planTemplate').value = templateId;
       document.getElementById('planNotes').value = note;
@@ -4954,6 +5021,18 @@ const APP_VERSION = 'v176x3';
       const source = scope === 'next' ? window.nextWeekPlanSuggestions : window.currentWeekPlanSuggestions;
       const suggestions = (source || []).filter(item => item.template && item.date);
       if (!suggestions.length) return alert('Ingen forslag med øktmal er klare ennå.');
+      const staleSafety = suggestions.some(item => {
+        const safety = automaticTrainingSafety(item.date);
+        const policy = applyAutomaticTrainingSafety('plan_slots', {
+          safety, slots: [{ role: item.template.role, templateId: item.template.id }],
+          templates: state.templates || [], explicitRoles: true
+        });
+        return safety.activeFreeze || policy.conflicts.length;
+      });
+      if (staleSafety) {
+        render();
+        return alert('Forslagene er endret av sykdom eller kontrollert retur. Se gjennom den oppdaterte ukeplanen først.');
+      }
       if (!confirm(`Legge inn ${suggestions.length} foreslåtte økt${suggestions.length === 1 ? '' : 'er'} i kalenderen?`)) return;
       const workoutsToAdd = suggestions.map((item, index) => ({
         id: uid('planned'),
@@ -5082,8 +5161,11 @@ const APP_VERSION = 'v176x3';
     function heroSwapOption(heroState, planned) {
       const suggestion = heroSwapSuggestion(heroState);
       if (!suggestion || !planned) return null;
-      const template = findSuggestedTemplate(suggestion, [planned.templateId]);
-      return template ? { suggestion, template } : { suggestion, template: null };
+      return applyAutomaticTrainingSafety('suggestion', {
+        safety: automaticTrainingSafety(todayISO()), suggestion,
+        templates: (state.templates || []).filter(item => item.id !== planned.templateId),
+        options: { roleLabels: WORKOUT_ROLE_LABELS }
+      });
     }
 
     function heroActionsHtml(heroState, firstPlanned, completedToday) {
@@ -5091,6 +5173,9 @@ const APP_VERSION = 'v176x3';
         return `<button class="btn-success" onclick="openWorkoutDetail('${completedToday.id}')">Se økten</button>`;
       }
       if (heroState.state === 'conflict' && firstPlanned) {
+        if (automaticTrainingSafety(todayISO()).activeFreeze) {
+          return `<button class="btn-soft" onclick="openRescheduleModal('${firstPlanned.id}')">Endre plan</button>`;
+        }
         const option = heroSwapOption(heroState, firstPlanned);
         return `
           ${option?.template
@@ -5104,6 +5189,7 @@ const APP_VERSION = 'v176x3';
           <button class="btn-primary" onclick="openPlan('${ctxSafeDate(firstPlanned.date)}', true)">Legg til rolig økt</button>`;
       }
       if (heroState.state === 'comeback') {
+        if (heroState.activeFreeze) return '<span class="small-note">Ingen ny økt anbefales mens fryskortet er aktivt. Egne planlagte økter beholdes og vurderes særskilt.</span>';
         return firstPlanned
           ? `<button class="btn-primary" onclick="openPlan('${ctxSafeDate(firstPlanned.date)}', true)">Velg lett start</button>
              <button class="btn-soft" onclick="openRescheduleModal('${firstPlanned.id}')">Endre plan</button>`
@@ -5123,11 +5209,16 @@ const APP_VERSION = 'v176x3';
     window.swapHeroPlannedWorkout = async function(plannedId, action = 'swap_easy') {
       const planned = state.planned.find(item => item.id === plannedId);
       if (!planned) return alert('Fant ikke den planlagte økten.');
+      if (automaticTrainingSafety(todayISO()).activeFreeze) return alert('Fryskortet er fortsatt aktivt. Flytt eller vurder økten manuelt; appen foreslår ingen ny økt nå.');
       const currentTemplate = plannedTemplate(planned);
       const suggestion = action === 'swap_recovery'
         ? recoverySuggestion('Byttet fra hard økt fordi dagsform eller kroppssignal tilsier lav risiko.')
         : gentleBaseSuggestion('Byttet fra hard økt fordi intensitetsbalansen tilsier mer rolig støtte.');
-      const alternative = findSuggestedTemplate(suggestion, [planned.templateId]);
+      const alternative = applyAutomaticTrainingSafety('suggestion', {
+        safety: automaticTrainingSafety(todayISO()), suggestion,
+        templates: (state.templates || []).filter(item => item.id !== planned.templateId),
+        options: { roleLabels: WORKOUT_ROLE_LABELS }
+      }).template;
       if (!alternative) {
         openPlan(planned.date, true);
         showToast('Fant ingen tydelig rolig mal. Velg alternativ selv.', 'info');
@@ -6650,6 +6741,7 @@ const APP_VERSION = 'v176x3';
         todayIso: today,
         weeklyTarget: goals.weeklySessionsTarget,
         recoveryDate: latestContinuityRecoveryDate(),
+        continuityFreezes: state.continuityFreezes,
         rules: activeCoachRules
       });
       const weeklyTargetDecision = weeklyTargetDecisionForWeek(startOfWeek(today), {
@@ -6990,7 +7082,9 @@ const APP_VERSION = 'v176x3';
       }
 
       if (comeback?.active) {
-        return `${comeback.explanation} Prioriter lett, repeterbar trening og la første uke bygge rytme fremfor å ta igjen det tapte. ${coachPrincipleLine(['recovery_is_training', 'repeatable_week'])}`;
+        return comeback.activeFreeze
+          ? `${comeback.explanation} Ingen ny treningsøkt anbefales før friskmelding.`
+          : `${comeback.explanation} Prioriter lett, repeterbar trening og la første uke bygge rytme fremfor å ta igjen det tapte. ${coachPrincipleLine(['recovery_is_training', 'repeatable_week'])}`;
       }
 
       if (volumeRamp?.status === 'high') {
@@ -7647,8 +7741,13 @@ const APP_VERSION = 'v176x3';
       const previous28 = summarizeCompleted(completedToDate.filter(item => item.date >= previous28Start && item.date <= previous28End));
       const injurySummary = injurySignalSummary(injurySignalEntriesUntil(today, 7));
       const readiness = raceReadinessSummary(state.settings.raceGoal, completedRaceItems(), state.raceResults, today);
-      const plan = raceGoalPlan(state.settings.raceGoal, readiness, injurySummary, today);
-      const summary = goalMotivationSummary({
+      const plan = applyAutomaticTrainingSafety('race_plan', {
+        safety: automaticTrainingSafety(today),
+        plan: raceGoalPlan(state.settings.raceGoal, readiness, injurySummary, today)
+      });
+      const summary = applyAutomaticTrainingSafety('race_summary', {
+        safety: automaticTrainingSafety(today),
+        summary: goalMotivationSummary({
         goal: state.settings.raceGoal,
         readiness,
         plan,
@@ -7657,23 +7756,30 @@ const APP_VERSION = 'v176x3';
         last28,
         previous7,
         previous28
-      }, today);
-      const milestones = goalMilestones({
+      }, today)
+      });
+      const milestones = applyAutomaticTrainingSafety('race_milestones', {
+        safety: automaticTrainingSafety(today),
+        milestones: goalMilestones({
         goal: state.settings.raceGoal,
         readiness,
         plan,
         injurySummary,
         last7,
         last28
-      }, today);
-      const testRecommendation = raceTestRecommendation({
+      }, today)
+      });
+      const testRecommendation = applyAutomaticTrainingSafety('race_test', {
+        safety: automaticTrainingSafety(today),
+        recommendation: raceTestRecommendation({
         goal: state.settings.raceGoal,
         readiness,
         plan,
         injurySummary,
         last7,
         last28
-      }, today);
+      }, today)
+      });
       const score = summary.score || {};
       const metrics = summary.metrics?.length
         ? `<div class="goals-overview-metrics">${summary.metrics.map(metric => `
@@ -7767,12 +7873,12 @@ const APP_VERSION = 'v176x3';
         countdown.targetTimeSeconds ? `mål ${formatRaceTime(countdown.targetTimeSeconds)}` : ''
       ].filter(Boolean).join(' · ');
       const readiness = raceReadinessSummary(state.settings.raceGoal, completedRaceItems(), state.raceResults, today);
-      const racePlan = raceGoalPlan(
+      const racePlan = applyAutomaticTrainingSafety('race_plan', { safety: automaticTrainingSafety(today), plan: raceGoalPlan(
         state.settings.raceGoal,
         readiness,
         injurySignalSummary(injurySignalEntriesUntil(today, 7)),
         today
-      );
+      ) });
       const latest = readiness.latestRelevant;
       const targetPace = readiness.targetPaceSeconds ? formatRaceTime(readiness.targetPaceSeconds) + ' /km' : '';
       const projected = readiness.projectedTargetSeconds ? formatRaceTime(readiness.projectedTargetSeconds) : '';
@@ -7793,7 +7899,7 @@ const APP_VERSION = 'v176x3';
             </div>
             <p><strong>Siste relevante test:</strong> ${escapeHtml(latestText)}</p>
             <p>${escapeHtml(readiness.note)}</p>
-            <p class="race-next-step">${escapeHtml(readiness.nextStep)}</p>
+            <p class="race-next-step">${escapeHtml(automaticTrainingSafety(today).active ? racePlan.nextStep : readiness.nextStep)}</p>
           </div>
           ${racePlan.hasPlan ? `
             <div class="race-plan ${escapeHtml(racePlan.phase)}">

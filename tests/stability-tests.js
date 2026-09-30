@@ -206,8 +206,8 @@ async function testAsync(name, fn) {
   });
 
   test('v176s2 keeps rare snapshot actions in the day modal and the week overview compact', () => {
-    assert.ok(app.includes("const APP_VERSION = 'v176x3'"));
-    assert.ok(serviceWorker.includes('treningsapp-v176x3'));
+    assert.ok(app.includes("const APP_VERSION = 'v176y'"));
+    assert.ok(serviceWorker.includes('treningsapp-v176y'));
     ['./domain-template-snapshot-update.js', './template-snapshot-update-ui.js']
       .forEach(file => assert.ok(serviceWorker.includes(file), `${file} is missing from APP_SHELL`));
     assert.ok(index.includes('id="templateSnapshotUpdateModal"'));
@@ -3728,8 +3728,8 @@ async function testAsync(name, fn) {
     assert.ok(workoutHistoryUiSource.includes('heartRateZoneDistributionRows'), 'history does not use production zone rows');
     assert.ok(workoutHistoryUiSource.includes('Tid i pulssoner'), 'completed detail is missing the heart-rate zone section');
     assert.ok(!workoutHistoryUiSource.includes("row.estimated ? 'ca. '"), 'zone duration should not be prefixed with ca.');
-    assert.ok(app.includes("const APP_VERSION = 'v176x3'"), 'visible app version must be v176x3');
-    assert.ok(serviceWorker.includes('treningsapp-v176x3'), 'cache version must match v176x3');
+    assert.ok(app.includes("const APP_VERSION = 'v176y'"), 'visible app version must be v176y');
+    assert.ok(serviceWorker.includes('treningsapp-v176y'), 'cache version must match v176y');
   });
 
   test('v174b evaluates easy and quality sessions without treating zone percentages as a hard truth', () => {
@@ -3824,8 +3824,8 @@ async function testAsync(name, fn) {
     assert.ok(index.includes('id="insightHeartRateComplianceCard"'), 'Insights is missing the compliance card');
     assert.ok(app.includes('heartRateZoneComplianceForItems(last28Days)'), 'coach context does not use the canonical compliance summary');
     assert.ok(app.includes('renderHeartRateZoneComplianceInsight(today)'), 'Insights does not render canonical compliance');
-    assert.ok(app.includes("const APP_VERSION = 'v176x3'"), 'visible app version must be v176x3');
-    assert.ok(serviceWorker.includes('treningsapp-v176x3'), 'cache version must match v176x3');
+    assert.ok(app.includes("const APP_VERSION = 'v176y'"), 'visible app version must be v176y');
+    assert.ok(serviceWorker.includes('treningsapp-v176y'), 'cache version must match v176y');
   });
 
   test('v174c uses the test profile for zones and keeps the golden zone as a separate coach reference', () => {
@@ -4533,8 +4533,8 @@ async function testAsync(name, fn) {
     assert.ok(trainingImportControllerSource.includes("action: duplicate ? 'skip'"), 'duplicates should be skipped by default');
     assert.ok(!trainingImportControllerSource.includes('heartRateZoneDistribution'), 'controller must not synthesize pulse zones');
     assert.ok(styles.includes('.garmin-import-row'), 'Garmin preview styling is missing');
-    assert.ok(app.includes("const APP_VERSION = 'v176x3'"));
-    assert.ok(serviceWorker.includes('treningsapp-v176x3'));
+    assert.ok(app.includes("const APP_VERSION = 'v176y'"));
+    assert.ok(serviceWorker.includes('treningsapp-v176y'));
   });
 
   test('structured interval UI fields and summaries are wired into production files', () => {
@@ -5002,6 +5002,127 @@ async function testAsync(name, fn) {
     assert.strictEqual(returned.daysSinceReturn, 1);
   });
 
+  test('v176y sickness card, not activity dates, anchors the protected interruption', () => {
+    const card = { id: 'ill-1', reason: 'sick', status: 'active', startDate: '2026-08-17', endDate: '2026-09-29' };
+    const history = [
+      { date: '2026-08-16', type: 'Løping' },
+      { date: '2026-08-29', type: 'Gåtur' },
+      { date: '2026-09-29', type: 'Løping' }
+    ];
+    const sick = coach.comebackProtocol(history, {
+      todayIso: '2026-09-29', weeklyTarget: 3, continuityFreezes: [card], rules: coachRulesJson
+    });
+    assert.strictEqual(sick.phase, 'awaiting_return');
+    assert.strictEqual(sick.activeFreeze, true);
+    assert.strictEqual(sick.gapDays, 44);
+    assert.strictEqual(sick.weekFactor, 0.65);
+    assert.strictEqual(sick.effectiveWeeklyTarget, 2);
+    assert.strictEqual(coach.comebackProtocol([], {
+      todayIso: '2026-09-29', weeklyTarget: 3, continuityFreezes: [card], rules: coachRulesJson
+    }).activeFreeze, true, 'an active sickness card must protect even with no completed workouts');
+    const returned = coach.comebackProtocol(history, {
+      todayIso: '2026-09-30', weeklyTarget: 3,
+      continuityFreezes: [{ ...card, status: 'ended', recoveredAt: '2026-09-29' }], rules: coachRulesJson
+    });
+    assert.strictEqual(returned.phase, 'return_week');
+    assert.strictEqual(returned.daysSinceReturn, 1);
+    assert.strictEqual(returned.gapDays, 44);
+    assert.strictEqual(returned.weekFactor, 0.65);
+    const historicalWeek = coach.comebackProtocol(history, {
+      todayIso: '2026-08-30', weeklyTarget: 3,
+      continuityFreezes: [{ ...card, status: 'ended', recoveredAt: '2026-09-29' }], rules: coachRulesJson
+    });
+    assert.strictEqual(historicalWeek.phase, 'awaiting_return', 'a later recovery must not erase the week that was still sick');
+    assert.ok(app.includes('continuityFreezes: basis.freezes'), 'server-confirmed week finalization must use the card anchor');
+  });
+
+  test('v176y one policy gates Home, both week windows, templates and race tests', () => {
+    const hard = { id: 'hard', name: 'Støtteterskel', role: 'support_threshold', intensity: 'Terskel', load: 'moderate' };
+    const easy = { id: 'easy', name: 'Easy Run', role: 'easy', intensity: 'Rolig', load: 'low', type: 'Løping' };
+    const proposed = planner.suggestionForWorkoutRole('support_threshold');
+    const sick = { active: true, activeFreeze: true, phase: 'awaiting_return', source: 'continuity_freeze' };
+    const returning = { active: true, phase: 'return_week', source: 'continuity_freeze' };
+    const homeSick = planner.applyAutomaticTrainingSafety('suggestion', { safety: sick, suggestion: proposed, templates: [hard, easy] });
+    assert.strictEqual(homeSick.suggestion, null);
+    assert.strictEqual(homeSick.template, null);
+    const homeReturn = planner.applyAutomaticTrainingSafety('suggestion', { safety: returning, suggestion: proposed, templates: [hard, easy] });
+    assert.deepStrictEqual(homeReturn.suggestion.roles, ['easy']);
+    assert.strictEqual(homeReturn.template.id, 'easy');
+    for (const date of ['2026-09-30', '2026-10-05']) {
+      const week = planner.applyAutomaticTrainingSafety('week_suggestions', {
+        safety: returning, suggestions: [proposed], dates: [date], templates: [hard, easy]
+      });
+      assert.strictEqual(week[0].suggestion.roles[0], 'easy');
+      assert.strictEqual(week[0].template.id, 'easy');
+    }
+    assert.deepStrictEqual(planner.applyAutomaticTrainingSafety('week_suggestions', {
+      safety: sick, suggestions: [proposed], dates: ['2026-09-30'], templates: [hard, easy]
+    }), []);
+    const deferred = planner.applyAutomaticTrainingSafety('race_test', {
+      safety: returning, recommendation: { shouldTest: true, label: '5 km kontrollert retest' }
+    });
+    assert.strictEqual(deferred.shouldTest, false);
+    assert.doesNotMatch(deferred.label, /5 km/);
+    const milestones = planner.applyAutomaticTrainingSafety('race_milestones', {
+      safety: returning, milestones: [{ id: 'short-test', status: 'current', detail: 'Test nå' }]
+    });
+    assert.strictEqual(milestones[0].status, 'blocked');
+    const racePlan = planner.applyAutomaticTrainingSafety('race_plan', {
+      safety: returning, plan: { hasPlan: true, focus: 'Legg inn terskel', nextTest: '5 km nå', nextStep: 'Løp test' }
+    });
+    assert.doesNotMatch(`${racePlan.focus} ${racePlan.nextTest} ${racePlan.nextStep}`, /5 km nå|Legg inn terskel|Løp test/);
+    const raceSummary = planner.applyAutomaticTrainingSafety('race_summary', {
+      safety: returning, summary: { hasGoal: true, action: 'Ta en retest', motivation: 'Test nå' }
+    });
+    assert.doesNotMatch(`${raceSummary.action} ${raceSummary.motivation}`, /Ta en retest|Test nå/);
+    assert.ok(app.includes('plannedComebackConflict(planned)'), 'calendar day details must mark existing plan conflicts');
+    assert.ok(app.includes('plannedComebackConflict(item)'), 'week overview must mark existing plan conflicts');
+  });
+
+  test('v176y block start softens only automatic slots and flags explicit quality', () => {
+    const templates = [
+      { id: 'easy', name: 'Easy Run', role: 'easy', intensity: 'Rolig', load: 'low', type: 'Løping' },
+      { id: 'hard', name: 'Støtteterskel', role: 'support_threshold', intensity: 'Terskel', load: 'moderate', type: 'Løping' }
+    ];
+    const input = {
+      completedItems: [{ date: '2026-08-16', durationSeconds: 3600 }],
+      continuityFreezes: [{ id: 'ill-1', reason: 'sick', status: 'active', startDate: '2026-08-17', endDate: '2026-09-29' }],
+      comebackState: { active: true, activeFreeze: true, source: 'continuity_freeze', phase: 'awaiting_return', weekFactor: 0.65 },
+      templates, rules: coachRulesJson, volumeRamp: { enoughData: false }
+    };
+    const automatic = trainingPlanUi.buildTrainingPlanPreviewModel({
+      ...input,
+      draft: { id: 'auto', startDate: '2026-10-05', focus: 'base', slotCount: 3, metric: 'duration', rolePreset: 'profile', roles: ['easy', 'support_threshold', 'long_easy'] }
+    });
+    assert.deepStrictEqual(automatic.plan.weeks[0].slots.map(slot => slot.role), ['easy', 'easy', 'easy']);
+    assert.ok(automatic.plan.weeks[0].slots.every(slot => slot.templateId === 'easy'));
+    const explicit = trainingPlanUi.buildTrainingPlanPreviewModel({
+      ...input,
+      draft: { id: 'manual', startDate: '2026-10-05', focus: 'base', slotCount: 3, metric: 'duration', rolePreset: 'custom', roles: ['easy', 'support_threshold', 'long_easy'], templateIds: ['easy', 'hard', ''] }
+    });
+    assert.strictEqual(explicit.plan.weeks[0].slots[1].role, 'support_threshold');
+    assert.strictEqual(explicit.safety.manualConflicts.length, 2);
+    const partial = trainingPlanUi.buildTrainingPlanPreviewModel({
+      ...input,
+      draft: { id: 'partial', startDate: '2026-10-05', focus: 'base', slotCount: 3, metric: 'duration',
+        rolePreset: 'custom', roles: ['easy', 'support_threshold', 'long_easy'], roleOverrides: [false, true, false], templateIds: ['', 'hard', ''] }
+    });
+    assert.deepStrictEqual(partial.plan.weeks[0].slots.map(slot => slot.role), ['easy', 'support_threshold', 'easy']);
+    assert.strictEqual(partial.safety.manualConflicts.length, 1);
+  });
+
+  test('v176y automatic advice exits through the shared policy boundary', () => {
+    const boundaryLines = [app, trainingPlanUiSource]
+      .flatMap(source => source.split(/\r?\n/).filter(line => line.includes("applyAutomaticTrainingSafety('")))
+      .map(line => line.trim());
+    assert.ok(boundaryLines.length >= 10, 'Home, week, plan and race call sites must be registered');
+    assert.ok(!app.includes('assembleWeekPlanSuggestions('), 'week advice must not bypass the shared policy');
+    // Update this fingerprint deliberately when a call site is added, removed or moved;
+    // the behavioural tests above still establish what the policy actually permits.
+    const fingerprint = crypto.createHash('sha256').update(boundaryLines.join('\n')).digest('hex');
+    assert.strictEqual(fingerprint, '3c5a3d4ebc46e2a81905c09b5c35d925bbea1a0050df460b6d1e48305bbdf772');
+  });
+
   test('comeback protocol remains inactive during normal training rhythm', () => {
     const protocol = comebackProtocol([
       { date: '2026-07-04' },
@@ -5123,6 +5244,12 @@ async function testAsync(name, fn) {
     assert.strictEqual(decision.primarySignal, 'comeback');
     assert.ok(decision.blockedActions.includes('hard_quality'));
     assert.match(decision.summary, /65|opphold|normalen/i);
+    const noPlannedQuality = coachDecisionEngine({
+      dailyReadinessLevel: 'green', hasPlannedToday: false,
+      comeback: { active: true, activeFreeze: true, label: 'Sykdom pågår', explanation: 'Fryskort aktivt.' }
+    });
+    assert.ok(noPlannedQuality.blockedActions.includes('hard_quality'));
+    assert.ok(noPlannedQuality.blockedActions.includes('race_test'));
   });
 
   test('coach decision engine recommends easy support when intensity balance is too hard', () => {
@@ -5350,6 +5477,11 @@ async function testAsync(name, fn) {
     assert.strictEqual(comeback.level, 'yellow');
     assert.match(comeback.title, /gradvis|comeback/i);
     assert.match(comeback.action, /roligere|kortere/);
+    const sick = todayDecision({
+      dailyReadinessLevel: 'green', hasPlannedToday: false,
+      comeback: { active: true, activeFreeze: true, phase: 'awaiting_return', explanation: 'Fryskort aktivt.' }
+    });
+    assert.match(sick.action, /Ingen ny økt anbefales/);
 
     const volume = todayDecision({
       dailyReadinessLevel: 'green',

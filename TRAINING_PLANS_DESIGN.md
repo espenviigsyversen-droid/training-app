@@ -222,6 +222,8 @@ Ny, uavhengig samling:
 }
 ```
 
+Når comeback-reduksjonen er aktiv, lagrer `reductions.comeback.phase` også fasen som lå bak ukens reduserte mål. Fra v176y betyr `awaiting_return` for sykdom/skade at fryskortet ennå ikke er friskmeldt; `return_week` regnes fra kalenderdagen i `recoveredAt`, ikke fra første registrerte aktivitet. Kortets varighet avgjør om pausen er lang. Aktivitet inne i sykdomsperioden teller som belastning, men nullstiller ikke oppholdet. For generiske opphold uten fryskort finnes fortsatt den eldre øktdatobaserte fallbacken. Feltet kommer fra `comebackProtocol()` ved ferdigstilling, er forklarende beslutningsgrunnlag og bestemmer ikke målet alene; `target` inngår i valget av laveste effektive ukesmål. En senere endring av comebackstatus skal ikke skrive om fasen i et `final`-snapshot. Eldre snapshots uten `phase` er fortsatt gyldige og allerede ferdigstilte verdier endres ikke av v176y.
+
 Avlastningsukens reduserte **øktmål** kommer fra antall aktive slots i uke 4, ikke fra `volumeFrame`. En varighetsbasert ramme kan dermed fortsatt ha tre planlagte øktroller og gi `effectiveWeeklyTarget: 3` uten konvertering mellom minutter og økter. Volumrammen styrer samlet tid/antall etter sin egen metrikk; slotantallet styrer kontinuitetsmålet.
 
 Samlingen er valgt fremfor et nøklet kart i `settings/preferences` fordi postene har eget livsløp, versjonering, målrettede skriv, konfliktbehandling og historisk uforanderlighet. Den unngår også et stadig voksende/hyppig skrevet settings-dokument og Firestores dokumentgrense. Snapshotet må overleve endring og sletting av planen som skapte reduksjonen.
@@ -330,7 +332,7 @@ En blokk kan opprettes og forhåndsvises under aktivt fryskort eller comeback, m
 - `insufficient_data` er aldri et skjult grønt lys. Når volumvakten mangler grunnlag samtidig som comeback er aktiv, brukes status `restricted_by_comeback`; aggressiv ramp foreslås ikke og kan ikke materialiseres som om den var validert.
 - Aktivt fryskort, comebackstatus, brukt baseline, reduksjonsfaktor og manglende valideringsgrunnlag vises samlet i forhåndsvisningen. Skadesignal og dagsform har alltid prioritet foran blokkens mål.
 
-Runtime-koblingen ble implementert i v176v1: blokkpreviewen mottar samme `comebackProtocol()` som Hjem/coachen, og sykdoms-/skadeuker ekskluderes eksplisitt fra representativ baseline før comebackfaktoren brukes én gang. Selve skrive-/materialiseringssteget er fortsatt sperret og åpnes i en senere, separat runde.
+Runtime-koblingen for volum ble implementert i v176v1, og skriveflyten for bare uke 1 ble senere åpnet. Fra v176y passerer også automatisk foreslåtte roller og maler i oppstartsuken den felles comeback-porten: de blir rolige, mens brukerens uttrykkelige valg beholdes med konfliktvarsel og ikke presenteres som råd. Eksisterende planøkter endres ikke stille. Blokkpreviewen mottar samme fryskortforankrede `comebackProtocol()` som Hjem/coachen, og sykdoms-/skadeuker ekskluderes eksplisitt fra representativ baseline før comebackfaktoren brukes én gang.
 
 ### 3.4 Rolle-, race- og challenge-policy
 
