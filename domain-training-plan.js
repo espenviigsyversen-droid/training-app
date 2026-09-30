@@ -140,7 +140,8 @@ export function garminRoleReviewSummary(completedItems = [], today, rules = DEFA
       (item.date >= relevantFrom ? current : older).push(item);
     } else if (!item.roleSource && !item.templateId
       && (item.source === 'garmin_csv' || item.externalData?.garmin)
-      && canonicalWorkoutRole(item.templateSnapshot.role) === 'other') {
+      // Legacy Garmin snapshots often stored no role at all; v1 then treated them as other.
+      && ['', 'other'].includes(canonicalWorkoutRole(item.templateSnapshot.role))) {
       previousImports.push(item);
     }
   });

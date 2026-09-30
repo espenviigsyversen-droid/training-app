@@ -206,8 +206,8 @@ async function testAsync(name, fn) {
   });
 
   test('v176s2 keeps rare snapshot actions in the day modal and the week overview compact', () => {
-    assert.ok(app.includes("const APP_VERSION = 'v176x1'"));
-    assert.ok(serviceWorker.includes('treningsapp-v176x1'));
+    assert.ok(app.includes("const APP_VERSION = 'v176x2'"));
+    assert.ok(serviceWorker.includes('treningsapp-v176x2'));
     ['./domain-template-snapshot-update.js', './template-snapshot-update-ui.js']
       .forEach(file => assert.ok(serviceWorker.includes(file), `${file} is missing from APP_SHELL`));
     assert.ok(index.includes('id="templateSnapshotUpdateModal"'));
@@ -3728,8 +3728,8 @@ async function testAsync(name, fn) {
     assert.ok(workoutHistoryUiSource.includes('heartRateZoneDistributionRows'), 'history does not use production zone rows');
     assert.ok(workoutHistoryUiSource.includes('Tid i pulssoner'), 'completed detail is missing the heart-rate zone section');
     assert.ok(!workoutHistoryUiSource.includes("row.estimated ? 'ca. '"), 'zone duration should not be prefixed with ca.');
-    assert.ok(app.includes("const APP_VERSION = 'v176x1'"), 'visible app version must be v176x1');
-    assert.ok(serviceWorker.includes('treningsapp-v176x1'), 'cache version must match v176x1');
+    assert.ok(app.includes("const APP_VERSION = 'v176x2'"), 'visible app version must be v176x2');
+    assert.ok(serviceWorker.includes('treningsapp-v176x2'), 'cache version must match v176x2');
   });
 
   test('v174b evaluates easy and quality sessions without treating zone percentages as a hard truth', () => {
@@ -3824,8 +3824,8 @@ async function testAsync(name, fn) {
     assert.ok(index.includes('id="insightHeartRateComplianceCard"'), 'Insights is missing the compliance card');
     assert.ok(app.includes('heartRateZoneComplianceForItems(last28Days)'), 'coach context does not use the canonical compliance summary');
     assert.ok(app.includes('renderHeartRateZoneComplianceInsight(today)'), 'Insights does not render canonical compliance');
-    assert.ok(app.includes("const APP_VERSION = 'v176x1'"), 'visible app version must be v176x1');
-    assert.ok(serviceWorker.includes('treningsapp-v176x1'), 'cache version must match v176x1');
+    assert.ok(app.includes("const APP_VERSION = 'v176x2'"), 'visible app version must be v176x2');
+    assert.ok(serviceWorker.includes('treningsapp-v176x2'), 'cache version must match v176x2');
   });
 
   test('v174c uses the test profile for zones and keeps the golden zone as a separate coach reference', () => {
@@ -4162,12 +4162,14 @@ async function testAsync(name, fn) {
     });
     const items = [create('new-current', '2026-08-03'), create('new-older', '2026-08-02'),
       { ...create('old-import', '2026-09-29'), roleSource: undefined },
+      { ...create('old-blank-role', '2026-03-05'), source: '', externalData: { garmin: {} },
+        roleSource: undefined, templateSnapshot: { name: 'Running', type: 'Løping', role: '' } },
       { ...create('legacy', '2026-09-29'), templateSnapshot: null }];
     const summary = planner.garminRoleReviewSummary(items, '2026-09-30', coachRulesJson);
     assert.strictEqual(summary.relevantFrom, '2026-08-03');
     assert.deepStrictEqual(summary.current.map(item => item.id), ['new-current']);
     assert.deepStrictEqual(summary.older.map(item => item.id), ['new-older']);
-    assert.deepStrictEqual(summary.previousImports.map(item => item.id), ['old-import']);
+    assert.deepStrictEqual(summary.previousImports.map(item => item.id), ['old-import', 'old-blank-role']);
     assert.deepStrictEqual(summary.legacyWithoutSnapshot.map(item => item.id), ['legacy']);
     const longerIntensity = structuredClone(coachRulesJson);
     longerIntensity.thresholds.intensityBalance.windowDays = 90;
@@ -4175,6 +4177,20 @@ async function testAsync(name, fn) {
     const longerLongRun = structuredClone(coachRulesJson);
     longerLongRun.thresholds.workoutRoles.longEasy.lookbackWeeks = 10;
     assert.strictEqual(planner.garminRoleReviewSummary(items, '2026-09-30', longerLongRun).relevantFrom, '2026-07-20');
+  });
+
+  test('v176x2 old Garmin snapshots with blank roles remain visible without an actionable alert', () => {
+    const oldImports = Array.from({ length: 20 }, (_, index) => ({
+      id: `old-${index}`, date: '2026-03-05', templateId: '', source: '',
+      externalData: { garmin: { activityId: `garmin-${index}` } },
+      templateSnapshot: { name: 'Running', type: 'Løping', intensity: '', role: '' }
+    }));
+    const summary = planner.garminRoleReviewSummary(oldImports, '2026-09-30', coachRulesJson);
+    assert.strictEqual(summary.current.length, 0);
+    assert.strictEqual(summary.older.length, 0);
+    assert.strictEqual(summary.previousImports.length, 20);
+    assert.strictEqual(summary.legacyWithoutSnapshot.length, 0);
+    assert.ok(workoutHistoryUiSource.includes('summary.previousImports.length} tidligere importerte økter'));
   });
 
   test('v176x explicit role correction preserves measurements and legacy classification', () => {
@@ -4517,8 +4533,8 @@ async function testAsync(name, fn) {
     assert.ok(trainingImportControllerSource.includes("action: duplicate ? 'skip'"), 'duplicates should be skipped by default');
     assert.ok(!trainingImportControllerSource.includes('heartRateZoneDistribution'), 'controller must not synthesize pulse zones');
     assert.ok(styles.includes('.garmin-import-row'), 'Garmin preview styling is missing');
-    assert.ok(app.includes("const APP_VERSION = 'v176x1'"));
-    assert.ok(serviceWorker.includes('treningsapp-v176x1'));
+    assert.ok(app.includes("const APP_VERSION = 'v176x2'"));
+    assert.ok(serviceWorker.includes('treningsapp-v176x2'));
   });
 
   test('structured interval UI fields and summaries are wired into production files', () => {

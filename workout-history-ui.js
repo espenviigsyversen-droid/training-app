@@ -589,7 +589,7 @@ export function createWorkoutHistoryUi({
         ${summary.older.map(roleReviewItem).join('')}
       </details>` : ''}
       ${summary.previousImports.length ? `<p class="small-note role-review-legacy">${summary.previousImports.length} tidligere importerte økter kan gjennomgås når neste runde er klar.</p>` : ''}
-      ${summary.legacyWithoutSnapshot.length ? `<p class="small-note role-review-legacy">${summary.legacyWithoutSnapshot.length} eldre økter uten malsnapshot holdes i en egen gruppe til senere gjennomgang.</p>` : ''}
+      ${summary.legacyWithoutSnapshot.length ? `<p class="small-note role-review-legacy">${summary.legacyWithoutSnapshot.length} eldre økt${summary.legacyWithoutSnapshot.length === 1 ? '' : 'er'} uten malsnapshot venter på separat gjennomgang.</p>` : ''}
     </div>`;
   }
 

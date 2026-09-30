@@ -1,5 +1,13 @@
 # Treningsapp — progress.md
-Oppdatert: 2026-09-30 (siste runtime-endring: v176x1)
+Oppdatert: 2026-09-30 (siste runtime-endring: v176x2)
+
+---
+
+## v176x2 – eldre Garmin-økter synlige uten varselbrikke
+
+**Implementert i runtime:** Logg-notisen inkluderer nå eldre Garmin-økter uten malkobling også når det gamle malsnapshotet har tom lagret rolle. Backupen 30. september viste 20 slike økter fra februar–april: de var tidligere usynlige fordi filteret krevde eksplisitt `other`. Hovedtelleren er fortsatt 0 når ingen ny, rettbar økt mangler rolle; de eldre vises som en rolig notis til leveranse 2. Den separate legacy-gruppen uten malsnapshot får korrekt entallsform. APP_VERSION og CACHE_NAME er v176x2. Ingen øktdata eller intensitetsberegning er endret.
+
+**Bare vurdert / ikke implementert i runtime:** Et separat signal for gjentatt «Hardere enn planlagt» på Hjem, coach-overskrift som følger soneetterlevelse, og mer presist opphav etter bekreftet «Oppdater fra mal».
 
 ---
 

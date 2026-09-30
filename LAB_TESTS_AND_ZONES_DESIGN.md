@@ -28,6 +28,8 @@ Rapporten fra Idrettens testsenter, datert 1. august 2026, angir:
 
 Disse verdiene er brukerdata og hardkodes ikke som appens standard. De registreres i Setup og kan redigeres senere.
 
+**Bevisst forskjell mellom målt og brukt makspuls:** Labtesten nådde 183 bpm. Testlederen anbefalte å legge til 4–5 slag fordi det er vanskelig å presse seg helt til faktisk makspuls i testen. Brukeren og coachen valgte derfor 188 bpm som arbeidsverdi i personprofilen. `heartRateZoneSets.maxHeartRate: 183` beskriver det målte testresultatet og den opprinnelige rapportens soner; `personProfile.maxHeartRate: 188` er den bevisst valgte verdien appen bruker i prosent-av-maks-vurderinger. Dette er ikke en datainkonsistens som skal «rettes» automatisk. Endring av én av verdiene krever et eksplisitt bruker-/faglig valg og skal ikke stille overskrive den andre.
+
 ## Datamodell v1
 
 ```js
