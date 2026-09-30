@@ -893,6 +893,18 @@ export function canonicalIntensityBalance(completedItems = [], options = {}) {
   };
 }
 
+// Presentation only: sparse samples must not look like a certain intensity distribution.
+// Keep the underlying counts/shares available to coach logic and evidence disclosures.
+export function intensityBalanceDisplay(balance = {}) {
+  const classifiedCount = Math.max(0, Number(balance.classifiedCount) || 0);
+  const totalCount = Math.max(0, Number(balance.totalCount) || 0);
+  const showDistribution = balance.verdict !== 'insufficient_data' && classifiedCount > 0;
+  const summary = classifiedCount === 0
+    ? 'Ingen klassifiserte økter i perioden'
+    : `${classifiedCount} klassifisert${classifiedCount === 1 ? '' : 'e'} av ${totalCount} økt${totalCount === 1 ? '' : 'er'}${showDistribution ? '' : ' · for lite grunnlag for prosentfordeling'}`;
+  return { showDistribution, summary };
+}
+
 export function workoutHeartRateCompliance(input = {}) {
   const completed = input.completed && typeof input.completed === 'object' ? input.completed : {};
   const template = input.template && typeof input.template === 'object' ? input.template : {};

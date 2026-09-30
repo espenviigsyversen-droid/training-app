@@ -1,5 +1,13 @@
 # Treningsapp — progress.md
-Oppdatert: 2026-09-30 (siste runtime-endring: v176x)
+Oppdatert: 2026-09-30 (siste runtime-endring: v176x1)
+
+---
+
+## v176x1 – ærlig intensitetsvisning ved lite grunnlag
+
+**Implementert i runtime:** Hjem og Innsikt viser nøytral stripe og antall når færre enn tre økter er klassifisert i intensitetsvinduet. Ved null klassifiserte vises «Ingen klassifiserte økter i perioden», uten prosentfordeling. Den kanoniske coach-beregningen og mål-score er uendret; underliggende counts og shares beholdes som evidens. Stabilitetstester dekker bare `other`-økter og to `Terskel`-økter som ellers ville gitt en misvisende 100 %-stripe. APP_VERSION og CACHE_NAME er v176x1.
+
+**Fortsatt bare design / ikke implementert i runtime:** Leveranse 2 skal varsle om konflikt mellom valgt rolle og lagret intensitet, og tilby separat, feltvis bekreftet retting av begge i samme handling. Historisk Garmin-opprydding er ikke bygget i denne runden.
 
 ---
 

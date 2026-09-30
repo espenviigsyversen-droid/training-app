@@ -206,8 +206,8 @@ async function testAsync(name, fn) {
   });
 
   test('v176s2 keeps rare snapshot actions in the day modal and the week overview compact', () => {
-    assert.ok(app.includes("const APP_VERSION = 'v176x'"));
-    assert.ok(serviceWorker.includes('treningsapp-v176x'));
+    assert.ok(app.includes("const APP_VERSION = 'v176x1'"));
+    assert.ok(serviceWorker.includes('treningsapp-v176x1'));
     ['./domain-template-snapshot-update.js', './template-snapshot-update-ui.js']
       .forEach(file => assert.ok(serviceWorker.includes(file), `${file} is missing from APP_SHELL`));
     assert.ok(index.includes('id="templateSnapshotUpdateModal"'));
@@ -603,6 +603,7 @@ async function testAsync(name, fn) {
     calculatePaceMetrics,
     canonicalIntensityBalance,
     classifyWorkoutIntensityContext,
+    intensityBalanceDisplay,
     completedDurationSeconds,
     challengeProgress,
     challengeRemainingLabel,
@@ -3727,8 +3728,8 @@ async function testAsync(name, fn) {
     assert.ok(workoutHistoryUiSource.includes('heartRateZoneDistributionRows'), 'history does not use production zone rows');
     assert.ok(workoutHistoryUiSource.includes('Tid i pulssoner'), 'completed detail is missing the heart-rate zone section');
     assert.ok(!workoutHistoryUiSource.includes("row.estimated ? 'ca. '"), 'zone duration should not be prefixed with ca.');
-    assert.ok(app.includes("const APP_VERSION = 'v176x'"), 'visible app version must be v176x');
-    assert.ok(serviceWorker.includes('treningsapp-v176x'), 'cache version must match v176x');
+    assert.ok(app.includes("const APP_VERSION = 'v176x1'"), 'visible app version must be v176x1');
+    assert.ok(serviceWorker.includes('treningsapp-v176x1'), 'cache version must match v176x1');
   });
 
   test('v174b evaluates easy and quality sessions without treating zone percentages as a hard truth', () => {
@@ -3823,8 +3824,8 @@ async function testAsync(name, fn) {
     assert.ok(index.includes('id="insightHeartRateComplianceCard"'), 'Insights is missing the compliance card');
     assert.ok(app.includes('heartRateZoneComplianceForItems(last28Days)'), 'coach context does not use the canonical compliance summary');
     assert.ok(app.includes('renderHeartRateZoneComplianceInsight(today)'), 'Insights does not render canonical compliance');
-    assert.ok(app.includes("const APP_VERSION = 'v176x'"), 'visible app version must be v176x');
-    assert.ok(serviceWorker.includes('treningsapp-v176x'), 'cache version must match v176x');
+    assert.ok(app.includes("const APP_VERSION = 'v176x1'"), 'visible app version must be v176x1');
+    assert.ok(serviceWorker.includes('treningsapp-v176x1'), 'cache version must match v176x1');
   });
 
   test('v174c uses the test profile for zones and keeps the golden zone as a separate coach reference', () => {
@@ -4516,8 +4517,8 @@ async function testAsync(name, fn) {
     assert.ok(trainingImportControllerSource.includes("action: duplicate ? 'skip'"), 'duplicates should be skipped by default');
     assert.ok(!trainingImportControllerSource.includes('heartRateZoneDistribution'), 'controller must not synthesize pulse zones');
     assert.ok(styles.includes('.garmin-import-row'), 'Garmin preview styling is missing');
-    assert.ok(app.includes("const APP_VERSION = 'v176x'"));
-    assert.ok(serviceWorker.includes('treningsapp-v176x'));
+    assert.ok(app.includes("const APP_VERSION = 'v176x1'"));
+    assert.ok(serviceWorker.includes('treningsapp-v176x1'));
   });
 
   test('structured interval UI fields and summaries are wired into production files', () => {
@@ -4796,6 +4797,39 @@ async function testAsync(name, fn) {
     ], { todayIso: '2026-07-09' });
     assert.strictEqual(balance.verdict, 'insufficient_data');
     assert.strictEqual(balance.status, 'neutral');
+    assert.strictEqual(intensityBalanceDisplay(balance).showDistribution, false);
+    assert.match(intensityBalanceDisplay(balance).summary, /1 klassifisert av 1 økt/);
+  });
+
+  test('v176x1 intensity display is neutral with only other workouts in the window', () => {
+    const balance = canonicalIntensityBalance([
+      { date: '2026-09-25', template: { name: 'Oppegård Running', intensity: '', role: 'other' } },
+      { date: '2026-09-27', template: { name: 'Øyer Running', intensity: '', role: 'other' } }
+    ], { todayIso: '2026-09-30' });
+    assert.strictEqual(balance.totalCount, 2);
+    assert.strictEqual(balance.unknownCount, 2);
+    assert.strictEqual(balance.classifiedCount, 0);
+    assert.strictEqual(balance.verdict, 'insufficient_data');
+    assert.deepStrictEqual(intensityBalanceDisplay(balance), {
+      showDistribution: false,
+      summary: 'Ingen klassifiserte økter i perioden'
+    });
+  });
+
+  test('v176x1 intensity display suppresses a 100 percent hard bar below minimum sample', () => {
+    const balance = canonicalIntensityBalance([
+      { date: '2026-09-25', template: { name: 'Oppegård Running', intensity: 'Terskel', role: 'main_threshold' } },
+      { date: '2026-09-27', template: { name: 'Øyer Running', intensity: 'Terskel', role: 'x_workout' } }
+    ], { todayIso: '2026-09-30' });
+    assert.strictEqual(balance.classifiedCount, 2);
+    assert.strictEqual(balance.hardShare, 100, 'the underlying coach calculation stays unchanged');
+    assert.strictEqual(balance.verdict, 'insufficient_data');
+    assert.deepStrictEqual(intensityBalanceDisplay(balance), {
+      showDistribution: false,
+      summary: '2 klassifiserte av 2 økter · for lite grunnlag for prosentfordeling'
+    });
+    assert.ok(app.includes('display.showDistribution ? `<div class="easy"'));
+    assert.ok(app.includes('display.showDistribution ? stack :'), 'Insight must also suppress sparse distribution bars');
   });
 
   test('canonical intensity balance reads thresholds from coach rules', () => {

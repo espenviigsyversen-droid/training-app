@@ -65,6 +65,8 @@ Første runde leverer inngangen og lesbar liste. Gamle Garmin-økter som ennå i
 
 I leveranse 2 vises for hver av de 22 aktuelle øktene de samme faktiske feltene som ved import, en tom rollevelger og feltvis gammel/ny-verdi (`templateSnapshot.role`, `roleClassificationVersion`, `roleSource`, eventuelt vurderingstidspunkt). Valg: «Bekreft valgt rolle», «Annet» eller «Bestem senere». En samlet lagrehandling er tillatt først når **hver endret økt er listet og eksplisitt bekreftet**. Ingen «bruk på alle». Utsatte økter blir i listen. Brukeren kan også velge en separat malkobling, men bare med full snapshot-diff og egen bekreftelse; det er ikke nødvendig for å rette rollen.
 
+**Rolle og lagret intensitet må vurderes sammen ved opprydding.** Hvis valgt rolle er `easy` mens frosset `templateSnapshot.intensity` er `Terskel`, eller tilsvarende felt åpenbart motsier hverandre, skal forhåndsvisningen flagge dette før bekreftelse. En rolle-only retting endrer fortsatt aldri intensitet automatisk. Brukeren kan i samme individuelt bekreftede handling velge en eksplisitt intensitetsretting; diffen viser begge felt med gammel og ny verdi, og konsekvensvisningen beregnes fra **begge** valgene. Det skal være mulig å la intensiteten stå uendret etter synlig advarsel. En eksisterende `templateId` eller malkobling må ikke skjules når det frosne snapshotet blir rettet separat fra malen. Eksempelet fra 25. og 27. september 2026 viser hvorfor: «Oppdater fra mal» ga begge økter `Terskel`-intensitet, mens en senere ren rolleendring til `easy` ellers ville gitt motstridende metadata.
+
 Før skriving vises en konsekvensvisning fra det faktisk valgte settet, beregnet mot dagens state uten å endre den:
 
 - antall som får bekreftet `easy`, `long_easy`, kvalitet, `other` eller forblir uklassifisert
@@ -93,6 +95,7 @@ Rene tester skal kalle produksjonsmodulen, ikke kopiere reglene:
 - Hovedtelleren bruker det lengste regelstyrte datovinduet, men i leveranse 1 teller den bare nye `unclassified`-økter som kan rettes. Gamle importer er en ikke-tellende notis fram til leveranse 2. Eldre økter ligger uten varselbrikke i separat gruppe. En eldre kandidat kan fortsatt påvirke «Form ved samme innsats», som ikke har datogrense i dagens kode.
 - Konsekvensvisningen viser aktivering ved 5 → 6 gyldige referanser, og ingen eksisterende frosset historisk rolle omskrives av den nye grensen.
 - Enkeltvise diff-bekreftelser og batchrevalidering beskytter mot stille overskriving; ugyldig/ukjent `roleSource` normaliseres uten datatap.
+- Leveranse 2: `easy` valgt mot lagret `Terskel` gir synlig konflikt. Valgt intensitetsretting vises feltvis sammen med rolle og krever individuell bekreftelse; å bare velge rolle får aldri intensiteten til å endres automatisk.
 
 Manuell kontroll på 390 px i leveranse 1: importer en umatchet rolig løpetur, se faktiske øktdata og **tomt** rollevalg, velg «Bestem senere» og finn den i Logg; importer også en økt med direkte rollevalg uten mal, se opphav i detaljen og kontroller at volum beholdes. I leveranse 2: rett den utsatte økten fra Logg, kontroller oppdatert rolledekning, og gjennomgå de eksisterende Garmin-øktene med før/etter-konsekvens og backup. Eldre gruppe, v1-historikk og legacy uten snapshot kontrolleres separat.
 

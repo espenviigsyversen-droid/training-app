@@ -13,6 +13,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       calculatePaceMetrics,
       canonicalIntensityBalance,
       classifyWorkoutIntensityContext,
+      intensityBalanceDisplay,
       completedDurationSeconds,
       buildStructuredWorkout,
       challengeProgress as challengeProgressCore,
@@ -196,7 +197,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     } from './domain-template-snapshot-update.js';
     import { createTemplateSnapshotUpdateUi } from './template-snapshot-update-ui.js';
 
-const APP_VERSION = 'v176x';
+const APP_VERSION = 'v176x1';
     const APP_CACHE_NAME = `treningsapp-${APP_VERSION}`;
 
     const firebaseConfig = {
@@ -4978,7 +4979,8 @@ const APP_VERSION = 'v176x';
 
     function heroIntensityHtml(ctx) {
       const balance = ctx.intensityBalance14;
-      if (!balance?.classifiedCount) return '';
+      if (!balance) return '';
+      const display = intensityBalanceDisplay(balance);
       const lowPct = balance.easyShare;
       const hardPct = balance.hardShare;
       const status = balance.status;
@@ -4988,13 +4990,13 @@ const APP_VERSION = 'v176x';
           <span>Intensitetsbalanse · ${balance.windowDays} dager</span>
           <strong class="${status}">${escapeHtml(label)}</strong>
         </div>
-        <div class="hero-intensity-track" aria-label="${escapeHtml(balance.explanation)}">
-          <div class="easy" style="width:${lowPct}%;"></div>
-          <div class="hard" style="width:${hardPct}%;"></div>
+        <div class="hero-intensity-track" aria-label="${escapeHtml(display.showDistribution ? balance.explanation : display.summary)}">
+          ${display.showDistribution ? `<div class="easy" style="width:${lowPct}%;"></div><div class="hard" style="width:${hardPct}%;"></div>` : ''}
         </div>
         <div class="hero-intensity-labels">
-          <span>Rolig/base ${lowPct}%</span>
-          <span>Hard ${hardPct}%</span>
+          ${display.showDistribution
+            ? `<span>Rolig/base ${lowPct}%</span><span>Hard ${hardPct}%</span>`
+            : `<span>${escapeHtml(display.summary)}</span>`}
         </div>`;
     }
 
@@ -6504,6 +6506,7 @@ const APP_VERSION = 'v176x';
     }
 
     function intensityBalanceCard(items, profile, contextSummary, balance) {
+      const display = intensityBalanceDisplay(balance);
       const summary = summarizeTrainingEffects(items);
       const categories = Object.values(summary.categories);
       const basis = summary.seconds > 0 ? 'seconds' : 'count';
@@ -6531,9 +6534,11 @@ const APP_VERSION = 'v176x';
           </div>
           <strong class="intensity-verdict">${escapeHtml(balance.label)}</strong>
           <p class="intensity-coach-line">${escapeHtml(balance.explanation)}</p>
-          <div class="intensity-stack">${stack}</div>
-          <div class="intensity-quick-grid">${intensityCategoryRows(summary)}</div>
-          <p class="intensity-context-line">${escapeHtml(intensityCompactContext(contextSummary))}</p>
+          <div class="intensity-stack" aria-label="${escapeHtml(display.showDistribution ? balance.explanation : display.summary)}">${display.showDistribution ? stack : ''}</div>
+          ${display.showDistribution
+            ? `<div class="intensity-quick-grid">${intensityCategoryRows(summary)}</div>`
+            : `<p class="small-note">${escapeHtml(display.summary)}</p>`}
+          ${display.showDistribution ? `<p class="intensity-context-line">${escapeHtml(intensityCompactContext(contextSummary))}</p>` : ''}
           ${missingText}
         </div>`;
     }
