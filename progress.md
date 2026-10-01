@@ -1,5 +1,13 @@
 # Treningsapp — progress.md
-Oppdatert: 2026-10-01 (siste runtime-endring: v176y2)
+Oppdatert: 2026-10-01 (siste runtime-endring: v176y3)
+
+---
+
+## v176y3 – trygg ferdigstilling av låst ukesmål
+
+**Implementert i runtime:** Utfyllingsløkken velger nå bare avsluttede `final`-snapshots som mangler fryskortvern; en `target_locked`-post kan ikke lenger stanse den før sin ordinære ferdigstilling. Kontinuitetsvisningen sjekker `status === 'final'` eksplisitt før den bruker frosset vern. Felles ren kandidatutvelgelse testes direkte, inkludert at normalisering alltid gir `freezeProtected: null` for en låst uke. Delvis dekning testes mot produksjonens tredagersgrense: to dager gir ikke fryskortvern. `APP_VERSION` og `CACHE_NAME` er v176y3.
+
+**Bare beskrevet / ikke produksjonsverifisert:** Promoteringen av den faktiske uken 28. september–4. oktober kan først kontrolleres etter ukeskiftet 5. oktober. Øvrig rekalibrering og UI/C-runder venter.
 
 ---
 

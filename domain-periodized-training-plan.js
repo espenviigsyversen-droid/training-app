@@ -288,6 +288,13 @@ export function missingWeeklyTargetSnapshotWeeks({
   return missing;
 }
 
+export function weeklyFreezeBackfillCandidates({ snapshots = [], currentWeekStart = '' } = {}) {
+  const current = validIsoDate(currentWeekStart);
+  if (!current) return [];
+  return normalizeWeeklyTargetSnapshots(snapshots)
+    .filter(item => item.status === 'final' && item.weekStart < current && item.freezeProtected === null);
+}
+
 export function weeklyContinuityOutcome({ sessions = 0, target = 1, freezeProtected = false } = {}) {
   const normalizedSessions = Math.max(0, Math.round(Number(sessions) || 0));
   const normalizedTarget = positiveSessionTarget(target, 1);

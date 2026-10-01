@@ -166,6 +166,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
       normalizeWeeklyTargetSnapshots,
       upsertOpenWeeklyTargetCandidate,
       withWeeklyFreezeProtection,
+      weeklyFreezeBackfillCandidates,
       weeklyTargetComebackReadWindow,
       weeklyContinuityOutcome,
       weeklyContinuitySummary
@@ -199,7 +200,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     } from './domain-template-snapshot-update.js';
     import { createTemplateSnapshotUpdateUi } from './template-snapshot-update-ui.js';
 
-const APP_VERSION = 'v176y2';
+const APP_VERSION = 'v176y3';
     const APP_CACHE_NAME = `treningsapp-${APP_VERSION}`;
 
     const firebaseConfig = {
@@ -877,8 +878,7 @@ const APP_VERSION = 'v176y2';
 
     function missingWeeklyFreezeProtection(today = todayISO()) {
       const currentWeekStart = startOfWeek(today);
-      return normalizeWeeklyTargetSnapshots(state.weeklyTargetSnapshots)
-        .filter(item => item.status === 'final' && item.weekStart < currentWeekStart && item.freezeProtected === null);
+      return weeklyFreezeBackfillCandidates({ snapshots: state.weeklyTargetSnapshots, currentWeekStart });
     }
 
     function weeklyTargetFoundationNeedsSync(today = todayISO()) {
@@ -971,7 +971,7 @@ const APP_VERSION = 'v176y2';
         if (missingProtection.length) {
           const basis = await trainingRepository.prepareWeeklyFreezeBackfill();
           const serverSnapshots = normalizeWeeklyTargetSnapshots(basis.snapshots);
-          for (const existing of serverSnapshots.filter(item => item.weekStart < currentWeekStart && item.freezeProtected === null)) {
+          for (const existing of weeklyFreezeBackfillCandidates({ snapshots: serverSnapshots, currentWeekStart })) {
             const evidence = continuityFreezeProtectionEvidence(existing.weekStart, basis.freezes, { rules: getCoachRules() });
             const amended = withWeeklyFreezeProtection(existing, evidence, {
               capturedAt: new Date().toISOString(), source: 'legacy_backfill'
@@ -6307,7 +6307,7 @@ const APP_VERSION = 'v176y2';
 
     function freezeWeekSummaryForDisplay(weekStart) {
       const snapshot = normalizeWeeklyTargetSnapshots(state.weeklyTargetSnapshots).find(item => item.weekStart === weekStart);
-      const finalizedProtection = snapshot && snapshot.freezeProtected !== null;
+      const finalizedProtection = snapshot?.status === 'final' && snapshot.freezeProtected !== null;
       const evidence = finalizedProtection
         ? snapshot.freezeProtection
         : continuityFreezeProtectionEvidence(weekStart, state.continuityFreezes, { rules: getCoachRules() });

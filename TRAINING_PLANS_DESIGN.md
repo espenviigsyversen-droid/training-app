@@ -205,12 +205,12 @@ Ny, uavhengig samling:
 
 `users/{uid}/weeklyTargetSnapshots/{weekStart}`
 
-```js
+```text
 {
   version: 1,
   weekStart: "2026-09-07",
   weekEnd: "2026-09-13",
-  status: "final",
+  status: "final" | "target_locked",
   normalTarget: 4,
   effectiveTarget: 3,
   reductions: {
@@ -228,7 +228,9 @@ Avlastningsukens reduserte **øktmål** kommer fra antall aktive slots i uke 4, 
 
 Samlingen er valgt fremfor et nøklet kart i `settings/preferences` fordi postene har eget livsløp, versjonering, målrettede skriv, konfliktbehandling og historisk uforanderlighet. Den unngår også et stadig voksende/hyppig skrevet settings-dokument og Firestores dokumentgrense. Snapshotet må overleve endring og sletting av planen som skapte reduksjonen.
 
-Ved avslutning av en plan i en **pågående** uke lagres ukens mål først med `status: "target_locked"` og `lockedAt`. Dette er et låst målvedtak, ikke en ferdig uke: fryskortvernet vurderes fortsatt levende mens uken pågår. Når uken lukkes, erstatter den vanlige transaksjonsbaserte ferdigstillingen posten med `status: "final"`, bevarer nøyaktig `normalTarget`, `effectiveTarget`, `reductions` og `winningReason` fra låsen, og fryser fryskortvernet fra serverbekreftet grunnlag. En `target_locked`-post regnes derfor fortsatt som en manglende `final`-post etter ukeskiftet. Avslutningens transaksjon skriver mållåsen og planstatus atomisk; eksisterende `final` overskrives aldri.
+Ved avslutning av en plan i en **pågående** uke lagres ukens mål først med `status: "target_locked"` og `lockedAt`. Dette er et låst målvedtak, ikke en ferdig uke. `freezeProtected: null` betyr **uavklart**, ikke `false` (avgjort ubeskyttet); fryskortvernet vurderes fortsatt levende mens uken pågår. En `target_locked`-post regnes som en manglende `final`-post etter ukeskiftet. Da kan den vanlige transaksjonsbaserte ferdigstillingen **oppdatere det samme dokumentet fra `target_locked` til `final`**: den bevarer nøyaktig `normalTarget`, `effectiveTarget`, `reductions` og `winningReason` fra låsen, og skriver `freezeProtected`, begrunnelsen i `freezeProtection` og `finalizedAt` fra serverbekreftet grunnlag. Dette er den eneste tillatte statuspromoteringen, ikke en omskriving av et `final`-vedtak. Transaksjonen beholder en eksisterende `final` uendret, også når en annen enhet forsøker samme ferdigstilling. Avslutningens transaksjon skriver mållåsen og planstatus atomisk.
+
+Delvis fryskortdekning avgjøres av `thresholds.streakFreeze.protectedWeekCoverageDays` i den validerte coach-regelkilden (nå **3 kalenderdager**). Unike dager dekket av ikke-arkiverte kort innenfor ISO-uken telles én gang hver, også når kortet er avsluttet. Minst tre dager gir `freezeProtected: true`; null til to dager gir `false`. `coveredDays`, kort-ID-er og årsaker lagres som begrunnelse, også når utfallet er `false`. For 28. september–4. oktober dekker kortet som sluttet 29. september bare 28. og 29. september: forventet `coveredDays: 2` og `freezeProtected: false`. Uken teller likevel på egne premisser når to økter er gjennomført mot mål to.
 
 Selve innføringsgrensen lagres én gang som et lite policyfelt, for eksempel `settings.preferences.weeklyTargetSnapshotPolicy = { version: 1, effectiveFrom: "2026-08-17" }`. Dette er metadata, ikke et voksende ukekart. `effectiveFrom` settes til starten på inneværende ISO-uke når mekanismen aktiveres og flyttes aldri senere. Dermed kan snapshotplikten avgjøres også etter at en plan er slettet. `snapshotPolicyVersion` på planen dokumenterer hvilken policy planen ble opprettet under.
 
@@ -254,7 +256,7 @@ For en avsluttet uke brukes alltid et `final` snapshot. Snapshotet ferdigstilles
 
 Avslutning midt i en pågående uke er et særtilfelle. Før planstatus endres, låses ukens mål med reduksjonen som faktisk gjaldt. Uken ferdigstilles først etter ukeskiftet, slik at senere fryskortvern i samme uke ikke går tapt. Bekreftelsen skal vise:
 
-> Avlastningsmålet for denne uken fryses til 3 økter før planen slettes. Historisk kontinuitet påvirkes ikke.
+> Ukas mål fryses til 3 økter før planen avsluttes. Historisk kontinuitet påvirkes ikke.
 
 Hvis ingen reduksjon gjelder, viser dialogen ordinært mål. Handlingen er atomisk: mållås, eventuelle endringer i fremtidige planøkter og status `cancelled` skrives i én transaksjon.
 
@@ -273,6 +275,8 @@ Snapshotmekanismen og `effectiveWeeklyTargetForWeek()` skal være i produksjon *
 #### Kalibrering og ramme
 
 Opprettelsesflyten foreslår en baseline fra de siste fire til seks representative ukene. Brukeren ser både metrikk, dekning og verdi og må bekrefte den. Blokkrammen lagrer én eksplisitt metrikk: `duration` eller `sessions`.
+
+**Åpent for rekalibreringsrunden, ikke implementert her:** lagret `calibration.userConfirmed: true` uten `calculatedAt` eller uforanderlig bekreftelsesgrunnlag er ikke etterprøvbar kalibrering. En slik legacy-plan, særlig når `excludedWeekCount` siden har endret seg, må få ny kandidat og eksplisitt bekreftelse før materialisering. Ved avslutning må avledede tillatelsesfelter som `canMaterialize` ikke lenger fremstå som aktive; `safety` og kalibreringsgrunnlag skal behandles som historiske opprettelsesdata eller tydelig ugyldiggjøres, ikke stilletiende tolkes som dagens comebackstatus. Dette omfatter den observerte planen `preview-1788116198890` med tom `createdAt`/`calculatedAt`, tidligere `recoveryRegistered: false` og `weekFactor: 0.8`. Ingen av disse feltene endres på allerede lagrede planer av denne dokumentasjonsrettelsen.
 
 Eksempel med 180 minutter per uke:
 
