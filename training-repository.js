@@ -78,7 +78,7 @@ export function createTrainingRepository({
     await batch.commit();
   }
 
-  async function prepareWeeklyTargetFinalization({ completedStart, completedEnd } = {}) {
+  async function prepareWeeklyTargetFinalization({ completedStart, completedEnd, weekStarts = [] } = {}) {
     if (typeof waitForPendingWrites !== 'function'
       || typeof getDocFromServer !== 'function'
       || typeof getDocsFromServer !== 'function'
@@ -102,11 +102,16 @@ export function createTrainingRepository({
       orderBy('date', 'desc'),
       limit(1)
     );
-    const [settingsSnapshot, rangeSnapshot, predecessorSnapshot, freezeSnapshot] = await Promise.all([
+    const targetSnapshotReads = Promise.all([...new Set(weekStarts)].map(async weekStart => ({
+      weekStart,
+      snapshot: await getDocFromServer(userDocument('weeklyTargetSnapshots', weekStart))
+    })));
+    const [settingsSnapshot, rangeSnapshot, predecessorSnapshot, freezeSnapshot, targetSnapshots] = await Promise.all([
       getDocFromServer(userDocument('settings', 'preferences')),
       getDocsFromServer(rangeQuery),
       getDocsFromServer(predecessorQuery),
-      getDocsFromServer(userCollection('continuityFreezes'))
+      getDocsFromServer(userCollection('continuityFreezes')),
+      targetSnapshotReads
     ]);
     if (!settingsSnapshot.exists()) throw new Error('Server-confirmed settings are missing');
     const completedById = new Map();
@@ -116,7 +121,9 @@ export function createTrainingRepository({
     return {
       settings: settingsSnapshot.data(),
       completed: [...completedById.values()].sort((a, b) => String(a.date || '').localeCompare(String(b.date || ''))),
-      freezes: freezeSnapshot.docs.map(item => ({ id: item.id, ...item.data() }))
+      freezes: freezeSnapshot.docs.map(item => ({ id: item.id, ...item.data() })),
+      targetSnapshots: targetSnapshots.filter(item => item.snapshot.exists())
+        .map(item => ({ id: item.weekStart, ...item.snapshot.data() }))
     };
   }
 
@@ -161,9 +168,17 @@ export function createTrainingRepository({
       if (existing.exists() && existing.data()?.status === 'final') {
         return { created: false, snapshot: { id: existing.id || snapshot.id, ...existing.data() } };
       }
+      const locked = existing.exists() && existing.data()?.status === 'target_locked' ? existing.data() : null;
       const { id, ...data } = snapshot;
+      if (locked) {
+        data.normalTarget = locked.normalTarget;
+        data.effectiveTarget = locked.effectiveTarget;
+        data.reductions = locked.reductions;
+        data.winningReason = locked.winningReason;
+        data.lockedAt = locked.lockedAt || '';
+      }
       transaction.set(snapshotRef, data);
-      return { created: true, snapshot };
+      return { created: true, snapshot: { id, ...data } };
     });
   }
 
@@ -269,6 +284,88 @@ export function createTrainingRepository({
     });
   }
 
+  async function cancelTrainingPlan(command = {}) {
+    if (typeof runTransaction !== 'function') throw new Error('Trygg avslutning av planen er ikke tilgjengelig.');
+    const { planId, planRevision, expectedPlan, plan, targetLock } = command;
+    const operations = Array.isArray(command.operations) ? command.operations : [];
+    if (!planId || plan?.id !== planId || plan?.status !== 'cancelled') throw new Error('Planavslutningen er ufullstendig.');
+    const stable = value => JSON.stringify(value, (_key, entry) => entry && typeof entry === 'object' && !Array.isArray(entry)
+      ? Object.keys(entry).sort().reduce((result, key) => { result[key] = entry[key]; return result; }, {}) : entry);
+    return runTransaction(db, async transaction => {
+      const planRef = userDocument('trainingPlans', planId);
+      const planSnapshot = await transaction.get(planRef);
+      if (!planSnapshot.exists()) throw new Error('Planen finnes ikke lenger. Last inn data på nytt.');
+      const currentPlan = planSnapshot.data() || {};
+      const comparablePlan = normalizeState({ trainingPlans: [{ ...currentPlan, id: planId }] })?.trainingPlans?.[0] || currentPlan;
+      if (currentPlan.status !== 'active'
+        || Number(currentPlan.planRevision || 1) !== Number(planRevision)
+        || String(currentPlan.updatedAt || '') !== String(expectedPlan?.updatedAt || '')
+        || stable(comparablePlan.materializations || []) !== stable(expectedPlan?.materializations || [])) {
+        throw new Error('Planen er endret siden bekreftelsen. Last inn data på nytt.');
+      }
+      const itemRefs = operations.map(item => userDocument('planned', item.id));
+      const itemSnapshots = [];
+      for (const ref of itemRefs) itemSnapshots.push(await transaction.get(ref));
+      itemSnapshots.forEach((snapshot, index) => {
+        if (!snapshot.exists()) throw new Error('En planøkt er endret siden bekreftelsen. Last inn data på nytt.');
+        const current = snapshot.data() || {};
+        const expected = operations[index].before || {};
+        const comparableCurrent = normalizeState({ planned: [{ ...current, id: operations[index].id }] })?.planned?.[0] || current;
+        const fields = ['date', 'templateId', 'templateSnapshot', 'planRef', 'userModified',
+          'userModifiedFields', 'planIntentOverride', 'scheduleAdjustment', 'metadataRevision',
+          'status', 'notes', 'repeatGroupId', 'createdAt', 'updatedAt'];
+        if (fields.some(field => stable(comparableCurrent[field] ?? null) !== stable(expected[field] ?? null))
+          || String(current.planRef?.planId || '') !== String(planId)) {
+          throw new Error('En planøkt er endret siden bekreftelsen. Last inn data på nytt.');
+        }
+      });
+      let lockedTarget = null;
+      if (targetLock) {
+        const settingsSnapshot = await transaction.get(userDocument('settings', 'preferences'));
+        if (!settingsSnapshot.exists()
+          || Number(settingsSnapshot.data()?.goals?.weeklySessionsTarget) !== Number(targetLock.normalTarget)) {
+          throw new Error('Ukesmålet er endret siden bekreftelsen. Last inn data på nytt.');
+        }
+        const lockRef = userDocument('weeklyTargetSnapshots', targetLock.id);
+        const existing = await transaction.get(lockRef);
+        if (existing.exists()) {
+          const data = existing.data() || {};
+          if (!['final', 'target_locked'].includes(data.status)
+            || Number(data.effectiveTarget) !== Number(targetLock.effectiveTarget)
+            || Number(data.normalTarget) !== Number(targetLock.normalTarget)
+            || (data.status === 'target_locked' && stable(data.reductions || {}) !== stable(targetLock.reductions || {}))) {
+            throw new Error('Ukens mål er endret på en annen enhet. Last inn data på nytt.');
+          }
+          lockedTarget = { id: targetLock.id, ...data };
+        } else {
+          const { id, ...data } = targetLock;
+          transaction.set(lockRef, data);
+          lockedTarget = targetLock;
+        }
+      }
+      operations.forEach((operation, index) => {
+        if (operation.choice === 'remove') transaction.delete(itemRefs[index]);
+        else {
+          // A loose workout differs from its server record only by planRef.
+          // Preserve unknown legacy fields rather than replacing them with a
+          // normalized client projection.
+          const data = { ...itemSnapshots[index].data() };
+          delete data.planRef;
+          transaction.set(itemRefs[index], data);
+        }
+      });
+      const cancelledPlan = {
+        ...currentPlan,
+        status: 'cancelled',
+        cancelledAt: plan.cancelledAt,
+        updatedAt: plan.updatedAt
+      };
+      delete cancelledPlan.id;
+      transaction.set(planRef, cancelledPlan);
+      return { plan: { id: planId, ...cancelledPlan }, operations, targetLock: lockedTarget };
+    });
+  }
+
   async function load() {
     const snapshots = await Promise.all([
       ...dataCollections.map(name => getDocs(userCollection(name))),
@@ -323,6 +420,7 @@ export function createTrainingRepository({
     confirmImportedWorkoutRole,
     materializeTrainingPlan,
     undoTrainingPlanMaterialization,
+    cancelTrainingPlan,
     replace,
     clearData,
     prepareWeeklyTargetFinalization,

@@ -199,7 +199,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
     } from './domain-template-snapshot-update.js';
     import { createTemplateSnapshotUpdateUi } from './template-snapshot-update-ui.js';
 
-const APP_VERSION = 'v176y1';
+const APP_VERSION = 'v176y2';
     const APP_CACHE_NAME = `treningsapp-${APP_VERSION}`;
 
     const firebaseConfig = {
@@ -878,7 +878,7 @@ const APP_VERSION = 'v176y1';
     function missingWeeklyFreezeProtection(today = todayISO()) {
       const currentWeekStart = startOfWeek(today);
       return normalizeWeeklyTargetSnapshots(state.weeklyTargetSnapshots)
-        .filter(item => item.weekStart < currentWeekStart && item.freezeProtected === null);
+        .filter(item => item.status === 'final' && item.weekStart < currentWeekStart && item.freezeProtected === null);
     }
 
     function weeklyTargetFoundationNeedsSync(today = todayISO()) {
@@ -991,13 +991,15 @@ const APP_VERSION = 'v176y1';
           const completedStart = addDays(firstWeekEnd, -(readWindow.lookbackDays - 1));
           const basis = await trainingRepository.prepareWeeklyTargetFinalization({
             completedStart,
-            completedEnd: lastWeekEnd
+            completedEnd: lastWeekEnd,
+            weekStarts: missingWeeks
           });
           const serverPolicy = normalizeWeeklyTargetSnapshotPolicy(basis.settings?.weeklyTargetSnapshotPolicy);
           if (!serverPolicy.effectiveFrom || serverPolicy.effectiveFrom !== policy.effectiveFrom) {
             throw new Error('Server-confirmed weekly target policy differs from local state');
           }
           const serverNormalTarget = normalizeGoals(basis.settings?.goals).weeklySessionsTarget;
+          const serverTargetLocks = normalizeWeeklyTargetSnapshots(basis.targetSnapshots || []);
           const finalizedAt = new Date().toISOString();
           for (const weekStart of missingWeeks) {
             const weekEnd = addDays(weekStart, 6);
@@ -1019,6 +1021,7 @@ const APP_VERSION = 'v176y1';
                 target: comeback.effectiveWeeklyTarget,
                 phase: comeback.phase
               } : null,
+              targetLock: serverTargetLocks.find(item => item.weekStart === weekStart && item.status === 'target_locked'),
               freezeProtection: continuityFreezeProtectionEvidence(weekStart, basis.freezes, { rules: getCoachRules() }),
               finalizedAt
             });
@@ -3977,6 +3980,72 @@ const APP_VERSION = 'v176y1';
               ...state,
               planned: state.planned.filter(item => !removed.has(item.id)),
               trainingPlans: [...state.trainingPlans.filter(item => item.id !== command.plan.id), command.plan]
+            });
+            await saveLocalStateSnapshot();
+            setSyncStatus('ok');
+            render();
+          },
+          getWeeklyTargetDecision: weekStart => {
+            const normalTarget = normalizeGoals(state.settings?.goals).weeklySessionsTarget;
+            // Lock the goal actually used by Home today; do not invent a plan
+            // reduction that the live weekly-target path has not applied.
+            const today = todayISO();
+            const comeback = comebackProtocol((state.completed || []).filter(item => item.date && item.date <= today), {
+              todayIso: today, weeklyTarget: normalTarget,
+              recoveryDate: latestContinuityRecoveryDate(),
+              continuityFreezes: state.continuityFreezes || [], rules: getCoachRules()
+            });
+            return weeklyTargetDecisionForWeek(weekStart, { normalTarget, comeback });
+          },
+          commitCancellation: async command => {
+            if (!currentUser?.uid || !navigator.onLine || offlineSnapshotMode) {
+              throw new Error('Du må være innlogget og tilkoblet for å avslutte planen.');
+            }
+            if (command.targetLock) {
+              const today = todayISO();
+              const readWindow = weeklyTargetComebackReadWindow(getCoachRules());
+              const basis = await trainingRepository.prepareWeeklyTargetFinalization({
+                completedStart: addDays(today, -(readWindow.lookbackDays - 1)),
+                completedEnd: today,
+                weekStarts: [command.targetLock.weekStart]
+              });
+              const serverNormalTarget = normalizeGoals(basis.settings?.goals).weeklySessionsTarget;
+              const serverPolicy = normalizeWeeklyTargetSnapshotPolicy(basis.settings?.weeklyTargetSnapshotPolicy);
+              const recoveryDate = (basis.freezes || [])
+                .filter(item => item?.recoveredAt && ['sick', 'injury'].includes(String(item.reason || '')))
+                .map(item => String(item.recoveredAt)).sort().at(-1) || '';
+              const serverComeback = comebackProtocol(basis.completed || [], {
+                todayIso: today, weeklyTarget: serverNormalTarget, recoveryDate,
+                continuityFreezes: basis.freezes, rules: getCoachRules()
+              });
+              const serverDecision = effectiveWeeklyTargetForWeek({
+                weekStart: command.targetLock.weekStart,
+                normalTarget: serverNormalTarget,
+                snapshotEffectiveFrom: serverPolicy.effectiveFrom,
+                snapshots: basis.targetSnapshots,
+                comebackReduction: serverComeback.active ? {
+                  active: true, target: serverComeback.effectiveWeeklyTarget, phase: serverComeback.phase
+                } : null
+              });
+              if (serverNormalTarget !== command.targetLock.normalTarget
+                || serverDecision.target !== command.targetLock.effectiveTarget
+                || !serverPolicy.effectiveFrom) {
+                throw new Error('Ukens mål er endret siden du åpnet bekreftelsen. Synkroniser og se gjennom planen på nytt.');
+              }
+            }
+            const recoverySaved = await saveRecoverySnapshot('before-training-plan-cancellation');
+            if (!recoverySaved) throw new Error('Kunne ikke opprette gjenopprettingskopi. Planen er ikke endret.');
+            setSyncStatus('syncing');
+            const result = await trainingRepository.cancelTrainingPlan(command);
+            const removed = new Set(result.operations.filter(item => item.choice === 'remove').map(item => item.id));
+            const detached = new Map(result.operations.filter(item => item.choice === 'keep').map(item => [item.id, item.after]));
+            state = normalizeAppState({
+              ...state,
+              planned: state.planned.filter(item => !removed.has(item.id)).map(item => detached.get(item.id) || item),
+              trainingPlans: [...state.trainingPlans.filter(item => item.id !== result.plan.id), result.plan],
+              weeklyTargetSnapshots: result.targetLock
+                ? [...state.weeklyTargetSnapshots.filter(item => item.id !== result.targetLock.id), result.targetLock]
+                : state.weeklyTargetSnapshots
             });
             await saveLocalStateSnapshot();
             setSyncStatus('ok');

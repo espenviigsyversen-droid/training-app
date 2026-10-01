@@ -228,6 +228,8 @@ Avlastningsukens reduserte **øktmål** kommer fra antall aktive slots i uke 4, 
 
 Samlingen er valgt fremfor et nøklet kart i `settings/preferences` fordi postene har eget livsløp, versjonering, målrettede skriv, konfliktbehandling og historisk uforanderlighet. Den unngår også et stadig voksende/hyppig skrevet settings-dokument og Firestores dokumentgrense. Snapshotet må overleve endring og sletting av planen som skapte reduksjonen.
 
+Ved avslutning av en plan i en **pågående** uke lagres ukens mål først med `status: "target_locked"` og `lockedAt`. Dette er et låst målvedtak, ikke en ferdig uke: fryskortvernet vurderes fortsatt levende mens uken pågår. Når uken lukkes, erstatter den vanlige transaksjonsbaserte ferdigstillingen posten med `status: "final"`, bevarer nøyaktig `normalTarget`, `effectiveTarget`, `reductions` og `winningReason` fra låsen, og fryser fryskortvernet fra serverbekreftet grunnlag. En `target_locked`-post regnes derfor fortsatt som en manglende `final`-post etter ukeskiftet. Avslutningens transaksjon skriver mållåsen og planstatus atomisk; eksisterende `final` overskrives aldri.
+
 Selve innføringsgrensen lagres én gang som et lite policyfelt, for eksempel `settings.preferences.weeklyTargetSnapshotPolicy = { version: 1, effectiveFrom: "2026-08-17" }`. Dette er metadata, ikke et voksende ukekart. `effectiveFrom` settes til starten på inneværende ISO-uke når mekanismen aktiveres og flyttes aldri senere. Dermed kan snapshotplikten avgjøres også etter at en plan er slettet. `snapshotPolicyVersion` på planen dokumenterer hvilken policy planen ble opprettet under.
 
 ## 3. Policy
@@ -250,11 +252,11 @@ For en avsluttet uke brukes alltid et `final` snapshot. Snapshotet ferdigstilles
 2. før en plan redigeres, avsluttes eller slettes
 3. før streak beregnes dersom snapshot mangler for en snapshot-pliktig uke
 
-Sletting midt i en pågående uke er et særtilfelle. Før planen fjernes, ferdigstilles inneværende uke med reduksjonen som faktisk gjaldt. Bekreftelsen skal vise:
+Avslutning midt i en pågående uke er et særtilfelle. Før planstatus endres, låses ukens mål med reduksjonen som faktisk gjaldt. Uken ferdigstilles først etter ukeskiftet, slik at senere fryskortvern i samme uke ikke går tapt. Bekreftelsen skal vise:
 
 > Avlastningsmålet for denne uken fryses til 3 økter før planen slettes. Historisk kontinuitet påvirkes ikke.
 
-Hvis ingen reduksjon gjelder, viser dialogen ordinært mål. Handlingen er atomisk eller gjenopptakbar: snapshot må være lagret før planstatus kan settes til slettet/kansellert.
+Hvis ingen reduksjon gjelder, viser dialogen ordinært mål. Handlingen er atomisk: mållås, eventuelle endringer i fremtidige planøkter og status `cancelled` skrives i én transaksjon.
 
 Uker før `snapshotEffectiveFrom` bruker eksisterende legacy-logikk og `goals.weeklySessionsTarget`. Systemet skal ikke rekonstruere gamle avlastnings- eller comebackmål. Eksisterende streak skal derfor ikke endres i denne runden.
 
@@ -597,7 +599,7 @@ Ved kroppssignalkonflikt kommer sikkerhetsbudskapet først:
 
 ### 6.4 Blokk fullført
 
-Når uke 4 er avsluttet, får planen status `completed`. Oppsummeringen viser rolledekning, gjennomført volum mot rammene, brukerendringer og relevante kroppssignal/sikkerhetsavvik. Den skal ikke gi karakter eller automatisk foreslå ny belastning.
+Når uke 4 er avsluttet **og faktisk planoppfølging er evaluert**, kan planen få status `completed`. Passert sluttdato alene er ikke bevis for gjennomført blokk. En aktiv plan uten tilknyttede økter forblir synlig i planlisten og kan avsluttes; den skal ikke få en oppdiktet fullført-oppsummering. Denne automatiske evalueringen er fortsatt design, ikke implementert i v176y2. Den planlagte oppsummeringen viser rolledekning, gjennomført volum mot rammene, brukerendringer og relevante kroppssignal/sikkerhetsavvik. Den skal ikke gi karakter eller automatisk foreslå ny belastning.
 
 Eksempel:
 
@@ -618,10 +620,10 @@ Hvis data mangler:
 
 ### 6.5 Redigering og sletting
 
-Før sletting vises plan, berørte fremtidige økter, eventuelle brukerendringer og snapshot av pågående mål. Ingen destruktiv handling skjules bak en generell «Slett».
+Før avslutning vises plan, berørte fremtidige økter, eventuelle brukerendringer og låst mål for pågående uke. Fullførte økter endres aldri. Alle fremtidige planøkter er forhåndsvalgt «Behold som løs økt»; hver økt kan i stedet fjernes eksplisitt. «Fjern alle uendrede» er en synlig snarvei som aldri velger brukerendrede økter. Planen og materialiserings-/angrehistorikken beholdes med status `cancelled`. Planlisten leser `trainingPlans`, ikke tilstedeværelsen av materialiserte kalenderøkter. Før skriving sammenlignes åpen ukes mål med serverbekreftet settings, økter og fryskort; transaksjonen kontrollerer dessuten planstatus, kalenderøktene og eventuelle eksisterende målsnapshots. Ingen destruktiv handling skjules bak en generell «Slett».
 
 > **Hva skal skje med 5 fremtidige planøkter?**  
-> 3 er uendret, 2 er redigert av deg. Redigerte økter er forhåndsvalgt beholdt som løse økter.
+> 3 er uendret, 2 er redigert av deg. Alle fem er forhåndsvalgt beholdt som løse økter. Du kan fjerne de uendrede med én uttrykkelig handling eller velge enkeltvis.
 
 ## 7. Testplan
 
@@ -705,6 +707,14 @@ Begge nye samlinger skal legges til `TRAINING_DATA_COLLECTIONS`, samlet app-stat
 - Recovery-snapshot tas før materialisering, diff-batch og plansletting.
 - Lokal/offline recovery kan vise data, men skal ikke materialisere før autentisert repository-synk er gjenopprettet.
 - Garmin-import påvirkes ikke direkte; nye fullførte økter kan bare utløse ny prospektiv validering.
+
+### 8.3 Skrivesperre ved bekreftelse og kjent restrisiko
+
+Før bekreftelseslisten vises, bygger `training-plan-controller.js` kalenderdiffen fra innlastet `planned` og `completed`. Ved selve bekreftelsen henter `training-plan-ui.js` modellen på nytt og kaller `prepareMaterialization()` på nytt; dersom dato, mal eller rolle er endret, må brukeren se den nye listen. `materialize()` kontrollerer skriveadgang og bygger kommandoen enda en gang fra gjeldende app-state før commit. En økt som logges eller planlegges på samme enhet etter at forhåndsvisningen eller bekreftelseslisten ble åpnet, inngår derfor i økttaket; ved overskridelse skrives ingenting. En stabilitetstest låser akkurat dette løpet.
+
+Dette er et vern mot foreldet **innlastet tilstand**, ikke en global transaksjonell ukesteller. Firestore-batchen skriver planen og de nye øktene atomisk, men leser ikke alle samtidige kalenderdokumenter transaksjonelt. En annen enhet eller fane kan legge inn en økt etter siste synk/revalidering og før batchen committes. Den restrisikoen må ikke omtales som løst av lokal revalidering; en absolutt fler-enhetsgrense krever senere serverkoordinert kontroll. Ingen slik kontroll er implementert i v176y1.
+
+Ved planavslutning i v176y2 leses ukens nødvendige comebackgrunnlag fra server ved bekreftelse. Transaksjonen låser mål, endrer planstatus og behandler bare eksplisitt listede fremtidige planøkter, med kontroll av hver økt mot bekreftelsesgrunnlaget. En annen enhet kan likevel logge en ny fullført økt mellom den serverbekreftede lesingen og transaksjonen; dette er ikke en global ukesteller. En slik sen økt endrer ikke allerede låst mål, mens faktisk gjennomføring fortsatt telles på sin dato. Dette er en kjent fler-enhetsrestrisiko, ikke en garanti om total samtidighetskontroll.
 
 ## 9. Implementeringsrunder
 

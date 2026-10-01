@@ -206,8 +206,8 @@ async function testAsync(name, fn) {
   });
 
   test('v176s2 keeps rare snapshot actions in the day modal and the week overview compact', () => {
-    assert.ok(app.includes("const APP_VERSION = 'v176y1'"));
-    assert.ok(serviceWorker.includes('treningsapp-v176y1'));
+    assert.ok(app.includes("const APP_VERSION = 'v176y2'"));
+    assert.ok(serviceWorker.includes('treningsapp-v176y2'));
     ['./domain-template-snapshot-update.js', './template-snapshot-update-ui.js']
       .forEach(file => assert.ok(serviceWorker.includes(file), `${file} is missing from APP_SHELL`));
     assert.ok(index.includes('id="templateSnapshotUpdateModal"'));
@@ -1604,6 +1604,170 @@ async function testAsync(name, fn) {
     await assert.rejects(controller.materialize({}, { today: '2026-08-17' }), /ikke tilgjengelig/);
     assert.strictEqual(JSON.stringify(state), before);
     assert.strictEqual(controller.writeAccess().allowed, false);
+  });
+
+  test('v176y2 an undone orphan plan remains visible and cancellation defaults to retaining every future workout', () => {
+    const plan = {
+      id: 'preview-1788116198890', name: 'Test', status: 'active', focus: 'base',
+      startDate: '2026-09-07', endDate: '2026-10-04', planRevision: 1, createdAt: '', updatedAt: '',
+      calibration: { metric: 'sessions', baselineValue: 136.8, excludedWeekCount: 2,
+        calculatedAt: '', userConfirmed: true },
+      materializations: [{ id: 'old', status: 'undone', planRevision: 1, createdPlannedIds: [] }]
+    };
+    const host = { dataset: {}, innerHTML: '', addEventListener: () => {} };
+    const originalDocument = global.document;
+    global.document = { getElementById: id => id === 'trainingPlanPreview' ? host : null };
+    try {
+      const ui = trainingPlanUi.createTrainingPlanUi({
+        getState: () => ({ trainingPlans: [plan], planned: [], completed: [] }),
+        controller: { preview: () => ({}), writeAccess: () => ({ allowed: true }) },
+        todayISO: () => '2026-10-01'
+      });
+      ui.render();
+      assert.ok(host.innerHTML.includes('preview-1788116198890'));
+      assert.ok(host.innerHTML.includes('Avslutt plan'));
+      assert.ok(!host.innerHTML.includes('automatisk fullført</strong>'));
+    } finally { global.document = originalDocument; }
+    const decision = { target: 2, normalTarget: 3, source: 'comeback',
+      reductions: { plan: { active: false }, comeback: { active: true, target: 2, phase: 'return_week' } } };
+    const orphan = trainingPlanController.buildTrainingPlanCancellationCommand({
+      plan, today: '2026-10-01', targetDecision: decision, now: '2026-10-01T12:00:00.000Z'
+    });
+    assert.strictEqual(orphan.operations.length, 0);
+    assert.strictEqual(orphan.plan.status, 'cancelled');
+    assert.strictEqual(orphan.plan.createdAt, '');
+    assert.strictEqual(orphan.plan.calibration.baselineValue, 136.8);
+    assert.strictEqual(orphan.targetLock.status, 'target_locked');
+    assert.strictEqual(orphan.targetLock.effectiveTarget, 2);
+    const future = [
+      { id: 'one', date: '2026-10-02', templateId: 'easy', templateSnapshot: { name: 'Easy Run' }, planRef: { planId: plan.id }, userModified: false },
+      { id: 'two', date: '2026-10-03', templateId: 'quality', templateSnapshot: { name: 'Quality' }, planRef: { planId: plan.id }, userModified: true }
+    ];
+    const retained = trainingPlanController.buildTrainingPlanCancellationCommand({
+      plan, plannedItems: future, completedItems: [{ id: 'done', planRef: { planId: plan.id } }],
+      today: '2026-10-01', targetDecision: decision
+    });
+    assert.deepStrictEqual(retained.operations.map(item => item.choice), ['keep', 'keep']);
+    assert.ok(retained.operations.every(item => !item.after.planRef));
+    assert.strictEqual(retained.completedCount, 1);
+    const shortcut = trainingPlanController.buildTrainingPlanCancellationCommand({
+      plan, plannedItems: future, today: '2026-10-01', targetDecision: decision,
+      choices: { one: 'remove' }
+    });
+    assert.deepStrictEqual(shortcut.operations.map(item => item.choice), ['remove', 'keep']);
+    assert.strictEqual(future[0].planRef.planId, plan.id, 'preview must not mutate the source');
+  });
+
+  test('v176y2 current-week target lock keeps the target while finalization still freezes protection at week close', () => {
+    const lock = periodizedPlan.normalizeWeeklyTargetSnapshot({
+      id: '2026-09-28', status: 'target_locked', normalTarget: 3, effectiveTarget: 2,
+      winningReason: 'comeback', lockedAt: '2026-10-01T12:00:00.000Z'
+    });
+    const during = periodizedPlan.effectiveWeeklyTargetForWeek({
+      weekStart: '2026-09-28', normalTarget: 3, snapshotEffectiveFrom: '2026-08-10', snapshots: [lock]
+    });
+    assert.strictEqual(during.target, 2);
+    assert.strictEqual(during.source, 'target_locked');
+    assert.strictEqual(periodizedPlan.freezeProtectionForWeek({
+      weekStart: '2026-09-28', currentWeekStart: '2026-09-28',
+      snapshotEffectiveFrom: '2026-08-10', snapshots: [lock], liveProtection: true
+    }), true);
+    assert.deepStrictEqual(periodizedPlan.missingWeeklyTargetSnapshotWeeks({
+      snapshotEffectiveFrom: '2026-09-28', currentWeekStart: '2026-10-05', snapshots: [lock]
+    }), ['2026-09-28']);
+    const final = periodizedPlan.buildWeeklyTargetSnapshot({
+      weekStart: '2026-09-28', normalTarget: 4, snapshotEffectiveFrom: '2026-08-10',
+      targetLock: lock, freezeProtection: { protected: true, freezeIds: ['sick'], coveredDays: 4, reasons: ['sick'] },
+      finalizedAt: '2026-10-05T08:00:00.000Z'
+    });
+    assert.strictEqual(final.status, 'final');
+    assert.strictEqual(final.normalTarget, 3);
+    assert.strictEqual(final.effectiveTarget, 2);
+    assert.strictEqual(final.freezeProtected, true);
+  });
+
+  await testAsync('v176y2 plan cancellation has a hard write gate', async () => {
+    let writes = 0;
+    const controller = trainingPlanController.createTrainingPlanController({
+      getState: () => ({ planned: [], completed: [] }),
+      canWrite: () => ({ allowed: false, reason: 'Ingen nettilgang.' }),
+      commitCancellation: async () => { writes += 1; }
+    });
+    await assert.rejects(controller.cancel({ id: 'old', status: 'active' }, { today: '2026-10-01' }), /Ingen nettilgang/);
+    assert.strictEqual(writes, 0);
+  });
+
+  await testAsync('v176y2 cancellation transaction retains completed and manual workouts and locks the week before ending the plan', async () => {
+    const base = 'users/user-1/';
+    const rawPlan = { id: 'old-test', name: 'Test', status: 'active', startDate: '2026-09-07',
+      endDate: '2026-10-04', planRevision: 1, updatedAt: '2026-09-01',
+      calibration: { metric: 'sessions', baselineValue: 136.8, calculatedAt: '', userConfirmed: true },
+      materializations: [{ id: 'prior', status: 'undone', planRevision: 1 }] };
+    const plan = periodizedPlan.normalizePeriodizedTrainingPlan(rawPlan);
+    const rawLinked = { id: 'linked', date: '2026-10-02', templateId: 'easy', legacyExtra: 'behold',
+      templateSnapshot: { name: 'Easy Run' }, planRef: { planId: plan.id, planRevision: 1 },
+      userModified: false, updatedAt: '2026-09-01' };
+    const linked = appStateDomain.normalizePlannedItems([rawLinked])[0];
+    const manual = { id: 'manual', date: '2026-10-02', templateId: 'quality' };
+    const done = { id: 'done', date: '2026-09-25', planRef: { planId: plan.id } };
+    const stored = new Map([
+      [`${base}trainingPlans/${plan.id}`, { ...rawPlan, id: undefined }],
+      [`${base}planned/${linked.id}`, { ...rawLinked, id: undefined }],
+      [`${base}planned/${manual.id}`, manual],
+      [`${base}completed/${done.id}`, done],
+      [`${base}settings/preferences`, { goals: { weeklySessionsTarget: 3 } }]
+    ]);
+    const firestore = {
+      doc: (...parts) => ({ key: parts.slice(1).join('/') }),
+      runTransaction: async (_db, callback) => {
+        const writes = [];
+        const result = await callback({
+          get: async ref => ({ exists: () => stored.has(ref.key), data: () => stored.get(ref.key) }),
+          set: (ref, data) => writes.push({ kind: 'set', ref, data }),
+          delete: ref => writes.push({ kind: 'delete', ref })
+        });
+        writes.forEach(item => item.kind === 'set' ? stored.set(item.ref.key, item.data) : stored.delete(item.ref.key));
+        return result;
+      }
+    };
+    const repository = createTrainingRepository({ db: {}, getCurrentUser: () => ({ uid: 'user-1' }),
+      firestore, normalizeState: appStateDomain.normalizeAppState, defaultSettings: () => ({}) });
+    const command = trainingPlanController.buildTrainingPlanCancellationCommand({
+      plan, plannedItems: [linked, manual], completedItems: [done], today: '2026-10-01',
+      targetDecision: { target: 2, normalTarget: 3, source: 'comeback',
+        reductions: { plan: { active: false }, comeback: { active: true, target: 2 } } },
+      now: '2026-10-01T12:00:00.000Z'
+    });
+    const result = await repository.cancelTrainingPlan(command);
+    assert.strictEqual(result.plan.status, 'cancelled');
+    assert.strictEqual(stored.get(`${base}trainingPlans/${plan.id}`).status, 'cancelled');
+    assert.strictEqual(stored.get(`${base}trainingPlans/${plan.id}`).calibration.calculatedAt, '');
+    assert.strictEqual(stored.get(`${base}trainingPlans/${plan.id}`).calibration.baselineValue, 136.8);
+    assert.strictEqual(stored.get(`${base}weeklyTargetSnapshots/2026-09-28`).status, 'target_locked');
+    assert.strictEqual(stored.get(`${base}weeklyTargetSnapshots/2026-09-28`).effectiveTarget, 2);
+    assert.strictEqual(stored.get(`${base}planned/${linked.id}`).planRef, undefined);
+    assert.strictEqual(stored.get(`${base}planned/${linked.id}`).legacyExtra, 'behold');
+    assert.deepStrictEqual(stored.get(`${base}planned/${manual.id}`), manual);
+    assert.deepStrictEqual(stored.get(`${base}completed/${done.id}`), done);
+    await assert.rejects(repository.cancelTrainingPlan(command), /endret siden bekreftelsen/);
+    const final = await repository.finalizeWeeklyTargetSnapshot({
+      id: '2026-09-28', status: 'final', normalTarget: 3, effectiveTarget: 3,
+      freezeProtected: true, freezeProtection: { freezeIds: ['sick'], coveredDays: 4 }
+    });
+    assert.strictEqual(final.snapshot.effectiveTarget, 2);
+    assert.strictEqual(final.snapshot.freezeProtected, true);
+    stored.set(`${base}trainingPlans/${plan.id}`, { ...rawPlan });
+    stored.set(`${base}planned/${linked.id}`, { ...rawLinked });
+    const removeCommand = trainingPlanController.buildTrainingPlanCancellationCommand({
+      plan, plannedItems: [linked, manual], completedItems: [done], today: '2026-10-01',
+      targetDecision: { target: 2, normalTarget: 3, source: 'snapshot',
+        reductions: { plan: { active: false }, comeback: { active: true, target: 2 } } },
+      choices: { linked: 'remove' }
+    });
+    await repository.cancelTrainingPlan(removeCommand);
+    assert.strictEqual(stored.has(`${base}planned/${linked.id}`), false);
+    assert.deepStrictEqual(stored.get(`${base}planned/${manual.id}`), manual);
+    assert.deepStrictEqual(stored.get(`${base}completed/${done.id}`), done);
   });
 
   test('v176w materializes only week one after exact confirmation and supports exact undo', async () => {
@@ -3728,8 +3892,8 @@ async function testAsync(name, fn) {
     assert.ok(workoutHistoryUiSource.includes('heartRateZoneDistributionRows'), 'history does not use production zone rows');
     assert.ok(workoutHistoryUiSource.includes('Tid i pulssoner'), 'completed detail is missing the heart-rate zone section');
     assert.ok(!workoutHistoryUiSource.includes("row.estimated ? 'ca. '"), 'zone duration should not be prefixed with ca.');
-    assert.ok(app.includes("const APP_VERSION = 'v176y1'"), 'visible app version must be v176y1');
-    assert.ok(serviceWorker.includes('treningsapp-v176y1'), 'cache version must match v176y1');
+    assert.ok(app.includes("const APP_VERSION = 'v176y2'"), 'visible app version must be v176y2');
+    assert.ok(serviceWorker.includes('treningsapp-v176y2'), 'cache version must match v176y2');
   });
 
   test('v174b evaluates easy and quality sessions without treating zone percentages as a hard truth', () => {
@@ -3824,8 +3988,8 @@ async function testAsync(name, fn) {
     assert.ok(index.includes('id="insightHeartRateComplianceCard"'), 'Insights is missing the compliance card');
     assert.ok(app.includes('heartRateZoneComplianceForItems(last28Days)'), 'coach context does not use the canonical compliance summary');
     assert.ok(app.includes('renderHeartRateZoneComplianceInsight(today)'), 'Insights does not render canonical compliance');
-    assert.ok(app.includes("const APP_VERSION = 'v176y1'"), 'visible app version must be v176y1');
-    assert.ok(serviceWorker.includes('treningsapp-v176y1'), 'cache version must match v176y1');
+    assert.ok(app.includes("const APP_VERSION = 'v176y2'"), 'visible app version must be v176y2');
+    assert.ok(serviceWorker.includes('treningsapp-v176y2'), 'cache version must match v176y2');
   });
 
   test('v174c uses the test profile for zones and keeps the golden zone as a separate coach reference', () => {
@@ -4533,8 +4697,8 @@ async function testAsync(name, fn) {
     assert.ok(trainingImportControllerSource.includes("action: duplicate ? 'skip'"), 'duplicates should be skipped by default');
     assert.ok(!trainingImportControllerSource.includes('heartRateZoneDistribution'), 'controller must not synthesize pulse zones');
     assert.ok(styles.includes('.garmin-import-row'), 'Garmin preview styling is missing');
-    assert.ok(app.includes("const APP_VERSION = 'v176y1'"));
-    assert.ok(serviceWorker.includes('treningsapp-v176y1'));
+    assert.ok(app.includes("const APP_VERSION = 'v176y2'"));
+    assert.ok(serviceWorker.includes('treningsapp-v176y2'));
   });
 
   test('structured interval UI fields and summaries are wired into production files', () => {
@@ -5182,6 +5346,37 @@ async function testAsync(name, fn) {
     assert.strictEqual(unknownDuration.plan.canMaterialize, false);
     assert.strictEqual(unknownDuration.validations[0].validationStatus, 'insufficient_data');
     assert.ok(trainingPlanUiSource.includes('Minuttrammen kan ikke beregnes'));
+  });
+
+  await testAsync('v176y1 materialization rechecks a newly logged workout after confirmation opens', async () => {
+    const templates = [{ id: 'easy', name: 'Easy Run', role: 'easy', intensity: 'Rolig', type: 'Løping' }];
+    const plan = {
+      id: 'return-recheck', status: 'draft', focus: 'base', startDate: '2026-10-05', planRevision: 1,
+      calibration: { metric: 'sessions', baselineValue: 2, normalBaselineValue: 0, userConfirmed: true },
+      weeks: [
+        { planningState: 'controlled_return', targetMin: 2, targetMax: 2, effectiveWeeklyTarget: 2, slotCap: 2,
+          slots: [{ slotId: 'w1-s1', preferredDay: 2, role: 'easy', templateId: 'easy' },
+            { slotId: 'w1-s2', preferredDay: 4, role: 'easy', templateId: 'easy' }] },
+        { slots: [] }, { slots: [] }, { slots: [] }
+      ]
+    };
+    const live = { planned: [], completed: [], templates };
+    const commits = [];
+    const controller = trainingPlanController.createTrainingPlanController({
+      getState: () => live,
+      canWrite: () => ({ allowed: true }),
+      now: () => '2026-10-05T12:00:00.000Z',
+      commitMaterialization: async command => { commits.push(command); }
+    });
+    const prepared = controller.prepareMaterialization(plan, { today: '2026-10-05' });
+    assert.strictEqual(prepared.plannedItems.length, 2);
+    live.completed.push({ id: 'newly-logged', date: '2026-10-05', durationSeconds: 1800 });
+    await assert.rejects(controller.materialize(plan, {
+      today: '2026-10-05', materializationId: prepared.id, preparedAt: prepared.record.createdAt
+    }), /ikke klar/);
+    assert.strictEqual(commits.length, 0);
+    assert.ok(trainingPlanUiSource.includes('const refreshed = controller.prepareMaterialization(model.plan,'),
+      'the confirmation button must also rebuild the current diff before writing');
   });
 
   test('v176y automatic advice exits through the shared policy boundary', () => {

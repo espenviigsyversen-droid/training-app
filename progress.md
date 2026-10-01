@@ -1,5 +1,13 @@
 # Treningsapp — progress.md
-Oppdatert: 2026-09-30 (siste runtime-endring: v176y1)
+Oppdatert: 2026-10-01 (siste runtime-endring: v176y2)
+
+---
+
+## v176y2 – synlig planliste og trygg avslutning
+
+**Implementert i runtime:** Planlisten leser alle `trainingPlans` uavhengig av om materialiseringen er angret. En aktiv plan med passert sluttdato merkes som ikke automatisk fullført og kan avsluttes. Bekreftelsen lister alle tilknyttede fremtidige økter; standarden er å beholde hver som løs økt, med individuelt fjernvalg og en snarvei for uendrede. Fullførte og manuelle økter berøres ikke. Før status `cancelled` settes, låses pågående ukes mål atomisk i `weeklyTargetSnapshots` som `target_locked`; vanlig ukesferdigstilling bevarer målet og fryser fryskortvernet først etter ukeskiftet. Serverbekreftet grunnlag kontrolleres ved bekreftelsen, recovery-kopi tas før skriving, og repository-transaksjonen avviser endret plan, endrede planøkter eller endret ordinært ukesmål. `APP_VERSION` og `CACHE_NAME` er v176y2.
+
+**Bare beskrevet i design / ikke implementert:** Historisk rekalibrering, datert opprettelsesport, nøytrale progresjonstitler, UI-runden B/D/E og C-dokumentasjonen venter. Passert sluttdato fullfører ikke planer automatisk i runtime; fullført-oppsummering er fortsatt ikke bygget.
 
 ---
 

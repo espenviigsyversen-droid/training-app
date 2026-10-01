@@ -181,6 +181,10 @@
   font-size: 0.82rem;
 }
 
+.training-plan-cancel-list { display: grid; gap: 10px; margin: 14px 0; }
+.training-plan-cancel-list label { display: grid; grid-template-columns: minmax(0, 1fr) minmax(165px, 0.8fr); gap: 10px; align-items: center; }
+.training-plan-cancel-list select { width: 100%; min-width: 0; }
+
 .training-plan-role-row {
   display: grid;
   grid-template-columns: minmax(80px, 0.45fr) minmax(150px, 0.9fr) minmax(180px, 1.2fr);
@@ -365,6 +369,10 @@
     align-items: stretch;
     flex-direction: column;
   }
+
+  .training-plan-cancel-list label { grid-template-columns: 1fr; }
+  .training-plan-saved .button-row,
+  .training-plan-materialization-confirm .button-row { display: grid; grid-template-columns: 1fr; }
 }
 
 /* v176l: Form ved samme innsats */

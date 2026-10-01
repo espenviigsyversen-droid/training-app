@@ -1,4 +1,4 @@
-import { normalizePeriodizedTrainingPlan } from './domain-periodized-training-plan.js';
+import { normalizePeriodizedTrainingPlan, normalizeWeeklyTargetSnapshot } from './domain-periodized-training-plan.js';
 import { capturePlanPrescription, normalizePlanChangeTracking } from './domain-template-snapshot-update.js';
 
 const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
@@ -529,6 +529,56 @@ export function buildUndoMaterializationCommand(planInput = {}, materializationI
   };
 }
 
+export function buildTrainingPlanCancellationCommand({
+  plan: planInput = {}, plannedItems = [], completedItems = [], today = '',
+  targetDecision = null, choices = {}, now = new Date().toISOString()
+} = {}) {
+  const plan = normalizePeriodizedTrainingPlan(planInput);
+  const currentDate = validIsoDate(today);
+  if (!plan.id || plan.status !== 'active' || !currentDate) {
+    throw new Error('Bare en aktiv plan kan avsluttes, og dagens dato må være gyldig.');
+  }
+  const currentWeekStart = isoWeekStart(currentDate);
+  const intersectsCurrentWeek = plan.startDate <= addIsoDays(currentWeekStart, 6)
+    && plan.endDate >= currentWeekStart;
+  if (intersectsCurrentWeek && !targetDecision) {
+    throw new Error('Ukens mål må være kjent før planen kan avsluttes.');
+  }
+  const linkedFuture = (Array.isArray(plannedItems) ? plannedItems : [])
+    .filter(item => String(item?.planRef?.planId || '') === plan.id && validIsoDate(item.date) >= currentDate)
+    .sort((a, b) => String(a.date).localeCompare(String(b.date)) || String(a.id).localeCompare(String(b.id)));
+  const operations = linkedFuture.map(item => {
+    const choice = choices[item.id] === 'remove' ? 'remove' : 'keep';
+    const detached = cloneValue(item);
+    delete detached.planRef;
+    return { id: item.id, date: item.date, name: item.templateSnapshot?.name || 'Planøkt',
+      userModified: Boolean(item.userModified),
+      scheduleAdjusted: Boolean(item.scheduleAdjustment),
+      metadataRevised: Boolean(item.metadataRevision),
+      choice, before: cloneValue(item), after: choice === 'keep' ? detached : null };
+  });
+  const targetLock = intersectsCurrentWeek && targetDecision?.source !== 'snapshot'
+    ? normalizeWeeklyTargetSnapshot({
+      id: currentWeekStart, weekStart: currentWeekStart, weekEnd: addIsoDays(currentWeekStart, 6),
+      status: 'target_locked', normalTarget: targetDecision.normalTarget,
+      effectiveTarget: targetDecision.target, reductions: targetDecision.reductions,
+      winningReason: ['normal', 'deload', 'comeback', 'plan_and_comeback'].includes(targetDecision.source)
+        ? targetDecision.source : targetDecision.snapshot?.winningReason || 'normal',
+      lockedAt: now
+    }) : null;
+  const cancelledPlan = {
+    ...cloneValue(planInput), status: 'cancelled', cancelledAt: now, updatedAt: now
+  };
+  return {
+    type: 'cancel_training_plan', planId: plan.id, planRevision: plan.planRevision,
+    expectedPlan: cloneValue(planInput), plan: cancelledPlan, targetLock, operations,
+    completedCount: (Array.isArray(completedItems) ? completedItems : [])
+      .filter(item => String(item?.planRef?.planId || '') === plan.id).length,
+    currentWeekTarget: intersectsCurrentWeek ? targetDecision.target : null,
+    currentWeekStart: intersectsCurrentWeek ? currentWeekStart : ''
+  };
+}
+
 export function createTrainingPlanController({
   getState,
   getRules = () => undefined,
@@ -537,7 +587,9 @@ export function createTrainingPlanController({
   buildTemplateSnapshot,
   canWrite = () => ({ allowed: false, reason: 'Kalenderlagring er ikke tilgjengelig.' }),
   commitMaterialization,
-  commitUndo
+  commitUndo,
+  commitCancellation,
+  getWeeklyTargetDecision
 } = {}) {
   if (typeof getState !== 'function') throw new Error('Training plan controller requires getState');
   return {
@@ -588,6 +640,25 @@ export function createTrainingPlanController({
       if (typeof commitUndo !== 'function') throw new Error('Skrivekobling for angre mangler.');
       const command = this.prepareUndo(plan, materializationId, options);
       await commitUndo(command);
+      return command;
+    },
+    prepareCancellation(plan, { today, choices = {}, cancelledAt = now() } = {}) {
+      const state = getState() || {};
+      const weekStart = isoWeekStart(today);
+      const intersects = plan?.startDate <= addIsoDays(weekStart, 6) && plan?.endDate >= weekStart;
+      const decision = intersects && typeof getWeeklyTargetDecision === 'function'
+        ? getWeeklyTargetDecision(weekStart, plan) : null;
+      return buildTrainingPlanCancellationCommand({
+        plan, plannedItems: state.planned, completedItems: state.completed,
+        today, targetDecision: decision, choices, now: cancelledAt
+      });
+    },
+    async cancel(plan, options = {}) {
+      const access = this.writeAccess();
+      if (!access.allowed) throw new Error(access.reason || 'Planen kan ikke avsluttes nå.');
+      if (typeof commitCancellation !== 'function') throw new Error('Avslutning av planen er ikke tilgjengelig.');
+      const command = this.prepareCancellation(plan, options);
+      await commitCancellation(command);
       return command;
     }
   };

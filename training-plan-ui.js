@@ -265,6 +265,8 @@ export function createTrainingPlanUi({
     draft: null,
     confirmation: null,
     undoConfirmation: null,
+    cancelConfirmation: null,
+    cancelChoices: {},
     busy: false,
     success: ''
   };
@@ -625,6 +627,50 @@ export function createTrainingPlanUi({
           local.success = '';
         }
       }
+      if (action === 'prepare-cancel') {
+        try {
+          const planId = event.target.closest('[data-plan-id]')?.dataset.planId || '';
+          const plan = (getState()?.trainingPlans || []).find(item => item.id === planId);
+          local.cancelChoices = {};
+          local.cancelConfirmation = controller.prepareCancellation(plan, { today: todayISO() });
+          local.error = '';
+        } catch (error) { local.error = error?.message || 'Kunne ikke forberede planavslutningen.'; }
+      }
+      if (action === 'cancel-plan-cancellation') local.cancelConfirmation = null;
+      if (action === 'remove-unchanged' && local.cancelConfirmation) {
+        local.cancelConfirmation.operations.forEach(item => {
+          if (!item.userModified && !item.scheduleAdjusted && !item.metadataRevised) local.cancelChoices[item.id] = 'remove';
+        });
+        const plan = (getState()?.trainingPlans || []).find(item => item.id === local.cancelConfirmation.planId);
+        local.cancelConfirmation = controller.prepareCancellation(plan, {
+          today: todayISO(), choices: local.cancelChoices, cancelledAt: local.cancelConfirmation.plan.cancelledAt
+        });
+      }
+      if (action === 'confirm-cancel' && local.cancelConfirmation && !local.busy) {
+        local.busy = true; local.error = ''; render();
+        try {
+          const plan = (getState()?.trainingPlans || []).find(item => item.id === local.cancelConfirmation.planId);
+          const options = { today: todayISO(), choices: local.cancelChoices,
+            cancelledAt: local.cancelConfirmation.plan.cancelledAt };
+          const refreshed = controller.prepareCancellation(plan, options);
+          const key = command => JSON.stringify({
+            weekTarget: command.currentWeekTarget,
+            weekStart: command.currentWeekStart,
+            normalTarget: command.targetLock?.normalTarget,
+            reductions: command.targetLock?.reductions,
+            planUpdatedAt: command.expectedPlan?.updatedAt,
+            operations: command.operations.map(item => [item.id, item.date, item.name, item.choice])
+          });
+          if (key(refreshed) !== key(local.cancelConfirmation)) {
+            local.cancelConfirmation = null;
+            throw new Error('Planen eller kalenderen er endret. Se gjennom konsekvensene på nytt før du avslutter.');
+          }
+          const result = await controller.cancel(plan, options);
+          local.cancelConfirmation = null;
+          local.success = `${result.plan.name} er avsluttet. Fullførte økter er beholdt.`;
+        } catch (error) { local.error = error?.message || 'Planen ble ikke avsluttet. Last inn data på nytt og prøv igjen.'; }
+        finally { local.busy = false; }
+      }
       if (action === 'close') { local.open = false; local.error = ''; }
       if (action === 'back') { local.step = Math.max(1, local.step - 1); local.error = ''; }
       if (action === 'restart') { local.draft = initialDraft(); local.choices = {}; local.confirmation = null; local.undoConfirmation = null; local.success = ''; local.step = 1; local.error = ''; }
@@ -741,6 +787,15 @@ export function createTrainingPlanUi({
         const slotId = event.target.dataset.planConflictDate;
         local.choices[slotId] = { ...(local.choices[slotId] || {}), date: event.target.value };
       }
+      if (event.target.dataset.planCancelChoice) {
+        const id = event.target.dataset.planCancelChoice;
+        local.cancelChoices[id] = event.target.value;
+        const plan = (getState()?.trainingPlans || []).find(item => item.id === local.cancelConfirmation?.planId);
+        if (plan) local.cancelConfirmation = controller.prepareCancellation(plan, {
+          today: todayISO(), choices: local.cancelChoices,
+          cancelledAt: local.cancelConfirmation.plan.cancelledAt
+        });
+      }
       render();
     });
   }
@@ -750,9 +805,29 @@ export function createTrainingPlanUi({
     if (!container) return;
     bind(container);
     if (!local.open) {
-      const activePlans = (getState()?.trainingPlans || []).filter(plan => (plan.materializations || []).some(item => item.status === 'applied'));
+      const savedPlans = [...(getState()?.trainingPlans || [])]
+        .sort((a, b) => String(b.startDate || '').localeCompare(String(a.startDate || '')));
+      const access = typeof controller.writeAccess === 'function' ? controller.writeAccess() : { allowed: false };
+      const cancellation = local.cancelConfirmation;
       container.innerHTML = `<div class="training-plan-entry"><div><h2 class="section-title">Fireukersblokk</h2><p>Forhåndsvis fire uker, og legg bare blokkens første uke i kalenderen etter eksplisitt bekreftelse.</p></div><button class="btn-primary" data-plan-action="open">Lag forhåndsvisning</button></div>
-        ${activePlans.map(plan => `<div class="training-plan-saved"><div><strong>${escapeHtml(plan.name)}</strong><span>Uke 1 lagt i kalenderen · ${escapeHtml(formatDate(plan.startDate))}</span></div><button class="btn-soft" data-plan-action="open-materialized-plan" data-plan-id="${escapeHtml(plan.id)}">Se eller fjern</button></div>`).join('')}`;
+        ${local.error ? `<div class="error-box">${escapeHtml(local.error)}</div>` : ''}
+        ${local.success ? `<div class="success-box">${escapeHtml(local.success)}</div>` : ''}
+        ${savedPlans.map(plan => {
+          const active = plan.status === 'active';
+          const applied = (plan.materializations || []).some(item => item.status === 'applied');
+          const status = active ? (plan.endDate < todayISO() ? 'Sluttdato passert · ikke automatisk fullført' : 'Aktiv plan')
+            : plan.status === 'cancelled' ? 'Avsluttet' : plan.status === 'completed' ? 'Fullført' : 'Utkast';
+          return `<div class="training-plan-saved"><div><strong>${escapeHtml(plan.name)}</strong><span>${escapeHtml(status)} · ${escapeHtml(formatDate(plan.startDate))}–${escapeHtml(formatDate(plan.endDate))}</span></div><div class="button-row">${active && applied ? `<button class="btn-soft" data-plan-action="open-materialized-plan" data-plan-id="${escapeHtml(plan.id)}">Se økter</button>` : ''}${active ? `<button class="btn-soft" data-plan-action="prepare-cancel" data-plan-id="${escapeHtml(plan.id)}"${!access.allowed || local.busy ? ' disabled' : ''}>Avslutt plan</button>` : ''}</div></div>`;
+        }).join('')}
+        ${cancellation ? `<section class="training-plan-materialization-confirm warning" role="alert">
+          <strong>Avslutt ${escapeHtml(cancellation.plan.name)}?</strong>
+          <p>Planen beholdes i historikken med status Avsluttet. ${escapeHtml(cancellation.completedCount)} fullførte planøkter endres ikke.</p>
+          ${cancellation.currentWeekStart ? `<p>Ukas mål fryses til <strong>${escapeHtml(cancellation.currentWeekTarget)} økt${cancellation.currentWeekTarget === 1 ? '' : 'er'}</strong> før planen avsluttes.</p>` : ''}
+          ${cancellation.operations.length ? `<p>Fremtidige planøkter beholdes som løse økter som standard. Du kan velge å fjerne dem enkeltvis.</p>
+            <div class="training-plan-cancel-list">${cancellation.operations.map(item => `<label><span><strong>${escapeHtml(formatDate(item.date))}</strong> · ${escapeHtml(item.name)}</span><select data-plan-cancel-choice="${escapeHtml(item.id)}"><option value="keep"${item.choice === 'keep' ? ' selected' : ''}>Behold som løs økt</option><option value="remove"${item.choice === 'remove' ? ' selected' : ''}>Fjern denne økten</option></select></label>`).join('')}</div>
+            <button class="btn-soft" data-plan-action="remove-unchanged">Fjern alle uendrede</button>` : '<p>Ingen fremtidige planøkter er knyttet til planen. Ingenting fjernes fra kalenderen.</p>'}
+          <div class="button-row"><button class="btn-primary" data-plan-action="confirm-cancel"${local.busy ? ' disabled' : ''}>${local.busy ? 'Avslutter…' : 'Bekreft og avslutt plan'}</button><button class="btn-soft" data-plan-action="cancel-plan-cancellation"${local.busy ? ' disabled' : ''}>Behold planen</button></div>
+        </section>` : ''}`;
       return;
     }
     const model = currentModel();
